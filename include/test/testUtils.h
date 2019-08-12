@@ -16,6 +16,10 @@
 #include "TreeNode.h"
 #include "treenode2vtk.h"
 #include <climits>
+#include <math.h>
+#include <block.h>
+#include <functional>
+
 
 #ifdef DIM_2
 #define NUM_CHILDREN 4
@@ -47,8 +51,21 @@ namespace seq {
       bool isSorted_all_pairs(const std::vector<T > & nodes);
 
 
-    template<typename T>
+      template<typename T>
       bool isSorted(T * nodes, unsigned int sz);
+
+      /**@brief checks whether the numeric array constains nan values. */
+      template<typename T>
+      bool isNAN(const T * in, const unsigned int sz);
+
+      /**@brief checks whether the numeric array constains nan values. for block local region */
+      template<typename T>
+      bool isBlockNAN(const T * in, const unsigned int* sz);
+
+      /**@brief checks whether the numeric array constains nan values. for block local region */
+      template<typename T>
+      bool isBlockNAN(const T * in, const unsigned int* sz,unsigned int flag);
+
 
     /**
       @fn
@@ -151,6 +168,12 @@ namespace ot {
      * */
     template<typename T,typename B>
     bool isBlockListValid(const std::vector<T>& pNodes, std::vector<T> & blockList,unsigned int d_min, unsigned int d_max,unsigned int nBegin,unsigned int nEnd);
+
+
+
+ 
+
+
 
 
   }//end namespace

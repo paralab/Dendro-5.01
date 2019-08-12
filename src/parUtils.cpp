@@ -58,6 +58,9 @@ namespace par {
 
     MPI_Comm_create(orig_comm, new_group, new_comm);
 
+    MPI_Group_free(&orig_group);
+    MPI_Group_free(&new_group);
+
     delete [] ranksAsc;
     ranksAsc = NULL;
     
@@ -106,6 +109,11 @@ namespace par {
     }
 
     MPI_Comm_create(orig_comm, new_group, new_comm);
+
+
+    MPI_Group_free(&orig_group);
+    MPI_Group_free(&new_group);
+
 
     delete [] ranksAsc;
     ranksAsc = NULL;
@@ -170,6 +178,9 @@ namespace par {
     /* Create new communicator */
     MPI_Comm_create(comm, new_group, new_comm);
 
+    MPI_Group_free(&orig_group);
+    MPI_Group_free(&new_group);
+
     delete [] ranksActive;
     ranksActive = NULL;
     
@@ -215,6 +226,9 @@ namespace par {
 
     /* Create new communicator */
     MPI_Comm_create(comm, new_group, new_comm);
+
+    MPI_Group_free(&orig_group);
+    MPI_Group_free(&new_group);
 
     delete [] ranksActive;
     ranksActive = NULL;
@@ -269,6 +283,10 @@ namespace par {
 
     /* Create new communicator */
     MPI_Comm_create(comm, new_group, new_comm);
+
+    MPI_Group_free(&orig_group);
+    MPI_Group_free(&new_group);
+
 
     delete [] ranksActive;
     ranksActive = NULL;

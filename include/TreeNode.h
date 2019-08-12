@@ -17,88 +17,13 @@ static unsigned int MAX_LEVEL=31;
 //#define m_uiMaxDepth 30
 extern unsigned int m_uiMaxDepth;
 
-/**
- * Following are the flags that used to mark treeNodes when generating keys and mesh generation.
- * all these flags are stored in m_uiLevel since we know that, we need only 4 bits to store the level of the octree.
- *
- * bit -0 to bit -4 : level of the octant
- * bit -5 to 13 : are the Key flags.
- * bit -14 to 15: index of the
- *
- *
- *
- * */
-#define OCT_FOUND 32
-#define OCT_KEY_NONE 64
-#define OCT_KEY_SPLITTER  128
-#define OCT_KEY_UP  256
-#define OCT_KEY_DOWN  512
-#define OCT_KEY_FRONT  1024
-#define OCT_KEY_BACK  2048
-#define OCT_KEY_LEFT  4096
-#define OCT_KEY_RIGHT  8192
-
-/**
- *
- * Note: Don't change that below numbering for key direction. With the following numbering you can always get the opposite direction performing XOR with 1.
- * Example OCT_DIR_LEFT= 1 XOR OCT_DIR_RIGHT
- *
- * */
-
-#define OCT_DIR_LEFT 0
-#define OCT_DIR_RIGHT 1
-#define OCT_DIR_DOWN 2
-#define OCT_DIR_UP 3
-#define OCT_DIR_BACK 4
-#define OCT_DIR_FRONT 5
-
-#define OCT_DIR_LEFT_DOWN 6
-#define OCT_DIR_LEFT_UP 7
-#define OCT_DIR_LEFT_BACK 8
-#define OCT_DIR_LEFT_FRONT 9
-
-
-#define OCT_DIR_RIGHT_DOWN 10
-#define OCT_DIR_RIGHT_UP 11
-#define OCT_DIR_RIGHT_BACK 12
-#define OCT_DIR_RIGHT_FRONT 13
-
-#define OCT_DIR_DOWN_BACK 14
-#define OCT_DIR_DOWN_FRONT 15
-
-
-#define OCT_DIR_UP_BACK 16
-#define OCT_DIR_UP_FRONT 17
-
-#define OCT_DIR_LEFT_DOWN_BACK 18
-#define OCT_DIR_RIGHT_DOWN_BACK 19
-#define OCT_DIR_LEFT_UP_BACK 20
-#define OCT_DIR_RIGHT_UP_BACK 21
-#define OCT_DIR_LEFT_DOWN_FRONT 22
-#define OCT_DIR_RIGHT_DOWN_FRONT 23
-#define OCT_DIR_LEFT_UP_FRONT 24
-#define OCT_DIR_RIGHT_UP_FRONT 25
-#define OCT_DIR_INTERNAL 26
-
-#define OCT_DIR_TOTAL 27
-
-
-#define MAXDEAPTH_LEVEL_DIFF 1 // difference between maxdepth and the level when constructing and balancing octrees. Used to ensure higher order mesh generation get proper octants sizes divisible by m_uiElementOrder.
-
-
-#define NUM_LEVEL_BITS 5u
-
-#ifdef DIM_2
-#define m_uiDim 2
-#else
-#define m_uiDim 3
-#endif
 
 #include "hcurvedata.h"
 #include "binUtils.h"
 #include "mpi.h"
 #include "point.h"
 #include <algorithm>
+#include "dendro.h"
 
 
 namespace ot {

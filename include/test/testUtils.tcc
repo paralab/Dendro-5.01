@@ -60,6 +60,57 @@ namespace seq {
         return true;
       }
 
+
+      template<typename T>
+      bool isNAN(const T * in, const unsigned int sz)
+      {
+          for(unsigned int i=0;i<sz;i++)
+              if(std::isnan(in[i]))
+                  return true;
+
+          return false;
+
+      }
+
+
+      template<typename T>
+      bool isBlockNAN(const T * in,const unsigned int* sz)
+      {
+          for(unsigned int k=3;k<sz[2]-3;k++)
+              for(unsigned int j=3;j<sz[1]-3;j++)
+                 for(unsigned int i=3;i<sz[0]-3;i++)
+                     if(std::isnan(in[sz[0]*sz[1]*k+j*sz[0]+i]))
+                         return true;
+
+          return false;
+
+
+      }
+
+
+      template<typename T>
+      bool isBlockNAN(const T * in, const unsigned int* sz,unsigned int flag)
+      {
+
+          if(flag==0)
+          { // implies this is an internal block.
+              for(unsigned int k=0;k<sz[2];k++)
+                  for(unsigned int j=0;j<sz[1];j++)
+                      for(unsigned int i=0;i<sz[0];i++)
+                          if(std::isnan(in[sz[0]*sz[1]*k+j*sz[0]+i]))
+                              return true;
+
+              return false;
+
+          }else
+          {
+              return isBlockNAN(in,sz);
+          }
+
+      }
+
+
+
     template <typename T>
       bool isUniqueAndSorted(const std::vector<T > & nodes) {
         for (unsigned int i = 1; i < nodes.size(); i++) {
@@ -392,7 +443,7 @@ namespace test {
             MPI_Wait(&request, &statusWait);
           }
         }//end if nodes not empty
-
+        MPI_Comm_free(&new_comm);
         bool anyProcFailed;
         par::Mpi_Allreduce<bool>(&failedParCheck, &anyProcFailed, 1,
                                  par::Mpi_datatype<bool>::LOR(), comm);
@@ -451,7 +502,7 @@ namespace test {
             MPI_Wait(&request, &statusWait);
           }
         }//end if nodes not empty
-
+        MPI_Comm_free(&new_comm);
         bool anyProcFailed;
         par::Mpi_Allreduce<bool>(&failedParCheck, &anyProcFailed, 1,
             par::Mpi_datatype<bool>::LOR(), comm);
@@ -511,7 +562,7 @@ namespace test {
             MPI_Wait(&request, &statusWait);
           }
         }//end if nodes not empty
-
+        MPI_Comm_free(&new_comm);
         bool anyProcFailed;
         par::Mpi_Allreduce<bool>(&failedParCheck, &anyProcFailed, 1,
                                  par::Mpi_datatype<bool>::LOR(), comm);
@@ -1467,6 +1518,8 @@ namespace ot
 
 
         }
+
+
 
 
     } //end namespace test

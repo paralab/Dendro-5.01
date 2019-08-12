@@ -569,7 +569,7 @@ namespace SFC {
 
                     // Note: This is executed only once. In the final stage of the recursion.
                     // Do the remove duplicates here.
-                    if (n >= 2) {
+                    if (n >= 1) {
                         std::vector<T> tmp(n);
                         T *tmpPtr = (&(*(tmp.begin())));
 
@@ -952,14 +952,18 @@ namespace SFC
             MPI_Comm_rank(comm, &rank);
             MPI_Comm_size(comm, &npes);
 
-#pragma message ("Splitter selection FIX ON")
+
+
+//#pragma message ("Splitter selection FIX ON")
 
             if (npes > NUM_NPES_THRESHOLD) {
 
                 unsigned int npes_sqrt = 1u << (binOp::fastLog2(npes) / 2);
 
-                unsigned int a =sf_k;
-                unsigned int b = npes / a;  // Note: @milinda @hari Swap a, b if you have and scalability issue in the Splitter fix timing.
+                const unsigned int a=sf_k;
+                const unsigned int b=npes/a;
+                const unsigned int p_mod_a=npes%a;
+
 
                 unsigned int dim = 3;
 #ifdef DIM_2
@@ -968,11 +972,9 @@ namespace SFC
                 dim = 3;
 #endif
 
-
                 unsigned int firstSplitLevel = std::ceil(binOp::fastLog2(a) / (double) dim);
                 unsigned int totalNumBuckets = 1u << (dim * firstSplitLevel);
 
-                //if(!rank) std::cout<<"Rank: "<<rank<<" totalNum Buckets: "<<totalNumBuckets<<std::endl;
 
                 DendroIntL localSz = pNodes.size();
                 DendroIntL globalSz = 0;
@@ -1037,6 +1039,9 @@ namespace SFC
 
 
                 }
+
+                /*MPI_Barrier(MPI_COMM_WORLD);
+                if(!rank)std::cout<<" intial buckets created: "<<std::endl;*/
 
                 std::vector<DendroIntL> bucketCounts_g(bucketCounts.size());
                 std::vector<DendroIntL> bucketCounts_gScan(bucketCounts.size());
@@ -1357,28 +1362,108 @@ namespace SFC
                 }
 #endif
 
-                unsigned int col =(rank%b);
-                MPI_Comm comm_all2all;
-                MPI_Comm_split(comm,col,rank,&comm_all2all);
+
+                std::vector<unsigned int> blockCounts;
+                blockCounts.resize(a,b);
+
+                for(unsigned int k=0;k<p_mod_a;k++)
+                    blockCounts[k]=(b+1);
+
+
+
+
+                std::vector<unsigned int > blockOffset;
+                blockOffset.resize(a,0);
+
+                blockOffset[0]=0;
+                omp_par::scan(&(*(blockCounts.begin())),&(*(blockOffset.begin())),a);
+
+
+
+                // compute the block ids.
+                unsigned int blk_id;
+                for(unsigned int k=0;k<a;k++)
+                {
+                    if( (rank>=blockOffset[k]) && rank<(blockOffset[k]+blockCounts[k]))
+                    {
+                        (blockOffset[k]!=0) ? blk_id=rank%blockOffset[k] : blk_id=rank;
+                    }
+                }
+
+               /* if(!rank)
+                    for(unsigned int k=0;k<a;k++)
+                        std::cout<<" bck count: "<<k<<" val: "<<blockCounts[k]<<" offsets: "<<blockOffset[k]<<std::endl;*/
+
+
+                //std::cout<<"rank: "<<rank<<" block_id: "<<blk_id<<std::endl;
+
 
                 unsigned int *sendCnt = new unsigned int[a];
-                /*#pragma omp parallel for
-                for (int i = 0; i < a; i++)
-                    sendCnt[i] = 0;*/
+                unsigned int owner_blk=0;
+                (rank<(b+1)*p_mod_a) ? owner_blk=rank/(b+1) : owner_blk =(((rank-(b+1)*p_mod_a)/b) + p_mod_a);
 
-                unsigned int sendCnt_grain = 0;
+                //std::cout<<" rank: "<<rank<<" owner_blk: "<<owner_blk<<std::endl;
 
-                MPI_Comm_rank(comm_all2all,&rank);
+                sendCnt[0] = localSplitterTmp[0];
+                for (unsigned int i = 1; i < a; i++)
+                {
+                    assert(localSplitterTmp[i]>=localSplitterTmp[i-1]);
+                    sendCnt[i]= (localSplitterTmp[i] - localSplitterTmp[i - 1]);
+                }
 
 
-                for (unsigned int i = 0; i < a; i++) {
+                // computed a-splitters.
 
-                    //sendCnt[i]=0;
-                    (i > 0) ? sendCnt_grain = (localSplitterTmp[i] - localSplitterTmp[i - 1])
-                            : sendCnt_grain = localSplitterTmp[0];
-                    sendCnt[i] = sendCnt_grain;
+                std::vector<unsigned int> send_count;
+                std::vector<unsigned int> send_offset;
+                std::vector<unsigned int> recv_count;
+                std::vector<unsigned int> recv_offset;
+
+                send_count.resize(npes,0);
+                send_offset.resize(npes,0);
+                recv_count.resize(npes,0);
+                recv_offset.resize(npes,0);
+
+                /*if(rank==4)
+                    for(unsigned int p=0;p<a;p++)
+                        std::cout<<" sendCnt["<<p<<" ]: "<<sendCnt[p]<<" spliter: ["<<p<<" ] : value: "<<localSplitterTmp[p]<<std::endl;*/
+
+                for(unsigned int k=0;k<a;k++)
+                {
+                    if(owner_blk==k) continue;
+                    if( (rank<(b+1)*p_mod_a) && blockCounts[k]==(b+1))
+                    {
+                        assert((blockOffset[k]+blk_id)<npes);
+                        if(k>0)send_offset[(blockOffset[k]+blk_id)]=localSplitterTmp[k-1];
+                        send_count[(blockOffset[k]+blk_id)]=sendCnt[k];
+                    }else
+                    {
+                        assert((blockOffset[k]+(blk_id%b))<npes);
+                        if(k>0)send_offset[(blockOffset[k]+(blk_id%b))]=localSplitterTmp[k-1];
+                        send_count[(blockOffset[k]+(blk_id%b))]=sendCnt[k];
+                    }
 
                 }
+
+
+                par::Mpi_Alltoall(&(*(send_count.begin())),&(*(recv_count.begin())),1,comm);
+
+                recv_offset[0]=0;
+                omp_par::scan(&(*(recv_count.begin())),&(*(recv_offset.begin())),npes);
+
+                std::vector<T> recvBuf;
+                recvBuf.resize(recv_offset[npes-1]+recv_count[npes-1]);
+
+
+                par::Mpi_Alltoallv_sparse(&(*(pNodes.begin())),(int *) &(*(send_count.begin())),(int *) &(*(send_offset.begin())),&(*(recvBuf.begin())),(int *) &(*(recv_count.begin())),(int *) &(*(recv_offset.begin())),comm);
+                (owner_blk>0) ? recvBuf.insert(recvBuf.end(),pNodes.begin()+localSplitterTmp[owner_blk-1],pNodes.begin()+localSplitterTmp[owner_blk-1]+sendCnt[owner_blk]) : recvBuf.insert(recvBuf.end(),pNodes.begin(),pNodes.begin()+sendCnt[owner_blk]);
+
+
+                delete [] sendCnt;
+
+                std::swap(pNodes,recvBuf);
+                recvBuf.clear();
+
 
 
 #ifdef DEBUG_TREE_SORT
@@ -1397,55 +1482,11 @@ namespace SFC
 #endif
 
 
-                unsigned int *recvCnt = new unsigned int[a];
-                par::Mpi_Alltoall(sendCnt, recvCnt, 1, comm_all2all);
 
-                #ifdef DEBUG_TREE_SORT
-                if(!rank) {
-                    for (int i = 0; i <a; i++) {
-                        //std::cout << "Bucket count G : " << i << " : " << bucketCounts_g[i] << std::endl;
-                        std::cout << "Recv Cnt : " << i << " : " << recvCnt[i] << std::endl;
-                    }
-                }
-                #endif
+                unsigned int col=owner_blk;
+                MPI_Comm_split(comm,col,rank,newComm);
 
 
-
-                unsigned int *sendDspl = new unsigned int[a];
-                unsigned int *recvDspl = new unsigned int[a];
-                sendDspl[0] = 0;
-                recvDspl[0] = 0;
-                omp_par::scan(sendCnt, sendDspl, a);
-                omp_par::scan(recvCnt, recvDspl, a);
-                std::vector<T> pNodesTmp(recvDspl[a - 1] + recvCnt[a - 1]);
-                //std::cout<<"Recv Sz: "<<pNodesTmp.size()<<std::endl;
-                /*par::Mpi_Alltoallv_sparse(&(*(pNodes.begin())), (int *) sendCnt, (int *) sendDspl,
-                                          &(*(pNodesTmp.begin())), (int *) recvCnt, (int *) recvDspl, comm_all2all);*/
-                par::Mpi_Alltoallv(&(*(pNodes.begin())),(int *)sendCnt,(int*)sendDspl,&(*(pNodesTmp.begin())),(int *)recvCnt,(int *) recvDspl,comm_all2all);
-                //std::cout<<"All to all sparse ended"<<std::endl;
-                delete[](sendCnt);
-                delete[](recvCnt);
-                delete[](sendDspl);
-                delete[](recvDspl);
-                delete[](localSplitterTmp);
-
-#ifdef PROFILE_TREE_SORT
-                all2all1_time=std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - t1).count();//MPI_Wtime()-t1;
-                //std::cout<<"all2all in SFIX: "<<all2all1_time<<std::endl;
-#endif
-                //delete[](updateState);
-
-
-                std::swap(pNodes,pNodesTmp);
-                //pNodes = pNodesTmp;
-                pNodesTmp.clear();
-
-                MPI_Comm_rank(comm,&rank);
-
-
-                //std::cout<<"rank: "<<rank<<"pNodes Size: "<<pNodes.size()<<std::endl;
-                col = (rank / b);
-                MPI_Comm_split(comm, col, rank, newComm);
 
 
             }
@@ -1468,7 +1509,8 @@ namespace SFC
             MPI_Comm_rank(pcomm, &rank);
             MPI_Comm_size(pcomm, &npes);
 
-            MPI_Comm comm=pcomm;
+            MPI_Comm comm;
+            MPI_Comm_dup(pcomm,&comm);
 
 #ifdef PROFILE_TREE_SORT
             stats.clear();
@@ -1508,6 +1550,7 @@ namespace SFC
 
             if(npes==1)
             {
+                MPI_Comm_free(&comm);
                 //call the sequential case
                 SFC::seqSort::SFC_treeSort(&(*(pNodes.begin())),pNodes.size(),pOutSorted,pOutConstruct,pOutBalanced,pMaxDepth,pMaxDepth,parent,rot_id,k,options);
                 return ;
@@ -1516,11 +1559,12 @@ namespace SFC
 
 
 
-
+#ifdef SPLITTER_SELECTION_FIX
             if(npes > sf_k)
             {
 
                 SF_Stages= std::ceil((binOp::fastLog2(npes)/(double)binOp::fastLog2(sf_k))) - 1;
+                //if(!rank) std::cout<<" sf_stages: "<<SF_Stages<<std::endl;
 
 #ifdef PROFILE_TREE_SORT
                 sf_full=new double[SF_Stages];
@@ -1528,24 +1572,36 @@ namespace SFC
                 sf_splitters=new double[SF_Stages];
 #endif
 
+                MPI_Comm * sf_comms=new MPI_Comm[SF_Stages];
 
                 for(int i=0;i<SF_Stages;i++)
                 {
 #ifdef PROFILE_TREE_SORT
                     t5_sf_staged=std::chrono::high_resolution_clock::now();
 #endif
-                    SFC_SplitterFix(pNodes,pMaxDepth,loadFlexibility,sf_k,SF_comm,&comm);
+		    //if(!rank) std::cout<<"sf_stage: "<<i<<"of "<<SF_Stages<<std::endl;
+                    SFC_SplitterFix(pNodes,pMaxDepth,loadFlexibility,sf_k,SF_comm,&sf_comms[i]);
 #ifdef PROFILE_TREE_SORT
                     sf_full[i]=std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - t5_sf_staged).count();
                     sf_all2all[i]=all2all1_time;
                     sf_splitters[i]=sf_full[i]-sf_all2all[i];
 #endif
 
-                    SF_comm=comm;
+                    SF_comm=sf_comms[i];
                 }
+                
+                MPI_Comm_free(&comm);
+                MPI_Comm_dup(sf_comms[SF_Stages-1],&comm);
+                for(int i=0;i<SF_Stages;i++)
+                {
+                    MPI_Comm_free(&sf_comms[i]);
+                }
+                
+                delete [] sf_comms;
+                
             }
 
-
+#endif
 
 #ifdef PROFILE_TREE_SORT
             splitter_fix_all=std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - t2).count();
@@ -2089,11 +2145,12 @@ namespace SFC
             localSort_time=std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - t2).count();//MPI_Wtime()-t2;
             //MPI_Barrier(pcomm);
 #endif
-
+	    
         /*    assert(seq::test::isUniqueAndSorted(pOutSorted));
             assert(seq::test::isUniqueAndSorted(pOutConstruct));
             assert(seq::test::isUniqueAndSorted(pOutBalanced));*/
-
+	    // freee the comm from the last stage. 
+	    MPI_Comm_free(&comm);
 
             if(options & TS_REMOVE_DUPLICATES) {
 
@@ -2152,9 +2209,11 @@ namespace SFC
 
 
                     bool state=true;
+		    bool state_global=true;
                     unsigned int count=0;
+		    //@milindasf : Possible location for MPI hang, if for a one processor if above is not true, then followign sendrecv will get hanged. 
 
-                    while(count<pOutSorted.size() & state ) {
+                    while(count<pOutSorted.size() & state_global ) {
 
                        begin=pOutSorted[count];
                        end=pOutSorted.back();
@@ -2174,11 +2233,15 @@ namespace SFC
                             end = pOutSorted.back();
                        }
                        count++;
+		       MPI_Allreduce(&state,&state_global,1,MPI_CXX_BOOL,MPI_LOR,new_comm);
 
 
                     }
 
                 }//end if not empty
+                
+                // free the new comm. 
+                MPI_Comm_free(&new_comm);
 
                 //if(!rank) std::cout<<"Executing  par::RD end"<<std::endl;
 #ifdef PROFILE_TREE_SORT

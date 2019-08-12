@@ -72,7 +72,6 @@ int main(int argc, char** argv) {
     DendroIntL numPts=atoll(argv[1]);
     unsigned int dim=atoi(argv[2]);
     unsigned int maxDepth=atoi(argv[3]);
-    m_uiMaxDepth=maxDepth;
     double tol=0.001;
     unsigned int distribution=0;
     if(argc>4)
@@ -246,8 +245,8 @@ int main(int argc, char** argv) {
     if(!rank) std::cout<<YLW<<"================================================================="<<NRM<<std::endl;
 
 
-    io::vtk::oct2vtk(&(*(pNodesConstructed.begin())),pNodesConstructed.size(),"constOct",GLOBAL_COMM);
-    io::vtk::oct2vtk(&(*(pNodesBalanced.begin())),pNodesBalanced.size(),"balOct",GLOBAL_COMM);
+    treeNodesTovtk(pNodesConstructed,rank,"completeOctree");
+    treeNodesTovtk(pNodesBalanced,rank,"balOctree");
     MPI_Finalize();
     return 0;
 

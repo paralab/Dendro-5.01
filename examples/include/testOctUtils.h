@@ -22,7 +22,6 @@
 #include "sfcSort.h"
 #include "treenode2vtk.h"
 #include "testUtils.h"
-#include "oct2vtk.h"
 
 #define ROOT_PROC 0
 
