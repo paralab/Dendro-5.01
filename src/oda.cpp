@@ -170,9 +170,11 @@ namespace ot
 
             SFC::parSort::SFC_treeSort(nodes,tmpNodes,tmpNodes,tmpNodes,DENDRO_DEFAULT_LB_TOL,m_uiMaxDepth,root,ROOT_ROTATION,1,TS_CONSTRUCT_OCTREE,DENDRO_DEFAULT_SF_K,comm);
             std::swap(nodes,tmpNodes);
+            tmpNodes.clear();
 
             SFC::parSort::SFC_treeSort(nodes,tmpNodes,tmpNodes,tmpNodes,DENDRO_DEFAULT_LB_TOL,m_uiMaxDepth,root,ROOT_ROTATION,1,TS_BALANCE_OCTREE,DENDRO_DEFAULT_SF_K,comm);
             std::swap(nodes,tmpNodes);
+            tmpNodes.clear();
 
 
             std::vector<ot::TreeNode> balOct;
