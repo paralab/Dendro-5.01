@@ -120,6 +120,8 @@ bool HeatEq::HeatMat::preMatVec(const VECType* in,VECType* out,double scale)
     for(unsigned int i=0;i<bdyIndex.size();i++)
         out[bdyIndex[i]]=0.0;
 
+    return true;
+
 
 
 }
@@ -134,6 +136,8 @@ bool HeatEq::HeatMat::postMatVec(const VECType* in,VECType* out,double scale) {
 
     for(unsigned int i=0;i<bdyIndex.size();i++)
         out[bdyIndex[i]]=0.0;
+    
+    return true;
 
 }
 

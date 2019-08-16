@@ -99,7 +99,7 @@ int function2Octree(std::function<double(double,double,double)> fx, std::vector<
    * signed distance to the surface that needs to be meshed. The coordinates are expected to be in [0,1]^3.
    */
 
-int function2Octree(std::function<void(double,double,double,double*)> fx,const unsigned int numVars,const unsigned int* varIndex,const unsigned int numInterpVars, std::vector<ot::TreeNode> & nodes,unsigned int maxDepth, const double & tol ,unsigned int elementOrder,MPI_Comm comm );
+int function2Octree(std::function<void(double,double,double,double*)>& fx,const unsigned int numVars,const unsigned int* varIndex,const unsigned int numInterpVars, std::vector<ot::TreeNode> & nodes,unsigned int maxDepth, const double & tol ,unsigned int elementOrder,MPI_Comm comm );
 
 /**
  * @author Milinda Fernando

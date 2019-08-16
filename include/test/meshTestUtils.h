@@ -2100,6 +2100,8 @@ bool ot::test::isZipNAN(ot::Mesh* pMesh, T* zipVec)
 
     }
 
+    return true;
+
 }
 
 
@@ -2262,6 +2264,8 @@ bool ot::test::isElementalContributionValid(ot::Mesh *pMesh, std::function<T(T,T
         delete [] v_func;
 
     }
+
+    return true;
 
 
 
@@ -2432,7 +2436,7 @@ bool ot::test::isSphereInterpValid(ot::Mesh* pMesh, T* vec, std::function< doubl
       
 
 
-
+        return true;
       
     }
 

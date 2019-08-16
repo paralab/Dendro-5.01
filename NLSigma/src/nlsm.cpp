@@ -138,8 +138,7 @@ int main (int argc, char** argv)
     for(unsigned int i=0;i<nlsm::NLSM_NUM_VARS;i++)
         varIndex[i]=i;
 
-    /*varIndex[0]=nlsm::VAR::U_ALPHA;
-    varIndex[1]=nlsm::VAR::U_CHI;*/
+    
     DendroIntL localSz,globalSz;
     double t_stat;
     double t_stat_g[3];
@@ -157,10 +156,20 @@ int main (int argc, char** argv)
     {
 
         if(!rank) std::cout<<YLW<<"Using function2Octree. AMR enabled "<<NRM<<std::endl;
-        function2Octree(f_init,nlsm::NLSM_NUM_VARS,varIndex,interpVars,tmpNodes,m_uiMaxDepth,nlsm::NLSM_WAVELET_TOL,nlsm::NLSM_ELE_ORDER,comm);
+        function2Octree(f_init,nlsm::NLSM_NUM_VARS,nlsm::NLSM_REFINE_VARIABLE_INDICES,nlsm::NLSM_NUM_REFINE_VARS,tmpNodes,m_uiMaxDepth,nlsm::NLSM_WAVELET_TOL,nlsm::NLSM_ELE_ORDER,comm);
+        std::cout<<"f2o else end"<<std::endl;
 
     }
 
+
+    // MPI_Barrier(MPI_COMM_WORLD);
+    // tmpNodes.clear();
+    // if(!rank) std::cout<<YLW<<"Using block adaptive mesh. AMR disabled "<<NRM<<std::endl;
+    // const Point pt_min(nlsm::NLSM_BLK_MIN_X,nlsm::NLSM_BLK_MIN_Y,nlsm::NLSM_BLK_MIN_Z);
+    // const Point pt_max(nlsm::NLSM_BLK_MAX_X,nlsm::NLSM_BLK_MAX_Y,nlsm::NLSM_BLK_MAX_Z);
+    // nlsm::blockAdaptiveOctree(tmpNodes,pt_min,pt_max,m_uiMaxDepth-2,m_uiMaxDepth,comm);
+    
+    std::cout<<"rank: "<<rank<<" f2o end: "<<std::endl;	
     nlsm::timer::t_f2o.stop();
 
     t_stat=nlsm::timer::t_f2o.seconds;

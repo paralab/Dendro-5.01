@@ -471,7 +471,7 @@ namespace ode
                 pDataNames_char.push_back(const_cast<char*>(pDataNames[i].c_str()));
 
             const char * fDataNames[]={"Time","Cycle"};
-            const double fData[]={m_uiCurrentTime,m_uiCurrentStep};
+            const double fData[]={m_uiCurrentTime,(double)m_uiCurrentStep};
 
             char fPrefix[256];
             sprintf(fPrefix,"%s_%d",nlsm::NLSM_VTU_FILE_PREFIX.c_str(),m_uiCurrentStep);
