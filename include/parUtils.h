@@ -27,6 +27,22 @@
 #ifndef KWAY
 #define KWAY 128
 #endif
+/** @brief: data structure to compute parallel rank*/
+template<typename T>
+struct _T{ 
+    
+    unsigned int p;
+    unsigned int idx;
+    T val;
+    DendroIntL rank;
+
+    inline bool operator< (const _T<T> &c1) { 
+      return (this->val < c1.val); 
+    }
+
+};
+
+
 
 #ifdef PETSC_USE_LOG
 
@@ -570,7 +586,7 @@ void bitonicSort(std::vector<T> &in, MPI_Comm comm);
 
 
 template <typename T>
-void parallel_rank(const T* in, unsigned int sz, T* out, MPI_Comm comm);
+void parallel_rank(const T* in, unsigned int sz, DendroIntL* out, MPI_Comm comm);
 
 
 

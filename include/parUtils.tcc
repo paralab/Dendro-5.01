@@ -2686,64 +2686,105 @@ void MergeLists(std::vector<T> &listA, std::vector<T> &listB,
 } //end function
 
 
-//template <typename T>
-// void parallel_rank(const T* in, unsigned int sz , T* out, MPI_Comm comm)
-// {
-//   typedef struct _T{ 
+template <typename T>
+void parallel_rank(const T* in, unsigned int sz , DendroIntL* out, MPI_Comm comm)
+{
+  
+
+  int rank, npes;
+  
+  MPI_Comm_rank(comm, &rank);
+  MPI_Comm_size(comm, &npes);
+
+  std::vector< _T<T> > key;
+  std::vector< _T<T> > key_sorted;
+  key.resize(sz);
+  
+  for(unsigned int i=0; i < sz; i++)
+  {
     
-//     unsigned int p;
-//     unsigned int idx;
-//     T val;
-//     DendroIntL rank;
+    key[i].p = npes;
+    key[i].idx = i;
+    key[i].val = in[i];
 
-//     inline bool operator< (const _T &c1, const _T &c2) { return (c1.val < c2.val); }
-
-//   };
-
-//   int rank, npes;
+  }
   
-//   MPI_Comm_rank(comm, &rank);
-//   MPI_Comm_size(comm, &npes);
+  std::vector<double> stats;
+  
+  par::sampleSort(key, key_sorted, stats, comm);
+  key.clear();
+  
+  unsigned int localSz = key_sorted.size();
 
-//   std::vector<_T> key;
-//   std::vector<_T> key_sorted;
-//   std::vector<double> stats;
-//   key.resize(sz);
-//   //key_sorted.resize(sz);
-//   //stats.resize(sz);
+  unsigned int*  sorted_couts = new unsigned int [npes];
+  unsigned int*  sorted_offset = new unsigned int [npes];
+  
+  par::Mpi_Allgather(&localSz,sorted_couts,1,comm);
+  sorted_offset[0] = 0;
+  omp_par::scan(sorted_couts,sorted_offset,npes);
 
-//   for(unsigned int i=0; i < sz; i++)
-//   {
+  for(unsigned int i=0; i < sz; i++)
+    key_sorted[i].rank = sorted_offset[rank] + i;
+  
+
+  int * sCounts = new int [npes];
+  int * rCounts = new int [npes];
+  int * sOffset = new int [npes];
+  int * rOffset = new int [npes];
+  int * ccount  = new int[npes];
+
+  for(unsigned int i=0; i < npes; i++)
+  {
+    sCounts[i] = 0;
+    ccount[i] = 0;
+  }
     
-//     key[i].p = npes;
-//     key[i].idx = i;
-//     key[i].val = in[i];
 
-//   }
+  for(unsigned int i=0; i < sz; i++)
+     sCounts[key_sorted[i].p]++;
+
+  for(unsigned int i=0; i < npes; i++)
+    sCounts[i] = sizeof(_T<T>)*sCounts[i];
   
-//   par::sampleSort(key, key_sorted, stats, comm);
+  par::Mpi_Alltoall(sCounts,rCounts,1,comm);
   
-//   unsigned int localSz = key_sorted.size();
+  sOffset[0] = 0;
+  rOffset[0] = 0;
 
-//   unsigned int*  sorted_couts = new unsigned int [npes];
-//   unsigned int*  sorted_offset = new unsigned int [npes];
+  omp_par::scan(sCounts,sOffset,npes);
+  omp_par::scan(rCounts,rOffset,npes);
 
-//   par::Mpi_Allgather(&localSz,sorted_couts,1,comm);
-//   sorted_offset[0] = 0;
 
-//   omp_par::scan(sorted_couts,sorted_offset,npes);
+  std::vector<_T<T>> sBuf;
+  sBuf.resize( (sOffset[npes-1] + sCounts[npes-1])/sizeof(_T<T>) );
 
-//   for(unsigned int i=0; i < sz; i++)
-//   {
-//     key_sorted[i].rank = sorted_offset[rank] + i;
-//   }
+  for(unsigned int i=0; i < npes; i++)
+    sCounts[i] = 0;
+
+  for(unsigned int i=0; i < sz; i++){
+     sBuf[sOffset[key_sorted[i].p] + ccount[key_sorted[i].p]] = key_sorted[i];
+     ccount[key_sorted[i].p]++;
+  }
+
+  key.resize( (rOffset[npes-1] + rCounts[npes-1]) / sizeof(_T<T>) );
+  MPI_Alltoallv(&(*(sBuf.begin())),sCounts,sOffset,MPI_BYTE,&(*(key.begin())),rCounts,rOffset,MPI_BYTE,comm);
+
+  for(unsigned int i = 0; i < key.size() ; i++ )
+    out[key[i].idx] = key[i].rank;
   
+  
+  delete [] sCounts;
+  delete [] rCounts;
+  delete [] sOffset;
+  delete [] rOffset;
+  delete [] ccount;
 
-//   delete [] sorted_couts;
-//   delete [] sorted_offset;
+
+  delete [] sorted_couts;
+  delete [] sorted_offset;
 
 
-// }
+}
 
 
 } // namespace par
