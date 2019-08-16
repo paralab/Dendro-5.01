@@ -330,19 +330,9 @@ int function2Octree(std::function<double(double,double,double)> fx, std::vector<
 
 }
 
-int function2Octree(const unsigned int numVars,const unsigned int* varIndex,const unsigned int numInterpVars, std::vector<ot::TreeNode> & nodes,unsigned int maxDepth, const double & tol ,unsigned int elementOrder,MPI_Comm comm )
-{
-    int size, rank;
 
 
-    MPI_Comm_size(comm, &size);
-    MPI_Comm_rank(comm, &rank);
-
-
-    return 0;
-}
-
-int function2Octree(std::function<void(double,double,double,double*)>& fx,const unsigned int numVars,const unsigned int* varIndex,const unsigned int numInterpVars, std::vector<ot::TreeNode> & nodes,unsigned int maxDepth, const double & tol ,unsigned int elementOrder,MPI_Comm comm )
+int function2Octree(std::function<void(double,double,double,double*)> fx,const unsigned int numVars,const unsigned int* varIndex,const unsigned int numInterpVars, std::vector<ot::TreeNode> & nodes,unsigned int maxDepth, const double & tol ,unsigned int elementOrder,MPI_Comm comm )
 {
 
 
@@ -361,7 +351,6 @@ int function2Octree(std::function<void(double,double,double,double*)>& fx,const 
     const unsigned int  nodesPerElement=(elementOrder+1)*(elementOrder+1)*(elementOrder+1);
 
     double h, h1,h2;
-    //std::cout<<"numVals: "<<numVars<<std::endl;
     double* varVal=new double [numVars];
     double* dist_parent=new double[numVars*nodesPerElement];
     double* dist_child=new double[numVars*nodesPerElement];
@@ -371,18 +360,18 @@ int function2Octree(std::function<void(double,double,double,double*)>& fx,const 
 
     h = 1.0/(1<<(maxDepth));
     unsigned int mySz;
-    RefElement* refEl = new RefElement(m_uiDim,elementOrder);
+    RefElement refEl(m_uiDim,elementOrder);
     double l2_norm=0;
     bool splitOctant=false;
 
-    
+
     if (!rank) {
         // root does the initial refinement
         //std::cout<<"initial ref:"<<std::endl;
         ot::TreeNode root = ot::TreeNode(m_uiDim, maxDepth);
         root.addChildren(nodes);
 
-        while ( (num_intersected > 0 ) && (num_intersected < size ) && (depth < maxDepth) ) {
+        while ( (num_intersected > 0 ) && (num_intersected < size/**size*/ ) && (depth < maxDepth) ) {
             std::cout << "Depth: " << depth << " n = " << nodes.size() << std::endl;
             num_intersected = 0;
 
@@ -428,7 +417,7 @@ int function2Octree(std::function<void(double,double,double,double*)>& fx,const 
 
                     for(unsigned int var=0;var<numInterpVars;var++)
                     {
-                        refEl->I3D_Parent2Child(dist_parent+varIndex[var]*nodesPerElement,dist_child_ip+varIndex[var]*nodesPerElement,cnum);
+                        refEl.I3D_Parent2Child(dist_parent+varIndex[var]*nodesPerElement,dist_child_ip+varIndex[var]*nodesPerElement,cnum);
                         l2_norm=normLInfty(dist_child+varIndex[var]*nodesPerElement,dist_child_ip+varIndex[var]*nodesPerElement,nodesPerElement);
                         if(l2_norm>tol)
                         {
@@ -453,9 +442,8 @@ int function2Octree(std::function<void(double,double,double,double*)>& fx,const 
             std::swap(nodes, nodes_new);
             nodes_new.clear();
         }
-    } // !rank*/
+    } // !rank
 
-    //std::cout<<"rank: "<<rank<<" seq f2o is ended"<<std::endl;
     // now scatter the elements.
     DendroIntL totalNumOcts = nodes.size(), numOcts;
 
@@ -518,7 +506,7 @@ int function2Octree(std::function<void(double,double,double,double*)>& fx,const 
 
                 for(unsigned int var=0;var<numInterpVars;var++)
                 {
-                    refEl->I3D_Parent2Child(dist_parent+varIndex[var]*nodesPerElement,dist_child_ip+varIndex[var]*nodesPerElement,cnum);
+                    refEl.I3D_Parent2Child(dist_parent+varIndex[var]*nodesPerElement,dist_child_ip+varIndex[var]*nodesPerElement,cnum);
                     l2_norm=normLInfty(dist_child+varIndex[var]*nodesPerElement,dist_child_ip+varIndex[var]*nodesPerElement,nodesPerElement);
                     //std::cout<<"rank: "<<rank<<" node: "<<elem<<" l2 norm : "<<l2_norm<<" var: "<<varIndex[var]<<std::endl;
                     if(l2_norm>tol)
@@ -554,11 +542,11 @@ int function2Octree(std::function<void(double,double,double,double*)>& fx,const 
 
 
     }
+
     delete[] dist_child;
     delete[] dist_child_ip;
     delete[] dist_parent;
     delete[] varVal;
-    delete refEl;
 
     return 0;
     

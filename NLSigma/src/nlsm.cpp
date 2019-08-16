@@ -161,15 +161,6 @@ int main (int argc, char** argv)
 
     }
 
-
-    // MPI_Barrier(MPI_COMM_WORLD);
-    // tmpNodes.clear();
-    // if(!rank) std::cout<<YLW<<"Using block adaptive mesh. AMR disabled "<<NRM<<std::endl;
-    // const Point pt_min(nlsm::NLSM_BLK_MIN_X,nlsm::NLSM_BLK_MIN_Y,nlsm::NLSM_BLK_MIN_Z);
-    // const Point pt_max(nlsm::NLSM_BLK_MAX_X,nlsm::NLSM_BLK_MAX_Y,nlsm::NLSM_BLK_MAX_Z);
-    // nlsm::blockAdaptiveOctree(tmpNodes,pt_min,pt_max,m_uiMaxDepth-2,m_uiMaxDepth,comm);
-    
-    std::cout<<"rank: "<<rank<<" f2o end: "<<std::endl;	
     nlsm::timer::t_f2o.stop();
 
     t_stat=nlsm::timer::t_f2o.seconds;

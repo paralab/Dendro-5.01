@@ -293,10 +293,8 @@ RefElement::RefElement(unsigned int dim, unsigned int order)
 
 RefElement::~RefElement() {
 
-    std::cout<<"ref: dec begin"<<std::endl;
     im_vec1.clear();
     im_vec2.clear();
-    std::cout<<"ref: dec end"<<std::endl;
 
 }
 
