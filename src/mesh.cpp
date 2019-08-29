@@ -178,7 +178,11 @@ namespace ot {
 
             double t_blk_begin = MPI_Wtime();
             if(m_uiIsBlockSetup)
+            {
                 performBlocksSetup();
+                computeSMSpecialPts();
+            }
+                
             double t_blk_end = MPI_Wtime();
             t_blk = t_blk_end - t_blk_begin;
 
@@ -414,7 +418,11 @@ namespace ot {
             double t_blk_begin=MPI_Wtime();
 
             if(m_uiIsBlockSetup)
+            {
                 performBlocksSetup();
+                computeSMSpecialPts();
+            }
+                
 
             double t_blk_end=MPI_Wtime();
             t_blk=t_blk_end-t_blk_begin;
@@ -2550,13 +2558,21 @@ namespace ot {
         m_uiGhostElementRound1Index.clear();
         unsigned int r1_count=0;
         m_uiGhostElementRound1Index.resize(gKeys_R1.size());
+
+        m_uiIsNodalMapValid.clear();
+        m_uiIsNodalMapValid.resize(m_uiAllElements.size(),true);
+
         for(unsigned int e=m_uiElementPreGhostBegin;e<m_uiElementPreGhostEnd;e++)
         {
             if(m_uiAllElements[e]==gKeys_R1[r1_count])
             {
                 m_uiGhostElementRound1Index[r1_count]=e;
                 r1_count++;
+            }else
+            {
+                m_uiIsNodalMapValid[e]=false;
             }
+            
 
             if(r1_count==gKeys_R1.size()) break;
         }
@@ -2570,6 +2586,9 @@ namespace ot {
                 {
                     m_uiGhostElementRound1Index[r1_count]=e;
                     r1_count++;
+                }else
+                {
+                    m_uiIsNodalMapValid[e]=false;
                 }
 
                 if(r1_count==gKeys_R1.size()) break;
@@ -2577,6 +2596,10 @@ namespace ot {
 
 
         }
+
+        for(unsigned int i=0;i<m_uiGhostElementRound1Index.size();i++)
+            if(!m_uiIsNodalMapValid[m_uiGhostElementRound1Index[i]])
+                std::cout<<"invalid nodal elemental map"<<std::endl;
 
         //std::cout<<" rank: "<<m_uiActiveRank<<" m_uiGR1 Size: "<<m_uiGhostElementRound1Index.size()<<std::endl;
 
@@ -2754,6 +2777,9 @@ namespace ot {
         #endif
 
         // Note: Note that m_uiAlllNodes need not to be sorted and contains duplicates globally.
+
+        m_uiIsNodalMapValid.clear();
+        m_uiIsNodalMapValid.resize(m_uiAllElements.size(),true);
 
 
         #ifdef DEBUG_MESH_GENERATION
@@ -7827,419 +7853,419 @@ namespace ot {
 
 
 
-        double * zippVec=createVector<double>(NAN);
-        for(unsigned int node=m_uiNodeLocalBegin;node<m_uiNodeLocalEnd;node++)
-            zippVec[node]=0;
-
-        double * unzipVec=createUnZippedVector<double>(NAN);
-
-        // need to do this without performing the ghost exchange.
-        unzip(zippVec,unzipVec);
-
-        unsigned int offset;
-        unsigned int lx,ly,lz;
-        unsigned int pW;
-        bool haveanyGhost=false;
-        unsigned int ib,ie,jb,je,kb,ke;
-        unsigned int bflag;
-
-        for(unsigned int e=0;e<m_uiLocalBlockList.size();e++)
-        {
-
-            haveanyGhost=false;
-
-            offset=m_uiLocalBlockList[e].getOffset();
-            lx=m_uiLocalBlockList[e].getAllocationSzX();
-            ly=m_uiLocalBlockList[e].getAllocationSzY();
-            lz=m_uiLocalBlockList[e].getAllocationSzZ();
-
-            pW=m_uiLocalBlockList[e].get1DPadWidth();
-            bflag=m_uiLocalBlockList[e].getBlkNodeFlag();
-
-            /*for(unsigned int k=3;k<(nz-3);k++)
-                for(unsigned int j=3;j<(ny-3);j++)
-                    for(unsigned int i=3;i<(nx-3);i++)
-                        std::cout<<m_uiActiveRank<<": unzip value: "<<unzipVec[offset+k*(nz*ny)+j*(ny)+i]<<std::endl;*/
-
-            //internal
-            ib=pW;
-            ie=lx-pW;
-
-            jb=pW;
-            je=ly-pW;
-
-            kb=pW;
-            ke=lz-pW;
+        // double * zippVec=createVector<double>(NAN);
+        // for(unsigned int node=m_uiNodeLocalBegin;node<m_uiNodeLocalEnd;node++)
+        //     zippVec[node]=0;
+
+        // double * unzipVec=createUnZippedVector<double>(NAN);
+
+        // // need to do this without performing the ghost exchange.
+        // unzip(zippVec,unzipVec);
+
+        // unsigned int offset;
+        // unsigned int lx,ly,lz;
+        // unsigned int pW;
+        // bool haveanyGhost=false;
+        // unsigned int ib,ie,jb,je,kb,ke;
+        // unsigned int bflag;
+
+        // for(unsigned int e=0;e<m_uiLocalBlockList.size();e++)
+        // {
+
+        //     haveanyGhost=false;
+
+        //     offset=m_uiLocalBlockList[e].getOffset();
+        //     lx=m_uiLocalBlockList[e].getAllocationSzX();
+        //     ly=m_uiLocalBlockList[e].getAllocationSzY();
+        //     lz=m_uiLocalBlockList[e].getAllocationSzZ();
+
+        //     pW=m_uiLocalBlockList[e].get1DPadWidth();
+        //     bflag=m_uiLocalBlockList[e].getBlkNodeFlag();
+
+        //     /*for(unsigned int k=3;k<(nz-3);k++)
+        //         for(unsigned int j=3;j<(ny-3);j++)
+        //             for(unsigned int i=3;i<(nx-3);i++)
+        //                 std::cout<<m_uiActiveRank<<": unzip value: "<<unzipVec[offset+k*(nz*ny)+j*(ny)+i]<<std::endl;*/
+
+        //     //internal
+        //     ib=pW;
+        //     ie=lx-pW;
+
+        //     jb=pW;
+        //     je=ly-pW;
+
+        //     kb=pW;
+        //     ke=lz-pW;
 
-            for(unsigned int k=kb; k < ke; k++)
-                for(unsigned int j=jb;j < je; j++)
-                    for(unsigned int i=ib;i < ie; i++)
-                        if(std::isnan(unzipVec[offset+k*(ly*lx)+j*(lx)+i]))
-                            haveanyGhost=true;
+        //     for(unsigned int k=kb; k < ke; k++)
+        //         for(unsigned int j=jb;j < je; j++)
+        //             for(unsigned int i=ib;i < ie; i++)
+        //                 if(std::isnan(unzipVec[offset+k*(ly*lx)+j*(lx)+i]))
+        //                     haveanyGhost=true;
 
 
-            if(!(bflag & (1u<<OCT_DIR_LEFT)))
-            {
-                ib=0;
-                ie=pW;
-                jb=pW;
-                je=ly-pW;
-                kb=pW;
-                ke=lz-pW;
+        //     if(!(bflag & (1u<<OCT_DIR_LEFT)))
+        //     {
+        //         ib=0;
+        //         ie=pW;
+        //         jb=pW;
+        //         je=ly-pW;
+        //         kb=pW;
+        //         ke=lz-pW;
 
-                for(unsigned int k=kb; k < ke; k++)
-                    for(unsigned int j=jb;j < je; j++)
-                        for(unsigned int i=ib;i < ie; i++)
-                            if(std::isnan(unzipVec[offset+k*(ly*lx)+j*(lx)+i]))
-                                haveanyGhost=true;
+        //         for(unsigned int k=kb; k < ke; k++)
+        //             for(unsigned int j=jb;j < je; j++)
+        //                 for(unsigned int i=ib;i < ie; i++)
+        //                     if(std::isnan(unzipVec[offset+k*(ly*lx)+j*(lx)+i]))
+        //                         haveanyGhost=true;
 
 
-                if(!(bflag & (1u<<OCT_DIR_DOWN)))
-                {
-                    ib=1;
-                    ie=pW;
-                    jb=1;
-                    je=pW;
-                    kb=pW;
-                    ke=lz-pW;
+        //         if(!(bflag & (1u<<OCT_DIR_DOWN)))
+        //         {
+        //             ib=1;
+        //             ie=pW;
+        //             jb=1;
+        //             je=pW;
+        //             kb=pW;
+        //             ke=lz-pW;
 
-                    for(unsigned int k=kb; k < ke; k++)
-                        for(unsigned int j=jb;j < je; j++)
-                            for(unsigned int i=ib;i < ie; i++)
-                                if(std::isnan(unzipVec[offset+k*(ly*lx)+j*(lx)+i]))
-                                    haveanyGhost=true;
+        //             for(unsigned int k=kb; k < ke; k++)
+        //                 for(unsigned int j=jb;j < je; j++)
+        //                     for(unsigned int i=ib;i < ie; i++)
+        //                         if(std::isnan(unzipVec[offset+k*(ly*lx)+j*(lx)+i]))
+        //                             haveanyGhost=true;
 
-                }
+        //         }
 
-                if(!(bflag & (1u<<OCT_DIR_UP)))
-                {
-                    ib=1;
-                    ie=pW;
-                    jb=ly-pW;
-                    je=ly-1;
-                    kb=pW;
-                    ke=lz-pW;
-
-                    for(unsigned int k=kb; k < ke; k++)
-                        for(unsigned int j=jb;j < je; j++)
-                            for(unsigned int i=ib;i < ie; i++)
-                                if(std::isnan(unzipVec[offset+k*(ly*lx)+j*(lx)+i]))
-                                    haveanyGhost=true;
+        //         if(!(bflag & (1u<<OCT_DIR_UP)))
+        //         {
+        //             ib=1;
+        //             ie=pW;
+        //             jb=ly-pW;
+        //             je=ly-1;
+        //             kb=pW;
+        //             ke=lz-pW;
+
+        //             for(unsigned int k=kb; k < ke; k++)
+        //                 for(unsigned int j=jb;j < je; j++)
+        //                     for(unsigned int i=ib;i < ie; i++)
+        //                         if(std::isnan(unzipVec[offset+k*(ly*lx)+j*(lx)+i]))
+        //                             haveanyGhost=true;
 
-                }
+        //         }
 
 
-                if(!(bflag & (1u<<OCT_DIR_BACK)))
-                {
-                    ib=1;
-                    ie=pW;
-                    jb=pW;
-                    je=ly-pW;
-                    kb=1;
-                    ke=pW;
+        //         if(!(bflag & (1u<<OCT_DIR_BACK)))
+        //         {
+        //             ib=1;
+        //             ie=pW;
+        //             jb=pW;
+        //             je=ly-pW;
+        //             kb=1;
+        //             ke=pW;
 
-                    for(unsigned int k=kb; k < ke; k++)
-                        for(unsigned int j=jb;j < je; j++)
-                            for(unsigned int i=ib;i < ie; i++)
-                                if(std::isnan(unzipVec[offset+k*(ly*lx)+j*(lx)+i]))
-                                    haveanyGhost=true;
+        //             for(unsigned int k=kb; k < ke; k++)
+        //                 for(unsigned int j=jb;j < je; j++)
+        //                     for(unsigned int i=ib;i < ie; i++)
+        //                         if(std::isnan(unzipVec[offset+k*(ly*lx)+j*(lx)+i]))
+        //                             haveanyGhost=true;
 
-                }
+        //         }
 
 
-                if(!(bflag & (1u<<OCT_DIR_FRONT)))
-                {
-                    ib=1;
-                    ie=pW;
-                    jb=pW;
-                    je=ly-pW;
+        //         if(!(bflag & (1u<<OCT_DIR_FRONT)))
+        //         {
+        //             ib=1;
+        //             ie=pW;
+        //             jb=pW;
+        //             je=ly-pW;
 
-                    kb=lz-pW;
-                    ke=lz-1;
+        //             kb=lz-pW;
+        //             ke=lz-1;
 
-                    for(unsigned int k=kb; k < ke; k++)
-                        for(unsigned int j=jb;j < je; j++)
-                            for(unsigned int i=ib;i < ie; i++)
-                                if(std::isnan(unzipVec[offset+k*(ly*lx)+j*(lx)+i]))
-                                    haveanyGhost=true;
+        //             for(unsigned int k=kb; k < ke; k++)
+        //                 for(unsigned int j=jb;j < je; j++)
+        //                     for(unsigned int i=ib;i < ie; i++)
+        //                         if(std::isnan(unzipVec[offset+k*(ly*lx)+j*(lx)+i]))
+        //                             haveanyGhost=true;
 
-                }
+        //         }
 
 
 
 
-            }
+        //     }
 
 
-            if(!(bflag & (1u<<OCT_DIR_RIGHT)))
-            {
+        //     if(!(bflag & (1u<<OCT_DIR_RIGHT)))
+        //     {
 
 
-                ib=lx-pW;
-                ie=lx;
-                jb=pW;
-                je=ly-pW;
-                kb=pW;
-                ke=lz-pW;
+        //         ib=lx-pW;
+        //         ie=lx;
+        //         jb=pW;
+        //         je=ly-pW;
+        //         kb=pW;
+        //         ke=lz-pW;
 
-                for(unsigned int k=kb; k < ke; k++)
-                    for(unsigned int j=jb;j < je; j++)
-                        for(unsigned int i=ib;i < ie; i++)
-                            if(std::isnan(unzipVec[offset+k*(ly*lx)+j*(lx)+i]))
-                                haveanyGhost=true;
+        //         for(unsigned int k=kb; k < ke; k++)
+        //             for(unsigned int j=jb;j < je; j++)
+        //                 for(unsigned int i=ib;i < ie; i++)
+        //                     if(std::isnan(unzipVec[offset+k*(ly*lx)+j*(lx)+i]))
+        //                         haveanyGhost=true;
 
 
 
-                if(!(bflag & (1u<<OCT_DIR_DOWN)))
-                {
-                    ib=lx-pW;
-                    ie=lx-1;
-                    jb=1;
-                    je=pW;
-                    kb=pW;
-                    ke=lz-pW;
+        //         if(!(bflag & (1u<<OCT_DIR_DOWN)))
+        //         {
+        //             ib=lx-pW;
+        //             ie=lx-1;
+        //             jb=1;
+        //             je=pW;
+        //             kb=pW;
+        //             ke=lz-pW;
 
-                    for(unsigned int k=kb; k < ke; k++)
-                        for(unsigned int j=jb;j < je; j++)
-                            for(unsigned int i=ib;i < ie; i++)
-                                if(std::isnan(unzipVec[offset+k*(ly*lx)+j*(lx)+i]))
-                                    haveanyGhost=true;
+        //             for(unsigned int k=kb; k < ke; k++)
+        //                 for(unsigned int j=jb;j < je; j++)
+        //                     for(unsigned int i=ib;i < ie; i++)
+        //                         if(std::isnan(unzipVec[offset+k*(ly*lx)+j*(lx)+i]))
+        //                             haveanyGhost=true;
 
-                }
+        //         }
 
-                if(!(bflag & (1u<<OCT_DIR_UP)))
-                {
-                    ib=lx-pW;
-                    ie=lx-1;
-                    jb=ly-pW;
-                    je=ly-1;
-                    kb=pW;
-                    ke=lz-pW;
+        //         if(!(bflag & (1u<<OCT_DIR_UP)))
+        //         {
+        //             ib=lx-pW;
+        //             ie=lx-1;
+        //             jb=ly-pW;
+        //             je=ly-1;
+        //             kb=pW;
+        //             ke=lz-pW;
 
-                    for(unsigned int k=kb; k < ke; k++)
-                        for(unsigned int j=jb;j < je; j++)
-                            for(unsigned int i=ib;i < ie; i++)
-                                if(std::isnan(unzipVec[offset+k*(ly*lx)+j*(lx)+i]))
-                                    haveanyGhost=true;
+        //             for(unsigned int k=kb; k < ke; k++)
+        //                 for(unsigned int j=jb;j < je; j++)
+        //                     for(unsigned int i=ib;i < ie; i++)
+        //                         if(std::isnan(unzipVec[offset+k*(ly*lx)+j*(lx)+i]))
+        //                             haveanyGhost=true;
 
-                }
+        //         }
 
 
-                if(!(bflag & (1u<<OCT_DIR_BACK)))
-                {
-                    ib=lx-pW;
-                    ie=lx-1;
-                    jb=pW;
-                    je=ly-pW;
-                    kb=1;
-                    ke=pW;
+        //         if(!(bflag & (1u<<OCT_DIR_BACK)))
+        //         {
+        //             ib=lx-pW;
+        //             ie=lx-1;
+        //             jb=pW;
+        //             je=ly-pW;
+        //             kb=1;
+        //             ke=pW;
 
-                    for(unsigned int k=kb; k < ke; k++)
-                        for(unsigned int j=jb;j < je; j++)
-                            for(unsigned int i=ib;i < ie; i++)
-                                if(std::isnan(unzipVec[offset+k*(ly*lx)+j*(lx)+i]))
-                                    haveanyGhost=true;
+        //             for(unsigned int k=kb; k < ke; k++)
+        //                 for(unsigned int j=jb;j < je; j++)
+        //                     for(unsigned int i=ib;i < ie; i++)
+        //                         if(std::isnan(unzipVec[offset+k*(ly*lx)+j*(lx)+i]))
+        //                             haveanyGhost=true;
 
-                }
+        //         }
 
 
-                if(!(bflag & (1u<<OCT_DIR_FRONT)))
-                {
-                    ib=lx-pW;
-                    ie=lx-1;
-                    jb=pW;
-                    je=ly-pW;
+        //         if(!(bflag & (1u<<OCT_DIR_FRONT)))
+        //         {
+        //             ib=lx-pW;
+        //             ie=lx-1;
+        //             jb=pW;
+        //             je=ly-pW;
 
-                    kb=lz-pW;
-                    ke=lz-1;
+        //             kb=lz-pW;
+        //             ke=lz-1;
 
-                    for(unsigned int k=kb; k < ke; k++)
-                        for(unsigned int j=jb;j < je; j++)
-                            for(unsigned int i=ib;i < ie; i++)
-                                if(std::isnan(unzipVec[offset+k*(ly*lx)+j*(lx)+i]))
-                                    haveanyGhost=true;
+        //             for(unsigned int k=kb; k < ke; k++)
+        //                 for(unsigned int j=jb;j < je; j++)
+        //                     for(unsigned int i=ib;i < ie; i++)
+        //                         if(std::isnan(unzipVec[offset+k*(ly*lx)+j*(lx)+i]))
+        //                             haveanyGhost=true;
 
-                }
+        //         }
 
 
-            }
+        //     }
 
 
 
-            if(!(bflag & (1u<<OCT_DIR_DOWN)))
-            {
+        //     if(!(bflag & (1u<<OCT_DIR_DOWN)))
+        //     {
 
 
-                ib=pW;
-                ie=lx-pW;
-                jb=0;
-                je=pW;
-                kb=pW;
-                ke=lz-pW;
+        //         ib=pW;
+        //         ie=lx-pW;
+        //         jb=0;
+        //         je=pW;
+        //         kb=pW;
+        //         ke=lz-pW;
 
-                for(unsigned int k=kb; k < ke; k++)
-                    for(unsigned int j=jb;j < je; j++)
-                        for(unsigned int i=ib;i < ie; i++)
-                            if(std::isnan(unzipVec[offset+k*(ly*lx)+j*(lx)+i]))
-                                haveanyGhost=true;
+        //         for(unsigned int k=kb; k < ke; k++)
+        //             for(unsigned int j=jb;j < je; j++)
+        //                 for(unsigned int i=ib;i < ie; i++)
+        //                     if(std::isnan(unzipVec[offset+k*(ly*lx)+j*(lx)+i]))
+        //                         haveanyGhost=true;
 
 
 
-                if(!(bflag & (1u<<OCT_DIR_BACK)))
-                {
-                    ib=pW;
-                    ie=lx-pW;
-                    jb=1;
-                    je=pW;
-                    kb=1;
-                    ke=pW;
+        //         if(!(bflag & (1u<<OCT_DIR_BACK)))
+        //         {
+        //             ib=pW;
+        //             ie=lx-pW;
+        //             jb=1;
+        //             je=pW;
+        //             kb=1;
+        //             ke=pW;
 
-                    for(unsigned int k=kb; k < ke; k++)
-                        for(unsigned int j=jb;j < je; j++)
-                            for(unsigned int i=ib;i < ie; i++)
-                                if(std::isnan(unzipVec[offset+k*(ly*lx)+j*(lx)+i]))
-                                    haveanyGhost=true;
+        //             for(unsigned int k=kb; k < ke; k++)
+        //                 for(unsigned int j=jb;j < je; j++)
+        //                     for(unsigned int i=ib;i < ie; i++)
+        //                         if(std::isnan(unzipVec[offset+k*(ly*lx)+j*(lx)+i]))
+        //                             haveanyGhost=true;
 
-                }
+        //         }
 
 
-                if(!(bflag & (1u<<OCT_DIR_FRONT)))
-                {
-                    ib=pW;
-                    ie=lx-pW;
-                    jb=1;
-                    je=pW;
+        //         if(!(bflag & (1u<<OCT_DIR_FRONT)))
+        //         {
+        //             ib=pW;
+        //             ie=lx-pW;
+        //             jb=1;
+        //             je=pW;
 
-                    kb=lz-pW;
-                    ke=lz-1;
+        //             kb=lz-pW;
+        //             ke=lz-1;
 
-                    for(unsigned int k=kb; k < ke; k++)
-                        for(unsigned int j=jb;j < je; j++)
-                            for(unsigned int i=ib;i < ie; i++)
-                                if(std::isnan(unzipVec[offset+k*(ly*lx)+j*(lx)+i]))
-                                    haveanyGhost=true;
+        //             for(unsigned int k=kb; k < ke; k++)
+        //                 for(unsigned int j=jb;j < je; j++)
+        //                     for(unsigned int i=ib;i < ie; i++)
+        //                         if(std::isnan(unzipVec[offset+k*(ly*lx)+j*(lx)+i]))
+        //                             haveanyGhost=true;
 
-                }
+        //         }
 
 
 
-            }
+        //     }
 
 
-            if(!(bflag & (1u<<OCT_DIR_UP)))
-            {
+        //     if(!(bflag & (1u<<OCT_DIR_UP)))
+        //     {
 
 
-                ib=pW;
-                ie=lx-pW;
-                jb=ly-pW;
-                je=ly;
-                kb=pW;
-                ke=lz-pW;
+        //         ib=pW;
+        //         ie=lx-pW;
+        //         jb=ly-pW;
+        //         je=ly;
+        //         kb=pW;
+        //         ke=lz-pW;
 
-                for(unsigned int k=kb; k < ke; k++)
-                    for(unsigned int j=jb;j < je; j++)
-                        for(unsigned int i=ib;i < ie; i++)
-                            if(std::isnan(unzipVec[offset+k*(ly*lx)+j*(lx)+i]))
-                                haveanyGhost=true;
+        //         for(unsigned int k=kb; k < ke; k++)
+        //             for(unsigned int j=jb;j < je; j++)
+        //                 for(unsigned int i=ib;i < ie; i++)
+        //                     if(std::isnan(unzipVec[offset+k*(ly*lx)+j*(lx)+i]))
+        //                         haveanyGhost=true;
 
 
 
-                if(!(bflag & (1u<<OCT_DIR_BACK)))
-                {
-                    ib=pW;
-                    ie=lx-pW;
-                    jb=ly-pW;
-                    je=ly-1;
-                    kb=1;
-                    ke=pW;
+        //         if(!(bflag & (1u<<OCT_DIR_BACK)))
+        //         {
+        //             ib=pW;
+        //             ie=lx-pW;
+        //             jb=ly-pW;
+        //             je=ly-1;
+        //             kb=1;
+        //             ke=pW;
 
-                    for(unsigned int k=kb; k < ke; k++)
-                        for(unsigned int j=jb;j < je; j++)
-                            for(unsigned int i=ib;i < ie; i++)
-                                if(std::isnan(unzipVec[offset+k*(ly*lx)+j*(lx)+i]))
-                                    haveanyGhost=true;
+        //             for(unsigned int k=kb; k < ke; k++)
+        //                 for(unsigned int j=jb;j < je; j++)
+        //                     for(unsigned int i=ib;i < ie; i++)
+        //                         if(std::isnan(unzipVec[offset+k*(ly*lx)+j*(lx)+i]))
+        //                             haveanyGhost=true;
 
-                }
+        //         }
 
 
-                if(!(bflag & (1u<<OCT_DIR_FRONT)))
-                {
-                    ib=pW;
-                    ie=lx-pW;
-                    jb=ly-pW;
-                    je=ly-1;
+        //         if(!(bflag & (1u<<OCT_DIR_FRONT)))
+        //         {
+        //             ib=pW;
+        //             ie=lx-pW;
+        //             jb=ly-pW;
+        //             je=ly-1;
 
-                    kb=lz-pW;
-                    ke=lz-1;
+        //             kb=lz-pW;
+        //             ke=lz-1;
 
-                    for(unsigned int k=kb; k < ke; k++)
-                        for(unsigned int j=jb;j < je; j++)
-                            for(unsigned int i=ib;i < ie; i++)
-                                if(std::isnan(unzipVec[offset+k*(ly*lx)+j*(lx)+i]))
-                                    haveanyGhost=true;
+        //             for(unsigned int k=kb; k < ke; k++)
+        //                 for(unsigned int j=jb;j < je; j++)
+        //                     for(unsigned int i=ib;i < ie; i++)
+        //                         if(std::isnan(unzipVec[offset+k*(ly*lx)+j*(lx)+i]))
+        //                             haveanyGhost=true;
 
-                }
+        //         }
 
 
 
-            }
+        //     }
 
 
-            if(!(bflag & (1u<<OCT_DIR_BACK)))
-            {
+        //     if(!(bflag & (1u<<OCT_DIR_BACK)))
+        //     {
 
 
-                ib=pW;
-                ie=lx-pW;
-                jb=pW;
-                je=ly-pW;
-                kb=0;
-                ke=pW;
+        //         ib=pW;
+        //         ie=lx-pW;
+        //         jb=pW;
+        //         je=ly-pW;
+        //         kb=0;
+        //         ke=pW;
 
-                for(unsigned int k=kb; k < ke; k++)
-                    for(unsigned int j=jb;j < je; j++)
-                        for(unsigned int i=ib;i < ie; i++)
-                            if(std::isnan(unzipVec[offset+k*(ly*lx)+j*(lx)+i]))
-                                haveanyGhost=true;
+        //         for(unsigned int k=kb; k < ke; k++)
+        //             for(unsigned int j=jb;j < je; j++)
+        //                 for(unsigned int i=ib;i < ie; i++)
+        //                     if(std::isnan(unzipVec[offset+k*(ly*lx)+j*(lx)+i]))
+        //                         haveanyGhost=true;
 
-            }
+        //     }
 
 
-            if(!(bflag & (1u<<OCT_DIR_FRONT)))
-            {
+        //     if(!(bflag & (1u<<OCT_DIR_FRONT)))
+        //     {
 
 
-                ib=pW;
-                ie=lx-pW;
-                jb=pW;
-                je=ly-pW;
-                kb=lz-pW;
-                ke=lz;
+        //         ib=pW;
+        //         ie=lx-pW;
+        //         jb=pW;
+        //         je=ly-pW;
+        //         kb=lz-pW;
+        //         ke=lz;
 
-                for(unsigned int k=kb; k < ke; k++)
-                    for(unsigned int j=jb;j < je; j++)
-                        for(unsigned int i=ib;i < ie; i++)
-                            if(std::isnan(unzipVec[offset+k*(ly*lx)+j*(lx)+i]))
-                                haveanyGhost=true;
+        //         for(unsigned int k=kb; k < ke; k++)
+        //             for(unsigned int j=jb;j < je; j++)
+        //                 for(unsigned int i=ib;i < ie; i++)
+        //                     if(std::isnan(unzipVec[offset+k*(ly*lx)+j*(lx)+i]))
+        //                         haveanyGhost=true;
 
-            }
+        //     }
 
 
-           // note: add the vertex corner paddings when you have done them.
+        //    // note: add the vertex corner paddings when you have done them.
 
-           m_uiLocalBlockList[e].setIsInternal(!haveanyGhost);
+        //    m_uiLocalBlockList[e].setIsInternal(!haveanyGhost);
 
-           /*if(!haveanyGhost)
-              std::cout<<"rank: "<<m_uiActiveRank<<" internal block: "<<m_uiLocalBlockList[e].getBlockNode()<<std::endl;*/
+        //    /*if(!haveanyGhost)
+        //       std::cout<<"rank: "<<m_uiActiveRank<<" internal block: "<<m_uiLocalBlockList[e].getBlockNode()<<std::endl;*/
 
 
-        }
+        // }
 
 
 
-        delete [] zippVec;
-        delete [] unzipVec;
+        // delete [] zippVec;
+        // delete [] unzipVec;
 
 
     }
@@ -11045,15 +11071,25 @@ namespace ot {
     }
 
 
-    void Mesh::Unzip_3rd_ptSM()
+    void Mesh::computeSMSpecialPts()
     {
-        
+         // Note: this function is specifically written to find the last point for 4th order elements in finite differencing. 
+         if(!m_uiIsActive || m_uiElementOrder!=4 ) return;
         
          ot::TreeNode blkNode;
-         unsigned int sz,lx,ly,lz,regLev,ei,ej,ek,eleIndexMax,eleIndexMin,offset,paddWidth,lookUp,uzip_1d;
+         unsigned int sz,lx,ly,lz,regLev,ei,ej,ek,eleIndexMax,eleIndexMin,offset,paddWidth,lookUp,uzip_1d,lookup1,bflag;
          const ot::TreeNode * pNodes = &(*(m_uiAllElements.begin()));
          std::vector<ot::SearchKey> m_uiUnzip_3pt;
          ot::SearchKey tmpSKey;   
+
+         unsigned int child[NUM_CHILDREN];
+
+         std::vector<ot::TreeNode> localPart;
+         for(unsigned int i=m_uiElementLocalBegin;i<m_uiElementLocalEnd;i++)
+            localPart.push_back(m_uiAllElements[i]);
+
+         //treeNodesTovtk(localPart,m_uiActiveRank,"LocalPart",false);   
+         //MPI_Barrier(m_uiCommActive); if(!m_uiActiveRank) std::cout<<"3pt SM begin"<<std::endl;
 
          for(unsigned int blk=0;blk<m_uiLocalBlockList.size();blk++)
          {
@@ -11075,18 +11111,15 @@ namespace ot {
             paddWidth=m_uiLocalBlockList[blk].get1DPadWidth();
             uzip_1d = m_uiLocalBlockList[blk].get1DArraySize();
 
-            
-            
-            
-
             const unsigned int nx = m_uiElementOrder+1;
             const unsigned int ny = m_uiElementOrder+1;
             const unsigned int nz = m_uiElementOrder+1;
             const unsigned int N = nx;
 
             unsigned int x,y,z,hx;
+            bflag = m_uiLocalBlockList[blk].getBlkNodeFlag();
 
-
+            // visit each block and compute the missing 3rd point if it is actually missing. 
             for(unsigned int elem=m_uiLocalBlockList[blk].getLocalElementBegin();elem<m_uiLocalBlockList[blk].getLocalElementEnd();elem++)
             {
                 ei=(pNodes[elem].getX()-blkNode.getX())>>(m_uiMaxDepth-regLev);
@@ -11095,6 +11128,8 @@ namespace ot {
 
                 //std::cout<<"blk: "<<blk<<" : "<<blkNode<<" ek: "<<(ek)<<" ej: "<<(ej)<<" ei: "<<(ei)<<" elem: "<<m_uiAllElements[elem]<<std::endl;
                 assert(pNodes[elem].getLevel()==regLev); // this is enforced by block construction
+            	const unsigned int lsz = 1u << (m_uiMaxDepth -pNodes[elem].getLevel());
+	            const unsigned int lszby2 = lsz>>1u;
                 
                 if((pNodes[elem].minX()==blkNode.minX()))
                 {
@@ -11102,25 +11137,52 @@ namespace ot {
                     assert(ei==eleIndexMin);
                     lookUp=m_uiE2EMapping[elem*m_uiNumDirections+dir];
                     if(lookUp!=LOOK_UP_TABLE_DEFAULT && pNodes[lookUp].getLevel() > pNodes[elem].getLevel())
-                    { // this is the case the 3rd point might be missing on local proc. 
-
-                       const unsigned int lsz = 1u<<(m_uiMaxDepth - (pNodes[lookUp].getLevel()-1));
-                       x = pNodes[lookUp].minX()-lsz;  
-                       for(unsigned int d2=0; d2 < N; d2++)
-                       {
-                           z= pNodes[lookUp].minZ() + d2*(lsz/m_uiElementOrder);
-                           for(unsigned int d1=0; d1 < N; d1++)
-                           {
-                               y= pNodes[lookUp].minY() + d1*(lsz/m_uiElementOrder);
-                               tmpSKey = ot::SearchKey(x , y , z , m_uiMaxDepth,m_uiDim,m_uiMaxDepth);
-                               tmpSKey.addOwner(offset + d2*ly*lx + d1*lx + 0);
-                               m_uiUnzip_3pt.push_back(tmpSKey);
-
-                           }
-                       }
-                        
-                          
+                    {  
                        
+                        child[1]=lookUp;
+                        child[3]=m_uiE2EMapping[child[1]*m_uiNumDirections+OCT_DIR_UP];
+                        assert(child[3]!=LOOK_UP_TABLE_DEFAULT);
+                        child[5]=m_uiE2EMapping[child[1]*m_uiNumDirections+OCT_DIR_FRONT];
+                        assert(child[5]!=LOOK_UP_TABLE_DEFAULT);
+                        child[7]=m_uiE2EMapping[child[3]*m_uiNumDirections+OCT_DIR_FRONT];
+                        assert(child[7]!=LOOK_UP_TABLE_DEFAULT);
+
+                        child[0]=m_uiE2EMapping[child[1]*m_uiNumDirections+OCT_DIR_LEFT];
+                        child[2]=m_uiE2EMapping[child[3]*m_uiNumDirections+OCT_DIR_LEFT];
+                        child[4]=m_uiE2EMapping[child[5]*m_uiNumDirections+OCT_DIR_LEFT];
+                        child[6]=m_uiE2EMapping[child[7]*m_uiNumDirections+OCT_DIR_LEFT];
+
+                        
+                        
+                        bool missed_child =false;
+                        for(unsigned int c=0; c<NUM_CHILDREN;c++)
+                        {
+                            if(child[c] == LOOK_UP_TABLE_DEFAULT || pNodes[child[c]].getLevel()!=pNodes[lookUp].getLevel() ||  !m_uiIsNodalMapValid[child[c]])
+                            {
+                                missed_child = true;
+                                break;
+                            }
+                        }
+
+                        if(missed_child)
+                        {
+                            x = pNodes[elem].minX()-((3*lsz)>>2u);  
+                            for(unsigned int d2=0; d2 < N; d2+=1)
+                            {
+                                z= pNodes[elem].minZ() + d2*(lsz/m_uiElementOrder);
+                                for(unsigned int d1=0; d1 < N; d1+=1)
+                                {
+                                    y= pNodes[elem].minY() + d1*(lsz/m_uiElementOrder);
+                                    tmpSKey = ot::SearchKey(x , y , z , m_uiMaxDepth +1 ,m_uiDim, m_uiMaxDepth +1  );
+                                    tmpSKey.addOwner(offset + ( ek*m_uiElementOrder + d2 +paddWidth )*ly*lx + (ej*m_uiElementOrder + paddWidth + d1) *lx + 0);
+                                    //std::cout<<"ele: "<<pNodes[elem]<<" gen : "<<tmpSKey<<" with owner : "<<tmpSKey.getOwner()<<std::endl;
+                                    m_uiUnzip_3pt.push_back(tmpSKey);
+                                }
+                            }
+                        }
+                        
+
+                        
                     }
                     
 
@@ -11132,22 +11194,51 @@ namespace ot {
                     assert(ej==eleIndexMin);
                     lookUp=m_uiE2EMapping[elem*m_uiNumDirections+dir];
                     if(lookUp!=LOOK_UP_TABLE_DEFAULT && pNodes[lookUp].getLevel() > pNodes[elem].getLevel())
-                    { // this is the case the 3rd point might be missing on local proc. 
-                      
-                        const unsigned int lsz = 1u<<(m_uiMaxDepth - (pNodes[lookUp].getLevel()-1));
-                        y = pNodes[lookUp].minY()-lsz;  
-                        for(unsigned int d2=0; d2 < N; d2++)
-                        {
-                            z= pNodes[lookUp].minZ() + d2*(lsz/m_uiElementOrder);
-                            for(unsigned int d1=0; d1 < N; d1++)
-                            {
-                                x= pNodes[lookUp].minX() + d1*(lsz/m_uiElementOrder);
-                                tmpSKey = ot::SearchKey(x , y , z , m_uiMaxDepth,m_uiDim,m_uiMaxDepth);
-                                tmpSKey.addOwner(offset + d2*ly*lx + 0*lx + d1);
-                                m_uiUnzip_3pt.push_back(tmpSKey);
+                    { 
+                        child[2]=lookUp;
+                        child[3]=m_uiE2EMapping[child[2]*m_uiNumDirections+OCT_DIR_RIGHT];
+                        assert(child[3]!=LOOK_UP_TABLE_DEFAULT);
+                        child[6]=m_uiE2EMapping[child[2]*m_uiNumDirections+OCT_DIR_FRONT];
+                        assert(child[6]!=LOOK_UP_TABLE_DEFAULT);
+                        child[7]=m_uiE2EMapping[child[3]*m_uiNumDirections+OCT_DIR_FRONT];
+                        assert(child[7]!=LOOK_UP_TABLE_DEFAULT);
 
+                        child[0]=m_uiE2EMapping[child[2]*m_uiNumDirections+OCT_DIR_DOWN];
+                        child[1]=m_uiE2EMapping[child[3]*m_uiNumDirections+OCT_DIR_DOWN];
+                        child[4]=m_uiE2EMapping[child[6]*m_uiNumDirections+OCT_DIR_DOWN];
+                        child[5]=m_uiE2EMapping[child[7]*m_uiNumDirections+OCT_DIR_DOWN];
+
+                        bool missed_child =false;
+                        for(unsigned int c=0; c<NUM_CHILDREN;c++)
+                        {
+                            if(child[c] == LOOK_UP_TABLE_DEFAULT || pNodes[child[c]].getLevel()!=pNodes[lookUp].getLevel() ||  !m_uiIsNodalMapValid[child[c]])
+                            {
+                                missed_child = true;
+                                break;
                             }
                         }
+
+                        if(missed_child)
+                        {
+                            y = pNodes[elem].minY()-((3*lsz)>>2u);  
+                            
+                            for(unsigned int d2=0; d2 < N; d2+=1)
+                            {
+                                z= pNodes[elem].minZ() + d2*(lsz/m_uiElementOrder);
+                                for(unsigned int d1=0; d1 < N; d1+=1)
+                                {
+                                    x= pNodes[elem].minX() + d1*(lsz/m_uiElementOrder);
+                                    tmpSKey = ot::SearchKey(x , y , z , m_uiMaxDepth +1 ,m_uiDim, m_uiMaxDepth +1 );
+                                    tmpSKey.addOwner(offset + (ek*m_uiElementOrder + paddWidth + d2)*ly*lx + 0*lx + (ei*m_uiElementOrder + paddWidth + d1));
+                                    //std::cout<<"ele: "<<pNodes[elem]<<" gen : "<<tmpSKey<<" with owner : "<<tmpSKey.getOwner()<<std::endl;
+                                    m_uiUnzip_3pt.push_back(tmpSKey);
+
+                                }
+                            }
+
+                        }
+                        
+                        
 
                     }
                     
@@ -11163,20 +11254,47 @@ namespace ot {
                     if(lookUp!=LOOK_UP_TABLE_DEFAULT && pNodes[lookUp].getLevel() > pNodes[elem].getLevel())
                     { // this is the case the 3rd point might be missing on local proc. 
 
-                        const unsigned int lsz = 1u<<(m_uiMaxDepth - (pNodes[lookUp].getLevel()-1));
-                        z = pNodes[lookUp].minZ()-lsz;  
-                        for(unsigned int d2=0; d2 < N; d2++)
-                        {
-                            y= pNodes[lookUp].minY() + d2*(lsz/m_uiElementOrder);
-                            for(unsigned int d1=0; d1 < N; d1++)
-                            {
-                                x= pNodes[lookUp].minX() + d1*(lsz/m_uiElementOrder);
-                                tmpSKey = ot::SearchKey(x , y , z , m_uiMaxDepth,m_uiDim,m_uiMaxDepth);
-                                tmpSKey.addOwner(offset + 0*ly*lx + d2*lx + d1);
-                                m_uiUnzip_3pt.push_back(tmpSKey);
 
+                        child[4]=lookUp;
+                        child[5]=m_uiE2EMapping[child[4]*m_uiNumDirections+OCT_DIR_RIGHT];
+                        assert(child[5]!=LOOK_UP_TABLE_DEFAULT);
+                        child[6]=m_uiE2EMapping[child[4]*m_uiNumDirections+OCT_DIR_UP];
+                        assert(child[6]!=LOOK_UP_TABLE_DEFAULT);
+                        child[7]=m_uiE2EMapping[child[5]*m_uiNumDirections+OCT_DIR_UP];
+                        assert(child[7]!=LOOK_UP_TABLE_DEFAULT);
+            
+                        child[0]=m_uiE2EMapping[child[4]*m_uiNumDirections+OCT_DIR_BACK];
+                        child[1]=m_uiE2EMapping[child[5]*m_uiNumDirections+OCT_DIR_BACK];
+                        child[2]=m_uiE2EMapping[child[6]*m_uiNumDirections+OCT_DIR_BACK];
+                        child[3]=m_uiE2EMapping[child[7]*m_uiNumDirections+OCT_DIR_BACK];
+
+                        bool missed_child =false;
+                        for(unsigned int c=0; c<NUM_CHILDREN;c++)
+                        {
+                            if(child[c] == LOOK_UP_TABLE_DEFAULT || pNodes[child[c]].getLevel()!=pNodes[lookUp].getLevel() ||  !m_uiIsNodalMapValid[child[c]])
+                            {
+                                missed_child = true;
+                                break;
                             }
                         }
+
+                        if(missed_child)
+                        {
+                            z = pNodes[elem].minZ()-((3*lsz)>>2u);  
+                            for(unsigned int d2=0; d2 < N; d2+=1)
+                            {
+                                y= pNodes[elem].minY() + d2*(lsz/m_uiElementOrder);
+                                for(unsigned int d1=0; d1 < N; d1+=1)
+                                {
+                                    x= pNodes[elem].minX() + d1*(lsz/m_uiElementOrder);
+                                    tmpSKey = ot::SearchKey(x , y , z , m_uiMaxDepth +1 ,m_uiDim, m_uiMaxDepth +1  );
+                                    tmpSKey.addOwner(offset + 0*ly*lx + (ej*m_uiElementOrder + paddWidth + d2)*lx + (ei*m_uiElementOrder + paddWidth + d1));
+                                    m_uiUnzip_3pt.push_back(tmpSKey);
+
+                                }
+                            }
+                        }
+
 
                     }
                     
@@ -11191,21 +11309,49 @@ namespace ot {
                     lookUp=m_uiE2EMapping[elem*m_uiNumDirections+dir];
                     if(lookUp!=LOOK_UP_TABLE_DEFAULT && pNodes[lookUp].getLevel() > pNodes[elem].getLevel())
                     { // this is the case the 3rd point might be missing on local proc. 
-                        
-                        const unsigned int lsz = 1u<<(m_uiMaxDepth - (pNodes[lookUp].getLevel()-1));
-                        x = pNodes[lookUp].minX()+lsz;  
-                        for(unsigned int d2=0; d2 < N; d2++)
-                        {
-                            z= pNodes[lookUp].minZ() + d2*(lsz/m_uiElementOrder);
-                            for(unsigned int d1=0; d1 < N; d1++)
-                            {
-                                y= pNodes[lookUp].minY() + d1*(lsz/m_uiElementOrder);
-                                tmpSKey = ot::SearchKey(x , y , z , m_uiMaxDepth,m_uiDim,m_uiMaxDepth);
-                                tmpSKey.addOwner(offset + d2*ly*lx + d1*lx + (uzip_1d-1));
-                                m_uiUnzip_3pt.push_back(tmpSKey);
 
+                        child[0]=lookUp;
+                        child[2]=m_uiE2EMapping[child[0]*m_uiNumDirections+OCT_DIR_UP];
+                        assert(child[2]!=LOOK_UP_TABLE_DEFAULT);
+                        child[4]=m_uiE2EMapping[child[0]*m_uiNumDirections+OCT_DIR_FRONT];
+                        assert(child[4]!=LOOK_UP_TABLE_DEFAULT);
+                        child[6]=m_uiE2EMapping[child[2]*m_uiNumDirections+OCT_DIR_FRONT];
+                        assert(child[6]!=LOOK_UP_TABLE_DEFAULT);
+
+                        child[1]=m_uiE2EMapping[child[0]*m_uiNumDirections+OCT_DIR_RIGHT];
+                        child[3]=m_uiE2EMapping[child[2]*m_uiNumDirections+OCT_DIR_RIGHT];
+                        child[5]=m_uiE2EMapping[child[4]*m_uiNumDirections+OCT_DIR_RIGHT];
+                        child[7]=m_uiE2EMapping[child[6]*m_uiNumDirections+OCT_DIR_RIGHT];
+
+                        bool missed_child =false;
+                        for(unsigned int c=0; c<NUM_CHILDREN;c++)
+                        {
+                            if(child[c] == LOOK_UP_TABLE_DEFAULT || pNodes[child[c]].getLevel()!=pNodes[lookUp].getLevel() ||  !m_uiIsNodalMapValid[child[c]])
+                            {
+                                missed_child = true;
+                                break;
                             }
                         }
+
+                        if(missed_child)
+                        {
+                            x = pNodes[elem].maxX() + ((3*lsz)>>2u);  
+                            for(unsigned int d2=0; d2 < N; d2+=1)
+                            {
+                                z= pNodes[elem].minZ() + d2*(lsz/m_uiElementOrder);
+                                for(unsigned int d1=0; d1 < N; d1+=1)
+                                {
+                                    y= pNodes[elem].minY() + d1*(lsz/m_uiElementOrder);
+                                    tmpSKey = ot::SearchKey(x , y , z , m_uiMaxDepth +1 ,m_uiDim, m_uiMaxDepth +1 );
+                                    tmpSKey.addOwner(offset + (ek*m_uiElementOrder + paddWidth + d2)*ly*lx + (ej*m_uiElementOrder + paddWidth + d1)*lx + (uzip_1d-1));
+                                    m_uiUnzip_3pt.push_back(tmpSKey);
+
+                                }
+                            }
+
+                        }
+                        
+                        
                     }
                     
 
@@ -11220,20 +11366,48 @@ namespace ot {
                     if(lookUp!=LOOK_UP_TABLE_DEFAULT && pNodes[lookUp].getLevel() > pNodes[elem].getLevel())
                     { // this is the case the 3rd point might be missing on local proc. 
 
-                        const unsigned int lsz = 1u<<(m_uiMaxDepth - (pNodes[lookUp].getLevel()-1));
-                        y = pNodes[lookUp].minY()+lsz;  
-                        for(unsigned int d2=0; d2 < N; d2++)
-                        {
-                            z = pNodes[lookUp].minZ() + d2*(lsz/m_uiElementOrder);
-                            for(unsigned int d1=0; d1 < N; d1++)
-                            {
-                                x = pNodes[lookUp].minX() + d1*(lsz/m_uiElementOrder);
-                                tmpSKey = ot::SearchKey(x , y , z , m_uiMaxDepth,m_uiDim,m_uiMaxDepth);
-                                tmpSKey.addOwner(offset + d2*ly*lx + (uzip_1d-1)*lx + d1);
-                                m_uiUnzip_3pt.push_back(tmpSKey);
+                        child[0]=lookUp;
+                        child[1]=m_uiE2EMapping[child[0]*m_uiNumDirections+OCT_DIR_RIGHT];
+                        assert(child[1]!=LOOK_UP_TABLE_DEFAULT);
+                        child[4]=m_uiE2EMapping[child[0]*m_uiNumDirections+OCT_DIR_FRONT];
+                        assert(child[4]!=LOOK_UP_TABLE_DEFAULT);
+                        child[5]=m_uiE2EMapping[child[1]*m_uiNumDirections+OCT_DIR_FRONT];
+                        assert(child[5]!=LOOK_UP_TABLE_DEFAULT);
 
+                        child[2]=m_uiE2EMapping[child[0]*m_uiNumDirections+OCT_DIR_UP];
+                        child[3]=m_uiE2EMapping[child[1]*m_uiNumDirections+OCT_DIR_UP];
+                        child[6]=m_uiE2EMapping[child[4]*m_uiNumDirections+OCT_DIR_UP];
+                        child[7]=m_uiE2EMapping[child[5]*m_uiNumDirections+OCT_DIR_UP];
+
+                        bool missed_child =false;
+                        for(unsigned int c=0; c<NUM_CHILDREN;c++)
+                        {
+                            if(child[c] == LOOK_UP_TABLE_DEFAULT || pNodes[child[c]].getLevel()!=pNodes[lookUp].getLevel() ||  !m_uiIsNodalMapValid[child[c]])
+                            {
+                                missed_child = true;
+                                break;
                             }
                         }
+
+                        if(missed_child)
+                        {
+                            y = pNodes[elem].maxY() + ((3*lsz)>>2u);  
+                            for(unsigned int d2=0; d2 < N; d2+=1)
+                            {
+                                z = pNodes[elem].minZ() + d2*(lsz/m_uiElementOrder);
+                                for(unsigned int d1=0; d1 < N; d1+=1)
+                                {
+                                    x = pNodes[elem].minX() + d1*(lsz/m_uiElementOrder);
+                                    tmpSKey = ot::SearchKey(x , y , z , m_uiMaxDepth +1 ,m_uiDim, m_uiMaxDepth +1 );
+                                    tmpSKey.addOwner(offset + (ek*m_uiElementOrder + paddWidth + d2)*ly*lx + (uzip_1d-1)*lx + (ei*m_uiElementOrder + paddWidth + d1));
+                                    m_uiUnzip_3pt.push_back(tmpSKey);
+
+                                }
+                            }
+
+                        }
+
+                        
     
                     }
                     
@@ -11249,191 +11423,294 @@ namespace ot {
                     if(lookUp!=LOOK_UP_TABLE_DEFAULT && pNodes[lookUp].getLevel() > pNodes[elem].getLevel())
                     { // this is the case the 3rd point might be missing on local proc. 
 
-                        const unsigned int lsz = 1u<<(m_uiMaxDepth - (pNodes[lookUp].getLevel()-1));
-                        z = pNodes[lookUp].minZ()+lsz;  
-                        for(unsigned int d2=0; d2 < N; d2++)
-                        {
-                            y = pNodes[lookUp].minY() + d2*(lsz/m_uiElementOrder);
-                            for(unsigned int d1=0; d1 < N; d1++)
-                            {
-                                x = pNodes[lookUp].minX() + d1*(lsz/m_uiElementOrder);
-                                tmpSKey = ot::SearchKey(x , y , z , m_uiMaxDepth,m_uiDim,m_uiMaxDepth);
-                                tmpSKey.addOwner(offset + (uzip_1d-1)*ly*lx + d2*lx + d1);
-                                m_uiUnzip_3pt.push_back(tmpSKey);
+                        child[0]=lookUp;
+                        child[1]=m_uiE2EMapping[child[0]*m_uiNumDirections+OCT_DIR_RIGHT];
+                        assert(child[1]!=LOOK_UP_TABLE_DEFAULT);
+                        child[2]=m_uiE2EMapping[child[0]*m_uiNumDirections+OCT_DIR_UP];
+                        assert(child[2]!=LOOK_UP_TABLE_DEFAULT);
+                        child[3]=m_uiE2EMapping[child[1]*m_uiNumDirections+OCT_DIR_UP];
+                        assert(child[3]!=LOOK_UP_TABLE_DEFAULT);
 
+                        child[4]=m_uiE2EMapping[child[0]*m_uiNumDirections+OCT_DIR_FRONT];
+                        child[5]=m_uiE2EMapping[child[1]*m_uiNumDirections+OCT_DIR_FRONT];
+                        child[6]=m_uiE2EMapping[child[2]*m_uiNumDirections+OCT_DIR_FRONT];
+                        child[7]=m_uiE2EMapping[child[3]*m_uiNumDirections+OCT_DIR_FRONT];
+
+                        bool missed_child =false;
+                        for(unsigned int c=0; c<NUM_CHILDREN;c++)
+                        {
+                            if(child[c] == LOOK_UP_TABLE_DEFAULT || pNodes[child[c]].getLevel()!=pNodes[lookUp].getLevel() ||  !m_uiIsNodalMapValid[child[c]])
+                            {
+                                missed_child = true;
+                                break;
                             }
                         }
+
+                        if(missed_child)
+                        {
+                            z = pNodes[elem].maxZ() + ((3*lsz)>>2u);  
+                            for(unsigned int d2=0; d2 < N; d2+=1)
+                            {
+                                y = pNodes[elem].minY() + d2*(lsz/m_uiElementOrder);
+                                for(unsigned int d1=0; d1 < N; d1+=1)
+                                {
+                                    x = pNodes[elem].minX() + d1*(lsz/m_uiElementOrder);
+                                    tmpSKey = ot::SearchKey(x , y , z , m_uiMaxDepth +1 ,m_uiDim, m_uiMaxDepth +1 );
+                                    tmpSKey.addOwner(offset + (uzip_1d-1)*ly*lx + (ej*m_uiElementOrder + paddWidth + d2 )*lx + (ei*m_uiElementOrder + paddWidth +d1));
+                                    m_uiUnzip_3pt.push_back(tmpSKey);
+
+                                }
+                            }
+
+                        }
+                        
+
+                        
     
                     }
-                    
-
                 }
 
 
 
 
             }
-        }
+         }
 
+         //std::cout<<" rank: "<<m_uiActiveRank<<"missing pts dup: "<<m_uiUnzip_3pt.size()<<std::endl;
+         m_uiMaxDepth++;
+         mergeKeys(m_uiUnzip_3pt,m_uiUnzip_3pt_keys);
+         assert(seq::test::isUniqueAndSorted(m_uiUnzip_3pt_keys));
+         m_uiMaxDepth--;
 
-        for(unsigned int p = 0; p < m_uiActiveNpes ;p++)
-        {
-            tmpSKey = ot::SearchKey(m_uiLocalSplitterElements[2*p]);
-            tmpSKey.addOwner(-1);
-            m_uiUnzip_3pt.push_back(tmpSKey);
+         std::vector<ot::Key> dboundary_keys;
+         for(unsigned int i=0; i < m_uiUnzip_3pt_keys.size(); i++ )
+         {
+            unsigned int x =  m_uiUnzip_3pt_keys[i].minX();
+            unsigned int y =  m_uiUnzip_3pt_keys[i].minY();
+            unsigned int z =  m_uiUnzip_3pt_keys[i].minZ();
 
-        }
-
-        m_uiMaxDepth++;
-        mergeKeys(m_uiUnzip_3pt,m_uiUnzip_3pt_keys);
-        m_uiMaxDepth--;
-
-        std::vector<ot::Key> sEleKeys;
-        sEleKeys.resize(m_uiActiveNpes);
-        for(unsigned int p = 0; p < m_uiActiveNpes ;p++)
-        {
-            sEleKeys[p]=Key(m_uiLocalSplitterElements[2*p]);
-        }
+            if(x == (1u<<m_uiMaxDepth))
+                x=x-1;
             
-        SFC::seqSearch::SFC_treeSearch(&(*(sEleKeys.begin())),&(*(m_uiUnzip_3pt_keys.begin())),0,sEleKeys.size(),0,m_uiUnzip_3pt_keys.size(),m_uiMaxDepth,m_uiMaxDepth,ROOT_ROTATION);
+            if(y == (1u<<m_uiMaxDepth))
+                y=y-1;
+            
+            if(z == (1u<<m_uiMaxDepth))
+                z=z-1;
 
-        std::vector<unsigned int> ownerrank;
-        ownerrank.resize(m_uiUnzip_3pt_keys.size(),LOOK_UP_TABLE_DEFAULT);
+            dboundary_keys.push_back(ot::Key(x,y,z,m_uiMaxDepth,m_uiDim, m_uiMaxDepth));
+            dboundary_keys.back().addOwner(i);
+         }
 
-        unsigned int sBegin=0;
-        unsigned int sEnd;
-        for(unsigned int p=0;p<m_uiActiveNpes;p++)
-        {
+
+         for(unsigned int p = 0; p < m_uiActiveNpes ;p++)
+         {
+           dboundary_keys.push_back(ot::Key(m_uiLocalSplitterElements[2*p]));
+         }
+         
+         std::vector<ot::Key> sEleKeys;
+         sEleKeys.resize(m_uiActiveNpes);
+         for(unsigned int p = 0; p < m_uiActiveNpes ;p++)
+            sEleKeys[p]=Key(m_uiLocalSplitterElements[2*p]);
+            
+         SFC::seqSearch::SFC_treeSearch(&(*(sEleKeys.begin())),&(*(dboundary_keys.begin())),0,sEleKeys.size(),0,dboundary_keys.size(),m_uiMaxDepth, m_uiMaxDepth,ROOT_ROTATION);
+         
+         // compute the owner rank(process) of the missing points. 
+         std::vector<unsigned int> ownerrank;
+         ownerrank.resize(m_uiUnzip_3pt_keys.size(),LOOK_UP_TABLE_DEFAULT);
+         
+         unsigned int sBegin=0;
+         unsigned int sEnd;
+         for(unsigned int p=0;p<m_uiActiveNpes;p++)
+         {
             assert((sEleKeys[p].getFlag() & OCT_FOUND));
-            assert(m_uiUnzip_3pt_keys[sEleKeys[p].getSearchResult()]==sEleKeys[p]);
+            assert(dboundary_keys[sEleKeys[p].getSearchResult()]==sEleKeys[p]);
             sBegin=sEleKeys[p].getSearchResult();
-            (p<(m_uiActiveNpes-1))? sEnd=sEleKeys[p+1].getSearchResult()+1: sEnd=m_uiUnzip_3pt_keys.size();
+            (p<(m_uiActiveNpes-1))? sEnd=sEleKeys[p+1].getSearchResult()+1: sEnd=dboundary_keys.size();
             
             for(unsigned int k=sBegin;k<sEnd;k++)
             {
-                for (unsigned int w = 0; w < m_uiUnzip_3pt_keys[k].getOwnerList()->size(); w++)
+                // if true it implies, that this key is a splitter element. 
+                if(dboundary_keys[k].getOwnerListSize()<1)
                 {
-                    const unsigned owner = (*(m_uiUnzip_3pt_keys[k].getOwnerList()))[w];
-                    if(owner >= 0)
-                        ownerrank[owner] =p;
-                    
-                }
+                   assert(sEleKeys[p] ==  dboundary_keys[k] || (p<(m_uiActiveNpes-1) && sEleKeys[p+1] ==  dboundary_keys[k] ));
+                   continue; 
+                } 
+                
+                ownerrank[dboundary_keys[k].getOwnerList()->front()] = p;
             }
-        }
+         }
 
+         dboundary_keys.clear();
 
-
-        // 2. Communicate the keys based on the computed owner ranks. 
         
-        m_uiSendCountRePt.resize(m_uiActiveNpes);
-        m_uiSendOffsetRePt.resize(m_uiActiveNpes);
-        m_uiRecvCountRePt.resize(m_uiActiveNpes);
-        m_uiRecvOffsetRePt.resize(m_uiActiveNpes);
-        
-        for(unsigned int i=0; i< m_uiActiveNpes; i++)
+ 
+         // 2. Communicate the keys based on the computed owner ranks. 
+         
+         m_uiSendCountRePt.resize(m_uiActiveNpes);
+         m_uiSendOffsetRePt.resize(m_uiActiveNpes);
+         m_uiRecvCountRePt.resize(m_uiActiveNpes);
+         m_uiRecvOffsetRePt.resize(m_uiActiveNpes);
+         
+         for(unsigned int i=0; i< m_uiActiveNpes; i++)
             m_uiSendCountRePt[i] = 0;    
 
-        for(unsigned int i=0;i<ownerrank.size();i++)
-        {
-            if( (ownerrank[i] != LOOK_UP_TABLE_DEFAULT ))
-                m_uiSendCountRePt[ownerrank[i]]++;
-        }            
-
-        par::Mpi_Alltoall(&(*(m_uiSendCountRePt.begin())), &(*(m_uiRecvCountRePt.begin())),m_uiActiveNpes,m_uiCommActive);
-
-        m_uiSendOffsetRePt[0] = 0;
-        m_uiRecvOffsetRePt[0] = 0;
-
-        omp_par::scan(&(*(m_uiSendCountRePt.begin())),&(*(m_uiSendOffsetRePt.begin())),m_uiActiveNpes);
-        omp_par::scan(&(*(m_uiRecvCountRePt.begin())),&(*(m_uiRecvOffsetRePt.begin())),m_uiActiveNpes);
-
-
-        std::vector<ot::TreeNode> sBuf;
-        std::vector<ot::TreeNode> rBuf;
-        
-        sBuf.resize((m_uiSendOffsetRePt[m_uiActiveNpes-1] + m_uiSendCountRePt[m_uiActiveNpes-1] ));
-        rBuf.resize((m_uiRecvOffsetRePt[m_uiActiveNpes-1] + m_uiRecvCountRePt[m_uiActiveNpes-1] ));
-
-        // copy unzip_keys to the sBuf. 
-
-
-        par::Mpi_Alltoallv(&(*(sBuf.begin())), (int *)(&(*(m_uiSendCountRePt.begin()))), (int *) (&(*(m_uiSendOffsetRePt.begin()))), &(*(rBuf.begin())), (int *) (&(*(m_uiRecvCountRePt.begin()))), (int *) (&(*(m_uiRecvOffsetRePt.begin()))), m_uiCommActive);
-
-
-        std::vector<ot::SearchKey> keys;
-        keys.reserve(rBuf.size());
-
-        for(unsigned int p=0; p< m_uiActiveNpes; p++)
-        {
-            for(unsigned int i=m_uiRecvOffsetRePt[p]; i< (m_uiRecvOffsetRePt[p] + m_uiRecvCountRePt[p]); i++)
+         for(unsigned int i=0;i<ownerrank.size();i++)
+         {
+            if( (ownerrank[i] == LOOK_UP_TABLE_DEFAULT ))
             {
-                keys.push_back(ot::SearchKey(rBuf[i]));
+                std::cout<<"error: "<<__func__<<" sending key : "<<m_uiUnzip_3pt_keys[i]<<" to proc: "<<ownerrank[i]<<std::endl;
+                MPI_Abort(m_uiCommActive,0);
+            }
+            
+            m_uiSendCountRePt[ownerrank[i]]++;
+             
+                
+         }            
+ 
+         par::Mpi_Alltoall(&(*(m_uiSendCountRePt.begin())), &(*(m_uiRecvCountRePt.begin())),1,m_uiCommActive);
+ 
+         m_uiSendOffsetRePt[0] = 0;
+         m_uiRecvOffsetRePt[0] = 0;
+ 
+         omp_par::scan(&(*(m_uiSendCountRePt.begin())),&(*(m_uiSendOffsetRePt.begin())),m_uiActiveNpes);
+         omp_par::scan(&(*(m_uiRecvCountRePt.begin())),&(*(m_uiRecvOffsetRePt.begin())),m_uiActiveNpes);
+ 
+ 
+         std::vector<ot::TreeNode> sBuf;
+         std::vector<ot::TreeNode> rBuf;
+         
+         sBuf.resize((m_uiSendOffsetRePt[m_uiActiveNpes-1] + m_uiSendCountRePt[m_uiActiveNpes-1] ));
+         rBuf.resize((m_uiRecvOffsetRePt[m_uiActiveNpes-1] + m_uiRecvCountRePt[m_uiActiveNpes-1] ));
+ 
+         /*if(m_uiActiveRank==0)
+         {
+            for(unsigned int p=0;p<m_uiActiveNpes;p++)
+                std::cout<<"rank:"<<m_uiActiveRank<<" send to "<<p<<" count : "<<m_uiSendCountRePt[p]<<std::endl;
+
+            for(unsigned int p=0;p<m_uiActiveNpes;p++)
+                std::cout<<"rank:"<<m_uiActiveRank<<" recv from "<<p<<" count : "<<m_uiRecvCountRePt[p]<<std::endl;
+         }*/
+ 
+         for(unsigned int i=0; i< m_uiActiveNpes; i++)
+            m_uiSendCountRePt[i] = 0;
+
+         // Note: this is important to do so to match the send node order with recv order. 
+         std::vector<ot::Key> tmpSendKey;
+         tmpSendKey.resize(sBuf.size());
+         
+         for(unsigned int i=0;i<ownerrank.size();i++)
+         {
+            sBuf[m_uiSendOffsetRePt[ownerrank[i]] + m_uiSendCountRePt[ownerrank[i]]] = ot::TreeNode(m_uiUnzip_3pt_keys[i].minX(),m_uiUnzip_3pt_keys[i].minY(),m_uiUnzip_3pt_keys[i].minZ(),m_uiMaxDepth+1,m_uiDim,m_uiMaxDepth+1);
+            tmpSendKey[m_uiSendOffsetRePt[ownerrank[i]] + m_uiSendCountRePt[ownerrank[i]]]=(m_uiUnzip_3pt_keys[i]);
+            m_uiSendCountRePt[ownerrank[i]]++;
+         }
+
+         std::swap(tmpSendKey,m_uiUnzip_3pt_keys);
+         tmpSendKey.clear();
+
+            //  if(m_uiActiveRank==0)
+            //  {
+            //      for(unsigned  int p=1; p<m_uiActiveNpes;p++ )
+            //      {
+            //          for(unsigned int i=m_uiSendOffsetRePt[p]; i< m_uiSendOffsetRePt[p] + m_uiSendCountRePt[p];i++)
+            //          {
+            //              std::cout<<"rnk: "<<m_uiActiveRank<<" sBuf key["<<i<<"] : "<<sBuf[i]<<" key:  "<<m_uiUnzip_3pt_keys[i]<<"to proc: "<<p<<" dist from offset : "<<(i-m_uiSendOffsetRePt[p])<<std::endl;
+            //          }
+
+            //      }
+                
+            //  }
+
+
+         par::Mpi_Alltoallv(&(*(sBuf.begin())), (int *)(&(*(m_uiSendCountRePt.begin()))), (int *) (&(*(m_uiSendOffsetRePt.begin()))), &(*(rBuf.begin())), (int  *) (&(*(m_uiRecvCountRePt.begin()))), (int *) (&(*(m_uiRecvOffsetRePt.begin()))), m_uiCommActive);
+        
+         std::vector<ot::SearchKey> keys;
+         keys.reserve(rBuf.size());
+ 
+         for(unsigned int p=0; p< m_uiActiveNpes; p++)
+         {
+            for(unsigned int i=m_uiRecvOffsetRePt[p]; i< (m_uiRecvOffsetRePt[p] + m_uiRecvCountRePt[p]); i++)
+            {   
+                keys.push_back(ot::SearchKey(rBuf[i].minX(),rBuf[i].minY(),rBuf[i].minZ(), m_uiMaxDepth+1, m_uiDim, m_uiMaxDepth+1));
                 keys.back().addOwner(i);
             }
-        }
-        
+         }
+         
+ 
+         m_uiMaxDepth++;
+         mergeKeys(keys,m_uiUnzip_3pt_recv_keys);
+         m_uiMaxDepth--;
+         keys.clear();
 
-        std::vector<ot::Key> rkey_merged;
-        // merge keys to be searched in the local partition. 
-        mergeKeys(keys,rkey_merged);
-        SFC::seqSearch::SFC_treeSearch(&(*(rkey_merged.begin())),&(*(m_uiAllElements.begin())),0,rkey_merged.size(),m_uiElementLocalBegin,m_uiElementLocalEnd,m_uiMaxDepth,m_uiMaxDepth,ROOT_ROTATION);
+         //std::cout<<"rank : "<<m_uiActiveRank<<" recv keys : "<<m_uiUnzip_3pt_recv_keys.size()<<std::endl;
 
-        
-        std::vector<SearchKey> eKeys; 
-        std::vector<Key> eKey_merged;
+         std::vector<ot::Key> rkey_merged;
+         for(unsigned int i=0; i < m_uiUnzip_3pt_recv_keys.size(); i++ )
+         {
+            unsigned int x =  m_uiUnzip_3pt_recv_keys[i].minX();
+            unsigned int y =  m_uiUnzip_3pt_recv_keys[i].minY();
+            unsigned int z =  m_uiUnzip_3pt_recv_keys[i].minZ();
 
-        for(unsigned int i=0;i<rkey_merged.size();i++)
-        {
+            if(x == (1u<<m_uiMaxDepth))
+                x=x-1;
+            
+            if(y == (1u<<m_uiMaxDepth))
+                y=y-1;
+            
+            if(z == (1u<<m_uiMaxDepth))
+                z=z-1;
+            
+            rkey_merged.push_back(ot::Key(x,y,z,m_uiMaxDepth,m_uiDim, m_uiMaxDepth));
+            rkey_merged.back().addOwner(i);
+         }
+
+         
+         SFC::seqSearch::SFC_treeSearch(&(*(rkey_merged.begin())),&(*(m_uiAllElements.begin())),0,rkey_merged.size(),m_uiElementLocalBegin,m_uiElementLocalEnd, m_uiMaxDepth,m_uiMaxDepth,ROOT_ROTATION);
+         //MPI_Barrier(m_uiCommActive); std::cout<<"search 2 pass "<<std::endl;
+         
+         std::vector<SearchKey> eKeys; 
+         for(unsigned int i=0;i<rkey_merged.size();i++)
+         {
             if( !(rkey_merged[i].getFlag() & OCT_FOUND) )
             {
-                std::cout<<"Error : "<<__func__<<" requested"<<pNodes[i]<<" node is not found at any local partition "<<std::endl;
+                std::cout<<"Error["<<m_uiActiveRank<<"] : "<<__func__<<" requested key : "<<rkey_merged[i]<<" node is not found at any local partition "<<std::endl;
                 MPI_Abort(m_uiCommActive,0);
             }
 
             const unsigned eleID = rkey_merged[i].getSearchResult();
             eKeys.push_back(ot::SearchKey(m_uiAllElements[eleID]));
-            eKeys.back().addOwner(i);
+            eKeys.back().addOwner(rkey_merged[i].getOwnerList()->front());
             
-        }
+         }
+ 
+         rkey_merged.clear();
+         mergeKeys(eKeys,m_uiUnzip_3pt_ele);
 
-        mergeKeys(eKeys,eKey_merged);
+         //std::cout<<"rank: "<<m_uiActiveRank<<" ele: "<<m_uiUnzip_3pt_ele.size()<<std::endl;
+         SFC::seqSearch::SFC_treeSearch(&(*(m_uiUnzip_3pt_ele.begin())),&(*(m_uiAllElements.begin())),0,m_uiUnzip_3pt_ele.size(),m_uiElementLocalBegin, m_uiElementLocalEnd,m_uiMaxDepth,m_uiMaxDepth,ROOT_ROTATION);
+ 
+         // swap the send nodes counts with recv node counts since the communication needs to be done in the other direction.
+         std::swap(m_uiSendCountRePt,m_uiRecvCountRePt);
+         std::swap(m_uiSendOffsetRePt,m_uiRecvOffsetRePt);
+ 
+         for(unsigned int i=0;i<m_uiActiveNpes;i++)
+         {
+            if(m_uiSendCountRePt[i]>0)
+                m_uiReqSendProcList.push_back(i);
 
-        const unsigned int nx = m_uiElementOrder + 1;
-        const unsigned int ny = m_uiElementOrder + 1;
-        const unsigned int nz = m_uiElementOrder + 1;
+            if(m_uiRecvCountRePt[i]>0)
+                m_uiReqRecvProcList.push_back(i);
+         }
 
-        std::vector<unsigned int>* ownerList;
-        unsigned int ownerID, ii_x, jj_y, kk_z;
-
-        m_uiSendNodeReqPtSM.resize(rBuf.size());
-        
-        for(unsigned int i=0; i< eKey_merged.size(); i++)
-        {
-            ot::Key tmpEleKey= eKey_merged[i];
-            const unsigned int eleID = tmpEleKey.getSearchResult();
-            ownerList = tmpEleKey.getOwnerList();
-            for(unsigned int w=0; w< ownerList->size();w++)
-            {
-                const unsigned int ii = (rkey_merged[(*ownerList)[w]].minX() - m_uiAllElements[eleID].minX())/(m_uiElementOrder); 
-                const unsigned int jj = (rkey_merged[(*ownerList)[w]].minY() - m_uiAllElements[eleID].minY())/(m_uiElementOrder); 
-                const unsigned int kk = (rkey_merged[(*ownerList)[w]].minZ() - m_uiAllElements[eleID].minZ())/(m_uiElementOrder);
-
-                const unsigned int node_dg = m_uiE2NMapping_DG[eleID*m_uiNpE + kk*ny*nx, jj*nx + ii];
-                this->dg2eijk(node_dg,ownerID,ii_x,jj_y,kk_z);
-                const unsigned int node_cg = m_uiE2NMapping_CG[ownerID*m_uiNpE + kk_z * ny * nx + jj_y * nx + ii_x];
-
-                const std::vector<unsigned int > * ownerList1 = rkey_merged[(*ownerList)[w]].getOwnerList();
-
-                for(unsigned int w1 = 0; w1 < ownerList1->size() ; w1++)
-                    m_uiSendNodeReqPtSM[(*ownerList1)[w1]] = node_cg;
-                
-            }
-        }
-                 
-
-                    
-                    
-    }
+         //MPI_Barrier(m_uiCommActive); if(!m_uiActiveRank) std::cout<<"3rd pt sm build"<<std::endl;
+ 
+ 
+                  
+ 
+                     
+                     
+    } 
 
 
 }

@@ -39,6 +39,7 @@
 #include "skey.h"
 #include "node.h"
 #include "dendro.h"
+#include "asyncExchangeContex.h"
 
 #include "wavelet.h"
 #include "dendroProfileParams.h" // only need to profile unzip_asyn for bssn. remove this header file later.
@@ -89,7 +90,12 @@ enum KeyType
     * REFINE: the neighbour octant is  (refined) than current level.
     * SAME: the neighbour octant is at same  level than current level.
     * **/
-enum NeighbourLevel{ COARSE , SAME, REFINE };
+enum NeighbourLevel
+{
+    COARSE,
+    SAME,
+    REFINE
+};
 
 //#define DEBUG_MESH_GENERATION
 
@@ -104,31 +110,30 @@ enum NeighbourLevel{ COARSE , SAME, REFINE };
 namespace ot
 {
 
-    /**@brief type of the scatter map, based on numerical computation method*/
-    enum SM_TYPE
-    {
-        FDM=0,  // Finite Difference Method 
-        FEM_CG, // Continous Galerkin  methods
-        FEM_DG  // Discontinous Galerkin methods
-    };
+/**@brief type of the scatter map, based on numerical computation method*/
+enum SM_TYPE
+{
+    FDM = 0, // Finite Difference Method
+    FEM_CG,  // Continous Galerkin  methods
+    FEM_DG   // Discontinous Galerkin methods
+};
 
-    enum EType
-    {
-        INDEPENDENT, // all the elemental nodal values,  are local. 
-        W_DEPENDENT, // element is writable but has ghost nodal values as well. (note that the writable would be Independent U W_dependent)
-        UNKWON 
-    };
+enum EType
+{
+    INDEPENDENT, // all the elemental nodal values,  are local.
+    W_DEPENDENT, // element is writable but has ghost nodal values as well. (note that the writable would be Independent U W_dependent)
+    UNKWON
+};
 
-
-    namespace WaveletDA
-    {
-        enum LoopType
-        {
-            ALL,
-            INDEPENDENT,
-            DEPENDENT
-        };
-    }
+namespace WaveletDA
+{
+enum LoopType
+{
+    ALL,
+    INDEPENDENT,
+    DEPENDENT
+};
+}
 
 } // namespace ot
 
@@ -137,7 +142,7 @@ namespace ot
 /** Structure to order the send recv nodes based on the (e,i,j,k ) ordering. */
 struct NodeTuple
 {
-  private:
+private:
     /** i index of the node*/
     unsigned int i;
     /** j index of the node*/
@@ -147,7 +152,7 @@ struct NodeTuple
     /** element id of the node*/
     unsigned int e;
 
-  public:
+public:
     NodeTuple(unsigned int xi, unsigned int yj, unsigned int zk, unsigned int owner)
     {
         i = xi;
@@ -173,7 +178,7 @@ namespace ot
 class Mesh
 {
 
-  private:
+private:
     /** Element to Element mapping data. Array size: [m_uiAllNodes.size()*m_uiStensilSz*m_uiNumDirections];  But this is done for m_uiStencilSz=1*/
     std::vector<unsigned int> m_uiE2EMapping;
     /** Element ot Node mapping data for continous Galerkin methods. Array size: [m_uiAllNodes.size()*m_uiNpE];*/
@@ -444,23 +449,52 @@ class Mesh
     /** type of the build scatter map.*/
     SM_TYPE m_uiScatterMapType;
 
-    /**@brief indicates whehter the f2e map has build or not*/
+    /**@brief indicates whether the f2e map has build or not*/
     bool m_uiIsF2ESetup;
 
+    /**@brief: async comunication context to support async ghost exchange*/
+    std::vector<AsyncExchangeContex> m_uiMPIContexts;
 
-    // Note : These are special data stored to search the 3rd point in Dendro-GR unzip with 4th order. 
+    /**@brief: communicator tag used for async communication*/
+    unsigned int m_uiCommTag=0;
+
+    /**bool vector for elementy ID, of size m_uiAllElements*/
+    std::vector<bool> m_uiIsNodalMapValid;
+
+    // --
+    //Note : These are special data stored to search the 3rd point in Dendro-GR unzip with 4th order.
+    //
+
+    /**@brief: missing unzip keys*/
     std::vector<ot::Key> m_uiUnzip_3pt_keys;
+
+    std::vector<ot::Key> m_uiUnzip_3pt_ele;
+
+    std::vector<ot::Key> m_uiUnzip_3pt_recv_keys;
+
+    /**@brief: send node count for req. keys*/
     std::vector<unsigned int> m_uiSendCountRePt;
+
+    /**@brief: send node offset for req. keys*/
     std::vector<unsigned int> m_uiSendOffsetRePt;
+
+    /**@brief: recv node count for req. keys*/
     std::vector<unsigned int> m_uiRecvCountRePt;
+
+    /**@brief: recv node offset for req. keys*/
     std::vector<unsigned int> m_uiRecvOffsetRePt;
-    std::vector<unsigned int> m_uiSendNodeReqPtSM;
+
+    /**@brief: req pts send proc list*/
+    std::vector<unsigned int> m_uiReqSendProcList;
     
+    /**@brief: req pts recv proc list*/
+    std::vector<unsigned int> m_uiReqRecvProcList;
+
+    /**@brief: send node req pt SM*/
+    std::vector<unsigned int> m_uiSendNodeReqPtSM;
 
 
-
-  private:
-
+private:
     /**@brief build E2N map for FEM computation*/
     void buildFEM_E2N();
 
@@ -906,12 +940,28 @@ class Mesh
     template <typename T>
     void OCT_DIR_RIGHT_UP_FRONT_Unzip(const ot::Block &blk, const T *zippedVec, T *unzippedVec);
 
-    // Note: These functions are specifically written for find missing 3rd block unzip points for the GR application 
-    void Unzip_3rd_ptSM();
+    //---Note: These functions are specifically written for find missing 3rd block unzip points for the GR application
 
+    /**
+     * @brief: Compute the scatter maps for the 3rd point interpolation this is written only for GR application. 
+     * Note that when performing communication send counts and recv counts should be interchanged. 
+     */
+    void computeSMSpecialPts();
 
+    /**
+     * @brief performs the 3rd pt interpolation based on the scatter mapped built
+     * @tparam T type of the input and output vectors. 
+     * @param in : input vector
+     */
+    template <typename T>
+    void readSpecialPtsBegin(const T *in);
 
-  public:
+    template <typename T>
+    void readSpecialPtsEnd(const T *in, T* out);
+
+    // --- 3rd point exchange function end.
+
+public:
     /**@brief parallel mesh constructor
           * @param[in] in: complete sorted 2:1 balanced octree to generate mesh
           * @param[in] k_s: how many neighbours to check on each direction (used =1)
@@ -919,7 +969,7 @@ class Mesh
           * @param[in] commActive: MPI active communicator
           * @param[in] comm: MPI communicator (global)
           * */
-    Mesh(std::vector<ot::TreeNode> &in, unsigned int k_s, unsigned int pOrder, unsigned int activeNpes, MPI_Comm comm, bool pBlockSetup = true, SM_TYPE smType=SM_TYPE::FDM , unsigned int grainSz = DENDRO_DEFAULT_GRAIN_SZ, double ld_tol = DENDRO_DEFAULT_LB_TOL, unsigned int sf_k = DENDRO_DEFAULT_SF_K);
+    Mesh(std::vector<ot::TreeNode> &in, unsigned int k_s, unsigned int pOrder, unsigned int activeNpes, MPI_Comm comm, bool pBlockSetup = true, SM_TYPE smType = SM_TYPE::FDM, unsigned int grainSz = DENDRO_DEFAULT_GRAIN_SZ, double ld_tol = DENDRO_DEFAULT_LB_TOL, unsigned int sf_k = DENDRO_DEFAULT_SF_K);
 
     /**@brief parallel mesh constructor
          * @param[in] in: complete sorted 2:1 balanced octree to generate mesh
@@ -930,7 +980,7 @@ class Mesh
          * @param[in] ld_tol: load imbalance tolerance for comm expansion and shrinking
          * @param[in] sf_k: splitter fix _k value. (Needed by SFC_partitioinng for large p>=10,000)
          * */
-    Mesh(std::vector<ot::TreeNode> &in, unsigned int k_s, unsigned int pOrder, MPI_Comm comm, bool pBlockSetup = true, SM_TYPE smType=SM_TYPE::FDM, unsigned int grainSz = DENDRO_DEFAULT_GRAIN_SZ, double ld_tol = DENDRO_DEFAULT_LB_TOL, unsigned int sf_k = DENDRO_DEFAULT_SF_K);
+    Mesh(std::vector<ot::TreeNode> &in, unsigned int k_s, unsigned int pOrder, MPI_Comm comm, bool pBlockSetup = true, SM_TYPE smType = SM_TYPE::FDM, unsigned int grainSz = DENDRO_DEFAULT_GRAIN_SZ, double ld_tol = DENDRO_DEFAULT_LB_TOL, unsigned int sf_k = DENDRO_DEFAULT_SF_K);
 
     /**@brief destructor for mesh (releases the allocated variables in the class. )*/
     ~Mesh();
@@ -954,7 +1004,7 @@ class Mesh
     inline bool isBlockSetep() { return m_uiIsBlockSetup; }
 
     /**@brief: returns if the scatter map typed set*/
-    inline SM_TYPE getScatterMapType() {return m_uiScatterMapType;}
+    inline SM_TYPE getScatterMapType() { return m_uiScatterMapType; }
 
     // Setters and getters.
     /** @breif Returns the number of local elements in the grid. (local to the current considering processor)*/
@@ -1092,9 +1142,7 @@ class Mesh
     /**@brief return Scatter map for node send*/
     inline const std::vector<unsigned int> &getRecvNodeSM() const { return m_uiScatterMapActualNodeRecv; }
 
-    /**
-         * @brief: Decompose the DG index to element id and it's i,j,k values.
-         * */
+    /** @brief: Decompose the DG index to element id and it's i,j,k values.*/
     inline void dg2eijk(unsigned int dg_index, unsigned int &e, unsigned int &i, unsigned int &j, unsigned int &k) const
     {
         e = dg_index / m_uiNpE;
@@ -1115,7 +1163,8 @@ class Mesh
     }
 
     /**@brief returns the morton child number*/
-    inline unsigned int getMortonchildNum(unsigned int eleID) const {
+    inline unsigned int getMortonchildNum(unsigned int eleID) const
+    {
         return m_uiAllElements[eleID].getMortonIndex();
     }
 
@@ -1126,36 +1175,36 @@ class Mesh
     inline void waitAll() const { MPI_Barrier(m_uiCommGlobal); }
 
     /**@brief set refinement flags for the octree.
-         * This is non const function
-         *
-         * @param[in] flags indicating to refine/coarsen or no change
-         * @param[in] sz: size of the array flags, sz should be equivalent to number of local elements.
-         *
-         * */
+     * This is non const function
+     *
+     * @param[in] flags indicating to refine/coarsen or no change
+     * @param[in] sz: size of the array flags, sz should be equivalent to number of local elements.
+     *
+     * */
     void setOctreeRefineFlags(unsigned int *flags, unsigned int sz);
 
     /**
-             * @brief returns the face neighours in specidied direction.
-             * @param[in] eID:  Element ID.
-             * @param[in] dir: direction of the face.
-             * @param[out] lookUp: result if the result is a same level or lower level than element ID. (only 2 neighbor)
-             **/
+     * @brief returns the face neighours in specidied direction.
+     * @param[in] eID:  Element ID.
+     * @param[in] dir: direction of the face.
+     * @param[out] lookUp: result if the result is a same level or lower level than element ID. (only 2 neighbor)
+     **/
 
     void getElementalFaceNeighbors(const unsigned int eID, const unsigned int dir, unsigned int *lookup) const;
     /**
-           * @brief returns the edge neighours in specidied direction.
-           * @param[in] eID:  Element ID.
-           * @param[in] dir: direction of the edge.
-           * @param[out] lookUp: result if the result is a same level or lower level than element ID. (only 4 neighbor)
-           * */
+     * @brief returns the edge neighours in specidied direction.
+     * @param[in] eID:  Element ID.
+     * @param[in] dir: direction of the edge.
+     * @param[out] lookUp: result if the result is a same level or lower level than element ID. (only 4 neighbor)
+     * */
 
     void getElementalEdgeNeighbors(const unsigned int eID, const unsigned int dir, unsigned int *lookup) const;
     /**
-            * @brief returns the vertex neighours in specidied direction.
-            * @param[in] eID:  Element ID.
-            * @param[in] dir: direction of the vertex.
-            * @param[out] lookUp: result if the result is a same level or lower level than element ID. (only 8 neighbor)
-            * */
+    * @brief returns the vertex neighours in specidied direction.
+    * @param[in] eID:  Element ID.
+    * @param[in] dir: direction of the vertex.
+    * @param[out] lookUp: result if the result is a same level or lower level than element ID. (only 8 neighbor)
+    * */
     void getElementalVertexNeighbors(const unsigned int eID, const unsigned int dir, unsigned int *lookup) const;
 
     /**
@@ -1164,133 +1213,133 @@ class Mesh
      * @param[in/out] qMat: computed interpolation matrix. by default it is assumed to be allocated. 
      * 
      */
-    void getElementQMat(unsigned int currentId, double*& qMat, bool isAllocated=true) const;
+    void getElementQMat(unsigned int currentId, double *&qMat, bool isAllocated = true) const;
 
     // Wavelet Init functions
     /**
-          * @brief Initilizes the wavelet DA loop depending on the WaveletDA flags specified
-          * */
+     * @brief Initilizes the wavelet DA loop depending on the WaveletDA flags specified
+     * */
     template <ot::WaveletDA::LoopType type>
     void init();
 
     /**
-          * @brief Check whether the next element is available.
-          * */
+     * @brief Check whether the next element is available.
+     * */
 
     template <ot::WaveletDA::LoopType type>
     bool nextAvailable();
 
     /**
-          * @brief Increment the counters to access the next element in the mesh.
-          * */
+     * @brief Increment the counters to access the next element in the mesh.
+     * */
 
     template <ot::WaveletDA::LoopType type>
     void next();
 
     /**
-          * @brief Return the current element as an octant.
-          * */
+     * @brief Return the current element as an octant.
+     * */
     inline const ot::TreeNode &currentOctant();
 
     /**
-          * @brief Returns the current element index.
-          * */
+     * @brief Returns the current element index.
+     * */
     inline unsigned int currentIndex();
 
     /**
-          * @brief Returns the current neighbour list (Element) information. Note that for 3D it is 8 neighbours for each octant and for 2D it is 4.
-          * */
+     * @brief Returns the current neighbour list (Element) information. Note that for 3D it is 8 neighbours for each octant and for 2D it is 4.
+     * */
 
     inline void currentElementNeighbourIndexList(unsigned int *neighList);
 
     /**
-          * @brief: Returns the node index list belongs to current element.
-          * NodeList size should be m_uiNpE;
-          * */
+     * @brief: Returns the node index list belongs to current element.
+     * NodeList size should be m_uiNpE;
+     * */
 
     inline void currentElementNodeList(unsigned int *nodeList);
 
     /**
-          * @brief Returns the node index list belogns to the currentl element in DG indexing.
-          * NodeList size should be m_uiNpE;
-          *
-          * */
+     * @brief Returns the node index list belogns to the currentl element in DG indexing.
+     * NodeList size should be m_uiNpE;
+     *
+     * */
     inline void currentElementNodeList_DG(unsigned int *nodeList);
 
     // functions to access, faces and edges of a given element.
 
     /**
-         * @brief Returns the index of m_uiE2NMapping (CG or DG) for a specified face.
-         * @param [in] elementID: element ID of the face, that the face belongs to .
-         * @param [in] face : Face that you need the indexing,
-         * @param [in] isInternal: return only the internal nodes if true hence the index size would be ((m_uiElementOrder-1)*(m_uiElementOrder-1))
-         * @param [out] index: returns the indecies of the requested face.
-         * */
+     * @brief Returns the index of m_uiE2NMapping (CG or DG) for a specified face.
+     * @param [in] elementID: element ID of the face, that the face belongs to .
+     * @param [in] face : Face that you need the indexing,
+     * @param [in] isInternal: return only the internal nodes if true hence the index size would be ((m_uiElementOrder-1)*(m_uiElementOrder-1))
+     * @param [out] index: returns the indecies of the requested face.
+     * */
 
     inline void faceNodesIndex(unsigned int elementID, unsigned int face, std::vector<unsigned int> &index,
                                bool isInternal) const;
 
     /**
-         * @brief Returns the index of m_uiE2NMapping (CG or DG) for a specified Edge.
-         * @param [in] elementID: element ID of the edge, that the face belongs to .
-         * @param [in] face1 : one of the face, that an edge belongs to
-         * @param [in] face2: second face that an edge belongs to . Hence the edge in cosideration will be intersection of the two faces, face1 and face2.
-         * @param [in] isInternal: return only the internal nodes if true hence the index size would be ((m_uiElementOrder-1)*(m_uiElementOrder-1))
-         * @param [out] index: returns the indecies of the requested face.
-         * */
+     * @brief Returns the index of m_uiE2NMapping (CG or DG) for a specified Edge.
+     * @param [in] elementID: element ID of the edge, that the face belongs to .
+     * @param [in] face1 : one of the face, that an edge belongs to
+     * @param [in] face2: second face that an edge belongs to . Hence the edge in cosideration will be intersection of the two faces, face1 and face2.
+     * @param [in] isInternal: return only the internal nodes if true hence the index size would be ((m_uiElementOrder-1)*(m_uiElementOrder-1))
+     * @param [out] index: returns the indecies of the requested face.
+     * */
 
     inline void edgeNodeIndex(unsigned int elementID, unsigned int face1, unsigned int face2, std::vector<unsigned int> &index, bool isInternal) const;
 
     /**
-        * @brief Returns the index of m_uiE2NMapping (CG or DG) for a specified Edge.
-        * @param [in] elementID: element ID of the edge, that the face belongs to .
-        * @param [in] mortonIndex: morton ID of the corner node in the cordinate change in the order of x y z.
-        * @param [out] index: returns the indecies of the requested face.
-        * */
+    * @brief Returns the index of m_uiE2NMapping (CG or DG) for a specified Edge.
+    * @param [in] elementID: element ID of the edge, that the face belongs to .
+    * @param [in] mortonIndex: morton ID of the corner node in the cordinate change in the order of x y z.
+    * @param [out] index: returns the indecies of the requested face.
+    * */
 
     inline void cornerNodeIndex(unsigned int elementID, unsigned int mortonIndex, unsigned int &index) const;
 
     /**
-         * @brief Returns the all the internal node indices of an element.
-         * @param [in] elementID: element ID of the edge, that the face belongs to .
-         * @param [in] isInternal: return only the internal nodes if true hence the index size would be ((m_uiElementOrder-1)*(m_uiElementOrder-1))
-         * @param [out] index: returns the indecies of the requested face.
-         *
-         *
-         * */
+     * @brief Returns the all the internal node indices of an element.
+     * @param [in] elementID: element ID of the edge, that the face belongs to .
+     * @param [in] isInternal: return only the internal nodes if true hence the index size would be ((m_uiElementOrder-1)*(m_uiElementOrder-1))
+     * @param [out] index: returns the indecies of the requested face.
+     *
+     *
+     * */
 
     inline void elementNodeIndex(unsigned int elementID, std::vector<unsigned int> &index, bool isInternal) const;
 
     /**
-         * @brief: Returns true or false (bases on specified edge is hanging or not.)for a given element id , and edge id.
-         * @param[in] elementId: element ID of the octant.
-         * @param[in] edgeId: edge id
-         * */
+     * @brief: Returns true or false (bases on specified edge is hanging or not.)for a given element id , and edge id.
+     * @param[in] elementId: element ID of the octant.
+     * @param[in] edgeId: edge id
+     * */
     bool isEdgeHanging(unsigned int elementId, unsigned int edgeId, unsigned int &cnum) const;
 
     /**
-          * @brief: Returns true or false (bases on specified edge is hanging or not.)for a given element id , and edge id.
-          * @param[in] elementId: element ID of the octant.
-          * @param[in] faceId: face id
-          * */
+     * @brief: Returns true or false (bases on specified edge is hanging or not.)for a given element id , and edge id.
+     * @param[in] elementId: element ID of the octant.
+     * @param[in] faceId: face id
+     * */
     bool isFaceHanging(unsigned int elementId, unsigned int faceId, unsigned int &cnum) const;
 
     /**
-         * @brief: Returns true if the specified node (e,i,j,k) is hanging.
-         * @param[in] eleID: element ID
-         * @param[in] ix: i-index of the node.
-         * @param[in] jy: j-index of the node.
-         * @param[in] kz: k-index of the node.
-         * */
+     * @brief: Returns true if the specified node (e,i,j,k) is hanging.
+     * @param[in] eleID: element ID
+     * @param[in] ix: i-index of the node.
+     * @param[in] jy: j-index of the node.
+     * @param[in] kz: k-index of the node.
+     * */
     bool isNodeHanging(unsigned int eleID, unsigned int ix, unsigned int jy, unsigned int kz) const;
 
     /**
-          * @brief: Returns true if the specified node (e,i,j,k) is local.
-          * @param[in] eleID: element ID
-          * @param[in] ix: i-index of the node.
-          * @param[in] jy: j-index of the node.
-          * @param[in] kz: k-index of the node.
-          * */
+     * @brief: Returns true if the specified node (e,i,j,k) is local.
+     * @param[in] eleID: element ID
+     * @param[in] ix: i-index of the node.
+     * @param[in] jy: j-index of the node.
+     * @param[in] kz: k-index of the node.
+     * */
     inline bool isNodeLocal(unsigned int eleID, unsigned int ix, unsigned int jy, unsigned int kz) const
     {
         return ((m_uiE2NMapping_CG[eleID * m_uiNpE + kz * (m_uiElementOrder + 1) * (m_uiElementOrder + 1) + jy * (m_uiElementOrder + 1) + ix] >= m_uiNodeLocalBegin) && (m_uiE2NMapping_CG[eleID * m_uiNpE + kz * (m_uiElementOrder + 1) * (m_uiElementOrder + 1) + jy * (m_uiElementOrder + 1) + ix] < m_uiNodeLocalEnd));
@@ -1319,7 +1368,7 @@ class Mesh
     }
 
     /**@brief get plitter nodes for each processor. */
-    inline const ot::TreeNode * getNodalSplitterNodes() const {return m_uiSplitterNodes; }
+    inline const ot::TreeNode *getNodalSplitterNodes() const { return m_uiSplitterNodes; }
 
     // Methods needed for PDE & ODE and other solvers.
     /**@brief allocate memory for variable array based on the adaptive mesh*/
@@ -1475,148 +1524,147 @@ class Mesh
     void performGhostExchange(T *vec);
 
     /**
-            * @brief Perform the ghost asynchronous send for the vector vec Note: this is a non-blocking asynchronous communication.
-            * User is resposible to call the (synchronous call such as MPI_WaitAll) when overlapping the communication and computation.
-            * @param [in] vec: adaptive mesh vector contaiting the values.
-            * */
+    * @brief Perform the ghost asynchronous send for the vector vec Note: this is a non-blocking asynchronous communication.
+    * User is resposible to call the (synchronous call such as MPI_WaitAll) when overlapping the communication and computation.
+    * @param [in] vec: adaptive mesh vector contaiting the values.
+    * */
     template <typename T>
     void ghostExchangeStart(T *vec, T *sendNodeBuffer, T *recvNodeBuffer, MPI_Request *send_reqs, MPI_Request *recv_reqs);
 
     /**
-         * @brief Perform the wait on the recv requests
-         * @param [in] vec: adaptive mesh vector containing the values.
-         * @param [in] recv_reqs: m_uiRecvProcList.size() recv request
-         * @param [in] recv_sts: m_uiRecvProcList.size() recv status
-         * */
+     * @brief Perform the wait on the recv requests
+     * @param [in] vec: adaptive mesh vector containing the values.
+     * @param [in] recv_reqs: m_uiRecvProcList.size() recv request
+     * @param [in] recv_sts: m_uiRecvProcList.size() recv status
+     * */
     template <typename T>
     void ghostExchangeRecvSync(T *vec, T *recvNodeBuffer, MPI_Request *recv_reqs, MPI_Status *recv_sts);
 
     /**
-         * @brief Perform the wait on the recv requests
-         * @param [in] vec: adaptive mesh vector containing the values.
-         * @param [in] send_reqs: m_uiSendProcList.size() send request
-         * @param [in] send_sts: m_uiSendProcList.size() send status
-         * */
+     * @brief Perform the wait on the recv requests
+     * @param [in] vec: adaptive mesh vector containing the values.
+     * @param [in] send_reqs: m_uiSendProcList.size() send request
+     * @param [in] send_sts: m_uiSendProcList.size() send status
+     * */
     inline void ghostExchangeSendSync(MPI_Request *send_reqs, MPI_Status *send_sts)
     {
         MPI_Waitall(m_uiSendProcList.size(), send_reqs, send_sts);
     }
 
     /**
-         * @brief write out function values to a vtk file.
-         * @param[in] vec: variable vector that needs to be written as a vtk file.
-         * @param[in] fprefix: prefix of the output vtk file name.
-         * */
+     * @brief write out function values to a vtk file.
+     * @param[in] vec: variable vector that needs to be written as a vtk file.
+     * @param[in] fprefix: prefix of the output vtk file name.
+     * */
     template <typename T>
     void vectorToVTK(const std::vector<T> &vec, char *fprefix, double pTime = 0.0, unsigned int nCycle = 0) const;
 
     /**
-             * @brief : determine whether any refinement or coarsening need for a specified set of elements. (This uses zipped version of the varibles which needs to satiesfy some constraints. Not every
-             * element is eligible for refinemenet or coarsening).
-             * @param[in] vec: sequence of varaibles to check
-             * @param[in] varIds: variable ids to check. (var ids to index the vec, vec[i] is a T* pointintg to one of the variable in vec. )
-             * @param[in] numVars: number of variables to check
-             * @param[in] tol: wavelet tolerance
-             * Returns true if specified variable violates the specified wavelet toerlance.
-             * @note: this method will flag every element in the mesh with OCT_NO_CHANGE, OCT_SPLIT, OCT_COARSE.
-             *
-             * */
+     * @brief : determine whether any refinement or coarsening need for a specified set of elements. (This uses zipped version of the varibles which needs to satiesfy some constraints. Not every
+     * element is eligible for refinemenet or coarsening).
+     * @param[in] vec: sequence of varaibles to check
+     * @param[in] varIds: variable ids to check. (var ids to index the vec, vec[i] is a T* pointintg to one of the variable in vec. )
+     * @param[in] numVars: number of variables to check
+     * @param[in] tol: wavelet tolerance
+     * Returns true if specified variable violates the specified wavelet toerlance.
+     * @note: this method will flag every element in the mesh with OCT_NO_CHANGE, OCT_SPLIT, OCT_COARSE.
+     *
+     * */
     template <typename T>
     bool isReMesh(const T **vec, const unsigned int *varIds, const unsigned int numVars, double tol, double amr_coarse_fac = DENDRO_AMR_COARSEN_FAC);
 
     /**
-         * @param[in] vec: sequence of varaibles to check
-         * @param[in] varIds: variable ids to check. (var ids to index the vec, vec[i] is a T* pointintg to one of the variable in vec. )
-         * @param[in] numVars: number of variables to check
-         * @param[in] tol: wavelet tolerance
-                 * Returns true if specified variable violates the specified wavelet toerlance.
-         * @note: this method will flag every element in the mesh with OCT_NO_CHANGE, OCT_SPLIT, OCT_COARSE.
-         *
-        * */
+     * @param[in] vec: sequence of varaibles to check
+     * @param[in] varIds: variable ids to check. (var ids to index the vec, vec[i] is a T* pointintg to one of the variable in vec. )
+     * @param[in] numVars: number of variables to check
+     * @param[in] tol: wavelet tolerance
+             * Returns true if specified variable violates the specified wavelet toerlance.
+     * @note: this method will flag every element in the mesh with OCT_NO_CHANGE, OCT_SPLIT, OCT_COARSE.
+     *
+    * */
 
     template <typename T>
     bool isReMeshUnzip(const T **unzippedVec, const unsigned int *varIds, const unsigned int numVars, std::function<double(double, double, double)> wavelet_tol, double amr_coarse_fac = DENDRO_AMR_COARSEN_FAC, double coarsen_hx = DENDRO_REMESH_UNZIP_SCALE_FAC);
 
     /**
-         * @brief: Remesh the mesh with the new computed elements.
-         * @note assumes that refinedIDs and corasenIDs are sorted. (This is automatically done by the isRemesh Fucntion)
-         * @param[in] refinedIDs: element IDs need to be refined. (computed by isReMesh function)
-         * @param[in] coarsenIDs: element IDs need to be coarsened. (computed by isReMesh function)
-         * @param[in] ld_tol: tolerance value used for flexible partitioning
-         * @param[in] sfK: spliiter fix parameter (need to specify larger value when run in super large scale)
-         * */
+     * @brief: Remesh the mesh with the new computed elements.
+     * @note assumes that refinedIDs and corasenIDs are sorted. (This is automatically done by the isRemesh Fucntion)
+     * @param[in] refinedIDs: element IDs need to be refined. (computed by isReMesh function)
+     * @param[in] coarsenIDs: element IDs need to be coarsened. (computed by isReMesh function)
+     * @param[in] ld_tol: tolerance value used for flexible partitioning
+     * @param[in] sfK: spliiter fix parameter (need to specify larger value when run in super large scale)
+     * */
     ot::Mesh *ReMesh(unsigned int grainSz = DENDRO_DEFAULT_GRAIN_SZ, double ld_tol = DENDRO_DEFAULT_LB_TOL, unsigned int sfK = DENDRO_DEFAULT_SF_K);
 
     /**
-         * @brief transfer a variable vector form old grid to new grid.
-         * @param[in] vec: variable vector needs to be transfered.
-         * @param[out] vec: transfered varaible vector
-         * @param[in] pMesh: Mesh that we need to transfer the old varaible.
-         * */
+     * @brief transfer a variable vector form old grid to new grid.
+     * @param[in] vec: variable vector needs to be transfered.
+     * @param[out] vec: transfered varaible vector
+     * @param[in] pMesh: Mesh that we need to transfer the old varaible.
+     * */
     template <typename T>
     void interGridTransfer(std::vector<T> &vec, const ot::Mesh *pMesh);
 
     /**
-         * @brief transfer a variable vector form old grid to new grid.
-         * @param[in] vec: variable vector needs to be transfered.
-         * @param[out] vec: transfered varaible vector
-         * @param[in] pMesh: Mesh that we need to transfer the old varaible.
-         * */
+     * @brief transfer a variable vector form old grid to new grid.
+     * @param[in] vec: variable vector needs to be transfered.
+     * @param[out] vec: transfered varaible vector
+     * @param[in] pMesh: Mesh that we need to transfer the old varaible.
+     * */
     template <typename T>
     void interGridTransfer(T *&vec, const ot::Mesh *pMesh);
 
     /**
-         *@brief : Returns the nodal values of a given element for a given variable vector.
-         *@param[in] vec: variable vector that we want to get the nodal values.
-         *@param[in] elementID: element ID that we need to get the nodal values.
-         *@param[out] nodalValues: nodal values of the specified element ID
-         *
-         * */
+    *@brief : Returns the nodal values of a given element for a given variable vector.
+    *@param[in] vec: variable vector that we want to get the nodal values.
+    *@param[in] elementID: element ID that we need to get the nodal values.
+    *@param[out] nodalValues: nodal values of the specified element ID
+    *
+    * */
     template <typename T>
     void getElementNodalValues(const T *vec, T *nodalValues, unsigned int elementID) const;
 
     /**
-         * @assumption: input is the elemental nodal values.
-         * @brief: Computes the contribution of elemental nodal values to the parent elements if it is hanging.
-         * Note: internal nodes for the elements cannnot be hagging. Only the face edge nodes are possible for hanging.
-         *
-         * @param[in] vec: child var vector (nPe)
-         * @param[in] elementID: element ID of the current element (or child octant)
-         * @param[out] out: add the contributions to the current vector accordingly.
-         *
-         * Usage: This is needed when performing matrix-free matvec for FEM method.
-         *
-         * */
+     * @assumption: input is the elemental nodal values.
+     * @brief: Computes the contribution of elemental nodal values to the parent elements if it is hanging.
+     * Note: internal nodes for the elements cannnot be hagging. Only the face edge nodes are possible for hanging.
+     *
+     * @param[in] vec: child var vector (nPe)
+     * @param[in] elementID: element ID of the current element (or child octant)
+     * @param[out] out: add the contributions to the current vector accordingly.
+     *
+     * Usage: This is needed when performing matrix-free matvec for FEM method.
+     *
+     * */
     template <typename T>
     void computeElementalContribution(const T *in, T *out, unsigned int elementID) const;
 
     /**@brief computes the elementCoordinates (based on the nodal placement)
-         * @param[in] eleID : element ID
-         * @param[in/out] coords: computed coords (note: assumes memory is allocated allocated)
-         * coords are stored by p0,p1,p2... each pi \in R^dim where pi are ordered in along x axis y axis and z
-         * coors size m_uiDim*m_uiNpE
-         * */
+     * @param[in] eleID : element ID
+     * @param[in/out] coords: computed coords (note: assumes memory is allocated allocated)
+     * coords are stored by p0,p1,p2... each pi \in R^dim where pi are ordered in along x axis y axis and z
+     * coors size m_uiDim*m_uiNpE
+     * */
 
     void getElementCoordinates(unsigned int eleID, double *coords) const;
 
     /**
-         * @brief computes the face neighbor points for additional computations for a specified direction.
-         * @param [in] eleID: element ID
-         * @param [in] in: inpute vector
-         * @param [out] out: output vector values are in the order of the x,y,z size : 4*NodesPerElement
-         * @param [out] coords: get the corresponding coordinates size: 4*NodesPerElement*m_uiDim;
-         * @param [out] neighID: face neighbor octant IDs,
-         * @param [in] face: face direction in {OCT_DIR_LEFT,OCT_IDR_RIGHT,OCT_DIR_DOWN, OCT_DIR_UP,OCT_DIR_BACK,OCT_DIR_FRONT}
-         * @param [out] level: the level of the neighbour octant with respect to the current octant.
-         * returns  the number of face neighbours 1/4 for 3D.
-         * */
+     * @brief computes the face neighbor points for additional computations for a specified direction.
+     * @param [in] eleID: element ID
+     * @param [in] in: inpute vector
+     * @param [out] out: output vector values are in the order of the x,y,z size : 4*NodesPerElement
+     * @param [out] coords: get the corresponding coordinates size: 4*NodesPerElement*m_uiDim;
+     * @param [out] neighID: face neighbor octant IDs,
+     * @param [in] face: face direction in {OCT_DIR_LEFT,OCT_IDR_RIGHT,OCT_DIR_DOWN, OCT_DIR_UP,OCT_DIR_BACK,OCT_DIR_FRONT}
+     * @param [out] level: the level of the neighbour octant with respect to the current octant.
+     * returns  the number of face neighbours 1/4 for 3D.
+     * */
     template <typename T>
-    int getFaceNeighborValues(unsigned int eleID, const T *in, T *out, T *coords, unsigned int *neighID, unsigned int face, NeighbourLevel & level) const;
+    int getFaceNeighborValues(unsigned int eleID, const T *in, T *out, T *coords, unsigned int *neighID, unsigned int face, NeighbourLevel &level) const;
 
     /** @brief returns the type of the element. 
      * */
     EType getElementType(unsigned int eleID);
-
 };
 
 template <>
