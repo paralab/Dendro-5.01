@@ -167,7 +167,7 @@ namespace  SFC
             {
                 if(((nNodeEnd-nNodeBegin)==1) )
                 {
-                    assert(pNodes[nNodeBegin].getLevel()>=lev);
+                    //assert(pNodes[nNodeBegin].getLevel()>=lev); this assertion is not always needs to be true. 08-29-2019 Milinda. 
                     for(unsigned int k=nKeyBegin;k<nKeyEnd;k++)
                     {
                         //assert(((pNodes[nNodeBegin].isAncestor(pKeys[k]))||(pNodes[nNodeBegin]==pKeys[k]))); // Note: Since we are sarching for the ghost elements we might not find a given key. Hence this should be disabled

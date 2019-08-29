@@ -636,7 +636,7 @@ namespace ot
             const unsigned int npesAll=m_uiMesh->getMPICommSizeGlobal();
             const unsigned int eleOrder=m_uiMesh->getElementOrder();
             // in linear cases, 53 can be generated with 27 + 27 -1(self) node.
-            const unsigned int preAllocFactor=dof*(53*(eleOrder+1));
+            const unsigned int preAllocFactor=dof*(53*m_uiMesh->getNumNodesPerElement());
 
             // first determine the size ...
             unsigned int lSz = dof*(m_uiLocalNodalSz);
