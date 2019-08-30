@@ -29,20 +29,10 @@ You need CMake to build dendro. Create a build directory using 'mkdir build'. Th
 
 NlSigma folder consists of simple, non lineat wave equation with adaptive mesh refinement (AMR). You can copy the parameter file from `NLSigma/pars` folder and simply run `mpirun -np 8 ./NlSigma/nlsmSolver nlsm.par.json`, on  your lattop to large supercomputer with higher resolution. 
 
-<div id="mainDiv">
- <div id="divTwo" class="boxes">
-	 <img src="https://github.com/paralab/Dendro-5.01/blob/master/docs/fig/nlsmB7.png" alt="nlsm" width="200"/>
-    </div>
- <div id="divTwo" class="boxes">
-	<img src="https://github.com/paralab/Dendro-5.01/blob/master/docs/fig/nlsmB11.png" alt="nlsm" width="200"/>
-    </div>
- <div id="divTwo" class="boxes">
-	<img src="https://github.com/paralab/Dendro-5.01/blob/master/docs/fig/nlsmB16.png" alt="nlsm" width="200"/>
-    </div>
- <div id="divTwo" class="boxes">
-	<img src="https://github.com/paralab/Dendro-5.01/blob/master/docs/fig/nlsmB44.png" alt="nlsm" width="200"/>
-    </div>
-</div>
+
+
+|<img src="https://github.com/paralab/Dendro-5.01/blob/master/docs/fig/nlsmB7.png" alt="nlsm" width="200"/> |<img src="https://github.com/paralab/Dendro-5.01/blob/master/docs/fig/nlsmB11.png" alt="nlsm" width="200"/> | <img src="https://github.com/paralab/Dendro-5.01/blob/master/docs/fig/nlsmB16.png" alt="nlsm" width="200"/> | <img src="https://github.com/paralab/Dendro-5.01/blob/master/docs/fig/nlsmB44.png" alt="nlsm" width="200"/> |
+
 
 You can write the equations in symbolic python which generate the C compute kernel. Look at `nlsm.py` 
 
