@@ -1,4 +1,4 @@
-<img src="https://github.com/paralab/Dendro-5.01/blob/master/docs/fig/dendro.png" alt="Dendro" width="400"/>
+<img src="fig/dendro.png" alt="Dendro" width="400"/>
 
 ## What is Dendro ?
 
@@ -26,20 +26,7 @@ You need CMake to build dendro. Create a build directory using 'mkdir build'. Th
 
 NlSigma folder consists of simple, non lineat wave equation with adaptive mesh refinement (AMR). You can copy the parameter file from `NLSigma/pars` folder and simply run `mpirun -np 8 ./NlSigma/nlsmSolver nlsm.par.json`, on  your lattop to large supercomputer with higher resolution. 
 
-<div id="mainDiv">
- <div id="divTwo" class="boxes">
-	 <img src="https://github.com/paralab/Dendro-5.01/blob/master/docs/fig/nlsmB7.png" alt="nlsm" width="200"/>
-    </div>
- <div id="divTwo" class="boxes">
-	<img src="https://github.com/paralab/Dendro-5.01/blob/master/docs/fig/nlsmB11.png" alt="nlsm" width="200"/>
-    </div>
- <div id="divTwo" class="boxes">
-	<img src="https://github.com/paralab/Dendro-5.01/blob/master/docs/fig/nlsmB16.png" alt="nlsm" width="200"/>
-    </div>
- <div id="divTwo" class="boxes">
-	<img src="https://github.com/paralab/Dendro-5.01/blob/master/docs/fig/nlsmB44.png" alt="nlsm" width="200"/>
-    </div>
-</div>
+| <img src="fig/nlsmB7.png" alt="nlsm" width="200"/> | <img src="fig/nlsmB11.png" alt="nlsm" width="200"/> | <img src="fig/nlsmB16.png" alt="nlsm" width="200"/> | <img src="fig/nlsmB44.png" alt="nlsm" width="200"/> |
 
 You can write the equations in symbolic python which generate the C compute kernel. Look at `nlsm.py` 
 
@@ -96,8 +83,8 @@ chi_rhs[pp] = phi[pp];
 
 We have performed octree generation and partitioning up to 262144 cores in ORNL's titan super computer. We have managed to partition 1.3x10^12 octants among 262144 processors with in 4 seconds.
 
-<img src="https://github.com/paralab/Dendro-5.01/blob/master/docs/fig/titan_ws.png" alt="weak scaling on octrees" width="800"/>
-<img src="https://github.com/paralab/Dendro-5.01/blob/master/docs/fig/titan_ss.png" alt="strong scaling on octrees" width="800"/>
+<img src="fig/titan_ws.png" alt="weak scaling on octrees" width="800"/>
+<img src="fig/titan_ss.png" alt="strong scaling on octrees" width="800"/>
 
 
 ## Publications
