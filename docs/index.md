@@ -1,4 +1,4 @@
-<img src="fig/dendro.png" alt="Dendro" width="400"/>
+![dendro5](docs/fig/dendro.png)
 
 ## What is Dendro ?
 
