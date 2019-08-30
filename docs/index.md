@@ -1,4 +1,4 @@
-![dendro5](docs/fig/dendro.png)
+![dendro5](https://github.com/paralab/Dendro-5.01/blob/master/docs/fig/dendro.png)
 
 ## What is Dendro ?
 
