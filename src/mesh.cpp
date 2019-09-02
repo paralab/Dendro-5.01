@@ -8284,6 +8284,9 @@ namespace ot {
         
         bool isVertexHanging[2]={false,false};
         unsigned int owner[2];
+        unsigned int ii_x[2],jj_y[2],kk_z[2];
+        unsigned int mid_bit;
+        unsigned int lenSz;
 
         switch (edgeId)
         {
@@ -8301,19 +8304,20 @@ namespace ot {
                 {   
                     // special case to linear order, 
                     nodeLookUp_DG = m_uiE2NMapping_DG[elementId*m_uiNpE + (0)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+(0)*(m_uiElementOrder+1)+ 0];
-                    owner[0] = nodeLookUp_DG/m_uiNpE;
+                    this->dg2eijk(nodeLookUp_DG,owner[0],ii_x[0],jj_y[0],kk_z[0]);
 
                     nodeLookUp_DG = m_uiE2NMapping_DG[elementId*m_uiNpE + (m_uiElementOrder)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+(0)*(m_uiElementOrder+1)+ 0];
-                    owner[1] = nodeLookUp_DG/m_uiNpE;
+                    this->dg2eijk(nodeLookUp_DG,owner[1],ii_x[1],jj_y[1],kk_z[1]);
 
-                    if(m_uiAllElements[owner[0]].minZ()==m_uiAllElements[elementId].minZ() || m_uiAllElements[owner[1]].minZ()==m_uiAllElements[elementId].minZ())
+                    assert(m_uiAllElements[owner[0]].getLevel() == m_uiAllElements[owner[1]].getLevel());
+                    lenSz = 1u<<(m_uiMaxDepth - m_uiAllElements[owner[0]].getLevel() );
+
+                    if(m_uiAllElements[elementId].minZ() == m_uiAllElements[owner[0]].minZ() + lenSz*kk_z[0] )
                         cnum=0;
-                    else if(m_uiAllElements[owner[0]].maxZ()==m_uiAllElements[elementId].maxZ() || m_uiAllElements[owner[1]].maxZ()==m_uiAllElements[elementId].maxZ())
+                    else
                     {
+                        assert(m_uiAllElements[elementId].maxZ() == m_uiAllElements[owner[1]].minZ() + lenSz*kk_z[1]);
                         cnum=1;
-                    }else
-                    {
-                        return false;
                     }
 
                 }else
@@ -8323,8 +8327,8 @@ namespace ot {
                         cnum=0;
                     else
                     {
-                    assert( (m_uiElementOrder==1) || (m_uiAllElements[nodeLookUp_DG/m_uiNpE].maxZ()==m_uiAllElements[elementId].maxZ()));
-                    cnum=1;
+                        assert( (m_uiElementOrder==1) || (m_uiAllElements[nodeLookUp_DG/m_uiNpE].maxZ()==m_uiAllElements[elementId].maxZ()));
+                        cnum=1;
                     }
 
                 }
@@ -8345,19 +8349,20 @@ namespace ot {
                 {   
                     // special case to linear order, 
                     nodeLookUp_DG = m_uiE2NMapping_DG[elementId*m_uiNpE+(0)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+(m_uiElementOrder)*(m_uiElementOrder+1)+ 0];
-                    owner[0] = nodeLookUp_DG/m_uiNpE;
+                    this->dg2eijk(nodeLookUp_DG,owner[0],ii_x[0],jj_y[0],kk_z[0]);
 
                     nodeLookUp_DG = m_uiE2NMapping_DG[elementId*m_uiNpE+(m_uiElementOrder)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+(m_uiElementOrder)*(m_uiElementOrder+1)+ 0];
-                    owner[1] = nodeLookUp_DG/m_uiNpE;
+                    this->dg2eijk(nodeLookUp_DG,owner[1],ii_x[1],jj_y[1],kk_z[1]);
 
-                    if(m_uiAllElements[owner[0]].minZ()==m_uiAllElements[elementId].minZ() || m_uiAllElements[owner[1]].minZ()==m_uiAllElements[elementId].minZ())
+                    assert(m_uiAllElements[owner[0]].getLevel() == m_uiAllElements[owner[1]].getLevel());
+                    lenSz = 1u<<(m_uiMaxDepth - m_uiAllElements[owner[0]].getLevel() );
+
+                    if(m_uiAllElements[elementId].minZ() == m_uiAllElements[owner[0]].minZ() + lenSz*kk_z[0] )
                         cnum=0;
-                    else if(m_uiAllElements[owner[0]].maxZ()==m_uiAllElements[elementId].maxZ() || m_uiAllElements[owner[1]].maxZ()==m_uiAllElements[elementId].maxZ()) 
+                    else
                     {
+                        assert(m_uiAllElements[elementId].maxZ() == m_uiAllElements[owner[1]].minZ() + lenSz*kk_z[1]);
                         cnum=1;
-                    }else
-                    {
-                        return false;
                     }
                         
 
@@ -8391,19 +8396,20 @@ namespace ot {
                 {   
                     // special case to linear order, 
                     nodeLookUp_DG = m_uiE2NMapping_DG[elementId*m_uiNpE+(0)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+(0)*(m_uiElementOrder+1)+ 0];
-                    owner[0] = nodeLookUp_DG/m_uiNpE;
+                    this->dg2eijk(nodeLookUp_DG,owner[0],ii_x[0],jj_y[0],kk_z[0]);
 
                     nodeLookUp_DG = m_uiE2NMapping_DG[elementId*m_uiNpE+(0)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+(m_uiElementOrder)*(m_uiElementOrder+1)+ 0];
-                    owner[1] = nodeLookUp_DG/m_uiNpE;
+                    this->dg2eijk(nodeLookUp_DG,owner[1],ii_x[1],jj_y[1],kk_z[1]);
 
-                    if(m_uiAllElements[owner[0]].minY()==m_uiAllElements[elementId].minY() || m_uiAllElements[owner[1]].minY()==m_uiAllElements[elementId].minY())
-                        cnum=0;
-                    else if (m_uiAllElements[owner[0]].maxY()==m_uiAllElements[elementId].maxY() || m_uiAllElements[owner[1]].maxY()==m_uiAllElements[elementId].maxY())
+                    assert(m_uiAllElements[owner[0]].getLevel() == m_uiAllElements[owner[1]].getLevel());
+                    lenSz = 1u<<(m_uiMaxDepth - m_uiAllElements[owner[0]].getLevel() );
+
+                    if( m_uiAllElements[elementId].minY() == ( m_uiAllElements[owner[0]].minY() + jj_y[0]*lenSz) )
+                      cnum=0;
+                    else
                     {
-                        cnum=1;
-                    }else
-                    {
-                        return false;
+                      assert(m_uiAllElements[elementId].maxY() == ( m_uiAllElements[owner[1]].minY() + jj_y[1]*lenSz)); 
+                      cnum=1;
                     }
 
                 }else
@@ -8436,19 +8442,20 @@ namespace ot {
                 {   
                     // special case to linear order, 
                     nodeLookUp_DG = m_uiE2NMapping_DG[elementId*m_uiNpE+(m_uiElementOrder)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+(0)*(m_uiElementOrder+1)+ 0];
-                    owner[0] = nodeLookUp_DG/m_uiNpE;
+                    this->dg2eijk(nodeLookUp_DG,owner[0],ii_x[0],jj_y[0],kk_z[0]);
 
                     nodeLookUp_DG = m_uiE2NMapping_DG[elementId*m_uiNpE+(m_uiElementOrder)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+(m_uiElementOrder)*(m_uiElementOrder+1)+ 0];
-                    owner[1] = nodeLookUp_DG/m_uiNpE;
+                    this->dg2eijk(nodeLookUp_DG,owner[1],ii_x[1],jj_y[1],kk_z[1]);
 
-                    if(m_uiAllElements[owner[0]].minY()==m_uiAllElements[elementId].minY() || m_uiAllElements[owner[1]].minY()==m_uiAllElements[elementId].minY())
-                        cnum=0;
-                    else if (m_uiAllElements[owner[0]].maxY()==m_uiAllElements[elementId].maxY() || m_uiAllElements[owner[1]].maxY()==m_uiAllElements[elementId].maxY())
+                    assert(m_uiAllElements[owner[0]].getLevel() == m_uiAllElements[owner[1]].getLevel());
+                    lenSz = 1u<<(m_uiMaxDepth - m_uiAllElements[owner[0]].getLevel() );
+
+                    if( m_uiAllElements[elementId].minY() == ( m_uiAllElements[owner[0]].minY() + jj_y[0]*lenSz) )
+                      cnum=0;
+                    else
                     {
-                        cnum=1;
-                    }else
-                    {
-                        return false;
+                      assert(m_uiAllElements[elementId].maxY() == ( m_uiAllElements[owner[1]].minY() + jj_y[1]*lenSz)); 
+                      cnum=1;
                     }
 
                 }else
@@ -8479,19 +8486,20 @@ namespace ot {
                 {   
                     // special case to linear order, 
                     nodeLookUp_DG = m_uiE2NMapping_DG[elementId*m_uiNpE+(0)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+(0)*(m_uiElementOrder+1)+ m_uiElementOrder];
-                    owner[0] = nodeLookUp_DG/m_uiNpE;
+                    this->dg2eijk(nodeLookUp_DG,owner[0],ii_x[0],jj_y[0],kk_z[0]);
 
                     nodeLookUp_DG = m_uiE2NMapping_DG[elementId*m_uiNpE+(m_uiElementOrder)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+(0)*(m_uiElementOrder+1)+ m_uiElementOrder];
-                    owner[1] = nodeLookUp_DG/m_uiNpE;
+                    this->dg2eijk(nodeLookUp_DG,owner[1],ii_x[1],jj_y[1],kk_z[1]);
 
-                    if(m_uiAllElements[owner[0]].minZ()==m_uiAllElements[elementId].minZ() || m_uiAllElements[owner[1]].minZ()==m_uiAllElements[elementId].minZ())
+                    assert(m_uiAllElements[owner[0]].getLevel() == m_uiAllElements[owner[1]].getLevel());
+                    lenSz = 1u<<(m_uiMaxDepth - m_uiAllElements[owner[0]].getLevel() );
+
+                    if(m_uiAllElements[elementId].minZ() == m_uiAllElements[owner[0]].minZ() + lenSz*kk_z[0] )
                         cnum=0;
-                    else if (m_uiAllElements[owner[0]].maxZ()==m_uiAllElements[elementId].maxZ() || m_uiAllElements[owner[1]].maxZ()==m_uiAllElements[elementId].maxZ())
+                    else
                     {
+                        assert(m_uiAllElements[elementId].maxZ() == m_uiAllElements[owner[1]].minZ() + lenSz*kk_z[1]);
                         cnum=1;
-                    }else
-                    {
-                        return false;
                     }
 
                 }else
@@ -8522,19 +8530,20 @@ namespace ot {
                 {   
                     // special case to linear order, 
                     nodeLookUp_DG = m_uiE2NMapping_DG[elementId*m_uiNpE+(0)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+(m_uiElementOrder)*(m_uiElementOrder+1)+ m_uiElementOrder];
-                    owner[0] = nodeLookUp_DG/m_uiNpE;
+                    this->dg2eijk(nodeLookUp_DG,owner[0],ii_x[0],jj_y[0],kk_z[0]);
 
                     nodeLookUp_DG = m_uiE2NMapping_DG[elementId*m_uiNpE+(m_uiElementOrder)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+(m_uiElementOrder)*(m_uiElementOrder+1)+ m_uiElementOrder];
-                    owner[1] = nodeLookUp_DG/m_uiNpE;
+                    this->dg2eijk(nodeLookUp_DG,owner[1],ii_x[1],jj_y[1],kk_z[1]);
 
-                    if(m_uiAllElements[owner[0]].minZ()==m_uiAllElements[elementId].minZ() || m_uiAllElements[owner[1]].minZ()==m_uiAllElements[elementId].minZ())
+                    assert(m_uiAllElements[owner[0]].getLevel() == m_uiAllElements[owner[1]].getLevel());
+                    lenSz = 1u<<(m_uiMaxDepth - m_uiAllElements[owner[0]].getLevel() );
+
+                    if(m_uiAllElements[elementId].minZ() == m_uiAllElements[owner[0]].minZ() + lenSz*kk_z[0] )
                         cnum=0;
-                    else if (m_uiAllElements[owner[0]].maxZ()==m_uiAllElements[elementId].maxZ() || m_uiAllElements[owner[1]].maxZ()==m_uiAllElements[elementId].maxZ())
+                    else
                     {
+                        assert(m_uiAllElements[elementId].maxZ() == m_uiAllElements[owner[1]].minZ() + lenSz*kk_z[1]);
                         cnum=1;
-                    }else
-                    {
-                        return false;
                     }
 
                 }else
@@ -8566,19 +8575,20 @@ namespace ot {
                 {   
                     // special case to linear order, 
                     nodeLookUp_DG = m_uiE2NMapping_DG[elementId*m_uiNpE+(0)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+(0)*(m_uiElementOrder+1)+ m_uiElementOrder];
-                    owner[0] = nodeLookUp_DG/m_uiNpE;
+                    this->dg2eijk(nodeLookUp_DG,owner[0],ii_x[0],jj_y[0],kk_z[0]);
 
                     nodeLookUp_DG = m_uiE2NMapping_DG[elementId*m_uiNpE+(0)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+(m_uiElementOrder)*(m_uiElementOrder+1)+ m_uiElementOrder];
-                    owner[1] = nodeLookUp_DG/m_uiNpE;
+                    this->dg2eijk(nodeLookUp_DG,owner[1],ii_x[1],jj_y[1],kk_z[1]);
 
-                    if(m_uiAllElements[owner[0]].minY()==m_uiAllElements[elementId].minY() || m_uiAllElements[owner[1]].minY()==m_uiAllElements[elementId].minY())
-                        cnum=0;
-                    else if(m_uiAllElements[owner[0]].maxY()==m_uiAllElements[elementId].maxY() || m_uiAllElements[owner[1]].maxY()==m_uiAllElements[elementId].maxY())
+                    assert(m_uiAllElements[owner[0]].getLevel() == m_uiAllElements[owner[1]].getLevel());
+                    lenSz = 1u<<(m_uiMaxDepth - m_uiAllElements[owner[0]].getLevel() );
+
+                    if( m_uiAllElements[elementId].minY() == ( m_uiAllElements[owner[0]].minY() + jj_y[0]*lenSz) )
+                      cnum=0;
+                    else
                     {
-                        cnum=1;
-                    }else
-                    {
-                        return false;
+                      assert(m_uiAllElements[elementId].maxY() == ( m_uiAllElements[owner[1]].minY() + jj_y[1]*lenSz)); 
+                      cnum=1;
                     }
 
                 }else
@@ -8609,19 +8619,20 @@ namespace ot {
                 {   
                     // special case to linear order, 
                     nodeLookUp_DG = m_uiE2NMapping_DG[elementId*m_uiNpE+(m_uiElementOrder)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+(0)*(m_uiElementOrder+1)+ m_uiElementOrder];
-                    owner[0] = nodeLookUp_DG/m_uiNpE;
+                    this->dg2eijk(nodeLookUp_DG,owner[0],ii_x[0],jj_y[0],kk_z[0]);
 
                     nodeLookUp_DG = m_uiE2NMapping_DG[elementId*m_uiNpE+(m_uiElementOrder)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+(m_uiElementOrder)*(m_uiElementOrder+1)+ m_uiElementOrder];
-                    owner[1] = nodeLookUp_DG/m_uiNpE;
+                    this->dg2eijk(nodeLookUp_DG,owner[1],ii_x[1],jj_y[1],kk_z[1]);
 
-                    if(m_uiAllElements[owner[0]].minY()==m_uiAllElements[elementId].minY() || m_uiAllElements[owner[1]].minY()==m_uiAllElements[elementId].minY())
-                        cnum=0;
-                    else if(m_uiAllElements[owner[0]].maxY()==m_uiAllElements[elementId].maxY() || m_uiAllElements[owner[1]].maxY()==m_uiAllElements[elementId].maxY())
+                    assert(m_uiAllElements[owner[0]].getLevel() == m_uiAllElements[owner[1]].getLevel());
+                    lenSz = 1u<<(m_uiMaxDepth - m_uiAllElements[owner[0]].getLevel() );
+
+                    if( m_uiAllElements[elementId].minY() == ( m_uiAllElements[owner[0]].minY() + jj_y[0]*lenSz) )
+                      cnum=0;
+                    else
                     {
-                        cnum=1;
-                    }else
-                    {
-                        return false;
+                      assert(m_uiAllElements[elementId].maxY() == ( m_uiAllElements[owner[1]].minY() + jj_y[1]*lenSz)); 
+                      cnum=1;
                     }
 
                 }else
@@ -8653,19 +8664,20 @@ namespace ot {
                 {   
                     // special case to linear order, 
                     nodeLookUp_DG = m_uiE2NMapping_DG[elementId*m_uiNpE+(0)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+(0)*(m_uiElementOrder+1)+ 0];
-                    owner[0] = nodeLookUp_DG/m_uiNpE;
+                    this->dg2eijk(nodeLookUp_DG,owner[0],ii_x[0],jj_y[0],kk_z[0]);
 
                     nodeLookUp_DG = m_uiE2NMapping_DG[elementId*m_uiNpE+(0)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+(0)*(m_uiElementOrder+1)+ m_uiElementOrder];
-                    owner[1] = nodeLookUp_DG/m_uiNpE;
+                    this->dg2eijk(nodeLookUp_DG,owner[1],ii_x[1],jj_y[1],kk_z[1]);
 
-                    if(m_uiAllElements[owner[0]].minX()==m_uiAllElements[elementId].minX() || m_uiAllElements[owner[1]].minX()==m_uiAllElements[elementId].minX())
+                    assert(m_uiAllElements[owner[0]].getLevel() == m_uiAllElements[owner[1]].getLevel());
+                    lenSz = 1u<<(m_uiMaxDepth - m_uiAllElements[owner[0]].getLevel() );
+
+                    if(m_uiAllElements[elementId].minX() == m_uiAllElements[owner[0]].minX() + ii_x[0]*lenSz)
                         cnum=0;
-                    else if (m_uiAllElements[owner[0]].maxX()==m_uiAllElements[elementId].maxX() || m_uiAllElements[owner[1]].maxX()==m_uiAllElements[elementId].maxX())
+                    else 
                     {
+                        assert(m_uiAllElements[elementId].maxX() == m_uiAllElements[owner[1]].minX() + ii_x[1]*lenSz);
                         cnum=1;
-                    }else
-                    {
-                        return false;
                     }
 
 
@@ -8696,19 +8708,20 @@ namespace ot {
                 {   
                     // special case to linear order, 
                     nodeLookUp_DG = m_uiE2NMapping_DG[elementId*m_uiNpE+(m_uiElementOrder)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+(0)*(m_uiElementOrder+1)+ 0];
-                    owner[0] = nodeLookUp_DG/m_uiNpE;
+                    this->dg2eijk(nodeLookUp_DG,owner[0],ii_x[0],jj_y[0],kk_z[0]);
 
                     nodeLookUp_DG = m_uiE2NMapping_DG[elementId*m_uiNpE+(m_uiElementOrder)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+(0)*(m_uiElementOrder+1)+ m_uiElementOrder];
-                    owner[1] = nodeLookUp_DG/m_uiNpE;
+                    this->dg2eijk(nodeLookUp_DG,owner[1],ii_x[1],jj_y[1],kk_z[1]);
 
-                    if(m_uiAllElements[owner[0]].minX()==m_uiAllElements[elementId].minX() || m_uiAllElements[owner[1]].minX()==m_uiAllElements[elementId].minX())
+                    assert(m_uiAllElements[owner[0]].getLevel() == m_uiAllElements[owner[1]].getLevel());
+                    lenSz = 1u<<(m_uiMaxDepth - m_uiAllElements[owner[0]].getLevel() );
+
+                    if(m_uiAllElements[elementId].minX() == m_uiAllElements[owner[0]].minX() + ii_x[0]*lenSz)
                         cnum=0;
-                    else if(m_uiAllElements[owner[0]].maxX()==m_uiAllElements[elementId].maxX() || m_uiAllElements[owner[1]].maxX()==m_uiAllElements[elementId].maxX())
+                    else 
                     {
+                        assert(m_uiAllElements[elementId].maxX() == m_uiAllElements[owner[1]].minX() + ii_x[1]*lenSz);
                         cnum=1;
-                    }else
-                    {
-                        return false;
                     }
 
                 }else
@@ -8743,19 +8756,20 @@ namespace ot {
                 {   
                     // special case to linear order, 
                     nodeLookUp_DG = m_uiE2NMapping_DG[elementId*m_uiNpE+(0)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+(m_uiElementOrder)*(m_uiElementOrder+1)+ 0];
-                    owner[0] = nodeLookUp_DG/m_uiNpE;
+                    this->dg2eijk(nodeLookUp_DG,owner[0],ii_x[0],jj_y[0],kk_z[0]);
 
                     nodeLookUp_DG = m_uiE2NMapping_DG[elementId*m_uiNpE+(0)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+(m_uiElementOrder)*(m_uiElementOrder+1)+ m_uiElementOrder];
-                    owner[1] = nodeLookUp_DG/m_uiNpE;
+                    this->dg2eijk(nodeLookUp_DG,owner[1],ii_x[1],jj_y[1],kk_z[1]);
 
-                    if(m_uiAllElements[owner[0]].minX()==m_uiAllElements[elementId].minX() || m_uiAllElements[owner[1]].minX()==m_uiAllElements[elementId].minX())
+                    assert(m_uiAllElements[owner[0]].getLevel() == m_uiAllElements[owner[1]].getLevel());
+                    lenSz = 1u<<(m_uiMaxDepth - m_uiAllElements[owner[0]].getLevel() );
+
+                    if(m_uiAllElements[elementId].minX() == m_uiAllElements[owner[0]].minX() + ii_x[0]*lenSz)
                         cnum=0;
-                    else if(m_uiAllElements[owner[0]].maxX()==m_uiAllElements[elementId].maxX() || m_uiAllElements[owner[1]].maxX()==m_uiAllElements[elementId].maxX())
+                    else 
                     {
+                        assert(m_uiAllElements[elementId].maxX() == m_uiAllElements[owner[1]].minX() + ii_x[1]*lenSz);
                         cnum=1;
-                    }else
-                    {
-                        return false;
                     }
 
                 }else
@@ -8786,19 +8800,20 @@ namespace ot {
                 {   
                     // special case to linear order, 
                     nodeLookUp_DG = m_uiE2NMapping_DG[elementId*m_uiNpE+(m_uiElementOrder)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+(m_uiElementOrder)*(m_uiElementOrder+1)+ 0];
-                    owner[0] = nodeLookUp_DG/m_uiNpE;
+                    this->dg2eijk(nodeLookUp_DG,owner[0],ii_x[0],jj_y[0],kk_z[0]);
 
                     nodeLookUp_DG = m_uiE2NMapping_DG[elementId*m_uiNpE+(m_uiElementOrder)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+(m_uiElementOrder)*(m_uiElementOrder+1)+ m_uiElementOrder];
-                    owner[1] = nodeLookUp_DG/m_uiNpE;
+                    this->dg2eijk(nodeLookUp_DG,owner[1],ii_x[1],jj_y[1],kk_z[1]);
 
-                    if(m_uiAllElements[owner[0]].minX()==m_uiAllElements[elementId].minX() || m_uiAllElements[owner[1]].minX()==m_uiAllElements[elementId].minX())
+                    assert(m_uiAllElements[owner[0]].getLevel() == m_uiAllElements[owner[1]].getLevel());
+                    lenSz = 1u<<(m_uiMaxDepth - m_uiAllElements[owner[0]].getLevel() );
+
+                    if(m_uiAllElements[elementId].minX() == m_uiAllElements[owner[0]].minX() + ii_x[0]*lenSz)
                         cnum=0;
-                    else if (m_uiAllElements[owner[0]].maxX()==m_uiAllElements[elementId].maxX() || m_uiAllElements[owner[1]].maxX()==m_uiAllElements[elementId].maxX())
+                    else 
                     {
+                        assert(m_uiAllElements[elementId].maxX() == m_uiAllElements[owner[1]].minX() + ii_x[1]*lenSz);
                         cnum=1;
-                    }else
-                    {
-                        return false;
                     }
 
                 }else

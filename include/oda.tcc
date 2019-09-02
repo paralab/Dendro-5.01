@@ -1059,6 +1059,9 @@ namespace ot
         const ot::Mesh* newMesh=newDA->getMesh();
         const unsigned int zipSzNew = newMesh->getDegOfFreedom();
         const unsigned int zipSzOld = m_uiMesh->getDegOfFreedom();
+
+        const unsigned int nLocalNodes_old = m_uiMesh->getNumLocalMeshNodes();
+        const unsigned int nLocalNodes_new = newMesh->getNumLocalMeshNodes();
         
         for(unsigned int var=0;var<dof;var++)
             vIn[var]=NULL;
@@ -1069,7 +1072,7 @@ namespace ot
             for(unsigned int var=0;var<dof;var++)
             {
                 // allocation happens inside the function
-                this->nodalVecToGhostedNodal(varIn + var*zipSzOld , vIn[var],false , 1);
+                this->nodalVecToGhostedNodal(varIn + var*nLocalNodes_old , vIn[var],false , 1);
             }
 
         }else{
@@ -1081,16 +1084,17 @@ namespace ot
                 }
         }    
 
-        // ghost exchange
+        // ghost exchange initiates
         for(unsigned int var=0;var<dof;var++)
             this->readFromGhostBegin(vIn[var],1);
 
         for(unsigned int var=0;var<dof;var++)
+        {
+            // wait till current var ghost exchange completes
             this->readFromGhostEnd(vIn[var],1);
-
-
-        for(unsigned int var=0;var<dof;var++)
-           m_uiMesh->interGridTransfer(vIn[var],newMesh);
+            m_uiMesh->interGridTransfer(vIn[var],newMesh);
+        }
+           
 
         if(!isGhosted)
         {
@@ -1098,7 +1102,7 @@ namespace ot
             newDA->createVector(varOut,false,false,dof);
             for(unsigned int var=0;var<dof;var++)
             {
-                T* tmpPtr=(varOut+var*zipSzNew);
+                T* tmpPtr=(varOut+var*nLocalNodes_new);
                 newDA->ghostedNodalToNodalVec((const T*)vIn[var],tmpPtr,true,1);
             }
                 
