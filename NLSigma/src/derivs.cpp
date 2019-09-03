@@ -938,19 +938,7 @@ void ko_deriv42_x(double * const  Du, const double * const  u,
 
   for (int k = kb; k < ke; k++) {
     for (int j = jb; j < je; j++) {
-        
-        Du[IDX(ib,j,k)] = pre_factor_6_dx *
-                         (
-                         -      u[IDX(ib+4,j,k)]                             
-                         +  6.0*u[IDX(ib+3,j,k)]
-                         - 15.0*u[IDX(ib+2,j,k)]
-                         + 20.0*u[IDX(ib+1,j,k)]
-                         - 15.0*u[IDX(ib,j,k)]
-                         +  6.0*u[IDX(ib-1,j,k)]
-                         -      u[IDX(ib-2,j,k)]
-                         );
-        
-       for (int i = ib+1; i < ie-1; i++) {
+       for (int i = ib; i < ie; i++) {
           int pp = IDX(i,j,k);
           Du[pp] = pre_factor_6_dx *
                          (
@@ -963,20 +951,6 @@ void ko_deriv42_x(double * const  Du, const double * const  u,
                          -      u[pp+3]
                          );
        }
-       
-       Du[IDX(ie-1,j,k)] = pre_factor_6_dx *
-                         (
-                         -      u[IDX(ie+1,j,k)]                             
-                         +  6.0*u[IDX(ie,j,k)]
-                         - 15.0*u[IDX(ie-1,j,k)]
-                         + 20.0*u[IDX(ie-2,j,k)]
-                         - 15.0*u[IDX(ie-3,j,k)]
-                         +  6.0*u[IDX(ie-4,j,k)]
-                         -      u[IDX(ie-5,j,k)]
-                         );
-       
-       
-       
     }
   }
 
@@ -1083,20 +1057,7 @@ void ko_deriv42_y(double * const  Du, const double * const  u,
 
   for (int k = kb; k < ke; k++) {
     for (int i = ib; i < ie; i++) {
-        
-        
-        Du[IDX(i,jb,k)] = pre_factor_6_dy *
-                         (
-                         -      u[IDX(i,jb+4,k)]                             
-                         +  6.0*u[IDX(i,jb+3,k)]
-                         - 15.0*u[IDX(i,jb+2,k)]
-                         + 20.0*u[IDX(i,jb+1,k)]
-                         - 15.0*u[IDX(i,jb,k)]
-                         +  6.0*u[IDX(i,jb-1,k)]
-                         -      u[IDX(i,jb-2,k)]
-                         );
-        
-       for (int j = jb+1; j < je-1; j++) {
+       for (int j = jb; j < je; j++) {
           int pp = IDX(i,j,k);
           Du[pp] = pre_factor_6_dy *
                          (
@@ -1109,22 +1070,6 @@ void ko_deriv42_y(double * const  Du, const double * const  u,
                          -      u[pp+3*nx]
                          );
        }
-       
-       
-       Du[IDX(i,je-1,k)] = pre_factor_6_dy *
-                         (
-                         -      u[IDX(i,je+1,k)]                             
-                         +  6.0*u[IDX(i,je,k)]
-                         - 15.0*u[IDX(i,je-1,k)]
-                         + 20.0*u[IDX(i,je-2,k)]
-                         - 15.0*u[IDX(i,je-3,k)]
-                         +  6.0*u[IDX(i,je-4,k)]
-                         -      u[IDX(i,je-5,k)]
-                         );
-       
-       
-       
-       
     }
   }
 
@@ -1234,19 +1179,7 @@ void ko_deriv42_z(double * const  Du, const double * const  u,
 
   for (int j = jb; j < je; j++) {
     for (int i = ib; i < ie; i++) {
-        
-        Du[IDX(i,j,kb)] = pre_factor_6_dz *
-                         (
-                         -      u[IDX(i,j,kb+4)]                             
-                         +  6.0*u[IDX(i,j,kb+3)]
-                         - 15.0*u[IDX(i,j,kb+2)]
-                         + 20.0*u[IDX(i,j,kb+1)]
-                         - 15.0*u[IDX(i,j,kb)]
-                         +  6.0*u[IDX(i,j,kb-1)]
-                         -      u[IDX(i,j,kb-2)]
-                         );
-        
-       for (int k = kb+1; k < ke-1; k++) {
+       for (int k = kb; k < ke; k++) {
           int pp = IDX(i,j,k);
           Du[pp] = pre_factor_6_dz *
                          (
@@ -1259,19 +1192,6 @@ void ko_deriv42_z(double * const  Du, const double * const  u,
                          -      u[pp+3*n]
                          );
        }
-       
-       Du[IDX(i,j,ke-1)] = pre_factor_6_dz *
-                         (
-                         -      u[IDX(i,j,ke+1)]                             
-                         +  6.0*u[IDX(i,j,ke)]
-                         - 15.0*u[IDX(i,j,ke-1)]
-                         + 20.0*u[IDX(i,j,ke-2)]
-                         - 15.0*u[IDX(i,j,ke-3)]
-                         +  6.0*u[IDX(i,j,ke-4)]
-                         -      u[IDX(i,j,ke-5)]
-                         );
-       
-       
     }
   }
 
