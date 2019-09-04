@@ -82,6 +82,49 @@ chi_rhs[pp] = phi[pp];
 
 ```
 
+### Parameter file for NLSigma
+
+* Grid parameters
+    * `NLSM_GRID_MIN_X`: The minimum *x*-coordinate value for the computational domain. Similar for *y*- and *z*-coordinates.
+    * `NLSM_GRID_MAX_X`: The maximum *x*-coordinate value for the computational domain. Similar for *y*- and *z*-coordinates.
+
+* Evolution parameters    
+    * `NLSM_CFL_FACTOR`: The Courant factor used for time integration.  *dt* = `NLSM_CFL_FACTOR` ```*``` *dx*
+    * `KO_DISS_SIGMA`: Coefficient for Kreiss-Oliger dissipation.
+    * `NLSM_RK45_TIME_BEGIN`: Initial time label for the evolution, usually this is t=0.
+    * `NLSM_RK45_TIME_END`: The final time for the evolution. The code exits when this time is reached.
+    * `NLSM_RK45_TIME_STEP_SIZE`: Initial time step for the Runge-Kutta 4-5 adaptive time integrator.
+    * `NLSM_RK45_DESIRED_TOL`: Tolerance for the RK4-5 adaptive time integrator.
+
+* Output parameters
+    * `NLSM_IO_OUTPUT_FREQ`: Frequency for output
+    * `NLSM_VTU_FILE_PREFIX`: Prefix for the output files. All output variables are written to files labeled by the timestep.
+    * `NLSM_NUM_EVOL_VARS_VTU_OUTPUT`: The number of evolution variables to be output.
+    * `NLSM_VTU_OUTPUT_EVOL_INDICES`: A list of variable indices to specify which variables will be written to output.
+
+* General refinement parameters
+    * `NLSM_MAXDEPTH`: The maximum refinement depth for the octree. The minimum resolution is proportional to 1/2^k, where k is the maximum depth.
+    * `NLSM_REMESH_TEST_FREQ`: Frequency to update the adaptive grid.
+    * `NLSM_LOAD_IMB_TOL`: Dendro load imbalance tolerance for flexible partitioning.
+    * `NLSM_DENDRO_GRAIN_SZ`: Grain size N/p , Where N number of total octants, p number of active cores
+
+* Wavelet refinement parameters
+    * `NLSM_WAVELET_TOL`: The wavelet tolerance
+    * `NLSM_NUM_REFINE_VARS`: The number of variables used to evaluate the refinement.
+    * `NLSM_REFINE_VARIABLE_INDICES`: A list of variables indicies to specify the variables to be used in determining the refinement.  Wavelet coefficients will be calculated for these variables.
+    * `NLSM_DENDRO_AMR_FAC`: A factor to determine when coarsening of the grid is done. The grid is coarsened when the wavelet coefficients are less than `NLSM_DENDRO_AMR_FAC` ```*``` `NLSM_WAVELET_TOL`.
+
+* Block refinement parameters
+    * `NLSM_ENABLE_BLOCK_ADAPTIVITY`: Block adaptivity refines a specified portion of the grid to the maximum depth (or minimum resolution). Set this parameter to "1" to enable block adaptivity, or "0" otherwise (default). This is primarily for testing and debugging.  This can be used to create a uniform grid, by specifying maximum refinement over the entire domain.
+    * `NLSM_BLK_MIN_X`: The minimum *x*-coordinate for the block that is refined to the maximum depth. Same for *y*- and *z*-coordinates.
+    * `NLSM_BLK_MAX_X`: The maximum *x*-coordinate for the block that is refined to the maximum depth. Same for *y*- and *z*-coordinates.
+
+* Checkpoint parameters
+    * `NLSM_RESTORE_SOLVER`: Set this parameter to "1" to restore the solver from checkpoint files, otherwise set it to "0" (default).  When checkpointing is used, the code automatically selects the latest checkpoint files for restoring the solver.
+    * `NLSM_CHECKPT_FREQ`: The checkpoint frequency.
+    * `NLSM_CHKPT_FILE_PREFIX`: A string prefix for naming the checkpoint files.
+
+
 ***
 
 ## Scalability on octree generation and partitioning. 
