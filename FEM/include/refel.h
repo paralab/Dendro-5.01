@@ -178,7 +178,7 @@ public:
     inline const double * getWgq()const {return &(*(w.begin()));}
     inline const double * getWgll()const {return &(*(wgll.begin()));}
 
-    inline const double getElementSz()const {return (r.back()-r.front());}
+    inline const double getElementSz()const {return (u.back()-u.front());}
 
 
 

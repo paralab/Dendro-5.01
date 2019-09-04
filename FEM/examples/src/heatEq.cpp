@@ -101,18 +101,18 @@ int main (int argc, char** argv)
     createRegularOctree(oct,4,m_uiDim,m_uiMaxDepth,comm);
     ot::DA* octDA=new ot::DA(oct,comm,eOrder,2,0.2);*/
 
-    //ot::DA* octDA=new ot::DA(f_rhs,1,comm,eOrder,wavelet_tol,100,partition_tol);
+    ot::DA* octDA=new ot::DA(f_rhs,1,comm,eOrder,wavelet_tol,100,partition_tol);
 
-    Point *pts = new Point[100];
-    double x_start = 0.2;
-    double x_end = 0.4;
-    double x_h = (x_end - x_start)/100;
-    for (int i=0; i<100; i++)
-        pts[i] = Point(0.2+i*x_h,0.2,0.2);
-    //std::cout << pts[99].x()<<std::endl;;
-    ot::DA* octDA=new ot::DA(pts, 100, Point(0.0,0.0,0.0), Point(1.0,1.0,1.0), comm, eOrder, 100, partition_tol,ot::SM_TYPE::FEM_CG);
+    // Point *pts = new Point[100];
+    // double x_start = 0.2;
+    // double x_end = 0.4;
+    // double x_h = (x_end - x_start)/100;
+    // for (int i=0; i<100; i++)
+    //     pts[i] = Point(0.2+i*x_h,0.2,0.2);
+    // //std::cout << pts[99].x()<<std::endl;;
+    // ot::DA* octDA=new ot::DA(pts, 100, Point(0.0,0.0,0.0), Point(1.0,1.0,1.0), comm, eOrder, 100, partition_tol,ot::SM_TYPE::FEM_CG);
 
-    delete [] pts;
+    // delete [] pts;
 
     std::vector<double> uSolVec;
     octDA->createVector(uSolVec,false,false,DOF);
