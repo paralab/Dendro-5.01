@@ -82,7 +82,7 @@ chi_rhs[pp] = phi[pp];
 
 ```
 
-### Parameter file for NLSigma
+### Parameters for NLSigma
 
 * Grid parameters
     * `NLSM_GRID_MIN_X`, `NLSM_GRID_MIN_Y`, `NLSM_GRID_MIN_Z`: The minimum coordinate values for the computational domain in the *x*-, *y*-, and *z-* directions.
