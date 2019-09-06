@@ -3054,6 +3054,412 @@ namespace ot
 
     }
 
+    template<typename T>
+    void Mesh::interGridTransferUnzip(T*& unzip, T*& vec, const ot::Mesh *pMesh)
+    {
+
+        MPI_Comm comm=m_uiCommGlobal;
+        int rank,npes;
+
+        MPI_Comm_rank(comm,&rank);
+        MPI_Comm_size(comm,&npes);
+
+        int * sendNodeCount= new int[npes];
+        int * recvNodeCount= new int[npes];
+        int * sendNodeOffset = new int [npes];
+        int * recvNodeOffset = new int [npes];
+        std::vector<T> wVec; // dg of m2prime;
+
+        for(unsigned int p=0;p<npes;p++)
+            sendNodeCount[p]=0;
+
+        
+        if(m_uiIsActive)
+        {
+
+            MPI_Comm comm1=m_uiCommActive;
+            const int rank1=m_uiActiveRank;
+            const int npes1=m_uiActiveNpes;
+
+            //1. compute the number of m2 octants (based of m1 splitters)
+            unsigned int m2primeCount=0;
+            for(unsigned int ele=m_uiElementLocalBegin;ele<m_uiElementLocalEnd;ele++)
+            {
+                if((m_uiAllElements[ele].getFlag()>>NUM_LEVEL_BITS)==OCT_SPLIT)
+                    m2primeCount+=NUM_CHILDREN;
+                else if((m_uiAllElements[ele].getFlag()>>NUM_LEVEL_BITS)==OCT_COARSE)
+                {
+                    assert(m_uiAllElements[ele].getParent()==m_uiAllElements[ele+NUM_CHILDREN-1].getParent());
+                    m2primeCount+=1;
+                    ele+=(NUM_CHILDREN-1);
+                }else
+                {
+                    assert((m_uiAllElements[ele].getFlag()>>NUM_LEVEL_BITS)==OCT_NO_CHANGE);
+                    m2primeCount+=1;
+                }
+
+            }
+
+            const unsigned int numM2PrimeElems=m2primeCount;
+
+            std::vector<T> nodalVals;
+            nodalVals.resize(m_uiNpE);
+            
+            std::vector<T> interp_out;
+            interp_out.resize(m_uiNpE);
+            
+            const unsigned int ch_1d = 2*(m_uiElementOrder) + 1;
+            std::vector<T> interp_out_all;
+            interp_out_all.resize(ch_1d*ch_1d*ch_1d);
+
+            std::vector<T> nodalVals_unzip;
+            
+
+            wVec.resize(numM2PrimeElems*m_uiNpE);
+            assert(par::test::isUniqueAndSorted(m_uiLocalBlockList,comm1));
+
+            std::vector<ot::TreeNode> m2prime; // m2 partiioned with m1 splitters.
+
+            m2primeCount=0;
+            unsigned int cnum;
+            bool isHanging;
+            
+            for(unsigned int blk = 0 ; blk < m_uiLocalBlockList.size(); blk++ )
+            {
+
+                const ot::TreeNode blkNode=m_uiLocalBlockList[blk].getBlockNode();
+                assert(blkNode.maxX()<=m_uiMeshDomain_max && blkNode.minX()>=m_uiMeshDomain_min);
+                const unsigned int regLev=m_uiLocalBlockList[blk].getRegularGridLev();
+                
+                const unsigned int eleIndexMin = 0;
+                const unsigned int eleIndexMax = (1u<<(regLev-blkNode.getLevel()))-1;
+                assert(eleIndexMax>=eleIndexMin);
+
+                const unsigned int lx=m_uiLocalBlockList[blk].getAllocationSzX();
+                const unsigned int ly=m_uiLocalBlockList[blk].getAllocationSzY();
+                const unsigned int lz=m_uiLocalBlockList[blk].getAllocationSzZ();
+                const unsigned int offset=m_uiLocalBlockList[blk].getOffset();
+                const unsigned int paddWidth=m_uiLocalBlockList[blk].get1DPadWidth();
+                const unsigned int bflag = m_uiLocalBlockList[blk].getBlkNodeFlag();
+
+                const unsigned int u_sz[3] = { (m_uiElementOrder+1) + 2*paddWidth , (m_uiElementOrder+1) + 2*paddWidth, (m_uiElementOrder+1) + 2*paddWidth};
+                nodalVals_unzip.resize(u_sz[0]*u_sz[1]*u_sz[2]);
+
+                for(unsigned int ele = m_uiLocalBlockList[blk].getLocalElementBegin(); ele < m_uiLocalBlockList[blk].getLocalElementEnd(); ele++ )
+                {
+                     //std::cout<<"blk: "<<blk<<" : "<<blkNode<<" ek: "<<(ek)<<" ej: "<<(ej)<<" ei: "<<(ei)<<" elem: "<<m_uiAllElements[elem]<<std::endl;
+                    assert(m_uiAllElements[ele].getLevel()==regLev); // this is enforced by block construction
+
+                    if((m_uiAllElements[ele].getFlag()>>NUM_LEVEL_BITS)==OCT_SPLIT)
+                    {
+                        m_uiAllElements[ele].addChildren(m2prime);
+                        if(this->isBoundaryOctant(ele))
+                        {
+                            // do element local interpolation
+                            this->getUnzipElementalNodalValues(unzip,blk,ele,nodalVals.data(),false);
+                            for(unsigned int child=0;child<NUM_CHILDREN;child++)
+                            {
+                                cnum=m2prime[m2primeCount+child].getMortonIndex();
+                                this->parent2ChildInterpolation(&(*(nodalVals.begin())),&(*(wVec.begin()+(m2primeCount+child)*m_uiNpE)),cnum,3);
+                            }
+
+                        }else
+                        {
+                            this->getUnzipElementalNodalValues(unzip,blk,ele,nodalVals_unzip.data());
+                            m_uiRefEl.I3D_Parent2Child_FD(nodalVals_unzip.data(),interp_out_all.data(),paddWidth);
+                            
+                            for(unsigned int child=0;child<NUM_CHILDREN;child++)
+                            {
+                                const char bit0 = binOp::getBit(child, 0);
+                                const char bit1 = binOp::getBit(child, 1);
+                                const char bit2 = binOp::getBit(child, 2);
+
+                                for(unsigned int k=0; k < (m_uiElementOrder+1);  k++)
+                                 for(unsigned int j=0; j < (m_uiElementOrder+1);  j++)
+                                  for(unsigned int i=0; i < (m_uiElementOrder+1);  i++)
+                                    wVec[(m2primeCount+child)*m_uiNpE + k*(m_uiElementOrder+1)*(m_uiElementOrder+1) + j* (m_uiElementOrder+1) +i] =
+                                        interp_out_all[(bit2*m_uiElementOrder+k)*ch_1d*ch_1d + (bit1*m_uiElementOrder+j)*ch_1d + (bit0*m_uiElementOrder+i)];
+                            }
+                        
+                        }
+
+                        m2primeCount+=NUM_CHILDREN;
+
+                    }
+                    else if((m_uiAllElements[ele].getFlag()>>NUM_LEVEL_BITS)==OCT_COARSE)
+                    {
+
+                        assert(m_uiAllElements[ele].getParent()==m_uiAllElements[ele+NUM_CHILDREN-1].getParent());
+                        m2prime.push_back(m_uiAllElements[ele].getParent());
+                        
+                        for(unsigned int child=0;child<NUM_CHILDREN;child++)
+                        {
+                            for(unsigned int k=0;k<m_uiElementOrder+1;k++)
+                                for(unsigned int j=0;j<m_uiElementOrder+1;j++)
+                                    for(unsigned int i=0;i<m_uiElementOrder+1;i++)
+                                    {
+
+                                        isHanging=this->isNodeHanging((ele+child),i,j,k);
+                                        if(isHanging)
+                                        {
+                                            wVec[m2primeCount*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]=vec[m_uiE2NMapping_CG[(ele+child)*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]];
+
+                                        }else if( (i%2==0) && (j%2==0) && (k%2==0))
+                                        {
+                                            cnum=m_uiAllElements[(ele+child)].getMortonIndex();
+                                            wVec[m2primeCount*m_uiNpE+((((cnum & 4u)>>2u)*m_uiElementOrder+k)>>1)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+((((cnum & 2u)>>1u)*m_uiElementOrder+j)>>1)*(m_uiElementOrder+1)+(((((cnum & (1u)))*m_uiElementOrder+i)>>1))]=vec[m_uiE2NMapping_CG[(ele+child)*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]];
+                                        }
+
+                                    }
+
+                        }
+                        ele+=(NUM_CHILDREN-1);
+                        m2primeCount+=1;
+
+                    }else
+                    {
+                        assert((m_uiAllElements[ele].getFlag()>>NUM_LEVEL_BITS)==OCT_NO_CHANGE);
+                        m2prime.push_back(m_uiAllElements[ele]);
+
+                        this->getElementNodalValues(vec,&(*(wVec.begin()+(m2primeCount*m_uiNpE))),ele);
+                        m2primeCount+=1;
+                    }
+
+                }
+            }
+
+            assert(seq::test::isUniqueAndSorted(m2prime));
+
+            if(npes1==1 && pMesh->isActive() && pMesh->getMPICommSize()==1)
+            {
+
+                // sequential case.
+
+                if((wVec.size()/m_uiNpE)!=pMesh->getNumLocalMeshElements())
+                    std::cout<<"rank1: "<<rank1<<" seq::[Inter-grid Transfer error ]: Recvn DG elements: "<<(wVec.size()/m_uiNpE)<<" m2 num local elements "<<pMesh->getNumLocalMeshElements()<<std::endl;
+
+                assert((wVec.size()/m_uiNpE)==pMesh->getNumLocalMeshElements());
+
+                T * tVec=pMesh->createVector<T>(0);
+                const unsigned int * e2n=&(*(pMesh->getE2NMapping().begin()));
+
+                const unsigned int m2LocalElemBegin=pMesh->getElementLocalBegin();
+                const unsigned int m2LocalElemEnd=pMesh->getElementLocalEnd();
+
+                const unsigned int m2LocalNodeBegin=pMesh->getNodeLocalBegin();
+                const unsigned int m2LocalNodeEnd=pMesh->getNodeLocalEnd();
+
+                unsigned int lookUp;
+                const unsigned int eleOrder=pMesh->getElementOrder();
+
+                for(unsigned int ele=m2LocalElemBegin;ele<m2LocalElemEnd;ele++)
+                {
+                    for(unsigned int k=0;k<eleOrder+1;k++)
+                        for(unsigned int j=0;j<eleOrder+1;j++)
+                            for(unsigned int i=0;i<eleOrder+1;i++)
+                            {
+                                if(!(pMesh->isNodeHanging(ele,i,j,k)))
+                                {
+                                    lookUp=e2n[ele*m_uiNpE+k*(eleOrder+1)*(eleOrder+1)+j*(eleOrder+1)+i];
+                                    if((lookUp>=m2LocalNodeBegin && lookUp<m2LocalNodeEnd) )
+                                        tVec[lookUp]=wVec[(ele-m2LocalElemBegin)*m_uiNpE+k*(eleOrder+1)*(eleOrder+1)+j*(eleOrder+1)+i];
+                                }
+
+
+
+                            }
+
+                }
+
+
+                std::swap(vec,tVec);
+                delete [] tVec;
+                return ;
+            }
+
+
+            int npes2=0;
+            int rank2=0;
+            std::vector<ot::TreeNode> m2_splitters;
+            //note : assumes that global rank 0 is going to be active always. 
+            if(pMesh->isActive())
+            {
+                npes2=pMesh->getMPICommSize();
+                rank2=pMesh->getMPIRank();
+                const std::vector<ot::TreeNode> m2_splitters_root=pMesh->getSplitterElements();
+                m2_splitters.resize(2*npes2);
+                for(unsigned int w=0;w<m2_splitters_root.size();w++)
+                    m2_splitters[w]=m2_splitters_root[w];
+            } 
+            
+            par::Mpi_Bcast(&npes2,1,0,comm1);
+            par::Mpi_Bcast(&rank2,1,0,comm1);
+            m2_splitters.resize(2*npes2);
+            par::Mpi_Bcast(&(*(m2_splitters.begin())),2*npes2,0,comm1);
+            assert(seq::test::isUniqueAndSorted(m2_splitters));
+           
+           
+               std::vector<ot::SearchKey> m2primeSK;
+               m2primeSK.resize(m2prime.size());
+
+               for(unsigned int e=0;e<m2prime.size();e++)
+               {
+                   m2primeSK[e]=ot::SearchKey(m2prime[e]);
+                   m2primeSK[e].addOwner(rank1); // note that this is the rank in comm1. 
+               }
+
+
+               std::vector<ot::Key> m2_splitterKeys;
+               m2_splitterKeys.resize(2*npes2);
+
+               for(unsigned int p=0;p<npes2;p++)
+               {
+                   m2_splitterKeys[2*p]=ot::Key(m2_splitters[2*p]);
+                   m2_splitterKeys[2*p].addOwner(p);
+
+                   m2_splitterKeys[2*p+1]=ot::Key(m2_splitters[2*p+1]);
+                   m2_splitterKeys[2*p+1].addOwner(p);
+
+                   m2primeSK.push_back(ot::SearchKey(m2_splitters[2*p]));
+                   m2primeSK.push_back(ot::SearchKey(m2_splitters[2*p+1]));
+               }
+
+               ot::SearchKey rootSK(m_uiDim,m_uiMaxDepth);
+               std::vector<ot::SearchKey> tmpNodes;
+
+               SFC::seqSort::SFC_treeSort(&(*(m2primeSK.begin())),m2primeSK.size(),tmpNodes,tmpNodes,tmpNodes,m_uiMaxDepth,m_uiMaxDepth,rootSK,ROOT_ROTATION,1,TS_SORT_ONLY);
+
+               unsigned int skip=0;
+               ot::SearchKey tmpSK;
+               std::vector<ot::SearchKey> tmpSKVec;
+
+               for(unsigned int e=0;e<(m2primeSK.size());e++)
+               {
+                   tmpSK=m2primeSK[e];
+                   skip=1;
+                   while(((e+skip)<m2primeSK.size()) && (m2primeSK[e]==m2primeSK[e+skip]))
+                   {
+                       if(m2primeSK[e+skip].getOwner()>=0){
+                           tmpSK.addOwner(m2primeSK[e+skip].getOwner());
+                       }
+                       skip++;
+                   }
+
+                   tmpSKVec.push_back(tmpSK);
+                   e+=(skip-1);
+
+               }
+
+               std::swap(m2primeSK,tmpSKVec);
+               tmpSKVec.clear();
+
+               assert(seq::test::isUniqueAndSorted(m2primeSK));
+               assert(seq::test::isUniqueAndSorted(m2_splitterKeys));
+
+               ot::Key rootKey(0,0,0,0,m_uiDim,m_uiMaxDepth);
+               SFC::seqSearch::SFC_treeSearch(&(*(m2_splitterKeys.begin())),&(*(m2primeSK.begin())),0,m2_splitterKeys.size(),0,m2primeSK.size(),m_uiMaxDepth,m_uiMaxDepth,ROOT_ROTATION);
+
+
+
+               unsigned int sBegin,sEnd,selectedRank;
+               for(unsigned int p=0;p<npes2;p++)
+               {
+                   assert(m2_splitterKeys[2*p].getFlag() & OCT_FOUND);
+                   assert(m2_splitterKeys[2*p+1].getFlag() & OCT_FOUND);
+
+                   sBegin=m2_splitterKeys[2*p].getSearchResult();
+                   sEnd=m2_splitterKeys[2*p+1].getSearchResult();
+                   assert(sBegin<sEnd);
+                   selectedRank=rankSelectRule(m_uiGlobalNpes,m_uiGlobalRank,npes2,p);
+                   sendNodeCount[selectedRank]=sEnd-sBegin-1;
+
+                   if(m2primeSK[sBegin].getOwner()>=0) sendNodeCount[selectedRank]++;
+                   if(m2primeSK[sEnd].getOwner()>=0) sendNodeCount[selectedRank]++;
+
+                   sendNodeCount[selectedRank]*=m_uiNpE;
+
+               }
+
+               // we don't need below for intergrid transfer, but these can be help full for debugging.
+               m2prime.clear();
+               m2primeSK.clear();
+
+
+        }
+
+        par::Mpi_Alltoall(sendNodeCount,recvNodeCount,1,comm);
+
+        sendNodeOffset[0]=0;
+        recvNodeOffset[0]=0;
+
+        omp_par::scan(sendNodeCount,sendNodeOffset,npes);
+        omp_par::scan(recvNodeCount,recvNodeOffset,npes);
+
+
+        std::vector<T> wVec_m2;
+        wVec_m2.resize(recvNodeOffset[npes-1]+recvNodeCount[npes-1]);
+
+        if((wVec_m2.size()/m_uiNpE)!=pMesh->getNumLocalMeshElements())
+            std::cout<<"rank: "<<rank<<" [Inter-grid Transfer error ]: Recvn DG elements: "<<(wVec_m2.size()/m_uiNpE)<<" m2 num local elements "<<pMesh->getNumLocalMeshElements()<<std::endl;
+
+        par::Mpi_Alltoallv_sparse(&(*(wVec.begin())),sendNodeCount,sendNodeOffset,&(*(wVec_m2.begin())),recvNodeCount,recvNodeOffset,comm);
+
+        delete [] sendNodeCount;
+        delete [] recvNodeCount;
+        delete [] sendNodeOffset;
+        delete [] recvNodeOffset;
+
+        T * tVec=NULL;
+        if(pMesh->isActive())
+        {
+            tVec=pMesh->createVector<T>(0);
+            const unsigned int * e2n=&(*(pMesh->getE2NMapping().begin()));
+
+            const unsigned int m2LocalElemBegin=pMesh->getElementLocalBegin();
+            const unsigned int m2LocalElemEnd=pMesh->getElementLocalEnd();
+
+            const unsigned int m2LocalNodeBegin=pMesh->getNodeLocalBegin();
+            const unsigned int m2LocalNodeEnd=pMesh->getNodeLocalEnd();
+
+            unsigned int lookUp;
+            const unsigned int eleOrder=pMesh->getElementOrder();
+
+            for(unsigned int ele=m2LocalElemBegin;ele<m2LocalElemEnd;ele++)
+            {
+                for(unsigned int k=0;k<eleOrder+1;k++)
+                    for(unsigned int j=0;j<eleOrder+1;j++)
+                        for(unsigned int i=0;i<eleOrder+1;i++)
+                        {
+                            if(!(pMesh->isNodeHanging(ele,i,j,k)))
+                            {
+                                lookUp=e2n[ele*m_uiNpE+k*(eleOrder+1)*(eleOrder+1)+j*(eleOrder+1)+i];
+                                if((lookUp>=m2LocalNodeBegin && lookUp<m2LocalNodeEnd) )
+                                    tVec[lookUp]=wVec_m2[(ele-m2LocalElemBegin)*m_uiNpE+k*(eleOrder+1)*(eleOrder+1)+j*(eleOrder+1)+i];
+                            }
+
+
+
+                        }
+
+            }
+
+
+            std::swap(vec,tVec);
+
+        }
+
+        delete [] tVec;
+        delete [] unzip;
+
+        delete [] sendNodeCount;
+        delete [] recvNodeCount;
+        delete [] sendNodeOffset;
+        delete [] recvNodeOffset;
+        wVec.clear();
+        wVec_m2.clear();
+
+    }
+
 
     template<typename T>
     void Mesh::zip(const T* unzippedVec, T* zippedVec)
@@ -8505,6 +8911,71 @@ namespace ot
 
         return num_face_neighbours;
 
+    }
+
+    template<typename T>
+    void Mesh::getUnzipElementalNodalValues(const T* uzipVec, unsigned int blkID, unsigned int ele, T*out, bool isPadded) const
+    {
+        const ot::Block block = m_uiLocalBlockList[blkID];
+        ot::TreeNode blkNode = m_uiLocalBlockList[blkID].getBlockNode();
+        const unsigned int eleBegin = block.getLocalElementBegin();
+        const unsigned int eleEnd = block.getLocalElementEnd();
+
+        assert(eleBegin <= ele && ele < eleEnd);
+        const unsigned int regLev=block.getRegularGridLev();
+        const unsigned int lx=block.getAllocationSzX();
+        const unsigned int ly=block.getAllocationSzY();
+        const unsigned int lz=block.getAllocationSzZ();
+        const unsigned int offset=block.getOffset();
+        const unsigned int paddWidth=block.get1DPadWidth();
+
+        const unsigned int ei=(m_uiAllElements[ele].getX()-blkNode.getX())>>(m_uiMaxDepth-regLev);
+        const unsigned int ej=(m_uiAllElements[ele].getY()-blkNode.getY())>>(m_uiMaxDepth-regLev);
+        const unsigned int ek=(m_uiAllElements[ele].getZ()-blkNode.getZ())>>(m_uiMaxDepth-regLev);
+
+        
+
+        if(isPadded)
+        {
+            const unsigned int ib = offset + ei*m_uiElementOrder;
+            const unsigned int ie = offset + ei*m_uiElementOrder + (m_uiElementOrder+1) + paddWidth ;
+
+            const unsigned int jb = offset + ej*m_uiElementOrder;
+            const unsigned int je = offset + ej*m_uiElementOrder + (m_uiElementOrder+1) + paddWidth ;
+
+            const unsigned int kb = offset + ek*m_uiElementOrder;
+            const unsigned int ke = offset + ek*m_uiElementOrder + (m_uiElementOrder+1) + paddWidth ;
+
+            const unsigned int en[3] = {(m_uiElementOrder+1) + 2*paddWidth , (m_uiElementOrder+1) + 2*paddWidth, (m_uiElementOrder+1) + 2*paddWidth }; 
+
+            for(unsigned int k=kb; k< ke; k++)
+             for(unsigned int j=jb; j< je; j++)
+              for(unsigned int i=ib; i< ie; i++)
+               out[(k-kb) * en[1]*en[0] + (j-jb)*en[1] + (i-ib)] = uzipVec[k*ly*lx + j*lx + i];
+
+        }else
+        {
+            const unsigned int ib = offset + ei*m_uiElementOrder + paddWidth;
+            const unsigned int ie = offset + ei*m_uiElementOrder + (m_uiElementOrder+1) ;
+
+            const unsigned int jb = offset + ej*m_uiElementOrder + paddWidth ;
+            const unsigned int je = offset + ej*m_uiElementOrder + (m_uiElementOrder+1) ;
+
+            const unsigned int kb = offset + ek*m_uiElementOrder + paddWidth ;
+            const unsigned int ke = offset + ek*m_uiElementOrder + (m_uiElementOrder+1) ;
+
+            const unsigned int en[3] = {(m_uiElementOrder+1) , (m_uiElementOrder+1) , (m_uiElementOrder+1) };
+
+            for(unsigned int k=kb; k< ke; k++)
+             for(unsigned int j=jb; j< je; j++)
+              for(unsigned int i=ib; i< ie; i++)
+                out[(k-kb) * en[1]*en[0] + (j-jb)*en[1] + (i-ib)] = uzipVec[k*ly*lx + j*lx + i];
+
+
+
+        }
+        
+        
     }
 
 

@@ -1215,6 +1215,20 @@ public:
      */
     void getElementQMat(unsigned int currentId, double *&qMat, bool isAllocated = true) const;
 
+
+    /**
+     * @brief Get the elemental nodal values using unzip representation of the array. 
+     * 
+     * @tparam T type of the vector. 
+     * @param uzipVec : unzip vector
+     * @param blkID : block ID the element belongs to
+     * @param ele : element ID of the block
+     * @param out : output values. (allocated with corresponding padding width)
+     * @param isPadded : true if the we need the elemental values with padding. 
+     */
+    template<typename T>
+    void getUnzipElementalNodalValues(const T* uzipVec, unsigned int blkID, unsigned int ele, T*out, bool isPadded=true) const;
+
     // Wavelet Init functions
     /**
      * @brief Initilizes the wavelet DA loop depending on the WaveletDA flags specified
@@ -1344,6 +1358,12 @@ public:
     {
         return ((m_uiE2NMapping_CG[eleID * m_uiNpE + kz * (m_uiElementOrder + 1) * (m_uiElementOrder + 1) + jy * (m_uiElementOrder + 1) + ix] >= m_uiNodeLocalBegin) && (m_uiE2NMapping_CG[eleID * m_uiNpE + kz * (m_uiElementOrder + 1) * (m_uiElementOrder + 1) + jy * (m_uiElementOrder + 1) + ix] < m_uiNodeLocalEnd));
     };
+
+    inline bool isBoundaryOctant(unsigned int ele) const 
+    {
+        assert(ele < m_uiAllElements.size() );
+        return (m_uiAllElements[ele].minX() ==0 || m_uiAllElements[ele].minY() ==0 || m_uiAllElements[ele].minZ()==0 || m_uiAllElements[ele].maxX() == 1u<<(m_uiMaxDepth) || m_uiAllElements[ele].maxY() == 1u<<(m_uiMaxDepth) || m_uiAllElements[ele].maxZ() == 1u<<(m_uiMaxDepth) );
+    }
 
     inline DendroIntL getGhostExcgTotalSendNodeCount() const
     {
@@ -1613,6 +1633,17 @@ public:
      * */
     template <typename T>
     void interGridTransfer(T *&vec, const ot::Mesh *pMesh);
+
+    /**
+     * @brief performs the intergrid transfer operation using the unzip representation. Compared to elemental 
+     * intergrid transfer this uses information from neighbouring elements while the transfer occurs. 
+     * @tparam T : data type of the vectors
+     * @param unzip : unizp representation of the vectors. 
+     * @param vec : zip representation of the transfered vectors. 
+     * @param pMesh : new mesh.
+     */
+    template<typename T>
+    void interGridTransferUnzip(T*& unzip, T*& vec, const ot::Mesh *pMesh);
 
     /**
     *@brief : Returns the nodal values of a given element for a given variable vector.

@@ -14,8 +14,6 @@
 
 #ifdef WITH_BLAS_LAPACK
     #include "basis.h"
-#else
-    #include "interpMatrices.h"
 #endif
 
 #include "tensor.h"
@@ -25,6 +23,8 @@
 #include <iomanip>
 #include <math.h>
 #include <cstring>
+#include <assert.h>
+#include "interpMatrices.h"
 
 template <typename T>
 void printArray_1D(const T *a, int length)
@@ -149,6 +149,10 @@ private :
     /**filter matrix for to cutoff high frequency terms. */
     std::vector<double> Fr;
 
+    std::vector<double> gridT;
+    
+
+
 
 
 public:
@@ -251,6 +255,94 @@ public:
     }
 
     /**
+     * @brief performs parent to child interpolation in FD stencil.
+     * @param in : input values of the parent. with 3 point padding on each x,y,z direction 
+     * @param out: values of the child.
+     * @param cnum: child number 
+     * @param pwdith: padding width
+     */
+    inline void I3D_Parent2Child_FD(const double* in, double* out,unsigned int pwidth=3) const
+    {
+        assert(pwidth < m_uiNrp);
+        assert(m_uiNrp>2);
+        // only works for higher order (hard coded)
+
+        const int sz[]={11,11,11};
+
+        const int ie = sz[0]-pwidth;
+        const int je = sz[1]-pwidth;
+        const int ke = sz[2]-pwidth;
+        
+        const int ib = pwidth;
+        const int jb = pwidth;
+        const int kb = pwidth;
+
+        const unsigned int nx = m_uiNrp;
+        const unsigned int ny = m_uiNrp;
+        const unsigned int nz = m_uiNrp;
+
+        const unsigned int nx_c = 2*m_uiNrp-1;
+        const unsigned int ny_c = 2*m_uiNrp-1;
+        const unsigned int nz_c = 2*m_uiNrp-1;
+
+        const double * c = gridT.data();
+
+        for(unsigned int k = kb ; k < ke; k++)
+        {
+            for(unsigned int j = jb; j < je; j++)
+            {
+                for(unsigned int i = ib; i < ie; i++)
+                {
+                    const unsigned int pi = (i-pwidth);
+                    const unsigned int pj = (j-pwidth);
+                    const unsigned int pk = (k-pwidth);
+
+                    const unsigned int ci = pi<<1u;
+                    const unsigned int cj = pj<<1u;
+                    const unsigned int ck = pk<<1u;
+
+                    out[ ck*(ny_c*nx_c) + cj*(nx_c) + ci ] = in[ (pk)*(ny*nx) + (pj)*(ny) + (pi)];
+
+                    if( pi < (m_uiNrp-1) && pj < (m_uiNrp-1) && pk < (m_uiNrp-1))
+                    {
+                        // interpolation along x direction
+                        out[ (ck+1)*(ny_c*nx_c) + (cj+1)*(nx_c) + (ci +1) ] = c[0]*in[ (k)*(ny*nx) + (j)*(ny) + (i-2)] +
+                                                                              c[1]*in[ (k)*(ny*nx) + (j)*(ny) + (i-1)] +
+                                                                              c[2]*in[ (k)*(ny*nx) + (j)*(ny) + (i)] +
+                                                                              c[3]*in[ (k)*(ny*nx) + (j)*(ny) + (i+1)] +
+                                                                              c[4]*in[ (k)*(ny*nx) + (j)*(ny) + (i+2)] +
+                                                                              c[5]*in[ (k)*(ny*nx) + (j)*(ny) + (i+3)] ;
+                        // interpolation along y direction
+                        out[ (ck+1)*(ny_c*nx_c) + (cj+1)*(nx_c) + (ci +1) ] += c[0]*in[ (k)*(ny*nx) + (j-2)*(ny) + (i)] +
+                                                                              c[1]*in[ (k)*(ny*nx) + (j-1)*(ny) + (i)] +
+                                                                              c[2]*in[ (k)*(ny*nx) + (j)*(ny) + (i)] +
+                                                                              c[3]*in[ (k)*(ny*nx) + (j+1)*(ny) + (i)] +
+                                                                              c[4]*in[ (k)*(ny*nx) + (j+2)*(ny) + (i)] +
+                                                                              c[5]*in[ (k)*(ny*nx) + (j+3)*(ny) + (i)] ;
+                        
+                        // interpolation along z direction
+                        out[ (ck+1)*(ny_c*nx_c) + (cj+1)*(nx_c) + (ci +1) ] += c[0]*in[ (k-2)*(ny*nx) + (j)*(ny) + (i)] +
+                                                                              c[1]*in[ (k-1)*(ny*nx) + (j)*(ny) + (i)] +
+                                                                              c[2]*in[ (k)*(ny*nx) + (j)*(ny) + (i)] +
+                                                                              c[3]*in[ (k+1)*(ny*nx) + (j)*(ny) + (i)] +
+                                                                              c[4]*in[ (k+2)*(ny*nx) + (j)*(ny) + (i)] +
+                                                                              c[5]*in[ (k+3)*(ny*nx) + (j)*(ny) + (i)] ;                                                                                                                                                            
+                                                                              
+
+                    }
+
+
+                }
+            }
+        }
+         
+          
+        return ;
+
+    }
+
+
+    /**
     * @param[in] in: input function values.
     * @param[in] childNum: Morton ID of the child number where the contribution needed to be computed.
     * @param[out] out: child to parent contribution values. (used in FEM integral ivaluation)
@@ -314,10 +406,10 @@ public:
 
         }
 
-#ifdef FEM_ACCUMILATE_ONES_TEST
-        for(unsigned int node=0;node<(m_uiNrp*m_uiNrp*m_uiNrp);node++)
-            out[node]=1.0;
-#endif
+        #ifdef FEM_ACCUMILATE_ONES_TEST
+                for(unsigned int node=0;node<(m_uiNrp*m_uiNrp*m_uiNrp);node++)
+                    out[node]=1.0;
+        #endif
     }
 
 
@@ -406,10 +498,10 @@ public:
 
         }
 
-#ifdef FEM_ACCUMILATE_ONES_TEST
-        for(unsigned int node=0;node<(m_uiNrp*m_uiNrp);node++)
-            out[node]=1.0;
-#endif
+        #ifdef FEM_ACCUMILATE_ONES_TEST
+                for(unsigned int node=0;node<(m_uiNrp*m_uiNrp);node++)
+                    out[node]=1.0;
+        #endif
 
 
     }
@@ -495,10 +587,10 @@ public:
 
         }
 
-#ifdef FEM_ACCUMILATE_ONES_TEST
-        for(unsigned int node=0;node<(m_uiNrp);node++)
-            out[node]=1.0;
-#endif
+        #ifdef FEM_ACCUMILATE_ONES_TEST
+                for(unsigned int node=0;node<(m_uiNrp);node++)
+                    out[node]=1.0;
+        #endif
 
     }
 

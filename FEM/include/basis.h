@@ -128,6 +128,18 @@ namespace basis {
 
 
 
+   /**
+    * @brief computes the Lagrange polynomials evalueated at x coords. 
+    * @param x0: nodal locations. N+1 points. 
+    * @param N:  order of the Lagrange polynomial
+    * @param x:  points which Lagrange evaluated at.
+    * @param px: P(x)
+    * @param m: size of x points, (i.e. similar to px)
+    */
+    void lagrange(const double * x0, int N, int at, const double * x, double* px,  int m); 
+
+
+
 }
 
 #endif //SFCSORTBENCH_JACOBIPOLYNOMIAL_H

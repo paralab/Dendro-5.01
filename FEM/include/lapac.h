@@ -114,11 +114,11 @@ inline void lapack_DSYEV(int n, const double * A, int lda, double * wr,double * 
     double wkopt;
     double* work;
     int lwork=-1;
-    dsyev_( "Vectors", "Upper", (int*)&n, L, (int*)&lda, wr, &wkopt, &lwork,(int*)&info );
+    dsyev_((char*) "Vectors", (char*)"Upper", (int*)&n, L, (int*)&lda, wr, &wkopt, &lwork,(int*)&info );
     lwork = (int)wkopt;
     work = new double[lwork];
     /* Solve eigenproblem */
-    dsyev_( "Vectors", "Upper", (int*)&n, L, (int*)&lda, wr, work, &lwork, (int*)&info );
+    dsyev_( (char*)"Vectors", (char*)"Upper", (int*)&n, L, (int*)&lda, wr, work, &lwork, (int*)&info );
 
 
     for(unsigned int i=0;i<n;i++)

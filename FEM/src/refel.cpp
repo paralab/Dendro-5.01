@@ -76,6 +76,11 @@ RefElement::RefElement(unsigned int dim, unsigned int order)
     ipT_1D_1.resize(m_uiNrp*m_uiNrp);
     Fr.resize(m_uiNrp*m_uiNrp);
 
+    //TODO Later change this to proper computation. 
+    gridT.resize(6,0);
+    for(unsigned int i=0; i< 6; i++ )
+     gridT[i] = IP_1D_FD_Order_5[i];
+
 
     #ifdef WITH_BLAS_LAPACK
 
