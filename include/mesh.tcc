@@ -2427,25 +2427,54 @@ namespace ot
                     assert(m_uiAllElements[ele].getParent()==m_uiAllElements[ele+NUM_CHILDREN-1].getParent());
                     m2prime.push_back(m_uiAllElements[ele].getParent());
 
-                    for(unsigned int child=0;child<NUM_CHILDREN;child++)
+                    if(m_uiElementOrder==1)
                     {
-                        for(unsigned int k=0;k<m_uiElementOrder+1;k++)
-                            for(unsigned int j=0;j<m_uiElementOrder+1;j++)
-                                for(unsigned int i=0;i<m_uiElementOrder+1;i++)
-                                {
 
-                                    isHanging=this->isNodeHanging((ele+child),i,j,k);
-                                    if(isHanging)
+                        for(unsigned int child=0;child<NUM_CHILDREN;child++)
+                        {
+                            for(unsigned int k=0;k<m_uiElementOrder+1;k++)
+                                for(unsigned int j=0;j<m_uiElementOrder+1;j++)
+                                    for(unsigned int i=0;i<m_uiElementOrder+1;i++)
                                     {
-                                        wVec[m2primeCount*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]=vec[m_uiE2NMapping_CG[(ele+child)*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]];
 
-                                    }else if( (i%2==0) && (j%2==0) && (k%2==0))
-                                    {
-                                        cnum=m_uiAllElements[(ele+child)].getMortonIndex();
-                                        wVec[m2primeCount*m_uiNpE+((((cnum & 4u)>>2u)*m_uiElementOrder+k)>>1)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+((((cnum & 2u)>>1u)*m_uiElementOrder+j)>>1)*(m_uiElementOrder+1)+(((((cnum & (1u)))*m_uiElementOrder+i)>>1))]=vec[m_uiE2NMapping_CG[(ele+child)*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]];
+                                        isHanging=this->isNodeHanging((ele+child),i,j,k);
+                                        if(isHanging)
+                                        {
+                                            wVec[m2primeCount*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]=vec[m_uiE2NMapping_CG[(ele+child)*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]];
+
+                                        }else if( ((i%2==0) && (j%2==0) && (k%2==0)) || (i==1 || j==1 || k==1) )
+                                        {
+                                            cnum=m_uiAllElements[(ele+child)].getMortonIndex();
+                                            wVec[m2primeCount*m_uiNpE+((((cnum & 4u)>>2u)*m_uiElementOrder+k)>>1)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+((((cnum & 2u)>>1u)*m_uiElementOrder+j)>>1)*(m_uiElementOrder+1)+(((((cnum & (1u)))*m_uiElementOrder+i)>>1))]=vec[m_uiE2NMapping_CG[(ele+child)*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]];
+                                        }
+
                                     }
 
-                                }
+                        }
+
+                    }else
+                    {
+                        for(unsigned int child=0;child<NUM_CHILDREN;child++)
+                        {
+                            for(unsigned int k=0;k<m_uiElementOrder+1;k++)
+                                for(unsigned int j=0;j<m_uiElementOrder+1;j++)
+                                    for(unsigned int i=0;i<m_uiElementOrder+1;i++)
+                                    {
+
+                                        isHanging=this->isNodeHanging((ele+child),i,j,k);
+                                        if(isHanging)
+                                        {
+                                            wVec[m2primeCount*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]=vec[m_uiE2NMapping_CG[(ele+child)*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]];
+
+                                        }else if( (i%2==0) && (j%2==0) && (k%2==0))
+                                        {
+                                            cnum=m_uiAllElements[(ele+child)].getMortonIndex();
+                                            wVec[m2primeCount*m_uiNpE+((((cnum & 4u)>>2u)*m_uiElementOrder+k)>>1)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+((((cnum & 2u)>>1u)*m_uiElementOrder+j)>>1)*(m_uiElementOrder+1)+(((((cnum & (1u)))*m_uiElementOrder+i)>>1))]=vec[m_uiE2NMapping_CG[(ele+child)*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]];
+                                        }
+
+                                    }
+
+                        }
 
                     }
 
@@ -2782,27 +2811,59 @@ namespace ot
                     assert(m_uiAllElements[ele].getParent()==m_uiAllElements[ele+NUM_CHILDREN-1].getParent());
                     m2prime.push_back(m_uiAllElements[ele].getParent());
 
-                    for(unsigned int child=0;child<NUM_CHILDREN;child++)
+
+                    if(m_uiElementOrder==1)
                     {
-                        for(unsigned int k=0;k<m_uiElementOrder+1;k++)
-                            for(unsigned int j=0;j<m_uiElementOrder+1;j++)
-                                for(unsigned int i=0;i<m_uiElementOrder+1;i++)
-                                {
 
-                                    isHanging=this->isNodeHanging((ele+child),i,j,k);
-                                    if(isHanging)
+                        for(unsigned int child=0;child<NUM_CHILDREN;child++)
+                        {
+                            for(unsigned int k=0;k<m_uiElementOrder+1;k++)
+                                for(unsigned int j=0;j<m_uiElementOrder+1;j++)
+                                    for(unsigned int i=0;i<m_uiElementOrder+1;i++)
                                     {
-                                        wVec[m2primeCount*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]=vec[m_uiE2NMapping_CG[(ele+child)*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]];
 
-                                    }else if( (i%2==0) && (j%2==0) && (k%2==0))
-                                    {
-                                        cnum=m_uiAllElements[(ele+child)].getMortonIndex();
-                                        wVec[m2primeCount*m_uiNpE+((((cnum & 4u)>>2u)*m_uiElementOrder+k)>>1)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+((((cnum & 2u)>>1u)*m_uiElementOrder+j)>>1)*(m_uiElementOrder+1)+(((((cnum & (1u)))*m_uiElementOrder+i)>>1))]=vec[m_uiE2NMapping_CG[(ele+child)*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]];
+                                        isHanging=this->isNodeHanging((ele+child),i,j,k);
+                                        if(isHanging)
+                                        {
+                                            wVec[m2primeCount*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]=vec[m_uiE2NMapping_CG[(ele+child)*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]];
+
+                                        }else if( ((i%2==0) && (j%2==0) && (k%2==0)) || (i==1 || j==1 || k==1) )
+                                        {
+                                            cnum=m_uiAllElements[(ele+child)].getMortonIndex();
+                                            wVec[m2primeCount*m_uiNpE+((((cnum & 4u)>>2u)*m_uiElementOrder+k)>>1)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+((((cnum & 2u)>>1u)*m_uiElementOrder+j)>>1)*(m_uiElementOrder+1)+(((((cnum & (1u)))*m_uiElementOrder+i)>>1))]=vec[m_uiE2NMapping_CG[(ele+child)*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]];
+                                        }
+
                                     }
 
-                                }
+                        }
+
+                    }else
+                    {
+                        for(unsigned int child=0;child<NUM_CHILDREN;child++)
+                        {
+                            for(unsigned int k=0;k<m_uiElementOrder+1;k++)
+                                for(unsigned int j=0;j<m_uiElementOrder+1;j++)
+                                    for(unsigned int i=0;i<m_uiElementOrder+1;i++)
+                                    {
+
+                                        isHanging=this->isNodeHanging((ele+child),i,j,k);
+                                        if(isHanging)
+                                        {
+                                            wVec[m2primeCount*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]=vec[m_uiE2NMapping_CG[(ele+child)*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]];
+
+                                        }else if( (i%2==0) && (j%2==0) && (k%2==0))
+                                        {
+                                            cnum=m_uiAllElements[(ele+child)].getMortonIndex();
+                                            wVec[m2primeCount*m_uiNpE+((((cnum & 4u)>>2u)*m_uiElementOrder+k)>>1)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+((((cnum & 2u)>>1u)*m_uiElementOrder+j)>>1)*(m_uiElementOrder+1)+(((((cnum & (1u)))*m_uiElementOrder+i)>>1))]=vec[m_uiE2NMapping_CG[(ele+child)*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]];
+                                        }
+
+                                    }
+
+                        }
 
                     }
+
+                    
 
 
                     ele+=(NUM_CHILDREN-1);
