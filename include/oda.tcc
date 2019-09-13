@@ -743,6 +743,213 @@ namespace ot
 
     }
 
+    template<typename T>
+    void DA::writeToGhostsBegin(T* vec, unsigned int dof) 
+    {
+        if(m_uiMesh->getMPICommSizeGlobal()==1)
+            return;
+        
+        // send recv buffers.
+        T* sendB = NULL;
+        T* recvB = NULL;
+
+        if(m_uiMesh->isActive())
+        {
+            const std::vector<unsigned int> nodeRecvCount = m_uiMesh->getNodalSendCounts();
+            const std::vector<unsigned int> nodeRecvOffset = m_uiMesh->getNodalSendOffsets();
+
+            const std::vector<unsigned int> nodeSendCount = m_uiMesh->getNodalRecvCounts();
+            const std::vector<unsigned int> nodeSendOffset = m_uiMesh->getNodalRecvOffsets();
+
+            const std::vector<unsigned int> recvProcList=m_uiMesh->getSendProcList();
+            const std::vector<unsigned int> sendProcList=m_uiMesh->getRecvProcList();
+
+            const std::vector<unsigned int> recvNodeSM = m_uiMesh->getSendNodeSM();
+            const std::vector<unsigned int> sendNodeSM = m_uiMesh->getRecvNodeSM();
+
+
+            const unsigned int activeNpes=m_uiMesh->getMPICommSize();
+
+            const unsigned int sendBSz=nodeSendOffset[activeNpes-1] + nodeSendCount[activeNpes-1];
+            const unsigned int recvBSz=nodeRecvOffset[activeNpes-1] + nodeRecvCount[activeNpes-1];
+            unsigned int proc_id;
+
+            AsyncExchangeContex ctx(vec);
+            MPI_Comm commActive=m_uiMesh->getMPICommunicator();
+
+
+            if(recvBSz)
+            {
+                ctx.allocateRecvBuffer((sizeof(T)*recvBSz*dof));
+                recvB=(T*)ctx.getRecvBuffer();
+
+                // active recv procs
+                for(unsigned int recv_p=0;recv_p<recvProcList.size();recv_p++)
+                {
+                    proc_id=recvProcList[recv_p];
+                    MPI_Request* req=new MPI_Request();
+                    par::Mpi_Irecv((recvB+dof*nodeRecvOffset[proc_id]),dof*nodeRecvCount[proc_id],proc_id,m_uiCommTag,commActive,req);
+                    ctx.getRequestList().push_back(req);
+
+                }
+
+            }
+
+            if(sendBSz)
+            {
+                ctx.allocateSendBuffer(sizeof(T)*dof*sendBSz);
+                sendB=(T*)ctx.getSendBuffer();
+
+                for(unsigned int send_p=0;send_p<sendProcList.size();send_p++) {
+                    proc_id=sendProcList[send_p];
+
+                    for(unsigned int var=0;var<dof;var++)
+                    {
+                        for (unsigned int k = nodeSendOffset[proc_id]; k < (nodeSendOffset[proc_id] + nodeSendCount[proc_id]); k++)
+                        {
+                            sendB[dof*(nodeSendOffset[proc_id]) + (var*nodeSendCount[proc_id])+(k-nodeSendOffset[proc_id])] = (vec+var*m_uiTotalNodalSz)[sendNodeSM[k]];
+                        }
+
+                    }
+
+
+
+                }
+
+                // active send procs
+                for(unsigned int send_p=0;send_p<sendProcList.size();send_p++)
+                {
+                    proc_id=sendProcList[send_p];
+                    MPI_Request * req=new MPI_Request();
+                    par::Mpi_Isend(sendB+dof*nodeSendOffset[proc_id],dof*nodeSendCount[proc_id],proc_id,m_uiCommTag,commActive,req);
+                    ctx.getRequestList().push_back(req);
+
+                }
+
+
+            }
+
+            m_uiCommTag++;
+            m_uiMPIContexts.push_back(ctx);
+
+
+        }
+
+        return;
+
+    }
+
+    template<typename T>
+    void DA::writeToGhostsEnd(T* vec, DA_FLAGS::WriteMode mode, unsigned int dof)
+    {
+        if(m_uiMesh->getMPICommSizeGlobal()==1)
+            return;
+
+        // send recv buffers.
+        T* sendB = NULL;
+        T* recvB = NULL;
+        
+        if(m_uiMesh->isActive())
+        {
+            const std::vector<unsigned int> nodeRecvCount = m_uiMesh->getNodalSendCounts();
+            const std::vector<unsigned int> nodeRecvOffset = m_uiMesh->getNodalSendOffsets();
+
+            const std::vector<unsigned int> nodeSendCount = m_uiMesh->getNodalRecvCounts();
+            const std::vector<unsigned int> nodeSendOffset = m_uiMesh->getNodalRecvOffsets();
+
+            const std::vector<unsigned int> recvProcList=m_uiMesh->getSendProcList();
+            const std::vector<unsigned int> sendProcList=m_uiMesh->getRecvProcList();
+
+            const std::vector<unsigned int> recvNodeSM = m_uiMesh->getSendNodeSM();
+            const std::vector<unsigned int> sendNodeSM = m_uiMesh->getRecvNodeSM();
+
+
+            const unsigned int activeNpes=m_uiMesh->getMPICommSize();
+
+            const unsigned int sendBSz=nodeSendOffset[activeNpes-1] + nodeSendCount[activeNpes-1];
+            const unsigned int recvBSz=nodeRecvOffset[activeNpes-1] + nodeRecvCount[activeNpes-1];
+            unsigned int proc_id;
+
+            unsigned int ctxIndex=0;
+            for(unsigned int i=0;i<m_uiMPIContexts.size();i++)
+            {
+                if(m_uiMPIContexts[i].getBuffer()==vec)
+                {
+                    ctxIndex=i;
+                    break;
+                }
+
+            }
+
+
+            MPI_Status status;
+            // need to wait for the commns to finish ...
+            for (unsigned int i = 0; i < m_uiMPIContexts[ctxIndex].getRequestList().size(); i++) {
+                MPI_Wait(m_uiMPIContexts[ctxIndex].getRequestList()[i], &status);
+            }
+
+            if(recvBSz)
+            {
+                // copy the recv data to the vec
+                recvB=(T*)m_uiMPIContexts[ctxIndex].getRecvBuffer();
+
+                if(mode==DA_FLAGS::WriteMode::SET_VALUES)
+                {
+                    for(unsigned int recv_p=0;recv_p<recvProcList.size();recv_p++){
+                    proc_id=recvProcList[recv_p];
+
+                        for(unsigned int var=0;var<dof;var++)
+                        {
+                            for (unsigned int k = nodeRecvOffset[proc_id]; k < (nodeRecvOffset[proc_id] + nodeRecvCount[proc_id]); k++)
+                            {
+                                (vec+var*m_uiTotalNodalSz)[recvNodeSM[k]]=recvB[dof*(nodeRecvOffset[proc_id]) + (var*nodeRecvCount[proc_id])+(k-nodeRecvOffset[proc_id])];
+                            }
+                        }
+
+                    }
+
+                }else if(mode ==DA_FLAGS::WriteMode::ADD_VALUES)
+                {
+                    for(unsigned int recv_p=0;recv_p<recvProcList.size();recv_p++){
+                    proc_id=recvProcList[recv_p];
+
+                        for(unsigned int var=0;var<dof;var++)
+                        {
+                            for (unsigned int k = nodeRecvOffset[proc_id]; k < (nodeRecvOffset[proc_id] + nodeRecvCount[proc_id]); k++)
+                            {
+                                (vec+var*m_uiTotalNodalSz)[recvNodeSM[k]]+=recvB[dof*(nodeRecvOffset[proc_id]) + (var*nodeRecvCount[proc_id])+(k-nodeRecvOffset[proc_id])];
+                            }
+                        }
+
+                    }
+
+                }
+
+                
+
+            }
+
+
+
+            m_uiMPIContexts[ctxIndex].deAllocateSendBuffer();
+            m_uiMPIContexts[ctxIndex].deAllocateRecvBuffer();
+
+            for (unsigned int i = 0; i < m_uiMPIContexts[ctxIndex].getRequestList().size(); i++)
+                delete m_uiMPIContexts[ctxIndex].getRequestList()[i];
+
+            m_uiMPIContexts[ctxIndex].getRequestList().clear();
+
+            // remove the context ...
+            m_uiMPIContexts.erase(m_uiMPIContexts.begin() + ctxIndex);
+
+
+
+        }
+        
+        return;
+
+    }
+
 
     template <typename T>
     void DA::getElementNodalValues(const T*in, T* eleVecOut,unsigned int eleID,unsigned int dof) const

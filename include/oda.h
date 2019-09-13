@@ -85,6 +85,8 @@ namespace ot
          * **/
         enum Refine {DA_NO_CHANGE,DA_REFINE,DA_COARSEN};
 
+        enum WriteMode{SET_VALUES=0,ADD_VALUES};
+
 
 
     }
@@ -458,9 +460,13 @@ namespace ot
          template<typename T>
          void writeToGhostsBegin(T* vec, unsigned int dof=1) ;
 
-         /**@brief Sync accumilation across ghost elements*/
+         /**@brief Sync accumilation across ghost elements
+          * @param [in] vec: vector pointer
+          * @param [in] mode: mode of the write to ghost
+          * @param [in] dof: degrees of freedoms. 
+         */
          template<typename T>
-         void writeToGhostsEnd(T* vec, unsigned int dof=1) ;
+         void writeToGhostsEnd(T* vec, DA_FLAGS::WriteMode mode,unsigned int dof=1) ;
 
 
          /**

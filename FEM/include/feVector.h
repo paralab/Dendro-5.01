@@ -171,8 +171,14 @@ void feVector<T>::computeVec(const VECType* in,VECType* out,double scale)
 
     m_uiOctDA->readFromGhostEnd(_in, m_uiDof);
 
+    const unsigned int eleLocalBegin = pMesh->getElementLocalBegin();
+    const unsigned int eleLocalEnd = pMesh -> getElementLocalEnd();
 
     for (m_uiOctDA->init<ot::DA_FLAGS::W_DEPENDENT>(); m_uiOctDA->curr() < m_uiOctDA->end<ot::DA_FLAGS::W_DEPENDENT>(); m_uiOctDA->next<ot::DA_FLAGS::W_DEPENDENT>()) {
+
+        // temporary fix to skip ghost writable.     
+        if( m_uiOctDA->curr()< eleLocalBegin || m_uiOctDA->curr()>=eleLocalEnd )
+            continue;
 
         m_uiOctDA->getElementNodalValues(_in, m_uiEleVecIn, m_uiOctDA->curr(), m_uiDof);
         const unsigned int currentId = m_uiOctDA->curr();
@@ -195,6 +201,9 @@ void feVector<T>::computeVec(const VECType* in,VECType* out,double scale)
 
 
     delete [] qMat;
+
+    m_uiOctDA->writeToGhostsBegin(_out,m_uiDof);
+    m_uiOctDA->writeToGhostsEnd(_out,ot::DA_FLAGS::WriteMode::ADD_VALUES,m_uiDof);
 
     m_uiOctDA->ghostedNodalToNodalVec(_out,out,true,m_uiDof);
 

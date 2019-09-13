@@ -3586,37 +3586,37 @@ namespace ot {
     {
         // todo we don't need to build the full e2n mapping only for the partition boundary and R1 ghost elements. 
         buildE2NMap();
-        for(unsigned int ele=m_uiElementPreGhostBegin;ele<m_uiElementPreGhostEnd;ele++)
-        {
-            for(unsigned int node=0;node<m_uiNpE;node++)
-            {
-                const unsigned nodeLookUp = m_uiE2NMapping_CG [ele*m_uiNpE + node];
-                if(nodeLookUp>=m_uiNodeLocalBegin && nodeLookUp<m_uiNodeLocalEnd)
-                {
-                    m_uiGhostElementRound1Index.push_back(ele);
-                    break;
-                }
-            }
-        }
+        // for(unsigned int ele=m_uiElementPreGhostBegin;ele<m_uiElementPreGhostEnd;ele++)
+        // {
+        //     for(unsigned int node=0;node<m_uiNpE;node++)
+        //     {
+        //         const unsigned nodeLookUp = m_uiE2NMapping_CG [ele*m_uiNpE + node];
+        //         if(nodeLookUp>=m_uiNodeLocalBegin && nodeLookUp<m_uiNodeLocalEnd)
+        //         {
+        //             m_uiGhostElementRound1Index.push_back(ele);
+        //             break;
+        //         }
+        //     }
+        // }
 
-        for(unsigned int ele=m_uiElementPostGhostBegin;ele<m_uiElementPostGhostEnd;ele++)
-        {
-            for(unsigned int node=0;node<m_uiNpE;node++)
-            {
-                const unsigned nodeLookUp = m_uiE2NMapping_CG [ele*m_uiNpE + node];
-                if(nodeLookUp>=m_uiNodeLocalBegin && nodeLookUp<m_uiNodeLocalEnd)
-                {
-                    m_uiGhostElementRound1Index.push_back(ele);
-                    break;
-                }
-            }
-        }
+        // for(unsigned int ele=m_uiElementPostGhostBegin;ele<m_uiElementPostGhostEnd;ele++)
+        // {
+        //     for(unsigned int node=0;node<m_uiNpE;node++)
+        //     {
+        //         const unsigned nodeLookUp = m_uiE2NMapping_CG [ele*m_uiNpE + node];
+        //         if(nodeLookUp>=m_uiNodeLocalBegin && nodeLookUp<m_uiNodeLocalEnd)
+        //         {
+        //             m_uiGhostElementRound1Index.push_back(ele);
+        //             break;
+        //         }
+        //     }
+        // }
 
-        std::sort(m_uiGhostElementRound1Index.begin(), m_uiGhostElementRound1Index.end());
-        m_uiGhostElementRound1Index.erase(std::unique(m_uiGhostElementRound1Index.begin(), m_uiGhostElementRound1Index.end()),m_uiGhostElementRound1Index.end());
+        // std::sort(m_uiGhostElementRound1Index.begin(), m_uiGhostElementRound1Index.end());
+        // m_uiGhostElementRound1Index.erase(std::unique(m_uiGhostElementRound1Index.begin(), m_uiGhostElementRound1Index.end()),m_uiGhostElementRound1Index.end());
 
-        m_uiCG2DG.clear();
-        buildE2NMap();
+        // m_uiCG2DG.clear();
+        // buildE2NMap();
         
     }
 
