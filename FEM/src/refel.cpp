@@ -81,6 +81,9 @@ RefElement::RefElement(unsigned int dim, unsigned int order)
     for(unsigned int i=0; i< 6; i++ )
      gridT[i] = IP_1D_FD_Order_5[i];
 
+    const unsigned int p2c_sz=21*21*21;
+    out_p2c.resize(p2c_sz,0);
+
 
     #ifdef WITH_BLAS_LAPACK
 

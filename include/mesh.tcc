@@ -3116,7 +3116,7 @@ namespace ot
             
 
             wVec.resize(numM2PrimeElems*m_uiNpE);
-            assert(par::test::isUniqueAndSorted(m_uiLocalBlockList,comm1));
+            //assert(par::test::isUniqueAndSorted(m_uiLocalBlockList,comm1));
 
             std::vector<ot::TreeNode> m2prime; // m2 partiioned with m1 splitters.
 
@@ -3144,19 +3144,31 @@ namespace ot
 
                 const unsigned int u_sz[3] = { (m_uiElementOrder+1) + 2*paddWidth , (m_uiElementOrder+1) + 2*paddWidth, (m_uiElementOrder+1) + 2*paddWidth};
                 nodalVals_unzip.resize(u_sz[0]*u_sz[1]*u_sz[2]);
+                
+                
+
+                //std::cout<<"blk: "<<blk<<" : "<<blkNode<<"eleB: "<<m_uiLocalBlockList[blk].getLocalElementBegin()<<" eleE: "<<m_uiLocalBlockList[blk].getLocalElementEnd()<<std::endl;
 
                 for(unsigned int ele = m_uiLocalBlockList[blk].getLocalElementBegin(); ele < m_uiLocalBlockList[blk].getLocalElementEnd(); ele++ )
                 {
-                     //std::cout<<"blk: "<<blk<<" : "<<blkNode<<" ek: "<<(ek)<<" ej: "<<(ej)<<" ei: "<<(ei)<<" elem: "<<m_uiAllElements[elem]<<std::endl;
                     assert(m_uiAllElements[ele].getLevel()==regLev); // this is enforced by block construction
+
+                    const unsigned int ei=(m_uiAllElements[ele].getX()-blkNode.getX())>>(m_uiMaxDepth-regLev);
+                    const unsigned int ej=(m_uiAllElements[ele].getY()-blkNode.getY())>>(m_uiMaxDepth-regLev);
+                    const unsigned int ek=(m_uiAllElements[ele].getZ()-blkNode.getZ())>>(m_uiMaxDepth-regLev);
+
+                    bool fdstyle =true;
+                    
+                    if(isBoundaryOctant(ele))
+                     fdstyle=false;
 
                     if((m_uiAllElements[ele].getFlag()>>NUM_LEVEL_BITS)==OCT_SPLIT)
                     {
                         m_uiAllElements[ele].addChildren(m2prime);
-                        if(this->isBoundaryOctant(ele))
+                        if(!fdstyle)
                         {
                             // do element local interpolation
-                            this->getUnzipElementalNodalValues(unzip,blk,ele,nodalVals.data(),false);
+                            this->getElementNodalValues(vec,nodalVals.data(),ele);
                             for(unsigned int child=0;child<NUM_CHILDREN;child++)
                             {
                                 cnum=m2prime[m2primeCount+child].getMortonIndex();
@@ -3165,20 +3177,31 @@ namespace ot
 
                         }else
                         {
+
                             this->getUnzipElementalNodalValues(unzip,blk,ele,nodalVals_unzip.data());
-                            m_uiRefEl.I3D_Parent2Child_FD(nodalVals_unzip.data(),interp_out_all.data(),paddWidth);
                             
+                            // for(unsigned int k=0;k< m_uiElementOrder+1 ; k++)
+                            //  for(unsigned int j=0; j< m_uiElementOrder+1; j++)
+                            //   for(unsigned int i=0; i< m_uiElementOrder+1; i++)
+                            //     printf("ele: %d ijk: %d,%d,%d unzip: %f  \t zip: %f\n ",ele,i,j,k,nodalVals_unzip[(k+3)*11*11+ (j+3)*11 + (i+3)],nodalVals[k*5*5+ j*5 +i]);
+
+                            //std::cout<<"interpolation for : "<<m_uiAllElements[ele]<<std::endl;
+
+                            m_uiRefEl.I3D_Parent2Child_FD(nodalVals_unzip.data(),interp_out_all.data(),paddWidth);
                             for(unsigned int child=0;child<NUM_CHILDREN;child++)
                             {
-                                const char bit0 = binOp::getBit(child, 0);
-                                const char bit1 = binOp::getBit(child, 1);
-                                const char bit2 = binOp::getBit(child, 2);
+                                cnum=m2prime[m2primeCount+child].getMortonIndex();
+                                const char bit0 = binOp::getBit(cnum, 0);
+                                const char bit1 = binOp::getBit(cnum, 1);
+                                const char bit2 = binOp::getBit(cnum, 2);
 
-                                for(unsigned int k=0; k < (m_uiElementOrder+1);  k++)
-                                 for(unsigned int j=0; j < (m_uiElementOrder+1);  j++)
-                                  for(unsigned int i=0; i < (m_uiElementOrder+1);  i++)
-                                    wVec[(m2primeCount+child)*m_uiNpE + k*(m_uiElementOrder+1)*(m_uiElementOrder+1) + j* (m_uiElementOrder+1) +i] =
-                                        interp_out_all[(bit2*m_uiElementOrder+k)*ch_1d*ch_1d + (bit1*m_uiElementOrder+j)*ch_1d + (bit0*m_uiElementOrder+i)];
+                                 for(unsigned int k=0; k < (m_uiElementOrder+1);  k++)
+                                  for(unsigned int j=0; j < (m_uiElementOrder+1);  j++)
+                                   for(unsigned int i=0; i < (m_uiElementOrder+1);  i++)
+                                   {
+                                       wVec[(m2primeCount+child)*m_uiNpE + k*(m_uiElementOrder+1)*(m_uiElementOrder+1) + j* (m_uiElementOrder+1) +i] = interp_out_all[(bit2*m_uiElementOrder+k)*ch_1d*ch_1d + (bit1*m_uiElementOrder+j)*ch_1d + (bit0*m_uiElementOrder+i)];
+                                   }
+
                             }
                         
                         }
@@ -3274,6 +3297,7 @@ namespace ot
 
                 std::swap(vec,tVec);
                 delete [] tVec;
+                tVec==NULL;
                 return ;
             }
 
@@ -3449,12 +3473,8 @@ namespace ot
         }
 
         delete [] tVec;
-        delete [] unzip;
-
-        delete [] sendNodeCount;
-        delete [] recvNodeCount;
-        delete [] sendNodeOffset;
-        delete [] recvNodeOffset;
+        tVec=NULL;
+        
         wVec.clear();
         wVec_m2.clear();
 
@@ -8937,39 +8957,39 @@ namespace ot
 
         if(isPadded)
         {
-            const unsigned int ib = offset + ei*m_uiElementOrder;
-            const unsigned int ie = offset + ei*m_uiElementOrder + (m_uiElementOrder+1) + paddWidth ;
+            const unsigned int ib = ei*m_uiElementOrder;
+            const unsigned int ie = ei*m_uiElementOrder + (m_uiElementOrder+1) + 2*paddWidth ;
 
-            const unsigned int jb = offset + ej*m_uiElementOrder;
-            const unsigned int je = offset + ej*m_uiElementOrder + (m_uiElementOrder+1) + paddWidth ;
+            const unsigned int jb = ej*m_uiElementOrder;
+            const unsigned int je = ej*m_uiElementOrder + (m_uiElementOrder+1) + 2*paddWidth ;
 
-            const unsigned int kb = offset + ek*m_uiElementOrder;
-            const unsigned int ke = offset + ek*m_uiElementOrder + (m_uiElementOrder+1) + paddWidth ;
+            const unsigned int kb = ek*m_uiElementOrder;
+            const unsigned int ke = ek*m_uiElementOrder + (m_uiElementOrder+1) + 2*paddWidth ;
 
             const unsigned int en[3] = {(m_uiElementOrder+1) + 2*paddWidth , (m_uiElementOrder+1) + 2*paddWidth, (m_uiElementOrder+1) + 2*paddWidth }; 
 
             for(unsigned int k=kb; k< ke; k++)
              for(unsigned int j=jb; j< je; j++)
               for(unsigned int i=ib; i< ie; i++)
-               out[(k-kb) * en[1]*en[0] + (j-jb)*en[1] + (i-ib)] = uzipVec[k*ly*lx + j*lx + i];
+               out[(k-kb) * en[1]*en[0] + (j-jb)*en[1] + (i-ib)] = uzipVec[offset + k*ly*lx + j*lx + i];
 
         }else
         {
-            const unsigned int ib = offset + ei*m_uiElementOrder + paddWidth;
-            const unsigned int ie = offset + ei*m_uiElementOrder + (m_uiElementOrder+1) ;
+            const unsigned int ib = ei*m_uiElementOrder + paddWidth;
+            const unsigned int ie = ei*m_uiElementOrder + (m_uiElementOrder+1) ;
 
-            const unsigned int jb = offset + ej*m_uiElementOrder + paddWidth ;
-            const unsigned int je = offset + ej*m_uiElementOrder + (m_uiElementOrder+1) ;
+            const unsigned int jb = ej*m_uiElementOrder + paddWidth ;
+            const unsigned int je = ej*m_uiElementOrder + (m_uiElementOrder+1) ;
 
-            const unsigned int kb = offset + ek*m_uiElementOrder + paddWidth ;
-            const unsigned int ke = offset + ek*m_uiElementOrder + (m_uiElementOrder+1) ;
+            const unsigned int kb = ek*m_uiElementOrder + paddWidth ;
+            const unsigned int ke = ek*m_uiElementOrder + (m_uiElementOrder+1) ;
 
             const unsigned int en[3] = {(m_uiElementOrder+1) , (m_uiElementOrder+1) , (m_uiElementOrder+1) };
 
             for(unsigned int k=kb; k< ke; k++)
              for(unsigned int j=jb; j< je; j++)
               for(unsigned int i=ib; i< ie; i++)
-                out[(k-kb) * en[1]*en[0] + (j-jb)*en[1] + (i-ib)] = uzipVec[k*ly*lx + j*lx + i];
+                out[(k-kb) * en[1]*en[0] + (j-jb)*en[1] + (i-ib)] = uzipVec[offset + k*ly*lx + j*lx + i];
 
 
 

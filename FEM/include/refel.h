@@ -25,6 +25,23 @@
 #include <cstring>
 #include <assert.h>
 #include "interpMatrices.h"
+#include "binUtils.h"
+
+template<typename T>
+void dump_binary(const T* in, unsigned int n, const char* fPrefix)
+{
+    char fName[256];
+    sprintf(fName,"%s.bin",fPrefix);
+    std::ofstream ofile(fName,std::ios::binary);
+
+    ofile.write((char*)&n, sizeof(int));
+    ofile.write((char*)&in[0], sizeof(T)*n);
+
+    ofile.close();
+    return ;
+
+}
+
 
 template <typename T>
 void printArray_1D(const T *a, int length)
@@ -45,6 +62,7 @@ void printArray_2D(const T *a, int length1,int length2)
     }
     std::cout<<std::endl;
 }
+
 
 
 
@@ -149,9 +167,14 @@ private :
     /**filter matrix for to cutoff high frequency terms. */
     std::vector<double> Fr;
 
+    /**@brief unzip intergrid transwer*/
     std::vector<double> gridT;
-    
 
+    /**@brief unzip intergrid transwer out*/
+    std::vector<double> out_p2c;
+
+    
+    
 
 
 
@@ -261,83 +284,98 @@ public:
      * @param cnum: child number 
      * @param pwdith: padding width
      */
-    inline void I3D_Parent2Child_FD(const double* in, double* out,unsigned int pwidth=3) const
+    inline void I3D_Parent2Child_FD(const double* in, double* out,unsigned int pw=3) const
     {
-        assert(pwidth < m_uiNrp);
+        assert(pw < m_uiNrp);
         assert(m_uiNrp>2);
+
         // only works for higher order (hard coded)
-
-        const int sz[]={11,11,11};
-
-        const int ie = sz[0]-pwidth;
-        const int je = sz[1]-pwidth;
-        const int ke = sz[2]-pwidth;
-        
-        const int ib = pwidth;
-        const int jb = pwidth;
-        const int kb = pwidth;
-
         const unsigned int nx = m_uiNrp;
         const unsigned int ny = m_uiNrp;
         const unsigned int nz = m_uiNrp;
 
-        const unsigned int nx_c = 2*m_uiNrp-1;
-        const unsigned int ny_c = 2*m_uiNrp-1;
-        const unsigned int nz_c = 2*m_uiNrp-1;
+        const unsigned int sz_p[3] = {nx + 2*pw , ny + 2*pw , nz + 2*pw};
+        const unsigned int sz_c[3] = {2*m_uiNrp-1 + 2*pw,2*m_uiNrp-1 + 2*pw,2*m_uiNrp-1 + 2*pw};
 
+        const unsigned int c1d = 2*m_uiNrp-1;
+
+        const unsigned int pp1 = sz_p[0];
+        const unsigned int pp2 = sz_p[0]*sz_p[1];
+        const unsigned int pp3 = sz_p[0]*sz_p[1]*sz_p[2];
+
+        const unsigned int cc1 = sz_c[0];
+        const unsigned int cc2 = sz_c[0]*sz_c[1];
+        const unsigned int cc3 = sz_c[0]*sz_c[1]*sz_c[2];
+
+        const unsigned int p2c1 = (pp1*2-1);
+        const unsigned int p2c2 = (pp1*2-1)*p2c1;
+        const unsigned int p2c3 = (pp1*2-1)*p2c2;
+        
+        const unsigned int fd_1d = gridT.size(); 
         const double * c = gridT.data();
+        // const unsigned  int fd_1d=4;
+        // const double c[fd_1d] = {-1/16.0 , 9/16.0,9/16.0, -1/16.0};
 
-        for(unsigned int k = kb ; k < ke; k++)
-        {
-            for(unsigned int j = jb; j < je; j++)
-            {
-                for(unsigned int i = ib; i < ie; i++)
-                {
-                    const unsigned int pi = (i-pwidth);
-                    const unsigned int pj = (j-pwidth);
-                    const unsigned int pk = (k-pwidth);
+        // replacement array for p2c resolution.
+        double * out_p = (double *)&(*(out_p2c.begin()));
+        
 
-                    const unsigned int ci = pi<<1u;
-                    const unsigned int cj = pj<<1u;
-                    const unsigned int ck = pk<<1u;
+        for(unsigned int k=0; k < sz_p[2]; k++)
+         for(unsigned int j=0; j < sz_p[1]; j++)
+          for(unsigned int i=0; i< sz_p[0]; i++)
+          {
+              out_p[ (k<<1u) * p2c2 + (j<<1u)*p2c1 + (i<<1u) ] = in[ k*pp2 + j*pp1 + i];
+          }
 
-                    out[ ck*(ny_c*nx_c) + cj*(nx_c) + ci ] = in[ (pk)*(ny*nx) + (pj)*(ny) + (pi)];
+        const unsigned int N =p2c1;
+        const unsigned int pw2 = pw<<1u;
+        // along x direction. 
+        for(unsigned int k=0; k < N; k+=2)
+         for(unsigned int j=0; j < N; j+=2)
+          for(unsigned int i=pw2; i< N-pw2-2; i+=2)
+          {
+              double s =0; 
+              for(unsigned int m=0; m < fd_1d ; m++)
+                s+= c[m]*out_p[ k*p2c2 + j * p2c1 + (i-4) + 2*m ];
+            
+              out_p[ k * p2c2 + j*p2c1 + (i+1) ] =s;
+          }
 
-                    if( pi < (m_uiNrp-1) && pj < (m_uiNrp-1) && pk < (m_uiNrp-1))
-                    {
-                        // interpolation along x direction
-                        out[ (ck+1)*(ny_c*nx_c) + (cj+1)*(nx_c) + (ci +1) ] = c[0]*in[ (k)*(ny*nx) + (j)*(ny) + (i-2)] +
-                                                                              c[1]*in[ (k)*(ny*nx) + (j)*(ny) + (i-1)] +
-                                                                              c[2]*in[ (k)*(ny*nx) + (j)*(ny) + (i)] +
-                                                                              c[3]*in[ (k)*(ny*nx) + (j)*(ny) + (i+1)] +
-                                                                              c[4]*in[ (k)*(ny*nx) + (j)*(ny) + (i+2)] +
-                                                                              c[5]*in[ (k)*(ny*nx) + (j)*(ny) + (i+3)] ;
-                        // interpolation along y direction
-                        out[ (ck+1)*(ny_c*nx_c) + (cj+1)*(nx_c) + (ci +1) ] += c[0]*in[ (k)*(ny*nx) + (j-2)*(ny) + (i)] +
-                                                                              c[1]*in[ (k)*(ny*nx) + (j-1)*(ny) + (i)] +
-                                                                              c[2]*in[ (k)*(ny*nx) + (j)*(ny) + (i)] +
-                                                                              c[3]*in[ (k)*(ny*nx) + (j+1)*(ny) + (i)] +
-                                                                              c[4]*in[ (k)*(ny*nx) + (j+2)*(ny) + (i)] +
-                                                                              c[5]*in[ (k)*(ny*nx) + (j+3)*(ny) + (i)] ;
-                        
-                        // interpolation along z direction
-                        out[ (ck+1)*(ny_c*nx_c) + (cj+1)*(nx_c) + (ci +1) ] += c[0]*in[ (k-2)*(ny*nx) + (j)*(ny) + (i)] +
-                                                                              c[1]*in[ (k-1)*(ny*nx) + (j)*(ny) + (i)] +
-                                                                              c[2]*in[ (k)*(ny*nx) + (j)*(ny) + (i)] +
-                                                                              c[3]*in[ (k+1)*(ny*nx) + (j)*(ny) + (i)] +
-                                                                              c[4]*in[ (k+2)*(ny*nx) + (j)*(ny) + (i)] +
-                                                                              c[5]*in[ (k+3)*(ny*nx) + (j)*(ny) + (i)] ;                                                                                                                                                            
-                                                                              
+           
+        // along y direction.
+        for(unsigned int k=0; k < N; k+=2)
+         for(unsigned int j=pw2; j < N-pw2-2; j+=2)
+          for(unsigned int i=pw2; i< N-pw2; i+=1)
+          {
+              double s =0; 
+              for(unsigned int m=0; m < fd_1d ; m++)
+                s+= c[m]*out_p[ k * p2c2 + (j-4 + 2*m)* p2c1 + i ];
 
-                    }
+              out_p[ k * p2c2 + (j+1)*p2c1 + (i) ] =s;
+          }
 
 
-                }
-            }
-        }
-         
-          
-        return ;
+        // along z direction. 
+        for(unsigned int k=pw2; k < N-pw2-2; k+=2)
+         for(unsigned int j=pw2; j < N-pw2; j+=1)
+          for(unsigned int i=pw2; i< N-pw2; i+=1)
+          {
+              double s =0; 
+              for(unsigned int m=0; m < fd_1d ; m++)
+                s+= c[m]*out_p[ (k-4 + 2*m) * p2c2 + (j)* p2c1 + i ];
+
+              out_p[ (k+1)* p2c2 + (j)*p2c1 + (i) ] =s;
+          }
+
+
+        for(unsigned int k=pw2; k < N-pw2; k+=1)
+         for(unsigned int j=pw2; j < N-pw2; j+=1)
+          for(unsigned int i=pw2; i< N-pw2; i+=1)
+            out[ (k-pw2)*c1d*c1d + (j-pw2)*c1d + (i-pw2)] = out_p[ k* p2c2 + j* p2c1 + i];
+
+
+
+    return ;
 
     }
 
