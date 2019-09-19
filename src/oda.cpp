@@ -782,7 +782,8 @@ namespace ot
             
             for(unsigned int i=0;i<records.size();i++)
             {
-                if(records[i].getRowID()>=nodeLocalBegin && records[i].getRowID()<nodeLocalEnd)
+                // this is nod needed since we only loop over local elements. 
+                //if(records[i].getRowID()>=nodeLocalBegin && records[i].getRowID()<nodeLocalEnd)
                     tmpRecords.push_back(records[i]);
             }
             

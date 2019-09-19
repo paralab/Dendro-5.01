@@ -371,7 +371,10 @@ bool feMatrix<T>::getAssembledMatrix(Mat *J, MatType mtype) {
         const unsigned int * e2n_dg = &(*(pMesh->getE2NMapping_DG().begin()));
         const unsigned int * e2e = &(*(pMesh->getE2EMapping().begin()));
 
-        for (m_uiOctDA->init<ot::DA_FLAGS::WRITABLE>();m_uiOctDA->curr() < m_uiOctDA->end<ot::DA_FLAGS::WRITABLE>(); m_uiOctDA->next<ot::DA_FLAGS::WRITABLE>()) {
+        const unsigned int eleLocalBegin = pMesh->getElementLocalBegin();
+        const unsigned int eleLocalEnd = pMesh -> getElementLocalEnd();
+
+        for (m_uiOctDA->init<ot::DA_FLAGS::LOCAL_ELEMENTS>();m_uiOctDA->curr() < m_uiOctDA->end<ot::DA_FLAGS::LOCAL_ELEMENTS>(); m_uiOctDA->next<ot::DA_FLAGS::LOCAL_ELEMENTS>()) {
             
             const unsigned int currentId = m_uiOctDA->curr();
             m_uiOctDA->getElementalCoords(currentId, coords);

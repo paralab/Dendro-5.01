@@ -80,13 +80,12 @@ void ot::computeODAFlags(const ot::Mesh *pMesh, std::vector<unsigned int> &flagL
         }
 
     }
-    // do not use this this is only the ghost element exchanged at round 1. 
-    //const std::vector<unsigned int >& lev1_Octants=pMesh->getLevel1GhostElementIndices();
+    
 
-    for(unsigned int ele=octantPreGhostBegin;ele<octantPreGhostEnd;ele++)
+    const std::vector<unsigned int >& lev1_Octants=pMesh->getLevel1GhostElementIndices();
+    for(unsigned int e =0; e< lev1_Octants.size();e++)
     {
-
-        //binOp::setBit(m_uiOctantFlags[lev1_Octants[g]],ODA_W_DEPENDENT_FLAG_BIT);
+        const unsigned int ele = lev1_Octants[e];
         for(unsigned int node=0;node<nPe;node++)
         {
             lookUp=e2n[ele*nPe+node];
@@ -97,23 +96,7 @@ void ot::computeODAFlags(const ot::Mesh *pMesh, std::vector<unsigned int> &flagL
             }
 
         }
-    }
 
-
-    for(unsigned int ele=octantPostGhostBegin;ele<octantPostGhostEnd;ele++)
-    {
-
-        //binOp::setBit(m_uiOctantFlags[lev1_Octants[g]],ODA_W_DEPENDENT_FLAG_BIT);
-        for(unsigned int node=0;node<nPe;node++)
-        {
-            lookUp=e2n[ele*nPe+node];
-            if((lookUp>=nodeLocalBegin && lookUp<nodeLocalEnd))
-            {
-                binOp::setBit(flagList[ele],ODA_W_DEPENDENT_FLAG_BIT);
-                break;
-            }
-
-        }
     }
 
 
