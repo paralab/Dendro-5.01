@@ -1380,7 +1380,7 @@ namespace ot
     }
 
     template <typename T>
-    void DA::petscIntergridTransfer(const Vec & varIn, Vec & varOut, const ot::DA* newDA, bool isElemental, bool isGhosted, unsigned int dof) {
+void DA::petscIntergridTransfer(const Vec & varIn, Vec & varOut, const ot::DA* newDA, bool isElemental, bool isGhosted, unsigned int dof) {
 
         T** vIn =new T*[dof];
         const ot::Mesh* newMesh=newDA->getMesh();
@@ -1394,7 +1394,10 @@ namespace ot
             vIn[var]=NULL;
 
         const T * inArray;
-        VecGetArrayRead(varIn,&inArray);
+        if (this->isActive()) {
+          VecGetArrayRead(varIn, &inArray);
+        }
+
 
         if(!isGhosted)
         {
@@ -1417,40 +1420,38 @@ namespace ot
         for(unsigned int var=0;var<dof;var++)
             this->readFromGhostBegin(vIn[var],1);
 
-        
         for(unsigned int var=0;var<dof;var++)
-        {
             this->readFromGhostEnd(vIn[var],1);
-            m_uiMesh->interGridTransfer(vIn[var],newMesh);
-        }
-            
-
-        if(!isGhosted)
-        {
-
-            newDA->petscCreateVector(varOut,false,false,dof);
-            T * outArray;
-            VecGetArray(varOut,&outArray);
-            for(unsigned int var=0;var<dof;var++)
-            {
-                T* tmpPtr=(outArray+var*nLocalNodes_new);
-                newDA->ghostedNodalToNodalVec((const T*)vIn[var],tmpPtr,true,1);
-
-            }
-            VecRestoreArray(varOut,&outArray);
-
-
-        }else{
-            newDA->petscCreateVector(varOut,false,true,dof);
-            T * outArray;
-            VecGetArray(varOut,&outArray);
-            for(unsigned int var=0;var<dof;var++)
-                std::memcpy(outArray + var*zipSzNew,vIn[var],sizeof(T)*zipSzNew);
-            VecRestoreArray(varOut,&outArray);
-        }
-        VecRestoreArrayRead(varIn,&inArray);
 
         for(unsigned int var=0;var<dof;var++)
+            m_uiMesh->interGridTransfer(vIn[var],newMesh);
+
+        if(newDA->isActive()) {
+          if (!isGhosted) {
+            newDA->petscCreateVector(varOut, false, false, dof);
+            T *outArray;
+            VecGetArray(varOut, &outArray);
+            for (unsigned int var = 0; var < dof; var++) {
+              T *tmpPtr = (outArray + var * nLocalNodes_new);
+              newDA->ghostedNodalToNodalVec((const T *) vIn[var], tmpPtr, true, 1);
+            }
+            VecRestoreArray(varOut, &outArray);
+        } else {
+            newDA->petscCreateVector(varOut, false, true, dof);
+            T *outArray;
+            VecGetArray(varOut, &outArray);
+            for (unsigned int var = 0; var < dof; var++)
+              std::memcpy(outArray + var * zipSzNew, vIn[var], sizeof(T) * zipSzNew);
+            VecRestoreArray(varOut, &outArray);
+          }
+        }
+        
+        if (this->isActive()) {
+          VecRestoreArrayRead(varIn, &inArray);
+        }
+
+
+      for(unsigned int var=0;var<dof;var++)
             delete [] vIn[var];
         delete [] vIn;
     }
