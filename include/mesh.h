@@ -1613,8 +1613,9 @@ public:
      * @param[in] coarsenIDs: element IDs need to be coarsened. (computed by isReMesh function)
      * @param[in] ld_tol: tolerance value used for flexible partitioning
      * @param[in] sfK: spliiter fix parameter (need to specify larger value when run in super large scale)
+     * @param[in] getWeight: function pointer which returns a uint weight values for an given octant
      * */
-    ot::Mesh *ReMesh(unsigned int grainSz = DENDRO_DEFAULT_GRAIN_SZ, double ld_tol = DENDRO_DEFAULT_LB_TOL, unsigned int sfK = DENDRO_DEFAULT_SF_K);
+    ot::Mesh *ReMesh(unsigned int grainSz = DENDRO_DEFAULT_GRAIN_SZ, double ld_tol = DENDRO_DEFAULT_LB_TOL, unsigned int sfK = DENDRO_DEFAULT_SF_K,unsigned int (*getWeight)(const ot::TreeNode *)=NULL);
 
     /**
      * @brief transfer a variable vector form old grid to new grid.

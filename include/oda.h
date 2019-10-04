@@ -626,7 +626,7 @@ namespace ot
          * @param[in] sfK: splitter fix factor. better to be power of two. increase the value to 128 when running on > 64,000 cores
          * @return: Specifies the new grid, with new DA.
          */
-        ot::DA* remesh(const DA_FLAGS::Refine * flags, unsigned int sz,unsigned int grainSz=100,double ld_bal=0.3, unsigned int sfK=2) const;
+        ot::DA* remesh(const DA_FLAGS::Refine * flags, unsigned int sz,unsigned int grainSz=100,double ld_bal=0.3, unsigned int sfK=2, unsigned int (*getWeight)(const ot::TreeNode *)=NULL) const;
 
         /**
          * @brief performs grid transfer operations after the remesh.

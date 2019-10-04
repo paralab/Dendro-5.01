@@ -8936,7 +8936,7 @@ namespace ot {
     }
 
 
-    ot::Mesh* Mesh::ReMesh(unsigned int grainSz,double ld_tol,unsigned int sfK)
+    ot::Mesh* Mesh::ReMesh(unsigned int grainSz,double ld_tol,unsigned int sfK, unsigned int (*getWeight)(const ot::TreeNode *))
     {
 
         std::vector<ot::TreeNode> balOct1; //new balanced octree.
@@ -8986,6 +8986,7 @@ namespace ot {
 
             ot::TreeNode rootNode(m_uiDim,m_uiMaxDepth);
             SFC::parSort::SFC_treeSort(unBalancedOctree,balOct1,balOct1,balOct1,ld_tol,m_uiMaxDepth,rootNode,ROOT_ROTATION,1,TS_BALANCE_OCTREE,sfK,m_uiCommActive);
+            par::partitionW(balOct1,getWeight,m_uiCommActive);
             assert(par::test::isUniqueAndSorted(balOct1,m_uiCommActive));
             unBalancedOctree.clear();
 

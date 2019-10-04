@@ -441,7 +441,7 @@ namespace ot
     }
 
 
-    ot::DA* DA::remesh(const DA_FLAGS::Refine * flags, unsigned int sz,unsigned int grainSz,double ld_bal, unsigned int sfK) const
+    ot::DA* DA::remesh(const DA_FLAGS::Refine * flags, unsigned int sz,unsigned int grainSz,double ld_bal, unsigned int sfK, unsigned int (*getWeight)(const ot::TreeNode *)) const
     {
         const unsigned int localElementBegin=m_uiMesh->getElementLocalBegin();
         const unsigned int localElementEnd= m_uiMesh->getElementLocalEnd();
@@ -493,7 +493,7 @@ namespace ot
             return NULL;
 
         m_uiMesh->setOctreeRefineFlags(&(*(octflags.begin())),octflags.size());
-        ot::Mesh* newMesh=m_uiMesh->ReMesh(grainSz,ld_bal,sfK);
+        ot::Mesh* newMesh=m_uiMesh->ReMesh(grainSz,ld_bal,sfK,getWeight);
 
         ot::DA* newDA= new DA(newMesh);
 
