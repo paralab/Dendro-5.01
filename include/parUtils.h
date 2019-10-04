@@ -36,11 +36,77 @@ struct _T{
     T val;
     DendroIntL rank;
 
-    inline bool operator< (const _T<T> &c1) { 
+    inline bool operator< (const _T<T> &c1) const { 
       return (this->val < c1.val); 
     }
 
+    inline bool operator== (const _T<T> &c1) const { 
+      return (this->val == c1.val); 
+    }
+
+    inline bool operator<= (const _T<T> &c1) const { 
+      return (this->val <= c1.val); 
+    }
+
+    inline bool operator> (const _T<T> &c1) const { 
+      return (this->val > c1.val); 
+    }
+
+    inline bool operator>= (const _T<T> &c1) const { 
+      return (this->val >= c1.val); 
+    }
+
 };
+
+namespace par
+{
+  template<typename T>
+  class Mpi_datatype;
+
+   template <>
+   class Mpi_datatype<_T<double>> 
+   {
+     public:
+
+      static MPI_Datatype value()
+      {
+        static bool         first = true;
+        static MPI_Datatype datatype;
+
+        if (first)
+        {
+            first = false;
+            MPI_Type_contiguous(sizeof(_T<double>), MPI_BYTE, &datatype);
+            MPI_Type_commit(&datatype);
+        }
+
+        return datatype;
+      }
+   };
+
+   template <>
+   class Mpi_datatype<_T<float>> 
+   {
+     public:
+
+      static MPI_Datatype value()
+      {
+        static bool         first = true;
+        static MPI_Datatype datatype;
+
+        if (first)
+        {
+            first = false;
+            MPI_Type_contiguous(sizeof(_T<float>), MPI_BYTE, &datatype);
+            MPI_Type_commit(&datatype);
+        }
+
+        return datatype;
+      }
+   };
+
+
+}
 
 
 

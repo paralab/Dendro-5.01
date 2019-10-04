@@ -2711,7 +2711,8 @@ void parallel_rank(const T* in, unsigned int sz , DendroIntL* out, MPI_Comm comm
   
   std::vector<double> stats;
   
-  par::sampleSort(key, key_sorted, stats, comm);
+  par::bitonicSort(key, comm);
+  std::swap(key,key_sorted);
   key.clear();
   
   unsigned int localSz = key_sorted.size();
