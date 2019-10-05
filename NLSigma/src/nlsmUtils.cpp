@@ -286,6 +286,7 @@ namespace nlsm
           const double R = 0.0;
 	      double rt = sqrt( epsx*(x-xc)*(x-xc) + epsy*(y-yc)*(y-yc) + epsz*(z-zc)*(z-zc) );
           chi = amp * exp(-(rt-R)*(rt-R)/(delta*delta));
+          //chi = amp * exp(-(x-R)*(x-R)/(delta*delta));
           phi = 0.0; 
 
         } else if (nlsm::NLSM_ID_TYPE == 1) {
