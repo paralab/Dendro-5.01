@@ -1,0 +1,7 @@
+<map id="Graphical Class Hierarchy" name="Graphical Class Hierarchy">
+<area shape="rect" id="node2" href="$structnlohmann_1_1detail_1_1conjunction.html" title="nlohmann::detail::conjunction\l\&lt; is_complete_type\&lt; CompatibleType\l \&gt;, is_compatible_complete_type\l\&lt; BasicJsonType, CompatibleType \&gt; \&gt;" alt="" coords="129,5,380,76"/>
+<area shape="rect" id="node4" href="$structnlohmann_1_1detail_1_1conjunction.html" title="nlohmann::detail::conjunction\l\&lt;... \&gt;" alt="" coords="159,100,350,141"/>
+<area shape="rect" id="node5" href="$structnlohmann_1_1detail_1_1is__basic__json_3_01NLOHMANN__BASIC__JSON__TPL_01_4.html" title="nlohmann::detail::is\l_basic_json\&lt; NLOHMANN\l_BASIC_JSON_TPL \&gt;" alt="" coords="165,166,345,222"/>
+<area shape="rect" id="node6" href="$structnlohmann_1_1detail_1_1is__complete__type_3_01T_00_01decltype_07void_07sizeof_07T_08_08_08_4.html" title="nlohmann::detail::is\l_complete_type\&lt; T, decltype\l(void(sizeof(T)))\&gt;" alt="" coords="159,246,350,302"/>
+<area shape="rect" id="node3" href="$structnlohmann_1_1detail_1_1is__compatible__type.html" title="nlohmann::detail::is\l_compatible_type\&lt; BasicJson\lType, CompatibleType \&gt;" alt="" coords="428,13,625,69"/>
+</map>

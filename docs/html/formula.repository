@@ -1,0 +1,4 @@
+\form#0:\begin{eqnarray*} \nabla u(x) = f(x) \text{ for } x \in \Gamma \\ u(x)=0 \text{ for } x \in \partial\Gamma \end{eqnarray*}
+\form#1:$ \tau $
+\form#2:$\tau =\{b_i^l\}$
+\form#3:$[-2^{53}+1, 2^{53}-1]$

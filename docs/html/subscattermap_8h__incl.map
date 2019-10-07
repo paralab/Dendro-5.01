@@ -1,0 +1,29 @@
+<map id="include/subscattermap.h" name="include/subscattermap.h">
+<area shape="rect" id="node2" href="$mesh_8h_source.html" title="mesh.h" alt="" coords="2703,80,2769,107"/>
+<area shape="rect" id="node5" href="$octUtils_8h_source.html" title="octUtils.h" alt="" coords="1478,155,1557,181"/>
+<area shape="rect" id="node6" href="$key_8h_source.html" title="key.h" alt="" coords="2769,528,2823,555"/>
+<area shape="rect" id="node7" href="$TreeNode_8h_source.html" title="TreeNode.h" alt="" coords="1268,603,1359,629"/>
+<area shape="rect" id="node13" href="$dendro_8h_source.html" title="dendro.h" alt="" coords="2695,677,2767,704"/>
+<area shape="rect" id="node16" href="$sfcSearch_8h_source.html" title="sfcSearch.h" alt="" coords="1235,229,1327,256"/>
+<area shape="rect" id="node17" href="$sfcSort_8h_source.html" title="sfcSort.h" alt="" coords="924,304,999,331"/>
+<area shape="rect" id="node19" href="$treenode2vtk_8h_source.html" title="treenode2vtk.h" alt="" coords="1373,528,1481,555"/>
+<area shape="rect" id="node22" href="$testUtils_8h.html" title="A Set of utilities to test octrees. " alt="" coords="1795,379,1877,405"/>
+<area shape="rect" id="node24" href="$block_8h_source.html" title="block.h" alt="" coords="1479,453,1543,480"/>
+<area shape="rect" id="node39" href="$refel_8h_source.html" title="refel.h" alt="" coords="2387,453,2445,480"/>
+<area shape="rect" id="node42" href="$skey_8h_source.html" title="skey.h" alt="" coords="2508,528,2569,555"/>
+<area shape="rect" id="node43" href="$fdCoefficient_8h_source.html" title="fdCoefficient.h" alt="" coords="2941,155,3048,181"/>
+<area shape="rect" id="node44" href="$stencil_8h_source.html" title="stencil.h" alt="" coords="2622,453,2693,480"/>
+<area shape="rect" id="node45" href="$node_8h_source.html" title="node.h" alt="" coords="3057,528,3119,555"/>
+<area shape="rect" id="node46" href="$asyncExchangeContex_8h_source.html" title="asyncExchangeContex.h" alt="" coords="291,677,459,704"/>
+<area shape="rect" id="node47" href="$wavelet_8h_source.html" title="wavelet.h" alt="" coords="3225,155,3303,181"/>
+<area shape="rect" id="node48" href="$dendroProfileParams_8h_source.html" title="dendroProfileParams.h" alt="" coords="3328,155,3483,181"/>
+<area shape="rect" id="node34" href="$parUtils_8h.html" title="A set of parallel utilities. " alt="" coords="867,603,946,629"/>
+<area shape="rect" id="node41" href="$mathUtils_8h_source.html" title="mathUtils.h" alt="" coords="1365,453,1454,480"/>
+<area shape="rect" id="node8" href="$hcurvedata_8h_source.html" title="hcurvedata.h" alt="" coords="1210,677,1307,704"/>
+<area shape="rect" id="node10" href="$binUtils_8h.html" title="A set of efficient functions that use binary operations to perform some small computations. " alt="" coords="1468,677,1545,704"/>
+<area shape="rect" id="node11" href="$point_8h_source.html" title="point.h" alt="" coords="1332,677,1393,704"/>
+<area shape="rect" id="node31" href="$ompUtils_8h_source.html" title="ompUtils.h" alt="" coords="875,379,960,405"/>
+<area shape="rect" id="node33" href="$dtypes_8h.html" title="Traits to determine MPI_DATATYPE from a C++ datatype. " alt="" coords="245,379,317,405"/>
+<area shape="rect" id="node37" href="$dollar_8hpp_source.html" title="dollar.hpp" alt="" coords="697,528,775,555"/>
+<area shape="rect" id="node40" href="$tensor_8h_source.html" title="tensor.h" alt="" coords="2321,528,2391,555"/>
+</map>

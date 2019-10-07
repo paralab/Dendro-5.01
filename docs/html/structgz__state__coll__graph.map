@@ -1,0 +1,9 @@
+<map id="gz_state" name="gz_state">
+<area shape="rect" id="node2" href="$structgzFile__s.html" title="gzFile_s" alt="" coords="5,213,76,240"/>
+<area shape="rect" id="node3" href="$structz__stream__s.html" title="z_stream_s" alt="" coords="101,213,191,240"/>
+<area shape="rect" id="node4" href="$structinternal__state.html" title="internal_state" alt="" coords="221,332,321,359"/>
+<area shape="rect" id="node5" href="$structgz__header__s.html" title="gz_header_s" alt="" coords="219,213,315,240"/>
+<area shape="rect" id="node6" href="$structtree__desc__s.html" title="tree_desc_s" alt="" coords="390,213,483,240"/>
+<area shape="rect" id="node7" href="$structstatic__tree__desc__s.html" title="static_tree_desc_s" alt="" coords="509,95,641,121"/>
+<area shape="rect" id="node8" href="$structct__data__s.html" title="ct_data_s" alt="" coords="391,5,469,32"/>
+</map>
