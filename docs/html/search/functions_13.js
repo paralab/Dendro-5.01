@@ -9,7 +9,7 @@ var searchData=
   ['to_5fubjson',['to_ubjson',['../classnlohmann_1_1basic__json.html#ae1ece6c2059114eac10873f13ef19185',1,'nlohmann::basic_json']]],
   ['tobin',['toBin',['../namespacebinOp.html#ab92002c2de48d92e9f8013af728b174f',1,'binOp']]],
   ['token_5ftype_5fname',['token_type_name',['../classnlohmann_1_1detail_1_1lexer.html#ae514e2005f0ce185f1ad366139e541e8',1,'nlohmann::detail::lexer']]],
-  ['trace_5ffree',['trace_free',['../namespacedendro.html#a1be238b377aa5039488392f545f29825',1,'dendro']]],
+  ['trace_5ffree',['trace_free',['../namespacedendro.html#ab397a44e9b9d940f0bedae0412b721f7',1,'dendro']]],
   ['type',['type',['../classnlohmann_1_1basic__json.html#a2b2d781d7f2a4ee41bc0016e931cadf7',1,'nlohmann::basic_json']]],
   ['type_5fname',['type_name',['../classnlohmann_1_1basic__json.html#a9d0a478571f82f0163b96b2424cd998f',1,'nlohmann::basic_json']]]
 ];

@@ -14,7 +14,7 @@ var searchData=
   ['todo_20list',['Todo List',['../todo.html',1,'']]],
   ['token_5ftype',['token_type',['../classnlohmann_1_1detail_1_1lexer.html#a3f313cdbe187cababfc5e06f0b69b098',1,'nlohmann::detail::lexer']]],
   ['token_5ftype_5fname',['token_type_name',['../classnlohmann_1_1detail_1_1lexer.html#ae514e2005f0ce185f1ad366139e541e8',1,'nlohmann::detail::lexer']]],
-  ['trace_5ffree',['trace_free',['../namespacedendro.html#a1be238b377aa5039488392f545f29825',1,'dendro']]],
+  ['trace_5ffree',['trace_free',['../namespacedendro.html#ab397a44e9b9d940f0bedae0412b721f7',1,'dendro']]],
   ['tree_5fdesc_5fs',['tree_desc_s',['../structtree__desc__s.html',1,'']]],
   ['treenode',['TreeNode',['../classot_1_1TreeNode.html',1,'ot']]],
   ['type',['type',['../classnlohmann_1_1basic__json.html#a2b2d781d7f2a4ee41bc0016e931cadf7',1,'nlohmann::basic_json']]],

@@ -8,8 +8,8 @@ var searchData=
   ['unzip_5fsync',['unzip_sync',['../classts_1_1NUTS.html#aef485ba7de0c2e3ca18979b193055c81',1,'ts::NUTS']]],
   ['unzip_5fsync_5fall',['unzip_sync_all',['../classts_1_1NUTS.html#ad1bdba9e0d57a6defec4241f56c75d0f',1,'ts::NUTS']]],
   ['unzip_5fto_5fzip',['unzip_to_zip',['../classts_1_1NUTS.html#ae39755a3fca6fe33bc335822b26a72ed',1,'ts::NUTS']]],
-  ['up_5fdown',['up_down',['../namespacedendro.html#a24b02db6b131328786f91c9e4711bd16',1,'dendro']]],
-  ['up_5fup',['up_up',['../namespacedendro.html#aff0e77984839e4cfa1a98c412e16b0bd',1,'dendro']]],
+  ['up_5fdown',['up_down',['../namespacedendro.html#af341a7340aa709c6d3334fbc42055492',1,'dendro']]],
+  ['up_5fup',['up_up',['../namespacedendro.html#a1eb6b8c22baf98bc4171f5d2261fd717',1,'dendro']]],
   ['update',['update',['../classnlohmann_1_1basic__json.html#a1cfa9ae5e7c2434cab4cfe69bffffe11',1,'nlohmann::basic_json::update(const_reference j)'],['../classnlohmann_1_1basic__json.html#a27921dafadb3bbefd180235ec763e3ea',1,'nlohmann::basic_json::update(const_iterator first, const_iterator last)']]],
   ['upperbound',['UpperBound',['../namespaceseq.html#a6a2cb0cb782ebbb6879b2bc72b9034e7',1,'seq']]]
 ];

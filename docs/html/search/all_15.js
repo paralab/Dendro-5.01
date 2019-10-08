@@ -9,10 +9,10 @@ var searchData=
   ['value_5ftype',['value_type',['../classnlohmann_1_1detail_1_1iter__impl.html#ab35586a44f2222272c5346baa3013f67',1,'nlohmann::detail::iter_impl::value_type()'],['../classnlohmann_1_1basic__json.html#a2b3297873b70c080837e8eedc4fec32f',1,'nlohmann::basic_json::value_type()']]],
   ['value_5funsigned',['value_unsigned',['../classnlohmann_1_1detail_1_1lexer.html#a3f313cdbe187cababfc5e06f0b69b098aaf1f040fcd2f674d2e5893d7a731078f',1,'nlohmann::detail::lexer']]],
   ['var',['VAR',['../namespacenlsm.html#ae8b1d4c4795a68263598f57b92fdc814',1,'nlsm']]],
-  ['vec3',['vec3',['../namespacedendro.html#ae5aa606557463581eb23b17b3fe558c6',1,'dendro']]],
-  ['vec_5fj_5fad_5fj',['vec_j_ad_j',['../namespacedendro.html#adf167268a08910b80750a80ee1b98e04',1,'dendro']]],
-  ['vec_5fj_5fdel_5fj',['vec_j_del_j',['../namespacedendro.html#ac675e208a92fd8fa21d211a28ef0ee64',1,'dendro']]],
-  ['vec_5fprint_5fstr',['vec_print_str',['../namespacedendro.html#a772eef420c4562d754accf21d745edf3',1,'dendro']]],
+  ['vec3',['vec3',['../namespacedendro.html#aa7a29ccfb11880c286ba52bf500aa171',1,'dendro']]],
+  ['vec_5fj_5fad_5fj',['vec_j_ad_j',['../namespacedendro.html#a9c9570fd3cd949a9c84938545749cf14',1,'dendro']]],
+  ['vec_5fj_5fdel_5fj',['vec_j_del_j',['../namespacedendro.html#a50c6df8bd2a0c47558312badaa074051',1,'dendro']]],
+  ['vec_5fprint_5fstr',['vec_print_str',['../namespacedendro.html#a6631273894a7d0011814382c7238ef43',1,'dendro']]],
   ['vectopvtu',['vecTopvtu',['../classot_1_1DA.html#a14ba8eac58d6290d64bd6e6472a3112c',1,'ot::DA::vecTopvtu()'],['../classot_1_1subDA.html#a809466e1f727e08c7b79c73d4be90930',1,'ot::subDA::vecTopvtu()']]],
   ['vectortovtk',['vectorToVTK',['../classot_1_1Mesh.html#a1d89ba02e9b09ed5fe44d1c2c734daf5',1,'ot::Mesh']]]
 ];

@@ -5,7 +5,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=9"/>
 <meta name="generator" content="Doxygen 1.8.13"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Dendro-5.01: include/nuts.h Source File</title>
+<title>Dendro: include/nuts.h Source File</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
 <script type="text/javascript" src="dynsections.js"></script>
@@ -20,10 +20,12 @@
 <table cellspacing="0" cellpadding="0">
  <tbody>
  <tr style="height: 56px;">
+  <td id="projectlogo"><img alt="Logo" src="dendro.png"/></td>
   <td id="projectalign" style="padding-left: 0.5em;">
-   <div id="projectname">Dendro-5.01
-   &#160;<span id="projectnumber">Dendro-5.01</span>
+   <div id="projectname">Dendro
+   &#160;<span id="projectnumber">5.01</span>
    </div>
+   <div id="projectbrief">Dendro in Greek language means tree. The Dendro library is a large scale (262K cores on ORNL&#39;s Titan) distributed memory adaptive octree framework. The main goal of Dendro is to perform large scale multiphysics simulations efficeiently in mordern supercomputers. Dendro consists of efficient parallel data structures and algorithms to perform variational ( finite element) methods and finite difference mthods on 2:1 balanced arbitary adaptive octrees which enables the users to perform simulations raning from black holes (binary black hole mergers) to blood flow in human body, where applications ranging from relativity, astrophysics to biomedical engineering.</div>
   </td>
  </tr>
  </tbody>
@@ -71,10 +73,10 @@ $(function() {
 <div class="ttc" id="classts_1_1NUTS_html_ad1bdba9e0d57a6defec4241f56c75d0f"><div class="ttname"><a href="classts_1_1NUTS.html#ad1bdba9e0d57a6defec4241f56c75d0f">ts::NUTS::unzip_sync_all</a></div><div class="ttdeci">void unzip_sync_all(T **in, unsigned int dof=1)</div><div class="ttdoc">: Sync operation accross all the blocks. </div><div class="ttdef"><b>Definition:</b> nuts.h:230</div></div>
 <div class="ttc" id="classot_1_1Mesh_html_a51f2933622bf3219aed13a3506dd35dd"><div class="ttname"><a href="classot_1_1Mesh.html#a51f2933622bf3219aed13a3506dd35dd">ot::Mesh::performGhostExchange</a></div><div class="ttdeci">void performGhostExchange(std::vector&lt; T &gt; &amp;vec)</div><div class="ttdoc">Perform the ghost exchange for the vector vec. </div></div>
 <div class="ttc" id="classot_1_1Mesh_html_a9c30826c0278b278cfd20034ac531c8e"><div class="ttname"><a href="classot_1_1Mesh.html#a9c30826c0278b278cfd20034ac531c8e">ot::Mesh::unzip</a></div><div class="ttdeci">void unzip(const T *zippedVec, T *unzippedVec)</div><div class="ttdoc">Creates the decomposition of adaptive octree variables into blocklist variables that we computed...</div></div>
-<div class="ttc" id="classot_1_1Mesh_html"><div class="ttname"><a href="classot_1_1Mesh.html">ot::Mesh</a></div><div class="ttdef"><b>Definition:</b> mesh.h:178</div></div>
+<div class="ttc" id="classot_1_1Mesh_html"><div class="ttname"><a href="classot_1_1Mesh.html">ot::Mesh</a></div><div class="ttdef"><b>Definition:</b> mesh.h:179</div></div>
 <div class="ttc" id="classPoint_html"><div class="ttname"><a href="classPoint.html">Point</a></div><div class="ttdoc">A point class. </div><div class="ttdef"><b>Definition:</b> point.h:36</div></div>
 <div class="ttc" id="classts_1_1NUTS_html_abcac8ba49d7c933338f4792fe277a6d5"><div class="ttname"><a href="classts_1_1NUTS.html#abcac8ba49d7c933338f4792fe277a6d5">ts::NUTS::NUTS</a></div><div class="ttdeci">NUTS(ot::Mesh *octMesh, unsigned int s, double tb, double te, Point ptMin, Point ptMax, double cfl=0.25)</div><div class="ttdoc">: constructor </div><div class="ttdef"><b>Definition:</b> nuts.cpp:15</div></div>
-<div class="ttc" id="classot_1_1Mesh_html_a867642eb76ab3d3b1c0f1c9b0ae5f9c5"><div class="ttname"><a href="classot_1_1Mesh.html#a867642eb76ab3d3b1c0f1c9b0ae5f9c5">ot::Mesh::getElementLocalBegin</a></div><div class="ttdeci">unsigned int getElementLocalBegin() const</div><div class="ttdoc">return the begin location of element local </div><div class="ttdef"><b>Definition:</b> mesh.h:1029</div></div>
+<div class="ttc" id="classot_1_1Mesh_html_a867642eb76ab3d3b1c0f1c9b0ae5f9c5"><div class="ttname"><a href="classot_1_1Mesh.html#a867642eb76ab3d3b1c0f1c9b0ae5f9c5">ot::Mesh::getElementLocalBegin</a></div><div class="ttdeci">unsigned int getElementLocalBegin() const</div><div class="ttdoc">return the begin location of element local </div><div class="ttdef"><b>Definition:</b> mesh.h:1030</div></div>
 <div class="ttc" id="classts_1_1NUTS_html_a1c9612a7866af5def0f817abcccb1a1a"><div class="ttname"><a href="classts_1_1NUTS.html#a1c9612a7866af5def0f817abcccb1a1a">ts::NUTS::sync_ts</a></div><div class="ttdeci">void sync_ts()</div><div class="ttdoc">: sync to the next coarsest time step </div></div>
 <div class="ttc" id="classot_1_1Mesh_html_a6ef4ca39831332f297029d067c7ed471"><div class="ttname"><a href="classot_1_1Mesh.html#a6ef4ca39831332f297029d067c7ed471">ot::Mesh::zip</a></div><div class="ttdeci">void zip(const T *unzippedVec, T *zippedVec)</div><div class="ttdoc">Performs the compression frrom regular block grid varable list to adaptive representation. </div></div>
 <div class="ttc" id="namespacets_html"><div class="ttname"><a href="namespacets.html">ts</a></div><div class="ttdef"><b>Definition:</b> nuts.h:18</div></div>
@@ -83,7 +85,7 @@ $(function() {
 <div class="ttc" id="classts_1_1NUTS_html_a4f7a15f647be050c6114e79acc748425"><div class="ttname"><a href="classts_1_1NUTS.html#a4f7a15f647be050c6114e79acc748425">ts::NUTS::zip_to_unzip</a></div><div class="ttdeci">void zip_to_unzip(T **in, T **out, bool isGSync=false, unsigned int dof=1)</div><div class="ttdoc">: converts an zip vector to unzip format. </div><div class="ttdef"><b>Definition:</b> nuts.h:185</div></div>
 <div class="ttc" id="classts_1_1NUTS_html_a201f08f7f884b1ca89b0ef1440724d21"><div class="ttname"><a href="classts_1_1NUTS.html#a201f08f7f884b1ca89b0ef1440724d21">ts::NUTS::timestep</a></div><div class="ttdeci">void timestep(const T **in, T **out, std::function&lt; void(T, T **, T **)&gt;f_rhs, const double *a, const double *b, const double *c, unsigned int dof=1)</div><div class="ttdoc">: perform single time step </div></div>
 <div class="ttc" id="classts_1_1NUTS_html_ae39755a3fca6fe33bc335822b26a72ed"><div class="ttname"><a href="classts_1_1NUTS.html#ae39755a3fca6fe33bc335822b26a72ed">ts::NUTS::unzip_to_zip</a></div><div class="ttdeci">void unzip_to_zip(T **in, T **out, bool isGSync=false, unsigned int dof=1)</div><div class="ttdoc">: converts the unzip vector to zip vector </div><div class="ttdef"><b>Definition:</b> nuts.h:202</div></div>
-<div class="ttc" id="classot_1_1Mesh_html_a9bee46340ad5ef1b950a05e549886a0e"><div class="ttname"><a href="classot_1_1Mesh.html#a9bee46340ad5ef1b950a05e549886a0e">ot::Mesh::getElementLocalEnd</a></div><div class="ttdeci">unsigned int getElementLocalEnd() const</div><div class="ttdoc">return the end location of element local </div><div class="ttdef"><b>Definition:</b> mesh.h:1031</div></div>
+<div class="ttc" id="classot_1_1Mesh_html_a9bee46340ad5ef1b950a05e549886a0e"><div class="ttname"><a href="classot_1_1Mesh.html#a9bee46340ad5ef1b950a05e549886a0e">ot::Mesh::getElementLocalEnd</a></div><div class="ttdeci">unsigned int getElementLocalEnd() const</div><div class="ttdoc">return the end location of element local </div><div class="ttdef"><b>Definition:</b> mesh.h:1032</div></div>
 </div><!-- fragment --></div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>

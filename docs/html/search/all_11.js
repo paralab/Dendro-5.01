@@ -1,7 +1,7 @@
 var searchData=
 [
   ['readme',['ReadMe',['../md_ReadMe.html',1,'']]],
-  ['r',['r',['../namespacenlsm.html#ac32e6b78e63abf8007d0ffc17641f8e9',1,'nlsm']]],
+  ['r',['r',['../namespacenlsm.html#a6cd24683d241e65ec51099248f6425cc',1,'nlsm']]],
   ['rbegin',['rbegin',['../classnlohmann_1_1basic__json.html#a1ef93e2006dbe52667294f5ef38b0b10',1,'nlohmann::basic_json::rbegin() noexcept'],['../classnlohmann_1_1basic__json.html#a515e7618392317dbf4b72d3e18bf2ab2',1,'nlohmann::basic_json::rbegin() const noexcept']]],
   ['readconfigfile',['readConfigFile',['../classode_1_1solver_1_1RK4__NLSM.html#ab07edfd5dda1274f51daf6fc041bd170',1,'ode::solver::RK4_NLSM']]],
   ['readdataptsfromfile',['readDataPtsFromFile',['../namespaceIO.html#a14b5f1b63d71caee88f13b79c9653c9a',1,'IO']]],
@@ -13,9 +13,9 @@ var searchData=
   ['refelement',['RefElement',['../classRefElement.html',1,'RefElement'],['../classRefElement.html#ab50fee82948e447b522b6f95340fe871',1,'RefElement::RefElement()']]],
   ['reference',['reference',['../classnlohmann_1_1detail_1_1iter__impl.html#a5be8001be099c6b82310f4d387b953ce',1,'nlohmann::detail::iter_impl::reference()'],['../classnlohmann_1_1detail_1_1json__reverse__iterator.html#a42f51a69bac7b2aebb613b2164e457f1',1,'nlohmann::detail::json_reverse_iterator::reference()'],['../classnlohmann_1_1basic__json.html#ac6a5eddd156c776ac75ff54cfe54a5bc',1,'nlohmann::basic_json::reference()']]],
   ['refine',['Refine',['../oda_8h.html#ac96bf616827a93d8d04265c95a356f09',1,'ot::DA_FLAGS']]],
-  ['remesh',['ReMesh',['../classot_1_1Mesh.html#a4025c805748265bf29a792dcddafb783',1,'ot::Mesh::ReMesh()'],['../classot_1_1DA.html#ac35234a09603c55770f4dc8e83f7888c',1,'ot::DA::remesh()'],['../classot_1_1subDA.html#a2095453f1150e81cbe4484b082cd4068',1,'ot::subDA::remesh()']]],
+  ['remesh',['remesh',['../classot_1_1DA.html#ac35234a09603c55770f4dc8e83f7888c',1,'ot::DA::remesh()'],['../classot_1_1subDA.html#a2095453f1150e81cbe4484b082cd4068',1,'ot::subDA::remesh()'],['../classot_1_1Mesh.html#a4025c805748265bf29a792dcddafb783',1,'ot::Mesh::ReMesh()']]],
   ['rend',['rend',['../classnlohmann_1_1basic__json.html#ac77aed0925d447744676725ab0b6d535',1,'nlohmann::basic_json::rend() noexcept'],['../classnlohmann_1_1basic__json.html#a4f73d4cee67ea328d785979c22af0ae1',1,'nlohmann::basic_json::rend() const noexcept']]],
-  ['replace_5fpow',['replace_pow',['../namespacedendro.html#a95966ecd430180b1849518a9bf7c47a4',1,'dendro']]],
+  ['replace_5fpow',['replace_pow',['../namespacedendro.html#adb3d406b9b654a5172a49a76ae69562d',1,'dendro']]],
   ['restorecheckpoint',['restoreCheckPoint',['../classode_1_1solver_1_1RK4__NLSM.html#ac0a59e08095a7a6a28ba875cea5f3d5f',1,'ode::solver::RK4_NLSM']]],
   ['restorerk45solver',['restoreRK45Solver',['../classode_1_1solver_1_1RK45Transport.html#a04362af4eb31149e2f06007310f1fd33',1,'ode::solver::RK45Transport']]],
   ['reverse_5fiterator',['reverse_iterator',['../classnlohmann_1_1basic__json.html#ac223d5560c2b05a208c88de67376c5f2',1,'nlohmann::basic_json']]],

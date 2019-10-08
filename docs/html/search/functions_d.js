@@ -1,6 +1,6 @@
 var searchData=
 [
-  ['mat_5f3x3',['mat_3x3',['../namespacedendro.html#aa8b3cf4d4153c43aeefcf5443b85ec94',1,'dendro']]],
+  ['mat_5f3x3',['mat_3x3',['../namespacedendro.html#a3060c00865a3b45761b962957b402037',1,'dendro']]],
   ['matrecord',['MatRecord',['../classot_1_1MatRecord.html#a74398af6008826c819406a367ca9968e',1,'ot::MatRecord::MatRecord()'],['../classot_1_1MatRecord.html#a531d9c9cf2ce67da2a99ac338144bf01',1,'ot::MatRecord::MatRecord(unsigned int rowID, unsigned int colID, unsigned int rowDim, unsigned int colDim, DendroScalar value)'],['../classot_1_1MatRecord.html#a8d90f6baac288d8f865059dad42b0df0',1,'ot::MatRecord::MatRecord(const MatRecord &amp;other)']]],
   ['matvec',['matVec',['../classfeMat.html#af2e77f19251ec7a16c4bfb06d9a74709',1,'feMat::matVec()'],['../classfeMatrix.html#a98603d9d9bda60d3ca127d041c537304',1,'feMatrix::matVec()']]],
   ['max_5fsize',['max_size',['../classnlohmann_1_1basic__json.html#a2f47d3c6a441c57dd2be00449fbb88e1',1,'nlohmann::basic_json']]],

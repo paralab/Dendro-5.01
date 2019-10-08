@@ -9,7 +9,7 @@ var searchData=
   ['deprecated_20list',['Deprecated List',['../deprecated.html',1,'']]],
   ['destroyvector',['destroyVector',['../classot_1_1DA.html#afac164d36b839c9c4e6bd76065b87ad9',1,'ot::DA::destroyVector()'],['../classot_1_1subDA.html#aafe5e5697dbc68c719dc59059cf61bca',1,'ot::subDA::destroyVector()']]],
   ['dg2eijk',['dg2eijk',['../classot_1_1Mesh.html#ad4a6c6e94fc0b162cb721af901ddfe86',1,'ot::Mesh']]],
-  ['didj',['DiDj',['../namespacedendro.html#af9a16ff2f04d598ded2eefb86e472227',1,'dendro']]],
+  ['didj',['DiDj',['../namespacedendro.html#abf8d743008cd85130980c14d8aeea83b',1,'dendro']]],
   ['diff',['diff',['../classnlohmann_1_1basic__json.html#a543bd5f7490de54c875b2c0912dc9a49',1,'nlohmann::basic_json']]],
   ['difference_5ftype',['difference_type',['../classnlohmann_1_1detail_1_1iter__impl.html#a2f7ea9f7022850809c60fc3263775840',1,'nlohmann::detail::iter_impl::difference_type()'],['../classnlohmann_1_1basic__json.html#afe7c1303357e19cea9527af4e9a31d8f',1,'nlohmann::basic_json::difference_type()']]],
   ['discarded',['discarded',['../namespacenlohmann_1_1detail.html#a1ed8fc6239da25abcaf681d30ace4985a94708897ec9db8647dfe695714c98e46',1,'nlohmann::detail']]],

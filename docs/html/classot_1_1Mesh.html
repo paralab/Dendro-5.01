@@ -5,7 +5,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=9"/>
 <meta name="generator" content="Doxygen 1.8.13"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Dendro-5.01: ot::Mesh Class Reference</title>
+<title>Dendro: ot::Mesh Class Reference</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
 <script type="text/javascript" src="dynsections.js"></script>
@@ -20,10 +20,12 @@
 <table cellspacing="0" cellpadding="0">
  <tbody>
  <tr style="height: 56px;">
+  <td id="projectlogo"><img alt="Logo" src="dendro.png"/></td>
   <td id="projectalign" style="padding-left: 0.5em;">
-   <div id="projectname">Dendro-5.01
-   &#160;<span id="projectnumber">Dendro-5.01</span>
+   <div id="projectname">Dendro
+   &#160;<span id="projectnumber">5.01</span>
    </div>
+   <div id="projectbrief">Dendro in Greek language means tree. The Dendro library is a large scale (262K cores on ORNL&#39;s Titan) distributed memory adaptive octree framework. The main goal of Dendro is to perform large scale multiphysics simulations efficeiently in mordern supercomputers. Dendro consists of efficient parallel data structures and algorithms to perform variational ( finite element) methods and finite difference mthods on 2:1 balanced arbitary adaptive octrees which enables the users to perform simulations raning from black holes (binary black hole mergers) to blood flow in human body, where applications ranging from relativity, astrophysics to biomedical engineering.</div>
   </td>
  </tr>
  </tbody>
@@ -534,6 +536,9 @@ template&lt;typename T &gt; </td></tr>
 EType&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classot_1_1Mesh.html#a2229d77046b65bae889ffbbffc0380b4">getElementType</a> (unsigned int eleID)</td></tr>
 <tr class="memdesc:a2229d77046b65bae889ffbbffc0380b4"><td class="mdescLeft">&#160;</td><td class="mdescRight">returns the type of the element. <br /></td></tr>
 <tr class="separator:a2229d77046b65bae889ffbbffc0380b4"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a03db30a803dfaa596717a3df28f64d62"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classot_1_1Mesh.html#a03db30a803dfaa596717a3df28f64d62">getBlkBdyParentNodeIndices</a> (unsigned int blkId, unsigned int eleId, unsigned int dir, unsigned int *nid, unsigned int *child, unsigned int *fid, unsigned int *cid)</td></tr>
+<tr class="memdesc:a03db30a803dfaa596717a3df28f64d62"><td class="mdescLeft">&#160;</td><td class="mdescRight">compute the block boundary parent nodal locations.  <a href="#a03db30a803dfaa596717a3df28f64d62">More...</a><br /></td></tr>
+<tr class="separator:a03db30a803dfaa596717a3df28f64d62"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>Contains all the information needed to build neighbourhood information for the balanced octree based on treeSearch. </p>
@@ -1409,6 +1414,78 @@ template&lt;typename T &gt; </div>
     <tr><td class="paramdir">[in]</td><td class="paramname">face</td><td>: Face that you need the indexing, </td></tr>
     <tr><td class="paramdir">[in]</td><td class="paramname">isInternal</td><td>return only the internal nodes if true hence the index size would be ((m_uiElementOrder-1)*(m_uiElementOrder-1)) </td></tr>
     <tr><td class="paramdir">[out]</td><td class="paramname">index</td><td>returns the indecies of the requested face. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a id="a03db30a803dfaa596717a3df28f64d62"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a03db30a803dfaa596717a3df28f64d62">&#9670;&nbsp;</a></span>getBlkBdyParentNodeIndices()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">int ot::Mesh::getBlkBdyParentNodeIndices </td>
+          <td>(</td>
+          <td class="paramtype">unsigned int&#160;</td>
+          <td class="paramname"><em>blkId</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">unsigned int&#160;</td>
+          <td class="paramname"><em>eleId</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">unsigned int&#160;</td>
+          <td class="paramname"><em>dir</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">unsigned int *&#160;</td>
+          <td class="paramname"><em>nid</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">unsigned int *&#160;</td>
+          <td class="paramname"><em>child</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">unsigned int *&#160;</td>
+          <td class="paramname"><em>fid</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">unsigned int *&#160;</td>
+          <td class="paramname"><em>cid</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>compute the block boundary parent nodal locations. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramdir">[in]</td><td class="paramname">blkId</td><td>: block id. </td></tr>
+    <tr><td class="paramdir">[in]</td><td class="paramname">eleId</td><td>: element id of the block </td></tr>
+    <tr><td class="paramdir">[in]</td><td class="paramname">dir</td><td>face direction. </td></tr>
+    <tr><td class="paramdir">[out]</td><td class="paramname">nid</td><td>(assumed to be allocated) nodal id values of the parent which containing, block elements and the parent element in the paddinf region. </td></tr>
+    <tr><td class="paramdir">[out]</td><td class="paramname">child</td><td>element id for the block boudary faces, (elements containing inside the block) </td></tr>
+    <tr><td class="paramdir">[out]</td><td class="paramname">fid</td><td>reference pointer to the child array for the finer elements. </td></tr>
+    <tr><td class="paramdir">[out]</td><td class="paramname">cid</td><td>reference pointer to the child array for the coarser elements. (if it was refined. (cnumbers reference to the coarser elements)) </td></tr>
   </table>
   </dd>
 </dl>
