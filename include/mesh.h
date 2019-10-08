@@ -115,7 +115,8 @@ enum SM_TYPE
 {
     FDM = 0, // Finite Difference Method
     FEM_CG,  // Continous Galerkin  methods
-    FEM_DG   // Discontinous Galerkin methods
+    FEM_DG,   // Discontinous Galerkin methods
+    E2E_ONLY // only builds the e2e maps. 
 };
 
 enum EType
@@ -1697,6 +1698,19 @@ public:
     /** @brief returns the type of the element. 
      * */
     EType getElementType(unsigned int eleID);
+
+    /**
+     * @brief compute the block boundary parent nodal locations. 
+     * @param[in] blkId : block id. 
+     * @param[in] eleId : element id of the block
+     * @param[in] dir: face direction. 
+     * @param[out] nid: (assumed to be allocated) nodal id values of the parent which containing, block elements and the parent element in the paddinf region. 
+     * @param[out] child: element id for the block boudary faces, (elements containing inside the block)
+     * @param[out] fid: reference pointer to the child array for the finer elements. 
+     * @param[out] cid: reference pointer to the child array for the coarser elements. (if it was refined. (cnumbers reference to the coarser elements))
+     */
+    int getBlkBdyParentNodeIndices(unsigned int blkId, unsigned int eleId, unsigned int dir, unsigned int* nid, unsigned int* child, unsigned int* fid, unsigned int* cid);
+
 };
 
 template <>

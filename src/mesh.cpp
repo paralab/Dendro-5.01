@@ -147,6 +147,9 @@ namespace ot {
             double t_e2e_end = MPI_Wtime();
             t_e2e = t_e2e_end - t_e2e_begin;
 
+            if(smType == SM_TYPE::E2E_ONLY)
+                return;
+
             double t_e2n_begin = MPI_Wtime();
             if(smType==SM_TYPE::FDM)
             {
@@ -206,19 +209,26 @@ namespace ot {
             par::Mpi_Reduce(&t_blk, t_blk_g + 1, 1, MPI_SUM, 0, m_uiCommActive);
             par::Mpi_Reduce(&t_blk, t_blk_g + 2, 1, MPI_MAX, 0, m_uiCommActive);
             t_blk_g[1] /= (double) m_uiActiveNpes;
-
-            for(unsigned int p=0;p<m_uiActiveNpes;p++)
+            
+            if(m_uiActiveNpes>1)
             {
-                if(m_uiSendNodeCount[p]!=0)
-                    m_uiSendProcList.push_back(p);
+                for(unsigned int p=0;p<m_uiActiveNpes;p++)
+                {
+                
+                    if(m_uiSendNodeCount[p]!=0)
+                        m_uiSendProcList.push_back(p);
 
-                if(m_uiRecvNodeCount[p]!=0)
-                    m_uiRecvProcList.push_back(p);
+                    if(m_uiRecvNodeCount[p]!=0)
+                        m_uiRecvProcList.push_back(p);
+
+                }
+
+                m_uiSendBufferNodes.resize(m_uiSendNodeOffset[m_uiActiveNpes-1]+m_uiSendNodeCount[m_uiActiveNpes-1]);
+                m_uiRecvBufferNodes.resize(m_uiRecvNodeOffset[m_uiActiveNpes-1]+m_uiRecvNodeCount[m_uiActiveNpes-1]);
 
             }
 
-            m_uiSendBufferNodes.resize(m_uiSendNodeOffset[m_uiActiveNpes-1]+m_uiSendNodeCount[m_uiActiveNpes-1]);
-            m_uiRecvBufferNodes.resize(m_uiRecvNodeOffset[m_uiActiveNpes-1]+m_uiRecvNodeCount[m_uiActiveNpes-1]);
+            
 
             // release comm counter memory
             if (m_uiActiveNpes > 1) {
@@ -385,6 +395,9 @@ namespace ot {
             else buildE2EMap(in);
             double t_e2e_end=MPI_Wtime();
             t_e2e=t_e2e_end-t_e2e_begin;
+
+            if(smType == SM_TYPE::E2E_ONLY)
+                return;
 
             double t_e2n_begin=MPI_Wtime();
             
@@ -11728,5 +11741,207 @@ namespace ot {
                      
     } 
 
+
+    int Mesh::getBlkBdyParentNodeIndices(unsigned int blkId, unsigned int eleId, unsigned int dir, unsigned int* nid, unsigned int* child, unsigned int* fid, unsigned int* cid)
+    {
+        // return -1 if the invalid call for the function. 
+        if((!m_uiIsBlockSetup) || (!m_uiIsActive))
+            return -1;
+
+        for(unsigned int i=0; i< NUM_CHILDREN;i++)
+            child[i] =LOOK_UP_TABLE_DEFAULT;
+
+        const unsigned int lookup = m_uiE2EMapping[eleId*m_uiNumDirections  + dir ];
+
+        if(lookup==LOOK_UP_TABLE_DEFAULT)
+            return -1;
+
+        unsigned int cnum;
+        const bool isHanging = this -> isFaceHanging(eleId,dir,cnum);
+        
+        // cnum !=0 denotes that the hanging face is not is not the first child. 
+        if( (!isHanging) || (cnum!=0) )
+            return -1;
+
+        
+        unsigned char bit[3];
+        const unsigned int eorder_by2 = (m_uiElementOrder>>1u);
+        
+        
+        if( dir == OCT_DIR_LEFT )
+        {
+            fid[0] = 1; fid[1] = 3; fid[2] = 5; fid[3] = 7;
+            cid[0] = 0; cid[1] = 2; cid[2] = 4; cid[3] = 6;
+            
+            
+            child[fid[0]] = eleId;
+            child[fid[1]] = m_uiE2EMapping[child[fid[0]] * m_uiNumDirections  + OCT_DIR_UP];
+
+            child[fid[2]] = m_uiE2EMapping[child[fid[0]] * m_uiNumDirections  + OCT_DIR_FRONT];
+            child[fid[3]] = m_uiE2EMapping[child[fid[1]] * m_uiNumDirections  + OCT_DIR_FRONT];
+
+            assert( (child[fid[0]]!=LOOK_UP_TABLE_DEFAULT) && (child[fid[1]]!=LOOK_UP_TABLE_DEFAULT) && (child[fid[2]]!=LOOK_UP_TABLE_DEFAULT) && (child[fid[3]]!=LOOK_UP_TABLE_DEFAULT));
+
+            
+
+
+        }else if( dir == OCT_DIR_RIGHT )
+        {
+            fid[0] = 0; fid[1] = 2; fid[2] = 4; fid[3] = 6;
+            cid[0] = 1; cid[1] = 3; cid[2] = 5; cid[3] = 7;
+            
+            child[fid[0]] = eleId;
+            child[fid[1]] = m_uiE2EMapping[child[fid[0]] * m_uiNumDirections  + OCT_DIR_UP];
+
+            child[fid[2]] = m_uiE2EMapping[child[fid[0]] * m_uiNumDirections  + OCT_DIR_FRONT];
+            child[fid[3]] = m_uiE2EMapping[child[fid[1]] * m_uiNumDirections  + OCT_DIR_FRONT];
+
+            assert( (child[fid[0]]!=LOOK_UP_TABLE_DEFAULT) && (child[fid[1]]!=LOOK_UP_TABLE_DEFAULT) && (child[fid[2]]!=LOOK_UP_TABLE_DEFAULT) && (child[fid[3]]!=LOOK_UP_TABLE_DEFAULT));
+
+
+        }else if( dir == OCT_DIR_DOWN )
+        {
+            fid[0] = 2; fid[1] = 3; fid[2] = 6; fid[3] = 7;
+            cid[0] = 0; cid[1] = 1; cid[2] = 4; cid[3] = 5;
+
+            child[fid[0]] = eleId;
+            child[fid[1]] = m_uiE2EMapping[child[fid[0]] * m_uiNumDirections  + OCT_DIR_RIGHT];
+
+            child[fid[2]] = m_uiE2EMapping[child[fid[0]] * m_uiNumDirections  + OCT_DIR_FRONT];
+            child[fid[3]] = m_uiE2EMapping[child[fid[1]] * m_uiNumDirections  + OCT_DIR_FRONT];
+
+            assert( (child[fid[0]]!=LOOK_UP_TABLE_DEFAULT) && (child[fid[1]]!=LOOK_UP_TABLE_DEFAULT) && (child[fid[2]]!=LOOK_UP_TABLE_DEFAULT) && (child[fid[3]]!=LOOK_UP_TABLE_DEFAULT));
+
+        }else if( dir == OCT_DIR_UP )
+        {
+
+            fid[0] = 0; fid[1] = 1; fid[2] = 4; fid[3] = 5;
+            cid[0] = 2; cid[1] = 3; cid[2] = 6; cid[3] = 7;
+
+            child[fid[0]] = eleId;
+            child[fid[1]] = m_uiE2EMapping[child[fid[0]] * m_uiNumDirections  + OCT_DIR_RIGHT];
+
+            child[fid[2]] = m_uiE2EMapping[child[fid[0]] * m_uiNumDirections  + OCT_DIR_FRONT];
+            child[fid[3]] = m_uiE2EMapping[child[fid[1]] * m_uiNumDirections  + OCT_DIR_FRONT];
+
+            assert( (child[fid[0]]!=LOOK_UP_TABLE_DEFAULT) && (child[fid[1]]!=LOOK_UP_TABLE_DEFAULT) && (child[fid[2]]!=LOOK_UP_TABLE_DEFAULT) && (child[fid[3]]!=LOOK_UP_TABLE_DEFAULT));
+
+        }else if( dir == OCT_DIR_BACK )
+        {
+
+            fid[0] = 4; fid[1] = 5; fid[2] = 6; fid[3] = 7;
+            cid[0] = 0; cid[1] = 1; cid[2] = 2; cid[3] = 3;
+
+            child[fid[0]] = eleId;
+            child[fid[1]] = m_uiE2EMapping[child[fid[0]] * m_uiNumDirections  + OCT_DIR_RIGHT];
+
+            child[fid[2]] = m_uiE2EMapping[child[fid[0]] * m_uiNumDirections  + OCT_DIR_UP];
+            child[fid[3]] = m_uiE2EMapping[child[fid[1]] * m_uiNumDirections  + OCT_DIR_UP];
+            
+            assert( (child[fid[0]]!=LOOK_UP_TABLE_DEFAULT) && (child[fid[1]]!=LOOK_UP_TABLE_DEFAULT) && (child[fid[2]]!=LOOK_UP_TABLE_DEFAULT) && (child[fid[3]]!=LOOK_UP_TABLE_DEFAULT));
+
+        }else if( dir == OCT_DIR_FRONT )
+        {
+            fid[0] = 0; fid[1] = 1; fid[2] = 2; fid[3] = 3;
+            cid[0] = 4; cid[1] = 5; cid[2] = 6; cid[3] = 7;
+
+            child[fid[0]] = eleId;
+            child[fid[1]] = m_uiE2EMapping[child[fid[0]] * m_uiNumDirections  + OCT_DIR_RIGHT];
+
+            child[fid[2]] = m_uiE2EMapping[child[fid[0]] * m_uiNumDirections  + OCT_DIR_UP];
+            child[fid[3]] = m_uiE2EMapping[child[fid[1]] * m_uiNumDirections  + OCT_DIR_UP];
+
+            assert( (child[fid[0]]!=LOOK_UP_TABLE_DEFAULT) && (child[fid[1]]!=LOOK_UP_TABLE_DEFAULT) && (child[fid[2]]!=LOOK_UP_TABLE_DEFAULT) && (child[fid[3]]!=LOOK_UP_TABLE_DEFAULT));
+
+        }else
+        {
+            return -1;
+        }
+
+
+        const unsigned int nx = m_uiElementOrder+1;
+        const unsigned int ny = m_uiElementOrder+1;
+        const unsigned int nz = m_uiElementOrder+1;
+        
+        
+        for(unsigned int f=0; f< ((NUM_CHILDREN)>>1u); f++)
+        {
+            cnum = fid[f];
+            //std::cout<<" cnum : "<<cnum<<std::endl;
+            bit[0] = binOp::getBit(cnum,0);
+            bit[1] = binOp::getBit(cnum,1);
+            bit[2] = binOp::getBit(cnum,2);
+
+            const unsigned int kb = bit[2] * eorder_by2 ;
+            unsigned int ke = kb + eorder_by2 +1;
+
+            const unsigned int jb = bit[1] * eorder_by2 ;
+            unsigned int je = jb + eorder_by2 +1;
+
+            const unsigned int ib = bit[0] * eorder_by2 ;
+            unsigned int ie = ib + eorder_by2 +1;
+
+            unsigned int rkb=0, rjb=0, rib=0;
+
+            (kb==0) ? rkb = ke-1: rkb =0;
+            (jb==0) ? rjb = je-1: rjb =0;
+            (ib==0) ? rib = ie-1: rib =0;
+
+
+            /***
+             * 
+             *  - direction neighbours
+             *  coarser  finer
+             *  2       3 
+             *  0       1 
+             * 
+             * + direction neighbours
+             * 
+             *  finer   coarser
+             *  2       3
+             *  0       1
+             * 
+             * note that the coarser finer boundary will be always updated by the coarse elements. 
+             *   (kb==0) ? rkb = ke-1: rkb =0;  this is the reason for the -1 if kb ==0  case
+             *   (jb==0) ? rjb = je-1: rjb =0;
+             *   (ib==0) ? rib = ie-1: rib =0;
+             * 
+             **/
+
+            // printf("cnum: %d (kb,ke) : (%d,%d), (jb,je) : (%d,%d), (ib,ie): (%d,%d) , (rib,jb,kb) : (%d,%d,%d) \n",cnum,kb,ke,jb,je,ib,ie,rib,rjb,rkb);
+
+            // for(unsigned int k=0; k< nz; k+=2)
+            // for(unsigned int j=0; j < ny; j+=2)
+            // for(unsigned int i=0; i < nx; i+=2)
+            //  printf("finner cpy to %d,%d,%d \n",(ib + (i>>1u)),(jb + (j>>1u)),(kb + (k>>1u)));
+
+
+            // for(unsigned int k=kb; k< ke; k++)
+            //  for(unsigned int j=jb; j < je; j++)
+            //   for(unsigned int i=ib; i < ie; i++)
+            //     printf("coarser cpy to %d,%d,%d \n",rib + (i-ib), rjb + (j-jb), rkb + (k-kb));
+
+            // copy form the finer octant 
+            for(unsigned int k=0; k< nz; k+=2)
+             for(unsigned int j=0; j < ny; j+=2)
+              for(unsigned int i=0; i < nx; i+=2)
+                nid[ (kb + (k>>1u))*ny*nx + (jb + (j>>1u))*nx + (ib + (i>>1u)) ] = m_uiE2NMapping_CG[child[cnum]*m_uiNpE + k*ny*nx + j*nx + i];  
+
+
+            // copy from the coarser element.  with the correction of coarser finner boundary. 
+            for(unsigned int k=kb; k< ke; k++)
+             for(unsigned int j=jb; j < je; j++)
+              for(unsigned int i=ib; i < ie; i++)
+               nid[ (rkb + (k-kb))*ny*nx + (rjb + (j-jb))*nx + (rib+(i-ib)) ] = m_uiE2NMapping_CG[lookup*m_uiNpE + k*ny*nx + j*nx + i];
+
+           
+
+        }
+
+        return 1;
+        
+        
+
+    }
 
 }
