@@ -11,6 +11,9 @@ adaptive octree framework. The main goal of Dendro is to perform large scale mul
 
 You can clone the repository using , `git clone https://github.com/paralab/Dendro-5.01.git`
 
+## Dendro-5.01 Documentation
+Doxygen documentation can be found [here](https://paralab.github.io/Dendro-5.01/html/annotated.html)
+
 ## How to build Dendro-5.0 ?
 
 You need CMake to build dendro. Create a build directory using 'mkdir build'. Then go into the build directory by 'cd build' then execute 'ccmake ..' to generate the make files. You can build Dendro-5.0 with several options. 
