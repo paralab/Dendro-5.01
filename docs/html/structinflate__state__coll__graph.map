@@ -1,0 +1,9 @@
+<map id="inflate_state" name="inflate_state">
+<area shape="rect" id="node2" href="$structgz__header__s.html" title="gz_header_s" alt="" coords="5,213,101,240"/>
+<area shape="rect" id="node4" href="$structinternal__state.html" title="internal_state" alt="" coords="101,332,201,359"/>
+<area shape="rect" id="node3" href="$structz__stream__s.html" title="z_stream_s" alt="" coords="77,421,168,448"/>
+<area shape="rect" id="node5" href="$structtree__desc__s.html" title="tree_desc_s" alt="" coords="188,213,281,240"/>
+<area shape="rect" id="node6" href="$structstatic__tree__desc__s.html" title="static_tree_desc_s" alt="" coords="307,95,439,121"/>
+<area shape="rect" id="node7" href="$structct__data__s.html" title="ct_data_s" alt="" coords="189,5,267,32"/>
+<area shape="rect" id="node8" href="$structcode.html" title="code" alt="" coords="192,421,243,448"/>
+</map>

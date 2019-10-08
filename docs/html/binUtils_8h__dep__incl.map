@@ -1,0 +1,51 @@
+<map id="include/binUtils.h" name="include/binUtils.h">
+<area shape="rect" id="node2" href="$matvec_8h_source.html" title="FEM/include/matvec.h" alt="" coords="2901,692,3054,719"/>
+<area shape="rect" id="node4" href="$refel_8h_source.html" title="FEM/include/refel.h" alt="" coords="3002,461,3137,487"/>
+<area shape="rect" id="node23" href="$odaUtils_8h_source.html" title="include/odaUtils.h" alt="" coords="167,692,294,719"/>
+<area shape="rect" id="node34" href="$TreeNode_8h_source.html" title="include/TreeNode.h" alt="" coords="1769,80,1903,107"/>
+<area shape="rect" id="node3" href="$mfreeTest_8h_source.html" title="examples/include/mfreeTest.h" alt="" coords="2609,841,2807,868"/>
+<area shape="rect" id="node5" href="$operators_8h_source.html" title="FEM/include/operators.h" alt="" coords="2951,617,3115,644"/>
+<area shape="rect" id="node7" href="$octUtils_8h_source.html" title="include/octUtils.h" alt="" coords="1369,543,1492,569"/>
+<area shape="rect" id="node8" href="$mesh_8h_source.html" title="include/mesh.h" alt="" coords="1171,617,1282,644"/>
+<area shape="rect" id="node6" href="$cg_8h_source.html" title="LinAlg/include/cg.h" alt="" coords="2642,692,2774,719"/>
+<area shape="rect" id="node9" href="$meshBenchmark_8h_source.html" title="examples/include/meshBenchmark.h" alt="" coords="2331,692,2567,719"/>
+<area shape="rect" id="node10" href="$daUtils_8h_source.html" title="include/daUtils.h" alt="" coords="947,692,1066,719"/>
+<area shape="rect" id="node11" href="$meshTestUtils_8h_source.html" title="include/test/meshTestUtils.h" alt="" coords="933,767,1123,793"/>
+<area shape="rect" id="node12" href="$rk4nlsm_8h_source.html" title="NLSigma/include/rk4nlsm.h" alt="" coords="937,841,1119,868"/>
+<area shape="rect" id="node13" href="$nuts_8h.html" title="Spatially adaptive non uniform time stepping framework. " alt="" coords="821,692,923,719"/>
+<area shape="rect" id="node14" href="$oda_8h.html" title="The class that manages the octree mesh that support FEM computations. Note that this file is a refact..." alt="" coords="249,767,348,793"/>
+<area shape="rect" id="node24" href="$subscattermap_8h.html" title="sub scatter map for partial MPI communications. This is an abstract version of the full scatter map t..." alt="" coords="1349,692,1513,719"/>
+<area shape="rect" id="node25" href="$rawIO_8h_source.html" title="IO/include/rawIO.h" alt="" coords="2015,692,2145,719"/>
+<area shape="rect" id="node26" href="$checkPoint_8h_source.html" title="IO/vtk/include/checkPoint.h" alt="" coords="1142,692,1325,719"/>
+<area shape="rect" id="node28" href="$oct2vtk_8h_source.html" title="IO/vtk/include/oct2vtk.h" alt="" coords="635,692,797,719"/>
+<area shape="rect" id="node29" href="$nlsmUtils_8h_source.html" title="NLSigma/include/nlsmUtils.h" alt="" coords="421,692,611,719"/>
+<area shape="rect" id="node31" href="$rk_8h_source.html" title="ODE/include/rk.h" alt="" coords="1588,692,1711,719"/>
+<area shape="rect" id="node33" href="$rkTransportUtils_8h_source.html" title="ODE/include/rkTransportUtils.h" alt="" coords="1786,692,1990,719"/>
+<area shape="rect" id="node15" href="$heatMat_8h_source.html" title="FEM/examples/include\l/heatMat.h" alt="" coords="5,991,160,1032"/>
+<area shape="rect" id="node16" href="$heatVec_8h_source.html" title="FEM/examples/include\l/heatVec.h" alt="" coords="211,991,365,1032"/>
+<area shape="rect" id="node17" href="$feMat_8h_source.html" title="FEM/include/feMat.h" alt="" coords="61,841,203,868"/>
+<area shape="rect" id="node19" href="$feVec_8h.html" title="feVec.h abstract interface based on Dendro 4. feVec contains an abstract interface to perform FEM acc..." alt="" coords="281,841,425,868"/>
+<area shape="rect" id="node21" href="$sub__oda_8h_source.html" title="include/sub_oda.h" alt="" coords="450,841,577,868"/>
+<area shape="rect" id="node22" href="$oda_8cpp.html" title="The class that manages the octree mesh that support FEM computations. Note that this file is a refact..." alt="" coords="601,841,692,868"/>
+<area shape="rect" id="node18" href="$feMatrix_8h_source.html" title="FEM/include/feMatrix.h" alt="" coords="49,916,207,943"/>
+<area shape="rect" id="node20" href="$feVector_8h_source.html" title="FEM/include/feVector.h" alt="" coords="282,916,441,943"/>
+<area shape="rect" id="node27" href="$rkTransport_8h_source.html" title="ODE/include/rkTransport.h" alt="" coords="1337,767,1514,793"/>
+<area shape="rect" id="node30" href="$rhs_8h_source.html" title="NLSigma/include/rhs.h" alt="" coords="439,767,593,793"/>
+<area shape="rect" id="node32" href="$rkMaxwell_8h_source.html" title="ODE/include/rkMaxwell.h" alt="" coords="1589,767,1760,793"/>
+<area shape="rect" id="node35" href="$bucketBench_8h_source.html" title="examples/include/bucketBench.h" alt="" coords="2221,461,2435,487"/>
+<area shape="rect" id="node36" href="$octUtilsBenchmark_8h_source.html" title="examples/include/octUtils\lBenchmark.h" alt="" coords="1922,453,2094,495"/>
+<area shape="rect" id="node37" href="$testOctUtils_8h_source.html" title="examples/include/testOct\lUtils.h" alt="" coords="1524,453,1695,495"/>
+<area shape="rect" id="node38" href="$block_8h_source.html" title="include/block.h" alt="" coords="1123,229,1232,256"/>
+<area shape="rect" id="node40" href="$testUtils_8h.html" title="A Set of utilities to test octrees. " alt="" coords="1547,304,1701,331"/>
+<area shape="rect" id="node41" href="$sfcSort_8h_source.html" title="include/sfcSort.h" alt="" coords="1776,379,1896,405"/>
+<area shape="rect" id="node42" href="$sfcSearch_8h_source.html" title="include/sfcSearch.h" alt="" coords="1362,461,1499,487"/>
+<area shape="rect" id="node43" href="$key_8h_source.html" title="include/key.h" alt="" coords="1087,461,1185,487"/>
+<area shape="rect" id="node44" href="$treenode2vtk_8h_source.html" title="include/treenode2vtk.h" alt="" coords="1571,155,1725,181"/>
+<area shape="rect" id="node45" href="$skey_8h_source.html" title="include/skey.h" alt="" coords="905,461,1012,487"/>
+<area shape="rect" id="node46" href="$node_8h_source.html" title="include/node.h" alt="" coords="804,543,911,569"/>
+<area shape="rect" id="node47" href="$dendroIO_8h_source.html" title="include/dendroIO.h" alt="" coords="2644,617,2775,644"/>
+<area shape="rect" id="node48" href="$genPts__par_8h_source.html" title="include/genPts_par.h" alt="" coords="2271,379,2415,405"/>
+<area shape="rect" id="node50" href="$derivs_8h_source.html" title="NLSigma/include/derivs.h" alt="" coords="255,229,425,256"/>
+<area shape="rect" id="node39" href="$cudaUtils_8h_source.html" title="include/cudaUtils.h" alt="" coords="1007,304,1140,331"/>
+<area shape="rect" id="node49" href="$zoltan__hilbert_8h_source.html" title="examples/include/zoltan\l_hilbert.h" alt="" coords="2511,453,2673,495"/>
+</map>

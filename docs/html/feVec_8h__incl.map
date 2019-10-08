@@ -1,0 +1,29 @@
+<map id="FEM/include/feVec.h" name="FEM/include/feVec.h">
+<area shape="rect" id="node2" href="$oda_8h.html" title="The class that manages the octree mesh that support FEM computations. Note that this file is a refact..." alt="" coords="1442,80,1497,107"/>
+<area shape="rect" id="node3" href="$dendro_8h_source.html" title="dendro.h" alt="" coords="2032,827,2104,853"/>
+<area shape="rect" id="node9" href="$mesh_8h_source.html" title="mesh.h" alt="" coords="1437,229,1502,256"/>
+<area shape="rect" id="node21" href="$testUtils_8h.html" title="A Set of utilities to test octrees. " alt="" coords="2251,528,2333,555"/>
+<area shape="rect" id="node30" href="$parUtils_8h.html" title="A set of parallel utilities. " alt="" coords="910,528,989,555"/>
+<area shape="rect" id="node38" href="$asyncExchangeContex_8h_source.html" title="asyncExchangeContex.h" alt="" coords="144,379,312,405"/>
+<area shape="rect" id="node43" href="$oct2vtk_8h_source.html" title="oct2vtk.h" alt="" coords="651,155,727,181"/>
+<area shape="rect" id="node47" href="$odaUtils_8h_source.html" title="odaUtils.h" alt="" coords="1071,155,1153,181"/>
+<area shape="rect" id="node48" href="$matRecord_8h_source.html" title="matRecord.h" alt="" coords="3521,677,3618,704"/>
+<area shape="rect" id="node10" href="$octUtils_8h_source.html" title="octUtils.h" alt="" coords="1697,304,1775,331"/>
+<area shape="rect" id="node11" href="$key_8h_source.html" title="key.h" alt="" coords="3254,677,3309,704"/>
+<area shape="rect" id="node12" href="$TreeNode_8h_source.html" title="TreeNode.h" alt="" coords="1400,752,1491,779"/>
+<area shape="rect" id="node16" href="$sfcSearch_8h_source.html" title="sfcSearch.h" alt="" coords="1353,379,1445,405"/>
+<area shape="rect" id="node17" href="$sfcSort_8h_source.html" title="sfcSort.h" alt="" coords="1295,453,1369,480"/>
+<area shape="rect" id="node19" href="$treenode2vtk_8h_source.html" title="treenode2vtk.h" alt="" coords="1513,677,1621,704"/>
+<area shape="rect" id="node23" href="$block_8h_source.html" title="block.h" alt="" coords="1861,603,1925,629"/>
+<area shape="rect" id="node32" href="$refel_8h_source.html" title="refel.h" alt="" coords="1576,603,1635,629"/>
+<area shape="rect" id="node34" href="$skey_8h_source.html" title="skey.h" alt="" coords="3168,677,3229,704"/>
+<area shape="rect" id="node35" href="$fdCoefficient_8h_source.html" title="fdCoefficient.h" alt="" coords="2105,304,2212,331"/>
+<area shape="rect" id="node36" href="$stencil_8h_source.html" title="stencil.h" alt="" coords="2870,603,2941,629"/>
+<area shape="rect" id="node37" href="$node_8h_source.html" title="node.h" alt="" coords="3333,677,3395,704"/>
+<area shape="rect" id="node39" href="$wavelet_8h_source.html" title="wavelet.h" alt="" coords="894,304,973,331"/>
+<area shape="rect" id="node40" href="$dendroProfileParams_8h_source.html" title="dendroProfileParams.h" alt="" coords="997,304,1152,331"/>
+<area shape="rect" id="node33" href="$mathUtils_8h_source.html" title="mathUtils.h" alt="" coords="1729,453,1818,480"/>
+<area shape="rect" id="node13" href="$binUtils_8h.html" title="A set of efficient functions that use binary operations to perform some small computations. " alt="" coords="1195,827,1272,853"/>
+<area shape="rect" id="node44" href="$cencode_8h_source.html" title="cencode.h" alt="" coords="311,229,393,256"/>
+<area shape="rect" id="node45" href="$zlib_8h_source.html" title="zlib.h" alt="" coords="417,229,471,256"/>
+</map>
