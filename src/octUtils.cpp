@@ -724,6 +724,8 @@ void octree2BlockDecomposition(std::vector<ot::TreeNode>& pNodes, std::vector<ot
         }
     }
 
+   std::reverse(blockList.begin(),blockList.end());
+
 #ifdef OCT2BLK_DEBUG
     std::vector<ot::TreeNode> blockNodes;
     blockNodes.resize(blockList.size());

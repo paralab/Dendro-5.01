@@ -494,6 +494,9 @@ private:
     /**@brief: send node req pt SM*/
     std::vector<unsigned int> m_uiSendNodeReqPtSM;
 
+    /**@brief: element to block map */
+    std::vector<unsigned int> m_uiE2BlkMap;
+
 
 private:
     /**@brief build E2N map for FEM computation*/
@@ -940,6 +943,18 @@ private:
                  * */
     template <typename T>
     void OCT_DIR_RIGHT_UP_FRONT_Unzip(const ot::Block &blk, const T *zippedVec, T *unzippedVec);
+
+    /***
+     * @brief: computes the block boundary parent containing elements of two levels of refinement. 
+     * @param [in] zipVec: zip vector (input vector)
+     * @param [out] out: parent nodal values. 
+     * @param [in] lookUp: coarser elemet ID. 
+     * @param [in] fid: finer child numbers. 
+     * @param [in] cid: coarser child numbers
+     * @param [in] child: blk input children. 
+     **/
+    template<typename T>
+    void getBlkBoundaryParentNodes(const T* zipVec, T* out, T* w1, T* w2, unsigned int lookUp, const unsigned int * fid, const unsigned int* cid,const unsigned int * child);
 
     //---Note: These functions are specifically written for find missing 3rd block unzip points for the GR application
 
@@ -1704,12 +1719,11 @@ public:
      * @param[in] blkId : block id. 
      * @param[in] eleId : element id of the block
      * @param[in] dir: face direction. 
-     * @param[out] nid: (assumed to be allocated) nodal id values of the parent which containing, block elements and the parent element in the paddinf region. 
      * @param[out] child: element id for the block boudary faces, (elements containing inside the block)
      * @param[out] fid: reference pointer to the child array for the finer elements. 
      * @param[out] cid: reference pointer to the child array for the coarser elements. (if it was refined. (cnumbers reference to the coarser elements))
      */
-    int getBlkBdyParentNodeIndices(unsigned int blkId, unsigned int eleId, unsigned int dir, unsigned int* nid, unsigned int* child, unsigned int* fid, unsigned int* cid);
+    int getBlkBdyParentCNums(unsigned int blkId, unsigned int eleId, unsigned int dir, unsigned int* child, unsigned int* fid, unsigned int* cid);
 
 };
 

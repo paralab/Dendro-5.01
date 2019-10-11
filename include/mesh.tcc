@@ -1667,7 +1667,7 @@ namespace ot
 
             isOctChange=false;
             for(unsigned int ele=m_uiElementLocalBegin;ele<m_uiElementLocalEnd;ele++)
-                if((m_uiAllElements[ele].getFlag()>>NUM_LEVEL_BITS)!=OCT_NO_CHANGE)
+                if((m_uiAllElements[ele].getFlag()>>NUM_LEVEL_BITS)==OCT_SPLIT) // trigger remesh only when some refinement occurs (laid back remesh :)  ) //if((m_uiAllElements[ele].getFlag()>>NUM_LEVEL_BITS)!=OCT_NO_CHANGE)
                 {
                     isOctChange=true;
                     break;
@@ -6766,6 +6766,7 @@ namespace ot
         std::vector<unsigned int> edgeIndex;
         std::vector<unsigned int > faceIndex;
         std::vector<unsigned int > child;
+        child.resize(NUM_CHILDREN);
 
         interpOrInjectionOut.resize(m_uiNpE);
         interpolationInput.resize(m_uiNpE);
@@ -6787,8 +6788,6 @@ namespace ot
         parentEleInterpIn.resize(m_uiNpE);
         parentEleInterpOut.resize(m_uiNpE);
 
-
-        child.resize(NUM_CHILDREN);
         unsigned int mid_bit=0;
         unsigned int sz;
         bool isHanging;
@@ -6801,13 +6800,10 @@ namespace ot
         unsigned int lx,ly,lz,offset,paddWidth;
         bool isParentValue=false;
 
-        /* int rank;
-        MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+        unsigned int fid[(NUM_CHILDREN>>1u)];
+        unsigned int cid[(NUM_CHILDREN>>1u)];
 
-        treeNodesTovtk(m_uiAllElements,rank,"m_uiAllElements");
-
-
-        if(!rank) std::cout<<"begin unzip "<<std::endl;*/
+        /*if(!rank) std::cout<<"begin unzip "<<std::endl;*/
         #ifdef DEBUG_UNZIP_OP
             double d_min,d_max;
             d_min=-0.5;
@@ -6916,17 +6912,70 @@ namespace ot
                             cnum=( ((((pNodes[elem].getZ()) >> mid_bit) & 1u) << 2u) | ((((pNodes[elem].getY()) >> mid_bit) & 1u) << 1u) | ((((pNodes[elem].getX()-sz)) >>mid_bit) & 1u));
                             //std::cout<<"elem: "<<elem<<" : "<<m_uiAllElements[elem]<<" lookup: "<<m_uiAllElements[lookUp]<<" child: "<<ot::TreeNode(pNodes[elem].getX()-sz,pNodes[elem].getY(),pNodes[elem].getZ(),pNodes[elem].getLevel(),m_uiDim,m_uiMaxDepth)<<" cnum: "<<cnum<<std::endl;
 
-                            this->getElementNodalValues(zippedVec,&(*(lookUpElementVec.begin())),lookUp);
-                            this->parent2ChildInterpolation(&(*(lookUpElementVec.begin())),&(*(interpOrInjectionOut.begin())),cnum);
 
                             #ifdef ENABLE_DENDRO_PROFILE_COUNTERS
-                                dendro::timer::t_unzip_sync_cpy.start();
+                                 dendro::timer::t_unzip_sync_cpy.start();
+                             #endif
+
+
+                            #ifdef USE_FD_INTERP_FOR_UNZIP
+                                const int st = this->getBlkBdyParentCNums(blk,elem,OCT_DIR_LEFT,child.data(),fid,cid);
+                                if(st > 0)
+                                {
+                                    const unsigned int NUM_CHILDREN_BY2 = (NUM_CHILDREN>>1u);
+                                    this->getBlkBoundaryParentNodes(zippedVec, lookUpElementVec.data(), interpolationInput.data(), interpOrInjectionOut.data(), lookUp, fid, cid,child.data());
+                                    for(unsigned int w =0; w < NUM_CHILDREN_BY2 ; w++)
+                                    {
+                                        assert(pNodes[lookUp] == pNodes[m_uiE2EMapping[child[fid[w]]*m_uiNumDirections + OCT_DIR_LEFT]]);
+                                        assert(child[fid[w]] != LOOK_UP_TABLE_DEFAULT);
+                                        //assert(m_uiE2BlkMap[(child[fid[w]] - m_uiElementLocalBegin) ] == blk);
+
+                                        if(child[fid[w]]<m_uiElementLocalBegin || child[fid[w]]>=m_uiElementLocalEnd)
+                                            continue;
+
+                                        this->parent2ChildInterpolation(lookUpElementVec.data(),interpOrInjectionOut.data(),cid[w],m_uiDim);
+
+
+                                        const ot::Block blk_fd = m_uiLocalBlockList[m_uiE2BlkMap[(child[fid[w]] - m_uiElementLocalBegin)]];
+                                        const ot::TreeNode blkNode_fd = blk_fd.getBlockNode();
+                                        const unsigned int regL_fd = blk_fd.getRegularGridLev();
+                                        
+                                        const unsigned int lx_fd = blk_fd.getAllocationSzX();
+                                        const unsigned int ly_fd = blk_fd.getAllocationSzY();
+                                        const unsigned int lz_fd = blk_fd.getAllocationSzZ();
+
+                                        const unsigned int offset_fd = blk_fd.getOffset();
+
+
+                                        
+                                        const unsigned int ei_fd = (pNodes[child[fid[w]]].getX()-blkNode_fd.getX())>>(m_uiMaxDepth-regL_fd);
+                                        const unsigned int ej_fd = (pNodes[child[fid[w]]].getY()-blkNode_fd.getY())>>(m_uiMaxDepth-regL_fd);
+                                        const unsigned int ek_fd = (pNodes[child[fid[w]]].getZ()-blkNode_fd.getZ())>>(m_uiMaxDepth-regL_fd);
+
+                                        assert(paddWidth<(m_uiElementOrder+1));
+                                        for(unsigned int k=0;k<(m_uiElementOrder+1);k++)
+                                        for(unsigned int j=0;j<(m_uiElementOrder+1);j++)
+                                        for(unsigned int i=(m_uiElementOrder-paddWidth);i<(m_uiElementOrder+1);i++)
+                                            unzippedVec[offset_fd+(ek_fd*m_uiElementOrder+k+paddWidth)*(ly_fd*lx_fd)+(ej_fd*m_uiElementOrder+j+paddWidth)*(lx_fd)+(ei_fd*m_uiElementOrder+i-(m_uiElementOrder-paddWidth))]=interpOrInjectionOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
+                                    }
+
+                                    
+
+
+                                }
+                            #else
+                                this->getElementNodalValues(zippedVec,&(*(lookUpElementVec.begin())),lookUp);
+                                this->parent2ChildInterpolation(&(*(lookUpElementVec.begin())),&(*(interpOrInjectionOut.begin())),cnum);
+
+                                
+                                assert(paddWidth<(m_uiElementOrder+1));
+                                for(unsigned int k=0;k<(m_uiElementOrder+1);k++)
+                                    for(unsigned int j=0;j<(m_uiElementOrder+1);j++)
+                                        for(unsigned int i=(m_uiElementOrder-paddWidth);i<(m_uiElementOrder+1);i++)
+                                            unzippedVec[offset+(ek*m_uiElementOrder+k+paddWidth)*(ly*lx)+(ej*m_uiElementOrder+j+paddWidth)*(lx)+(ei*m_uiElementOrder+i-(m_uiElementOrder-paddWidth))]=interpOrInjectionOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
                             #endif
-                            assert(paddWidth<(m_uiElementOrder+1));
-                            for(unsigned int k=0;k<(m_uiElementOrder+1);k++)
-                                for(unsigned int j=0;j<(m_uiElementOrder+1);j++)
-                                    for(unsigned int i=(m_uiElementOrder-paddWidth);i<(m_uiElementOrder+1);i++)
-                                        unzippedVec[offset+(ek*m_uiElementOrder+k+paddWidth)*(ly*lx)+(ej*m_uiElementOrder+j+paddWidth)*(lx)+(ei*m_uiElementOrder+i-(m_uiElementOrder-paddWidth))]=interpOrInjectionOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
+
+                            
 
                             #ifdef ENABLE_DENDRO_PROFILE_COUNTERS
                                 dendro::timer::t_unzip_sync_cpy.stop() ;
@@ -7057,18 +7106,66 @@ namespace ot
                             cnum=( ((((pNodes[elem].getZ()) >> mid_bit) & 1u) << 2u) | ((((pNodes[elem].getY()) >> mid_bit) & 1u) << 1u) | ((((pNodes[elem].getX()+sz)) >>mid_bit) & 1u));
                             //std::cout<<"elem: "<<elem<<" : "<<m_uiAllElements[elem]<<" lookup: "<<m_uiAllElements[lookUp]<<" child: "<<ot::TreeNode(pNodes[elem].getX()+sz,pNodes[elem].getY(),pNodes[elem].getZ(),pNodes[elem].getLevel(),m_uiDim,m_uiMaxDepth)<<" cnum: "<<cnum<<std::endl;
 
-                            this->getElementNodalValues(zippedVec,&(*(lookUpElementVec.begin())),lookUp);
-                            this->parent2ChildInterpolation(&(*(lookUpElementVec.begin())),&(*(interpOrInjectionOut.begin())),cnum);
+                            
 
                             #ifdef ENABLE_DENDRO_PROFILE_COUNTERS
                                 dendro::timer::t_unzip_sync_cpy.start();
                             #endif
 
-                            assert(paddWidth<(m_uiElementOrder+1));
-                            for(unsigned int k=0;k<(m_uiElementOrder+1);k++)
-                                for(unsigned int j=0;j<(m_uiElementOrder+1);j++)
-                                    for(unsigned int i=0;i<(paddWidth+1);i++)
-                                        unzippedVec[offset+(ek*m_uiElementOrder+k+paddWidth)*(ly*lx)+(ej*m_uiElementOrder+j+paddWidth)*(lx)+((ei+1)*m_uiElementOrder+paddWidth+i)]=interpOrInjectionOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
+                            #ifdef USE_FD_INTERP_FOR_UNZIP
+                                const int st = this->getBlkBdyParentCNums(blk,elem,OCT_DIR_RIGHT,child.data(),fid,cid);
+                                if(st > 0)
+                                {
+                                    const unsigned int NUM_CHILDREN_BY2 = (NUM_CHILDREN>>1u);
+                                    this->getBlkBoundaryParentNodes(zippedVec, lookUpElementVec.data(), interpolationInput.data(), interpOrInjectionOut.data(), lookUp, fid, cid,child.data());
+                                    for(unsigned int w =0; w < NUM_CHILDREN_BY2 ; w++)
+                                    {
+                                        assert(pNodes[lookUp] == pNodes[m_uiE2EMapping[child[fid[w]]*m_uiNumDirections + OCT_DIR_RIGHT]]);
+                                        assert(child[fid[w]] != LOOK_UP_TABLE_DEFAULT);
+
+                                        if(child[fid[w]]<m_uiElementLocalBegin || child[fid[w]]>=m_uiElementLocalEnd)
+                                            continue;
+
+                                        this->parent2ChildInterpolation(lookUpElementVec.data(),interpOrInjectionOut.data(),cid[w],m_uiDim);
+                                        
+                                        const ot::Block blk_fd = m_uiLocalBlockList[m_uiE2BlkMap[(child[fid[w]] - m_uiElementLocalBegin)]];
+                                        const ot::TreeNode blkNode_fd = blk_fd.getBlockNode();
+                                        const unsigned int regL_fd = blk_fd.getRegularGridLev();
+                                        
+                                        const unsigned int lx_fd = blk_fd.getAllocationSzX();
+                                        const unsigned int ly_fd = blk_fd.getAllocationSzY();
+                                        const unsigned int lz_fd = blk_fd.getAllocationSzZ();
+
+                                        const unsigned int offset_fd = blk_fd.getOffset();
+
+
+                                        
+                                        const unsigned int ei_fd = (pNodes[child[fid[w]]].getX()-blkNode_fd.getX())>>(m_uiMaxDepth-regL_fd);
+                                        const unsigned int ej_fd = (pNodes[child[fid[w]]].getY()-blkNode_fd.getY())>>(m_uiMaxDepth-regL_fd);
+                                        const unsigned int ek_fd = (pNodes[child[fid[w]]].getZ()-blkNode_fd.getZ())>>(m_uiMaxDepth-regL_fd);
+
+
+                                        for(unsigned int k=0;k<(m_uiElementOrder+1);k++)
+                                        for(unsigned int j=0;j<(m_uiElementOrder+1);j++)
+                                            for(unsigned int i=0;i<(paddWidth+1);i++)
+                                            unzippedVec[offset_fd+(ek_fd*m_uiElementOrder+k+paddWidth)*(ly_fd*lx_fd)+(ej_fd*m_uiElementOrder+j+paddWidth)*(lx_fd)+((ei_fd+1)*m_uiElementOrder+paddWidth+i)]=interpOrInjectionOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
+                                    }
+
+                                    
+
+
+                                }
+                            #else
+                                this->getElementNodalValues(zippedVec,&(*(lookUpElementVec.begin())),lookUp);
+                                this->parent2ChildInterpolation(&(*(lookUpElementVec.begin())),&(*(interpOrInjectionOut.begin())),cnum);
+                                assert(paddWidth<(m_uiElementOrder+1));
+                                for(unsigned int k=0;k<(m_uiElementOrder+1);k++)
+                                    for(unsigned int j=0;j<(m_uiElementOrder+1);j++)
+                                        for(unsigned int i=0;i<(paddWidth+1);i++)
+                                            unzippedVec[offset+(ek*m_uiElementOrder+k+paddWidth)*(ly*lx)+(ej*m_uiElementOrder+j+paddWidth)*(lx)+((ei+1)*m_uiElementOrder+paddWidth+i)]=interpOrInjectionOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
+                            #endif
+
+
 
                             #ifdef ENABLE_DENDRO_PROFILE_COUNTERS
                                 dendro::timer::t_unzip_sync_cpy.stop();
@@ -7201,18 +7298,66 @@ namespace ot
                             cnum=( ((((pNodes[elem].getZ()) >> mid_bit) & 1u) << 2u) | (((((pNodes[elem].getY()-sz)) >> mid_bit) & 1u) << 1u) | (((pNodes[elem].getX()) >>mid_bit) & 1u));
 
                             //std::cout<<"elem: "<<elem<<" : "<<m_uiAllElements[elem]<<" lookup: "<<m_uiAllElements[lookUp]<<" child: "<<ot::TreeNode(pNodes[elem].getX()-sz,pNodes[elem].getY(),pNodes[elem].getZ(),pNodes[elem].getLevel(),m_uiDim,m_uiMaxDepth)<<" cnum: "<<cnum<<std::endl;
-                            this->getElementNodalValues(zippedVec,&(*(lookUpElementVec.begin())),lookUp);
-                            this->parent2ChildInterpolation(&(*(lookUpElementVec.begin())),&(*(interpOrInjectionOut.begin())),cnum);
+                            
 
                             //std::cout<<"m_uiActiveRank : "<<m_uiActiveRank<<"parent to child interpolation executed"<<std::endl;
                             assert(paddWidth<(m_uiElementOrder+1));
                             #ifdef ENABLE_DENDRO_PROFILE_COUNTERS
                                 dendro::timer::t_unzip_sync_cpy.start();
                             #endif
-                            for(unsigned int k=0;k<(m_uiElementOrder+1);k++)
+
+                            #ifdef USE_FD_INTERP_FOR_UNZIP
+                            const int st = this->getBlkBdyParentCNums(blk,elem,OCT_DIR_DOWN,child.data(),fid,cid);
+                            if(st > 0)
+                            {
+                                const unsigned int NUM_CHILDREN_BY2 = (NUM_CHILDREN>>1u);
+                                this->getBlkBoundaryParentNodes(zippedVec, lookUpElementVec.data(), interpolationInput.data(), interpOrInjectionOut.data(), lookUp, fid, cid,child.data());
+                                for(unsigned int w =0; w < NUM_CHILDREN_BY2 ; w++)
+                                {
+                                    assert(pNodes[lookUp] == pNodes[m_uiE2EMapping[child[fid[w]]*m_uiNumDirections + OCT_DIR_DOWN]]);
+                                    assert(child[fid[w]] != LOOK_UP_TABLE_DEFAULT);
+
+                                    if(child[fid[w]]<m_uiElementLocalBegin || child[fid[w]]>=m_uiElementLocalEnd)
+                                        continue;
+                                        
+                                    this->parent2ChildInterpolation(lookUpElementVec.data(),interpOrInjectionOut.data(),cid[w],m_uiDim);
+
+                                    const ot::Block blk_fd = m_uiLocalBlockList[m_uiE2BlkMap[(child[fid[w]] - m_uiElementLocalBegin)]];
+                                    const ot::TreeNode blkNode_fd = blk_fd.getBlockNode();
+                                    const unsigned int regL_fd = blk_fd.getRegularGridLev();
+                                    
+                                    const unsigned int lx_fd = blk_fd.getAllocationSzX();
+                                    const unsigned int ly_fd = blk_fd.getAllocationSzY();
+                                    const unsigned int lz_fd = blk_fd.getAllocationSzZ();
+
+                                    const unsigned int offset_fd = blk_fd.getOffset();
+
+                                    const unsigned int ei_fd = (pNodes[child[fid[w]]].getX()-blkNode_fd.getX())>>(m_uiMaxDepth-regL_fd);
+                                    const unsigned int ej_fd = (pNodes[child[fid[w]]].getY()-blkNode_fd.getY())>>(m_uiMaxDepth-regL_fd);
+                                    const unsigned int ek_fd = (pNodes[child[fid[w]]].getZ()-blkNode_fd.getZ())>>(m_uiMaxDepth-regL_fd);
+                                    
+                                    for(unsigned int k=0;k<(m_uiElementOrder+1);k++)
+                                        for(unsigned int i=0;i<(m_uiElementOrder+1);i++)
+                                            for(unsigned int j=(m_uiElementOrder-paddWidth);j<(m_uiElementOrder+1);j++)
+                                                unzippedVec[offset_fd+(ek_fd*m_uiElementOrder+k+paddWidth)*(ly_fd*lx_fd)+(ej_fd*m_uiElementOrder+j-(m_uiElementOrder-paddWidth))*(lx_fd)+(ei_fd*m_uiElementOrder+i+paddWidth)]=interpOrInjectionOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
+                                }
+
+                                
+
+
+                            }
+                            #else
+                                this->getElementNodalValues(zippedVec,&(*(lookUpElementVec.begin())),lookUp);
+                                this->parent2ChildInterpolation(&(*(lookUpElementVec.begin())),&(*(interpOrInjectionOut.begin())),cnum);
+
+                                for(unsigned int k=0;k<(m_uiElementOrder+1);k++)
                                 for(unsigned int i=0;i<(m_uiElementOrder+1);i++)
                                     for(unsigned int j=(m_uiElementOrder-paddWidth);j<(m_uiElementOrder+1);j++)
                                         unzippedVec[offset+(ek*m_uiElementOrder+k+paddWidth)*(ly*lx)+(ej*m_uiElementOrder+j-(m_uiElementOrder-paddWidth))*(lx)+(ei*m_uiElementOrder+i+paddWidth)]=interpOrInjectionOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
+
+
+                            #endif
+
 
                             #ifdef ENABLE_DENDRO_PROFILE_COUNTERS
                                 dendro::timer::t_unzip_sync_cpy.stop();
@@ -7338,17 +7483,67 @@ namespace ot
                             mid_bit=m_uiMaxDepth - pNodes[lookUp].getLevel()-1;
                             cnum=( ((((pNodes[elem].getZ()) >> mid_bit) & 1u) << 2u) | (((((pNodes[elem].getY()+sz)) >> mid_bit) & 1u) << 1u) | (((pNodes[elem].getX()) >>mid_bit) & 1u));
                             //std::cout<<"elem: "<<elem<<" : "<<m_uiAllElements[elem]<<" lookup: "<<m_uiAllElements[lookUp]<<" child: "<<ot::TreeNode(pNodes[elem].getX()+sz,pNodes[elem].getY(),pNodes[elem].getZ(),pNodes[elem].getLevel(),m_uiDim,m_uiMaxDepth)<<" cnum: "<<cnum<<std::endl;
-                            this->getElementNodalValues(zippedVec,&(*(lookUpElementVec.begin())),lookUp);
-                            this->parent2ChildInterpolation(&(*(lookUpElementVec.begin())),&(*(interpOrInjectionOut.begin())),cnum);
+                            
 
                             #ifdef ENABLE_DENDRO_PROFILE_COUNTERS
                                 dendro::timer::t_unzip_sync_cpy.start();
                             #endif
+
+                            
+
+                            #ifdef USE_FD_INTERP_FOR_UNZIP
+                            const int st = this->getBlkBdyParentCNums(blk,elem,OCT_DIR_UP,child.data(),fid,cid);
+                            if(st > 0)
+                            {
+                                const unsigned int NUM_CHILDREN_BY2 = (NUM_CHILDREN>>1u);
+                                this->getBlkBoundaryParentNodes(zippedVec, lookUpElementVec.data(), interpolationInput.data(), interpOrInjectionOut.data(), lookUp, fid, cid,child.data());
+                                for(unsigned int w =0; w < NUM_CHILDREN_BY2 ; w++)
+                                {
+                                    assert(pNodes[lookUp] == pNodes[m_uiE2EMapping[child[fid[w]]*m_uiNumDirections + OCT_DIR_UP]]);
+                                    assert(child[fid[w]] != LOOK_UP_TABLE_DEFAULT);
+
+                                    if(child[fid[w]]<m_uiElementLocalBegin || child[fid[w]]>=m_uiElementLocalEnd)
+                                        continue;
+
+                                    this->parent2ChildInterpolation(lookUpElementVec.data(),interpOrInjectionOut.data(),cid[w],m_uiDim);
+
+
+                                    const ot::Block blk_fd = m_uiLocalBlockList[m_uiE2BlkMap[(child[fid[w]] - m_uiElementLocalBegin)]];
+                                    const ot::TreeNode blkNode_fd = blk_fd.getBlockNode();
+                                    const unsigned int regL_fd = blk_fd.getRegularGridLev();
+                                    
+                                    const unsigned int lx_fd = blk_fd.getAllocationSzX();
+                                    const unsigned int ly_fd = blk_fd.getAllocationSzY();
+                                    const unsigned int lz_fd = blk_fd.getAllocationSzZ();
+
+                                    const unsigned int offset_fd = blk_fd.getOffset();
+                                    
+                                    const unsigned int ei_fd = (pNodes[child[fid[w]]].getX()-blkNode_fd.getX())>>(m_uiMaxDepth-regL_fd);
+                                    const unsigned int ej_fd = (pNodes[child[fid[w]]].getY()-blkNode_fd.getY())>>(m_uiMaxDepth-regL_fd);
+                                    const unsigned int ek_fd = (pNodes[child[fid[w]]].getZ()-blkNode_fd.getZ())>>(m_uiMaxDepth-regL_fd);
+                                    
+                                    for(unsigned int k=0;k<(m_uiElementOrder+1);k++)
+                                        for(unsigned int i=0;i<(m_uiElementOrder+1);i++)
+                                            for(unsigned int j=0;j<(paddWidth+1);j++)
+                                                unzippedVec[offset_fd+(ek_fd*m_uiElementOrder+k+paddWidth)*(ly_fd*lx_fd)+((ej_fd+1)*m_uiElementOrder+paddWidth+j)*(lx_fd)+(ei_fd*m_uiElementOrder+i+paddWidth)]=interpOrInjectionOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
+                                }
+
+                                
+
+
+                            }
+                            #else
+                            this->getElementNodalValues(zippedVec,&(*(lookUpElementVec.begin())),lookUp);
+                            this->parent2ChildInterpolation(&(*(lookUpElementVec.begin())),&(*(interpOrInjectionOut.begin())),cnum);
+
                             assert(paddWidth<(m_uiElementOrder+1));
                             for(unsigned int k=0;k<(m_uiElementOrder+1);k++)
                                 for(unsigned int i=0;i<(m_uiElementOrder+1);i++)
                                     for(unsigned int j=0;j<(paddWidth+1);j++)
                                         unzippedVec[offset+(ek*m_uiElementOrder+k+paddWidth)*(ly*lx)+((ej+1)*m_uiElementOrder+paddWidth+j)*(lx)+(ei*m_uiElementOrder+i+paddWidth)]=interpOrInjectionOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
+
+                            #endif
+
 
                             #ifdef ENABLE_DENDRO_PROFILE_COUNTERS
                                 dendro::timer::t_unzip_sync_cpy.stop();
@@ -7482,18 +7677,68 @@ namespace ot
                             mid_bit=m_uiMaxDepth - pNodes[lookUp].getLevel()-1;
                             cnum=( (((((pNodes[elem].getZ()-sz)) >> mid_bit) & 1u) << 2u) | ((((pNodes[elem].getY()) >> mid_bit) & 1u) << 1u) | (((pNodes[elem].getX()) >>mid_bit) & 1u));
                             //std::cout<<"elem: "<<elem<<" : "<<m_uiAllElements[elem]<<" lookup: "<<m_uiAllElements[lookUp]<<" child: "<<ot::TreeNode(pNodes[elem].getX()-sz,pNodes[elem].getY(),pNodes[elem].getZ(),pNodes[elem].getLevel(),m_uiDim,m_uiMaxDepth)<<" cnum: "<<cnum<<std::endl;
-                            this->getElementNodalValues(zippedVec,&(*(lookUpElementVec.begin())),lookUp);
-                            this->parent2ChildInterpolation(&(*(lookUpElementVec.begin())),&(*(interpOrInjectionOut.begin())),cnum);
-
+                            
                             //std::cout<<"m_uiActiveRank : "<<m_uiActiveRank<<"parent to child interpolation executed"<<std::endl;
                             assert(paddWidth<(m_uiElementOrder+1));
                             #ifdef ENABLE_DENDRO_PROFILE_COUNTERS
                                 dendro::timer::t_unzip_sync_cpy.start();
                             #endif
+
+                            
+
+                            #ifdef USE_FD_INTERP_FOR_UNZIP
+                            const int st = this->getBlkBdyParentCNums(blk,elem,OCT_DIR_BACK,child.data(),fid,cid);
+                            if(st > 0)
+                            {
+                                const unsigned int NUM_CHILDREN_BY2 = (NUM_CHILDREN>>1u);
+                                this->getBlkBoundaryParentNodes(zippedVec, lookUpElementVec.data(), interpolationInput.data(), interpOrInjectionOut.data(), lookUp, fid, cid,child.data());
+                                for(unsigned int w =0; w < NUM_CHILDREN_BY2 ; w++)
+                                {
+                                    assert(pNodes[lookUp] == pNodes[m_uiE2EMapping[child[fid[w]]*m_uiNumDirections + OCT_DIR_BACK]]);
+                                    assert(child[fid[w]] != LOOK_UP_TABLE_DEFAULT);
+
+                                    if(child[fid[w]]<m_uiElementLocalBegin || child[fid[w]]>=m_uiElementLocalEnd)
+                                        continue;
+                                    
+                                    this->parent2ChildInterpolation(lookUpElementVec.data(),interpOrInjectionOut.data(),cid[w],m_uiDim);
+                                    const ot::Block blk_fd = m_uiLocalBlockList[m_uiE2BlkMap[(child[fid[w]] - m_uiElementLocalBegin)]];
+                                    const ot::TreeNode blkNode_fd = blk_fd.getBlockNode();
+                                    const unsigned int regL_fd = blk_fd.getRegularGridLev();
+                                    
+                                    const unsigned int lx_fd = blk_fd.getAllocationSzX();
+                                    const unsigned int ly_fd = blk_fd.getAllocationSzY();
+                                    const unsigned int lz_fd = blk_fd.getAllocationSzZ();
+
+                                    const unsigned int offset_fd = blk_fd.getOffset();
+
+
+                                    
+                                    const unsigned int ei_fd = (pNodes[child[fid[w]]].getX()-blkNode_fd.getX())>>(m_uiMaxDepth-regL_fd);
+                                    const unsigned int ej_fd = (pNodes[child[fid[w]]].getY()-blkNode_fd.getY())>>(m_uiMaxDepth-regL_fd);
+                                    const unsigned int ek_fd = (pNodes[child[fid[w]]].getZ()-blkNode_fd.getZ())>>(m_uiMaxDepth-regL_fd);
+                                    
+
+                                    for(unsigned int j=0;j<(m_uiElementOrder+1);j++)
+                                    for(unsigned int i=0;i<(m_uiElementOrder+1);i++)
+                                    for(unsigned int k=(m_uiElementOrder-paddWidth);k<(m_uiElementOrder+1);k++)
+                                        unzippedVec[offset_fd+(ek_fd*m_uiElementOrder+k-(m_uiElementOrder-paddWidth))*(ly_fd*lx_fd)+(ej_fd*m_uiElementOrder+j+paddWidth)*(lx_fd)+(ei_fd*m_uiElementOrder+i+paddWidth)]=interpOrInjectionOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
+                                }
+
+                                
+
+
+                            }
+                            #else
+                            this->getElementNodalValues(zippedVec,&(*(lookUpElementVec.begin())),lookUp);
+                            this->parent2ChildInterpolation(&(*(lookUpElementVec.begin())),&(*(interpOrInjectionOut.begin())),cnum);
+
                             for(unsigned int j=0;j<(m_uiElementOrder+1);j++)
                                 for(unsigned int i=0;i<(m_uiElementOrder+1);i++)
                                     for(unsigned int k=(m_uiElementOrder-paddWidth);k<(m_uiElementOrder+1);k++)
                                         unzippedVec[offset+(ek*m_uiElementOrder+k-(m_uiElementOrder-paddWidth))*(ly*lx)+(ej*m_uiElementOrder+j+paddWidth)*(lx)+(ei*m_uiElementOrder+i+paddWidth)]=interpOrInjectionOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
+
+                            #endif
+                            
 
                             #ifdef ENABLE_DENDRO_PROFILE_COUNTERS
                                 dendro::timer::t_unzip_sync_cpy.stop();
@@ -7622,17 +7867,64 @@ namespace ot
                             cnum=( (((((pNodes[elem].getZ()+sz)) >> mid_bit) & 1u) << 2u) | ((((pNodes[elem].getY()) >> mid_bit) & 1u) << 1u) | (((pNodes[elem].getX()) >>mid_bit) & 1u));
                             //std::cout<<"elem: "<<elem<<" : "<<m_uiAllElements[elem]<<" lookup: "<<m_uiAllElements[lookUp]<<" child: "<<ot::TreeNode(pNodes[elem].getX()+sz,pNodes[elem].getY(),pNodes[elem].getZ(),pNodes[elem].getLevel(),m_uiDim,m_uiMaxDepth)<<" cnum: "<<cnum<<std::endl;
 
-                            this->getElementNodalValues(zippedVec,&(*(lookUpElementVec.begin())),lookUp);
-                            this->parent2ChildInterpolation(&(*(lookUpElementVec.begin())),&(*(interpOrInjectionOut.begin())),cnum);
-                            assert(paddWidth<(m_uiElementOrder+1));
+                            
 
                             #ifdef ENABLE_DENDRO_PROFILE_COUNTERS
                                 dendro::timer::t_unzip_sync_cpy.start();
                             #endif
+
+                            
+
+                            #ifdef USE_FD_INTERP_FOR_UNZIP
+                            const int st = this->getBlkBdyParentCNums(blk,elem,OCT_DIR_FRONT,child.data(),fid,cid);
+                            if(st > 0)
+                            {
+                                const unsigned int NUM_CHILDREN_BY2 = (NUM_CHILDREN>>1u);
+                                this->getBlkBoundaryParentNodes(zippedVec, lookUpElementVec.data(), interpolationInput.data(), interpOrInjectionOut.data(), lookUp, fid, cid,child.data());
+                                for(unsigned int w =0; w < NUM_CHILDREN_BY2 ; w++)
+                                {
+                                    assert(pNodes[lookUp] == pNodes[m_uiE2EMapping[child[fid[w]]*m_uiNumDirections + OCT_DIR_FRONT]]);
+                                    assert(child[fid[w]] != LOOK_UP_TABLE_DEFAULT);
+
+                                    if(child[fid[w]]<m_uiElementLocalBegin || child[fid[w]]>=m_uiElementLocalEnd)
+                                        continue;
+                                    
+                                    this->parent2ChildInterpolation(lookUpElementVec.data(),interpOrInjectionOut.data(),cid[w],m_uiDim);
+                                    
+                                    const ot::Block blk_fd = m_uiLocalBlockList[m_uiE2BlkMap[(child[fid[w]] - m_uiElementLocalBegin)]];
+                                    const ot::TreeNode blkNode_fd = blk_fd.getBlockNode();
+                                    const unsigned int regL_fd = blk_fd.getRegularGridLev();
+                                    
+                                    const unsigned int lx_fd = blk_fd.getAllocationSzX();
+                                    const unsigned int ly_fd = blk_fd.getAllocationSzY();
+                                    const unsigned int lz_fd = blk_fd.getAllocationSzZ();
+
+                                    const unsigned int offset_fd = blk_fd.getOffset();
+
+                                    const unsigned int ei_fd = (pNodes[child[fid[w]]].getX()-blkNode_fd.getX())>>(m_uiMaxDepth-regL_fd);
+                                    const unsigned int ej_fd = (pNodes[child[fid[w]]].getY()-blkNode_fd.getY())>>(m_uiMaxDepth-regL_fd);
+                                    const unsigned int ek_fd = (pNodes[child[fid[w]]].getZ()-blkNode_fd.getZ())>>(m_uiMaxDepth-regL_fd);
+
+                                    for(unsigned int j=0;j<(m_uiElementOrder+1);j++)
+                                    for(unsigned int i=0;i<(m_uiElementOrder+1);i++)
+                                    for(unsigned int k=0;k<(paddWidth+1);k++)
+                                        unzippedVec[offset_fd+((ek_fd+1)*m_uiElementOrder+paddWidth+k)*(ly_fd*lx_fd)+(ej_fd*m_uiElementOrder+j+paddWidth)*(lx_fd)+(ei_fd*m_uiElementOrder+i+paddWidth)]=interpOrInjectionOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
+
+                                }
+
+                                
+                            }
+                            #else
+                            this->getElementNodalValues(zippedVec,&(*(lookUpElementVec.begin())),lookUp);
+                            this->parent2ChildInterpolation(&(*(lookUpElementVec.begin())),&(*(interpOrInjectionOut.begin())),cnum);
+                            assert(paddWidth<(m_uiElementOrder+1));
+
                             for(unsigned int j=0;j<(m_uiElementOrder+1);j++)
                                 for(unsigned int i=0;i<(m_uiElementOrder+1);i++)
                                     for(unsigned int k=0;k<(paddWidth+1);k++)
                                         unzippedVec[offset+((ek+1)*m_uiElementOrder+paddWidth+k)*(ly*lx)+(ej*m_uiElementOrder+j+paddWidth)*(lx)+(ei*m_uiElementOrder+i+paddWidth)]=interpOrInjectionOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
+
+                            #endif
 
                             #ifdef ENABLE_DENDRO_PROFILE_COUNTERS
                                 dendro::timer::t_unzip_sync_cpy.stop();
@@ -9059,6 +9351,77 @@ namespace ot
         
     }
 
+
+    template<typename T>
+    void Mesh::getBlkBoundaryParentNodes(const T* zipVec, T* out, T*w1, T*w2, unsigned int lookUp, const unsigned int * fid, const unsigned int* cid,const unsigned int * child)
+    {
+
+        const unsigned int NUM_CHILDREN_BY2 = (NUM_CHILDREN>>1u);
+        const unsigned int eorder_by2 = (m_uiElementOrder+1)>>1u;
+        const unsigned int nx = m_uiElementOrder + 1;
+        const unsigned int ny = m_uiElementOrder + 1;
+        const unsigned int nz = m_uiElementOrder + 1;
+        
+        unsigned char bit[3];
+
+        // finner elements. 
+        for(unsigned int w =0; w < NUM_CHILDREN_BY2 ; w++)
+        {
+            this->getElementNodalValues(zipVec,w1,child[fid[w]]);
+            //std::cout<<" cnum : "<<fid[w]<<std::endl;
+            bit[0] = binOp::getBit(fid[w],0);
+            bit[1] = binOp::getBit(fid[w],1);
+            bit[2] = binOp::getBit(fid[w],2);
+
+            const unsigned int kb = bit[2] * eorder_by2 ;
+            unsigned int ke = kb + eorder_by2 +1;
+
+            const unsigned int jb = bit[1] * eorder_by2 ;
+            unsigned int je = jb + eorder_by2 +1;
+
+            const unsigned int ib = bit[0] * eorder_by2 ;
+            unsigned int ie = ib + eorder_by2 +1;
+
+            for(unsigned int k=0; k< nz; k+=2)
+                for(unsigned int j=0; j < ny; j+=2)
+                for(unsigned int i=0; i < nx; i+=2)
+                out[(kb + (k>>1u))*ny*nx + (jb + (j>>1u))*nx + (ib + (i>>1u))] = w1[k*ny*nx + j*nx + i];
+
+        }
+
+        this->getElementNodalValues(zipVec,w1,lookUp);
+        // coarser elements. 
+        for(unsigned int w =0; w < NUM_CHILDREN_BY2 ; w++)
+        {
+            this->parent2ChildInterpolation(w1,w2,fid[w],m_uiDim);
+
+            //std::cout<<" cnum : "<<fid[w]<<std::endl;
+            bit[0] = binOp::getBit(cid[w],0);
+            bit[1] = binOp::getBit(cid[w],1);
+            bit[2] = binOp::getBit(cid[w],2);
+
+            const unsigned int kb = bit[2] * eorder_by2 ;
+            unsigned int ke = kb + eorder_by2 +1;
+
+            const unsigned int jb = bit[1] * eorder_by2 ;
+            unsigned int je = jb + eorder_by2 +1;
+
+            const unsigned int ib = bit[0] * eorder_by2 ;
+            unsigned int ie = ib + eorder_by2 +1;
+
+            for(unsigned int k=0; k< nz; k+=2)
+                for(unsigned int j=0; j < ny; j+=2)
+                for(unsigned int i=0; i < nx; i+=2)
+                {
+                    // std::cout<< " cnum : "<<fid[w]<< " left lookup value: ijk: "<<i<<j<<k<<" "<<lookUpElementVec[(kb + (k>>1u))*ny*nx + (jb + (j>>1u))*nx + (ib + (i>>1u))]<< " inject value: "<<w2[k*ny*nx + j*nx + i]<<"";
+                    // printf("lookup idx (%d,%d,%d)\n",(ib + (i>>1u)),(jb + (j>>1u)), (kb + (k>>1u)));
+                    out[(kb + (k>>1u))*ny*nx + (jb + (j>>1u))*nx + (ib + (i>>1u))] = w2[k*ny*nx + j*nx + i];
+                }
+                
+
+        }
+
+    }
 
 }//end of namespase ot
 

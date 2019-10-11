@@ -86,7 +86,7 @@ namespace ts
         par::Mpi_Bcast(&m_uiDTMax,1,0,m_uiCommGlobal);
         par::Mpi_Bcast(&activeNpes,1,0,m_uiCommGlobal);
         
-        m_uiBlockGrid = new ot::Mesh(blkNode,1,1,m_uiCommGlobal,false,ot::FDM);
+        m_uiBlockGrid = new ot::Mesh(blkNode,1,1,m_uiCommGlobal,false,ot::SM_TYPE::E2E_ONLY);
 
         
     }

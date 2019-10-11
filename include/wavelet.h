@@ -21,6 +21,8 @@
 #define NUM_COARSE_WAVELET_COEF 27
 #define NUM_COARSE_INPUT_PTS 64
 
+const double BH_EH_THRESHOLD_REFINE = 0.3;
+const double BH_EH_THRESHOLD_COARSEN = 0.4;
 
 // Below matrices are generated from HOMG (for uniform points.) matlab code. Don't change those unless you know exactly what you are doing.
 
@@ -127,42 +129,6 @@ void computeRefineWavelets(const T* unzippedVec, const unsigned int offset,const
 
 
     unsigned int m=0;
-    
-#ifdef BSSN_REFINE_BASE_EH
-    const double BH_EH_THRESHOLD=0.7;
-    bool isEH=false;
-     for(unsigned int wIndex=0;wIndex<NUM_REFINE_WAVELET_COEF;wIndex++)
-        for(unsigned int k=kb;k<ke;k+=REFINE_INDEX_OFFSET)
-            for(unsigned int j=jb;j<je;j+=REFINE_INDEX_OFFSET)
-                for(unsigned int i=ib;i<ie;i+=REFINE_INDEX_OFFSET)
-                {
-                    if(unzippedVec[offset+k*sz[1]*sz[0]+j*sz[0]+i]<BH_EH_THRESHOLD)
-                    {
-                        isEH=true;
-                        break;
-                    }
-                        
-                }
-                
-    // enforce refinement triggers
-    if(isEH)
-    {
-        wavelets[0]=1.0;
-        wavelets[1]=1.0;
-
-        wavelets[2]=1.0;
-        wavelets[3]=1.0;
-
-        wavelets[4]=1.0;
-        wavelets[5]=1.0;
-
-        wavelets[6]=1.0;
-        wavelets[7]=1.0;
-        
-        return;
-    }
-    
-#endif
 
     for(unsigned int wIndex=0;wIndex<NUM_REFINE_WAVELET_COEF;wIndex++,m=0)
         for(unsigned int k=kb;k<ke;k+=REFINE_INDEX_OFFSET)
@@ -200,7 +166,6 @@ void computeCoarsenWavelets(const T* unzippedVec, const unsigned int offset,cons
     //pad---|element1---|--element2-|pad---|
     //*--*--*--*--*--*--*--*--*--*--*--*--*
     //1--2--3--4--5--6--7--8--9--10-11-12-13
-
 
     const unsigned int ib=(eI[0]*eleOrder+pWidth-REFINE_INDEX_OFFSET);
     const unsigned int ie=ib+COARSE_END_OFFSET;

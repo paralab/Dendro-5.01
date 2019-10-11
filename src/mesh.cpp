@@ -557,6 +557,7 @@ namespace ot {
 
         m_uiSendProcList.clear();
         m_uiRecvProcList.clear();
+        m_uiE2BlkMap.clear();
 
         MPI_Comm_free(&m_uiCommActive);
 
@@ -7739,6 +7740,9 @@ namespace ot {
         std::vector<DendroIntL> blkSz;
         std::vector<DendroIntL> blkSzOffset;
 
+        // construct element to block map. 
+        m_uiE2BlkMap.resize(m_uiNumLocalElements,LOOK_UP_TABLE_DEFAULT);
+
         blkSz.resize(m_uiLocalBlockList.size());
         blkSzOffset.resize(m_uiLocalBlockList.size());
 
@@ -7774,6 +7778,11 @@ namespace ot {
 
 
             blkNode=m_uiLocalBlockList[e].getBlockNode();
+
+            // update the element to block map. 
+            for(unsigned int m = m_uiLocalBlockList[e].getLocalElementBegin(); m < m_uiLocalBlockList[e].getLocalElementEnd(); m++)
+                m_uiE2BlkMap[(m - m_uiElementLocalBegin)] = e;
+            
 
             if(blkNode.minX()==dmin)
             {
@@ -7865,420 +7874,9 @@ namespace ot {
 
 
 
+        
 
-        // double * zippVec=createVector<double>(NAN);
-        // for(unsigned int node=m_uiNodeLocalBegin;node<m_uiNodeLocalEnd;node++)
-        //     zippVec[node]=0;
-
-        // double * unzipVec=createUnZippedVector<double>(NAN);
-
-        // // need to do this without performing the ghost exchange.
-        // unzip(zippVec,unzipVec);
-
-        // unsigned int offset;
-        // unsigned int lx,ly,lz;
-        // unsigned int pW;
-        // bool haveanyGhost=false;
-        // unsigned int ib,ie,jb,je,kb,ke;
-        // unsigned int bflag;
-
-        // for(unsigned int e=0;e<m_uiLocalBlockList.size();e++)
-        // {
-
-        //     haveanyGhost=false;
-
-        //     offset=m_uiLocalBlockList[e].getOffset();
-        //     lx=m_uiLocalBlockList[e].getAllocationSzX();
-        //     ly=m_uiLocalBlockList[e].getAllocationSzY();
-        //     lz=m_uiLocalBlockList[e].getAllocationSzZ();
-
-        //     pW=m_uiLocalBlockList[e].get1DPadWidth();
-        //     bflag=m_uiLocalBlockList[e].getBlkNodeFlag();
-
-        //     /*for(unsigned int k=3;k<(nz-3);k++)
-        //         for(unsigned int j=3;j<(ny-3);j++)
-        //             for(unsigned int i=3;i<(nx-3);i++)
-        //                 std::cout<<m_uiActiveRank<<": unzip value: "<<unzipVec[offset+k*(nz*ny)+j*(ny)+i]<<std::endl;*/
-
-        //     //internal
-        //     ib=pW;
-        //     ie=lx-pW;
-
-        //     jb=pW;
-        //     je=ly-pW;
-
-        //     kb=pW;
-        //     ke=lz-pW;
-
-        //     for(unsigned int k=kb; k < ke; k++)
-        //         for(unsigned int j=jb;j < je; j++)
-        //             for(unsigned int i=ib;i < ie; i++)
-        //                 if(std::isnan(unzipVec[offset+k*(ly*lx)+j*(lx)+i]))
-        //                     haveanyGhost=true;
-
-
-        //     if(!(bflag & (1u<<OCT_DIR_LEFT)))
-        //     {
-        //         ib=0;
-        //         ie=pW;
-        //         jb=pW;
-        //         je=ly-pW;
-        //         kb=pW;
-        //         ke=lz-pW;
-
-        //         for(unsigned int k=kb; k < ke; k++)
-        //             for(unsigned int j=jb;j < je; j++)
-        //                 for(unsigned int i=ib;i < ie; i++)
-        //                     if(std::isnan(unzipVec[offset+k*(ly*lx)+j*(lx)+i]))
-        //                         haveanyGhost=true;
-
-
-        //         if(!(bflag & (1u<<OCT_DIR_DOWN)))
-        //         {
-        //             ib=1;
-        //             ie=pW;
-        //             jb=1;
-        //             je=pW;
-        //             kb=pW;
-        //             ke=lz-pW;
-
-        //             for(unsigned int k=kb; k < ke; k++)
-        //                 for(unsigned int j=jb;j < je; j++)
-        //                     for(unsigned int i=ib;i < ie; i++)
-        //                         if(std::isnan(unzipVec[offset+k*(ly*lx)+j*(lx)+i]))
-        //                             haveanyGhost=true;
-
-        //         }
-
-        //         if(!(bflag & (1u<<OCT_DIR_UP)))
-        //         {
-        //             ib=1;
-        //             ie=pW;
-        //             jb=ly-pW;
-        //             je=ly-1;
-        //             kb=pW;
-        //             ke=lz-pW;
-
-        //             for(unsigned int k=kb; k < ke; k++)
-        //                 for(unsigned int j=jb;j < je; j++)
-        //                     for(unsigned int i=ib;i < ie; i++)
-        //                         if(std::isnan(unzipVec[offset+k*(ly*lx)+j*(lx)+i]))
-        //                             haveanyGhost=true;
-
-        //         }
-
-
-        //         if(!(bflag & (1u<<OCT_DIR_BACK)))
-        //         {
-        //             ib=1;
-        //             ie=pW;
-        //             jb=pW;
-        //             je=ly-pW;
-        //             kb=1;
-        //             ke=pW;
-
-        //             for(unsigned int k=kb; k < ke; k++)
-        //                 for(unsigned int j=jb;j < je; j++)
-        //                     for(unsigned int i=ib;i < ie; i++)
-        //                         if(std::isnan(unzipVec[offset+k*(ly*lx)+j*(lx)+i]))
-        //                             haveanyGhost=true;
-
-        //         }
-
-
-        //         if(!(bflag & (1u<<OCT_DIR_FRONT)))
-        //         {
-        //             ib=1;
-        //             ie=pW;
-        //             jb=pW;
-        //             je=ly-pW;
-
-        //             kb=lz-pW;
-        //             ke=lz-1;
-
-        //             for(unsigned int k=kb; k < ke; k++)
-        //                 for(unsigned int j=jb;j < je; j++)
-        //                     for(unsigned int i=ib;i < ie; i++)
-        //                         if(std::isnan(unzipVec[offset+k*(ly*lx)+j*(lx)+i]))
-        //                             haveanyGhost=true;
-
-        //         }
-
-
-
-
-        //     }
-
-
-        //     if(!(bflag & (1u<<OCT_DIR_RIGHT)))
-        //     {
-
-
-        //         ib=lx-pW;
-        //         ie=lx;
-        //         jb=pW;
-        //         je=ly-pW;
-        //         kb=pW;
-        //         ke=lz-pW;
-
-        //         for(unsigned int k=kb; k < ke; k++)
-        //             for(unsigned int j=jb;j < je; j++)
-        //                 for(unsigned int i=ib;i < ie; i++)
-        //                     if(std::isnan(unzipVec[offset+k*(ly*lx)+j*(lx)+i]))
-        //                         haveanyGhost=true;
-
-
-
-        //         if(!(bflag & (1u<<OCT_DIR_DOWN)))
-        //         {
-        //             ib=lx-pW;
-        //             ie=lx-1;
-        //             jb=1;
-        //             je=pW;
-        //             kb=pW;
-        //             ke=lz-pW;
-
-        //             for(unsigned int k=kb; k < ke; k++)
-        //                 for(unsigned int j=jb;j < je; j++)
-        //                     for(unsigned int i=ib;i < ie; i++)
-        //                         if(std::isnan(unzipVec[offset+k*(ly*lx)+j*(lx)+i]))
-        //                             haveanyGhost=true;
-
-        //         }
-
-        //         if(!(bflag & (1u<<OCT_DIR_UP)))
-        //         {
-        //             ib=lx-pW;
-        //             ie=lx-1;
-        //             jb=ly-pW;
-        //             je=ly-1;
-        //             kb=pW;
-        //             ke=lz-pW;
-
-        //             for(unsigned int k=kb; k < ke; k++)
-        //                 for(unsigned int j=jb;j < je; j++)
-        //                     for(unsigned int i=ib;i < ie; i++)
-        //                         if(std::isnan(unzipVec[offset+k*(ly*lx)+j*(lx)+i]))
-        //                             haveanyGhost=true;
-
-        //         }
-
-
-        //         if(!(bflag & (1u<<OCT_DIR_BACK)))
-        //         {
-        //             ib=lx-pW;
-        //             ie=lx-1;
-        //             jb=pW;
-        //             je=ly-pW;
-        //             kb=1;
-        //             ke=pW;
-
-        //             for(unsigned int k=kb; k < ke; k++)
-        //                 for(unsigned int j=jb;j < je; j++)
-        //                     for(unsigned int i=ib;i < ie; i++)
-        //                         if(std::isnan(unzipVec[offset+k*(ly*lx)+j*(lx)+i]))
-        //                             haveanyGhost=true;
-
-        //         }
-
-
-        //         if(!(bflag & (1u<<OCT_DIR_FRONT)))
-        //         {
-        //             ib=lx-pW;
-        //             ie=lx-1;
-        //             jb=pW;
-        //             je=ly-pW;
-
-        //             kb=lz-pW;
-        //             ke=lz-1;
-
-        //             for(unsigned int k=kb; k < ke; k++)
-        //                 for(unsigned int j=jb;j < je; j++)
-        //                     for(unsigned int i=ib;i < ie; i++)
-        //                         if(std::isnan(unzipVec[offset+k*(ly*lx)+j*(lx)+i]))
-        //                             haveanyGhost=true;
-
-        //         }
-
-
-        //     }
-
-
-
-        //     if(!(bflag & (1u<<OCT_DIR_DOWN)))
-        //     {
-
-
-        //         ib=pW;
-        //         ie=lx-pW;
-        //         jb=0;
-        //         je=pW;
-        //         kb=pW;
-        //         ke=lz-pW;
-
-        //         for(unsigned int k=kb; k < ke; k++)
-        //             for(unsigned int j=jb;j < je; j++)
-        //                 for(unsigned int i=ib;i < ie; i++)
-        //                     if(std::isnan(unzipVec[offset+k*(ly*lx)+j*(lx)+i]))
-        //                         haveanyGhost=true;
-
-
-
-        //         if(!(bflag & (1u<<OCT_DIR_BACK)))
-        //         {
-        //             ib=pW;
-        //             ie=lx-pW;
-        //             jb=1;
-        //             je=pW;
-        //             kb=1;
-        //             ke=pW;
-
-        //             for(unsigned int k=kb; k < ke; k++)
-        //                 for(unsigned int j=jb;j < je; j++)
-        //                     for(unsigned int i=ib;i < ie; i++)
-        //                         if(std::isnan(unzipVec[offset+k*(ly*lx)+j*(lx)+i]))
-        //                             haveanyGhost=true;
-
-        //         }
-
-
-        //         if(!(bflag & (1u<<OCT_DIR_FRONT)))
-        //         {
-        //             ib=pW;
-        //             ie=lx-pW;
-        //             jb=1;
-        //             je=pW;
-
-        //             kb=lz-pW;
-        //             ke=lz-1;
-
-        //             for(unsigned int k=kb; k < ke; k++)
-        //                 for(unsigned int j=jb;j < je; j++)
-        //                     for(unsigned int i=ib;i < ie; i++)
-        //                         if(std::isnan(unzipVec[offset+k*(ly*lx)+j*(lx)+i]))
-        //                             haveanyGhost=true;
-
-        //         }
-
-
-
-        //     }
-
-
-        //     if(!(bflag & (1u<<OCT_DIR_UP)))
-        //     {
-
-
-        //         ib=pW;
-        //         ie=lx-pW;
-        //         jb=ly-pW;
-        //         je=ly;
-        //         kb=pW;
-        //         ke=lz-pW;
-
-        //         for(unsigned int k=kb; k < ke; k++)
-        //             for(unsigned int j=jb;j < je; j++)
-        //                 for(unsigned int i=ib;i < ie; i++)
-        //                     if(std::isnan(unzipVec[offset+k*(ly*lx)+j*(lx)+i]))
-        //                         haveanyGhost=true;
-
-
-
-        //         if(!(bflag & (1u<<OCT_DIR_BACK)))
-        //         {
-        //             ib=pW;
-        //             ie=lx-pW;
-        //             jb=ly-pW;
-        //             je=ly-1;
-        //             kb=1;
-        //             ke=pW;
-
-        //             for(unsigned int k=kb; k < ke; k++)
-        //                 for(unsigned int j=jb;j < je; j++)
-        //                     for(unsigned int i=ib;i < ie; i++)
-        //                         if(std::isnan(unzipVec[offset+k*(ly*lx)+j*(lx)+i]))
-        //                             haveanyGhost=true;
-
-        //         }
-
-
-        //         if(!(bflag & (1u<<OCT_DIR_FRONT)))
-        //         {
-        //             ib=pW;
-        //             ie=lx-pW;
-        //             jb=ly-pW;
-        //             je=ly-1;
-
-        //             kb=lz-pW;
-        //             ke=lz-1;
-
-        //             for(unsigned int k=kb; k < ke; k++)
-        //                 for(unsigned int j=jb;j < je; j++)
-        //                     for(unsigned int i=ib;i < ie; i++)
-        //                         if(std::isnan(unzipVec[offset+k*(ly*lx)+j*(lx)+i]))
-        //                             haveanyGhost=true;
-
-        //         }
-
-
-
-        //     }
-
-
-        //     if(!(bflag & (1u<<OCT_DIR_BACK)))
-        //     {
-
-
-        //         ib=pW;
-        //         ie=lx-pW;
-        //         jb=pW;
-        //         je=ly-pW;
-        //         kb=0;
-        //         ke=pW;
-
-        //         for(unsigned int k=kb; k < ke; k++)
-        //             for(unsigned int j=jb;j < je; j++)
-        //                 for(unsigned int i=ib;i < ie; i++)
-        //                     if(std::isnan(unzipVec[offset+k*(ly*lx)+j*(lx)+i]))
-        //                         haveanyGhost=true;
-
-        //     }
-
-
-        //     if(!(bflag & (1u<<OCT_DIR_FRONT)))
-        //     {
-
-
-        //         ib=pW;
-        //         ie=lx-pW;
-        //         jb=pW;
-        //         je=ly-pW;
-        //         kb=lz-pW;
-        //         ke=lz;
-
-        //         for(unsigned int k=kb; k < ke; k++)
-        //             for(unsigned int j=jb;j < je; j++)
-        //                 for(unsigned int i=ib;i < ie; i++)
-        //                     if(std::isnan(unzipVec[offset+k*(ly*lx)+j*(lx)+i]))
-        //                         haveanyGhost=true;
-
-        //     }
-
-
-        //    // note: add the vertex corner paddings when you have done them.
-
-        //    m_uiLocalBlockList[e].setIsInternal(!haveanyGhost);
-
-        //    /*if(!haveanyGhost)
-        //       std::cout<<"rank: "<<m_uiActiveRank<<" internal block: "<<m_uiLocalBlockList[e].getBlockNode()<<std::endl;*/
-
-
-        // }
-
-
-
-        // delete [] zippVec;
-        // delete [] unzipVec;
+        
 
 
     }
@@ -11742,8 +11340,9 @@ namespace ot {
     } 
 
 
-    int Mesh::getBlkBdyParentNodeIndices(unsigned int blkId, unsigned int eleId, unsigned int dir, unsigned int* nid, unsigned int* child, unsigned int* fid, unsigned int* cid)
+    int Mesh::getBlkBdyParentCNums(unsigned int blkId, unsigned int eleId, unsigned int dir, unsigned int* child, unsigned int* fid, unsigned int* cid)
     {
+
         // return -1 if the invalid call for the function. 
         if((!m_uiIsBlockSetup) || (!m_uiIsActive))
             return -1;
@@ -11759,13 +11358,15 @@ namespace ot {
         unsigned int cnum;
         const bool isHanging = this -> isFaceHanging(eleId,dir,cnum);
         
-        // cnum !=0 denotes that the hanging face is not is not the first child. 
-        if( (!isHanging) || (cnum!=0) )
+        
+        if( (!isHanging))
             return -1;
 
         
         unsigned char bit[3];
         const unsigned int eorder_by2 = (m_uiElementOrder>>1u);
+
+        
         
         
         if( dir == OCT_DIR_LEFT )
@@ -11774,7 +11375,7 @@ namespace ot {
             cid[0] = 0; cid[1] = 2; cid[2] = 4; cid[3] = 6;
             
             
-            child[fid[0]] = eleId;
+            child[fid[0]] = m_uiE2EMapping[lookup * m_uiNumDirections + OCT_DIR_RIGHT];
             child[fid[1]] = m_uiE2EMapping[child[fid[0]] * m_uiNumDirections  + OCT_DIR_UP];
 
             child[fid[2]] = m_uiE2EMapping[child[fid[0]] * m_uiNumDirections  + OCT_DIR_FRONT];
@@ -11790,7 +11391,7 @@ namespace ot {
             fid[0] = 0; fid[1] = 2; fid[2] = 4; fid[3] = 6;
             cid[0] = 1; cid[1] = 3; cid[2] = 5; cid[3] = 7;
             
-            child[fid[0]] = eleId;
+            child[fid[0]] = m_uiE2EMapping[lookup * m_uiNumDirections + OCT_DIR_LEFT];
             child[fid[1]] = m_uiE2EMapping[child[fid[0]] * m_uiNumDirections  + OCT_DIR_UP];
 
             child[fid[2]] = m_uiE2EMapping[child[fid[0]] * m_uiNumDirections  + OCT_DIR_FRONT];
@@ -11804,7 +11405,7 @@ namespace ot {
             fid[0] = 2; fid[1] = 3; fid[2] = 6; fid[3] = 7;
             cid[0] = 0; cid[1] = 1; cid[2] = 4; cid[3] = 5;
 
-            child[fid[0]] = eleId;
+            child[fid[0]] = m_uiE2EMapping[lookup * m_uiNumDirections + OCT_DIR_UP];
             child[fid[1]] = m_uiE2EMapping[child[fid[0]] * m_uiNumDirections  + OCT_DIR_RIGHT];
 
             child[fid[2]] = m_uiE2EMapping[child[fid[0]] * m_uiNumDirections  + OCT_DIR_FRONT];
@@ -11818,7 +11419,7 @@ namespace ot {
             fid[0] = 0; fid[1] = 1; fid[2] = 4; fid[3] = 5;
             cid[0] = 2; cid[1] = 3; cid[2] = 6; cid[3] = 7;
 
-            child[fid[0]] = eleId;
+            child[fid[0]] = m_uiE2EMapping[lookup * m_uiNumDirections + OCT_DIR_DOWN];
             child[fid[1]] = m_uiE2EMapping[child[fid[0]] * m_uiNumDirections  + OCT_DIR_RIGHT];
 
             child[fid[2]] = m_uiE2EMapping[child[fid[0]] * m_uiNumDirections  + OCT_DIR_FRONT];
@@ -11832,7 +11433,7 @@ namespace ot {
             fid[0] = 4; fid[1] = 5; fid[2] = 6; fid[3] = 7;
             cid[0] = 0; cid[1] = 1; cid[2] = 2; cid[3] = 3;
 
-            child[fid[0]] = eleId;
+            child[fid[0]] = m_uiE2EMapping[lookup * m_uiNumDirections + OCT_DIR_FRONT];
             child[fid[1]] = m_uiE2EMapping[child[fid[0]] * m_uiNumDirections  + OCT_DIR_RIGHT];
 
             child[fid[2]] = m_uiE2EMapping[child[fid[0]] * m_uiNumDirections  + OCT_DIR_UP];
@@ -11845,7 +11446,7 @@ namespace ot {
             fid[0] = 0; fid[1] = 1; fid[2] = 2; fid[3] = 3;
             cid[0] = 4; cid[1] = 5; cid[2] = 6; cid[3] = 7;
 
-            child[fid[0]] = eleId;
+            child[fid[0]] = m_uiE2EMapping[lookup * m_uiNumDirections + OCT_DIR_BACK];
             child[fid[1]] = m_uiE2EMapping[child[fid[0]] * m_uiNumDirections  + OCT_DIR_RIGHT];
 
             child[fid[2]] = m_uiE2EMapping[child[fid[0]] * m_uiNumDirections  + OCT_DIR_UP];
@@ -11859,86 +11460,12 @@ namespace ot {
         }
 
 
-        const unsigned int nx = m_uiElementOrder+1;
-        const unsigned int ny = m_uiElementOrder+1;
-        const unsigned int nz = m_uiElementOrder+1;
-        
-        
-        for(unsigned int f=0; f< ((NUM_CHILDREN)>>1u); f++)
-        {
-            cnum = fid[f];
-            //std::cout<<" cnum : "<<cnum<<std::endl;
-            bit[0] = binOp::getBit(cnum,0);
-            bit[1] = binOp::getBit(cnum,1);
-            bit[2] = binOp::getBit(cnum,2);
-
-            const unsigned int kb = bit[2] * eorder_by2 ;
-            unsigned int ke = kb + eorder_by2 +1;
-
-            const unsigned int jb = bit[1] * eorder_by2 ;
-            unsigned int je = jb + eorder_by2 +1;
-
-            const unsigned int ib = bit[0] * eorder_by2 ;
-            unsigned int ie = ib + eorder_by2 +1;
-
-            unsigned int rkb=0, rjb=0, rib=0;
-
-            (kb==0) ? rkb = ke-1: rkb =0;
-            (jb==0) ? rjb = je-1: rjb =0;
-            (ib==0) ? rib = ie-1: rib =0;
-
-
-            /***
-             * 
-             *  - direction neighbours
-             *  coarser  finer
-             *  2       3 
-             *  0       1 
-             * 
-             * + direction neighbours
-             * 
-             *  finer   coarser
-             *  2       3
-             *  0       1
-             * 
-             * note that the coarser finer boundary will be always updated by the coarse elements. 
-             *   (kb==0) ? rkb = ke-1: rkb =0;  this is the reason for the -1 if kb ==0  case
-             *   (jb==0) ? rjb = je-1: rjb =0;
-             *   (ib==0) ? rib = ie-1: rib =0;
-             * 
-             **/
-
-            // printf("cnum: %d (kb,ke) : (%d,%d), (jb,je) : (%d,%d), (ib,ie): (%d,%d) , (rib,jb,kb) : (%d,%d,%d) \n",cnum,kb,ke,jb,je,ib,ie,rib,rjb,rkb);
-
-            // for(unsigned int k=0; k< nz; k+=2)
-            // for(unsigned int j=0; j < ny; j+=2)
-            // for(unsigned int i=0; i < nx; i+=2)
-            //  printf("finner cpy to %d,%d,%d \n",(ib + (i>>1u)),(jb + (j>>1u)),(kb + (k>>1u)));
-
-
-            // for(unsigned int k=kb; k< ke; k++)
-            //  for(unsigned int j=jb; j < je; j++)
-            //   for(unsigned int i=ib; i < ie; i++)
-            //     printf("coarser cpy to %d,%d,%d \n",rib + (i-ib), rjb + (j-jb), rkb + (k-kb));
-
-            // copy form the finer octant 
-            for(unsigned int k=0; k< nz; k+=2)
-             for(unsigned int j=0; j < ny; j+=2)
-              for(unsigned int i=0; i < nx; i+=2)
-                nid[ (kb + (k>>1u))*ny*nx + (jb + (j>>1u))*nx + (ib + (i>>1u)) ] = m_uiE2NMapping_CG[child[cnum]*m_uiNpE + k*ny*nx + j*nx + i];  
-
-
-            // copy from the coarser element.  with the correction of coarser finner boundary. 
-            for(unsigned int k=kb; k< ke; k++)
-             for(unsigned int j=jb; j < je; j++)
-              for(unsigned int i=ib; i < ie; i++)
-               nid[ (rkb + (k-kb))*ny*nx + (rjb + (j-jb))*nx + (rib+(i-ib)) ] = m_uiE2NMapping_CG[lookup*m_uiNpE + k*ny*nx + j*nx + i];
-
-           
-
-        }
-
-        return 1;
+        if(eleId == child[fid[0]])
+            return 1;
+        else if( child[fid[0]] < m_uiElementLocalBegin ||  child[fid[0]] >=m_uiElementLocalEnd ) 
+            return 1;
+        else
+            return -1; // child[fid[0]] is not eleID and it is local, hence we don't need to return 1 to overwirte the same data. 
         
         
 
