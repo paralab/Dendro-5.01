@@ -87,8 +87,10 @@ int main (int argc, char** argv)
         std::cout<<YLW<<"\tNLSM_ID_ZC2:"<<nlsm::NLSM_ID_ZC2<<NRM<<std::endl;
         std::cout<<YLW<<"\tNLSM_ID_EPSX1:"<<nlsm::NLSM_ID_EPSX1<<NRM<<std::endl;
         std::cout<<YLW<<"\tNLSM_ID_EPSY1:"<<nlsm::NLSM_ID_EPSY1<<NRM<<std::endl;
+        std::cout<<YLW<<"\tNLSM_ID_EPSZ1:"<<nlsm::NLSM_ID_EPSY1<<NRM<<std::endl;
         std::cout<<YLW<<"\tNLSM_ID_EPSX2:"<<nlsm::NLSM_ID_EPSX2<<NRM<<std::endl;
         std::cout<<YLW<<"\tNLSM_ID_EPSY2:"<<nlsm::NLSM_ID_EPSY2<<NRM<<std::endl;
+        std::cout<<YLW<<"\tNLSM_ID_EPSZ2:"<<nlsm::NLSM_ID_EPSY2<<NRM<<std::endl;
         std::cout<<YLW<<"\tNLSM_ID_R1:"<<nlsm::NLSM_ID_R1<<NRM<<std::endl;
         std::cout<<YLW<<"\tNLSM_ID_R2:"<<nlsm::NLSM_ID_R2<<NRM<<std::endl;
         std::cout<<YLW<<"\tNLSM_ID_NU1:"<<nlsm::NLSM_ID_NU1<<NRM<<std::endl;
@@ -157,7 +159,7 @@ int main (int argc, char** argv)
 
         if(!rank) std::cout<<YLW<<"Using function2Octree. AMR enabled "<<NRM<<std::endl;
         function2Octree(f_init,nlsm::NLSM_NUM_VARS,nlsm::NLSM_REFINE_VARIABLE_INDICES,nlsm::NLSM_NUM_REFINE_VARS,tmpNodes,m_uiMaxDepth,nlsm::NLSM_WAVELET_TOL,nlsm::NLSM_ELE_ORDER,comm);
-        std::cout<<"f2o else end"<<std::endl;
+        //std::cout<<"f2o else end"<<std::endl;
 
     }
 

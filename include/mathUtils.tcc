@@ -87,12 +87,12 @@ template <typename T>
 T vecMin(T * vec,unsigned int n)
 {
     if((std::isnan(vec[0]))) return NAN;
-    T min=fabs(vec[0]);
+    T min=(vec[0]);
     for(unsigned int i=1;i<n;i++)
     {
         if((std::isnan(vec[i]))) return NAN;
 
-        if(min>fabs(vec[i]))min=fabs(vec[i]);
+        if(min>(vec[i]))min=(vec[i]);
     }
 
 
@@ -104,12 +104,12 @@ template <typename T>
 T vecMax(T * vec,unsigned int n)
 {
     if((std::isnan(vec[0]))) return NAN;
-    T max=fabs(vec[0]);
+    T max=(vec[0]);
     for(unsigned int i=1;i<n;i++)
     {
         if((std::isnan(vec[i]))) return NAN;
 
-        if(max<fabs(vec[i]))max=fabs(vec[i]);
+        if(max<(vec[i]))max=(vec[i]);
     }
 
 

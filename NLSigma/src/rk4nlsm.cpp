@@ -229,12 +229,12 @@ namespace ode
             do
             {
 
-#ifdef RK_SOLVER_OVERLAP_COMM_AND_COMP
-                unzipVars_async(m_uiPrevVar,m_uiUnzipVar);
-#else
-                performGhostExchangeVars(m_uiPrevVar);
-                unzipVars(m_uiPrevVar,m_uiUnzipVar);
-#endif
+                #ifdef RK_SOLVER_OVERLAP_COMM_AND_COMP
+                                unzipVars_async(m_uiPrevVar,m_uiUnzipVar);
+                #else
+                                performGhostExchangeVars(m_uiPrevVar);
+                                unzipVars(m_uiPrevVar,m_uiUnzipVar);
+                #endif
 
 
                 if(nlsm::NLSM_ENABLE_BLOCK_ADAPTIVITY)
@@ -290,10 +290,10 @@ namespace ode
                     std::swap(newMesh,m_uiMesh);
                     delete newMesh;
 
-#ifdef RK_SOLVER_OVERLAP_COMM_AND_COMP
-                    // reallocates mpi resources for the the new mesh. (this will deallocate the old resources)
-                    reallocateMPIResources();
-#endif
+                    #ifdef RK_SOLVER_OVERLAP_COMM_AND_COMP
+                                        // reallocates mpi resources for the the new mesh. (this will deallocate the old resources)
+                                        reallocateMPIResources();
+                    #endif
 
                     if(m_uiMesh->isActive())
                     {
@@ -377,79 +377,92 @@ namespace ode
             std::vector<std::string> pDataNames;
             double *pData[(numConstVars+numEvolVars+2)];
 
-#ifdef NLSM_COMPARE_WITH_ANALYTICAL_SOL
-            double * chiAnalytical=m_uiMesh->createVector<double>();
-            double * diffVec=m_uiMesh->createVector<double>();
+                #ifdef NLSM_COMPARE_WITH_ANALYTICAL_SOL
+                            double * chiAnalytical=m_uiMesh->createVector<double>();
+                            double * diffVec=m_uiMesh->createVector<double>();
 
-            std::function<void(double,double,double,double,double*)> u_x_t=[](double x,double y,double z,double t,double*var){nlsm::analyticalSol(x,y,z,t,var);};
+                            std::function<void(double,double,double,double,double*)> u_x_t=[](double x,double y,double z,double t,double*var){nlsm::analyticalSol(x,y,z,t,var);};
 
-            // initialize diff begin.
-            unsigned int nodeLookUp_CG;
-            unsigned int nodeLookUp_DG;
-            unsigned int x,y,z,len;
-            const ot::TreeNode * pNodes=&(*(m_uiMesh->getAllElements().begin()));
-            unsigned int ownerID,ii_x,jj_y,kk_z;
-            unsigned int eleOrder=m_uiMesh->getElementOrder();
-            const unsigned int * e2n_cg=&(*(m_uiMesh->getE2NMapping().begin()));
-            const unsigned int * e2n_dg=&(*(m_uiMesh->getE2NMapping_DG().begin()));
-            const unsigned int nPe=m_uiMesh->getNumNodesPerElement();
-            const unsigned int nodeLocalBegin=m_uiMesh->getNodeLocalBegin();
-            const unsigned int nodeLocalEnd=m_uiMesh->getNodeLocalEnd();
-
-
-            double var[2];
-
-            double mp, mm, mp_adm, mm_adm, E, J1, J2, J3;
-
-            for(unsigned int elem=m_uiMesh->getElementLocalBegin();elem<m_uiMesh->getElementLocalEnd();elem++)
-            {
+                            // initialize diff begin.
+                            unsigned int nodeLookUp_CG;
+                            unsigned int nodeLookUp_DG;
+                            unsigned int x,y,z,len;
+                            const ot::TreeNode * pNodes=&(*(m_uiMesh->getAllElements().begin()));
+                            unsigned int ownerID,ii_x,jj_y,kk_z;
+                            unsigned int eleOrder=m_uiMesh->getElementOrder();
+                            const unsigned int * e2n_cg=&(*(m_uiMesh->getE2NMapping().begin()));
+                            const unsigned int * e2n_dg=&(*(m_uiMesh->getE2NMapping_DG().begin()));
+                            const unsigned int nPe=m_uiMesh->getNumNodesPerElement();
+                            const unsigned int nodeLocalBegin=m_uiMesh->getNodeLocalBegin();
+                            const unsigned int nodeLocalEnd=m_uiMesh->getNodeLocalEnd();
 
 
-                for(unsigned int k=0;k<(eleOrder+1);k++)
-                    for(unsigned int j=0;j<(eleOrder+1);j++ )
-                        for(unsigned int i=0;i<(eleOrder+1);i++)
-                        {
-                            nodeLookUp_CG=e2n_cg[elem*nPe+k*(eleOrder+1)*(eleOrder+1)+j*(eleOrder+1)+i];
-                            if(nodeLookUp_CG>=nodeLocalBegin && nodeLookUp_CG<nodeLocalEnd)
+                            double var[2];
+
+                            double mp, mm, mp_adm, mm_adm, E, J1, J2, J3;
+
+                            for(unsigned int elem=m_uiMesh->getElementLocalBegin();elem<m_uiMesh->getElementLocalEnd();elem++)
                             {
-                                nodeLookUp_DG=e2n_dg[elem*nPe+k*(eleOrder+1)*(eleOrder+1)+j*(eleOrder+1)+i];
-                                m_uiMesh->dg2eijk(nodeLookUp_DG,ownerID,ii_x,jj_y,kk_z);
-                                len=1u<<(m_uiMaxDepth-pNodes[ownerID].getLevel());
-                                x=pNodes[ownerID].getX()+ ii_x*(len/(eleOrder));
-                                y=pNodes[ownerID].getY()+ jj_y*(len/(eleOrder));
-                                z=pNodes[ownerID].getZ()+ kk_z*(len/(eleOrder));
-                                assert(len%eleOrder==0);
-                                
-                                u_x_t((double)x,(double)y,(double)z,m_uiCurrentTime,var);
-                                diffVec[nodeLookUp_CG]=var[nlsm::VAR::U_CHI]-evolZipVarIn[nlsm::VAR::U_CHI][nodeLookUp_CG];
-                                chiAnalytical[nodeLookUp_CG]=var[nlsm::VAR::U_CHI];
+
+
+                                for(unsigned int k=0;k<(eleOrder+1);k++)
+                                    for(unsigned int j=0;j<(eleOrder+1);j++ )
+                                        for(unsigned int i=0;i<(eleOrder+1);i++)
+                                        {
+                                            nodeLookUp_CG=e2n_cg[elem*nPe+k*(eleOrder+1)*(eleOrder+1)+j*(eleOrder+1)+i];
+                                            if(nodeLookUp_CG>=nodeLocalBegin && nodeLookUp_CG<nodeLocalEnd)
+                                            {
+                                                nodeLookUp_DG=e2n_dg[elem*nPe+k*(eleOrder+1)*(eleOrder+1)+j*(eleOrder+1)+i];
+                                                m_uiMesh->dg2eijk(nodeLookUp_DG,ownerID,ii_x,jj_y,kk_z);
+                                                len=1u<<(m_uiMaxDepth-pNodes[ownerID].getLevel());
+                                                x=pNodes[ownerID].getX()+ ii_x*(len/(eleOrder));
+                                                y=pNodes[ownerID].getY()+ jj_y*(len/(eleOrder));
+                                                z=pNodes[ownerID].getZ()+ kk_z*(len/(eleOrder));
+                                                assert(len%eleOrder==0);
+                                                
+                                                u_x_t((double)x,(double)y,(double)z,m_uiCurrentTime,var);
+                                                diffVec[nodeLookUp_CG]=var[nlsm::VAR::U_CHI]-evolZipVarIn[nlsm::VAR::U_CHI][nodeLookUp_CG];
+                                                chiAnalytical[nodeLookUp_CG]=var[nlsm::VAR::U_CHI];
+
+
+                                            }
+
+                                        }
+
+                            }
+
+                            m_uiMesh->performGhostExchange(diffVec);
+                            m_uiMesh->performGhostExchange(chiAnalytical);
+
+                            double l_min=vecMin(diffVec+m_uiMesh->getNodeLocalBegin(),(m_uiMesh->getNumLocalMeshNodes()),m_uiMesh->getMPICommunicator());
+                            double l_max=vecMax(diffVec+m_uiMesh->getNodeLocalBegin(),(m_uiMesh->getNumLocalMeshNodes()),m_uiMesh->getMPICommunicator());
+                            double l2_norm=normL2(diffVec+m_uiMesh->getNodeLocalBegin(),(m_uiMesh->getNumLocalMeshNodes()),m_uiMesh->getMPICommunicator());
+                            DendroIntL local_dof=m_uiMesh->getNumLocalMeshNodes();
+                            DendroIntL total_dof=0;
+                            par::Mpi_Reduce(&local_dof,&total_dof,1,MPI_SUM,0,m_uiMesh->getMPICommunicator());
+
+
+                            if(!m_uiMesh->getMPIRank()) {
+                                //std::cout << "executing step: " << m_uiCurrentStep << " dt: " << m_uiT_h << " rk_time : "<< m_uiCurrentTime << std::endl;
+                                l2_norm=sqrt((l2_norm*l2_norm)/(double)(total_dof*total_dof));
+                                std::cout <<YLW<< "\t ||VAR::DIFF|| (min, max,l2) : ("<<l_min<<", "<<l_max<<", "<<l2_norm<<" ) "<<NRM<<std::endl;
+
+                                std::ofstream fileGW;
+                                char fName[256];
+                                sprintf(fName,"%s_error.dat",nlsm::NLSM_PROFILE_FILE_PREFIX.c_str());
+                                fileGW.open (fName,std::ofstream::app);
+                                // writes the header
+                                if(m_uiCurrentStep==0)
+                                    fileGW<<"TimeStep\t"<<" time\t"<<" min\t"<<" max\t"<<" l2\t"<<std::endl;
+
+                                fileGW<<m_uiCurrentStep<<"\t"<<m_uiCurrentTime<<"\t"<<l_min<<"\t"<<l_max<<"\t"<<l2_norm<<std::endl;
+                                fileGW.close();
 
 
                             }
 
-                        }
-
-            }
-
-            m_uiMesh->performGhostExchange(diffVec);
-            m_uiMesh->performGhostExchange(chiAnalytical);
-
-            double l_min=vecMin(diffVec+m_uiMesh->getNodeLocalBegin(),(m_uiMesh->getNumLocalMeshNodes()),m_uiMesh->getMPICommunicator());
-            double l_max=vecMax(diffVec+m_uiMesh->getNodeLocalBegin(),(m_uiMesh->getNumLocalMeshNodes()),m_uiMesh->getMPICommunicator());
-            double l2_norm=normL2(diffVec+m_uiMesh->getNodeLocalBegin(),(m_uiMesh->getNumLocalMeshNodes()),m_uiMesh->getMPICommunicator());
-            DendroIntL local_dof=m_uiMesh->getNumLocalMeshNodes();
-            DendroIntL total_dof=0;
-            par::Mpi_Reduce(&local_dof,&total_dof,1,MPI_SUM,0,m_uiMesh->getMPICommunicator());
-
-
-            if(!m_uiMesh->getMPIRank()) {
-                //std::cout << "executing step: " << m_uiCurrentStep << " dt: " << m_uiT_h << " rk_time : "<< m_uiCurrentTime << std::endl;
-                l2_norm=sqrt((l2_norm*l2_norm)/(double)total_dof);
-                std::cout <<YLW<< "\t ||VAR::DIFF|| (min, max,l2) : ("<<l_min<<", "<<l_max<<", "<<l2_norm<<" ) "<<NRM<<std::endl;
-            }
-
-            // initialize diff end
-#endif
+                            // initialize diff end
+                #endif
 
 
             for(unsigned int i=0;i<numEvolVars;i++)
@@ -458,12 +471,12 @@ namespace ode
                 pData[i]=evolZipVarIn[evolVarIndices[i]];
             }
 
-#ifdef NLSM_COMPARE_WITH_ANALYTICAL_SOL
-            pDataNames.push_back("diff");
-            pDataNames.push_back("chi_analytical");
-            pData[numConstVars+numEvolVars]=diffVec;
-            pData[numConstVars+numEvolVars+1]=chiAnalytical;
-#endif
+            #ifdef NLSM_COMPARE_WITH_ANALYTICAL_SOL
+                        pDataNames.push_back("diff");
+                        pDataNames.push_back("chi_analytical");
+                        pData[numConstVars+numEvolVars]=diffVec;
+                        pData[numConstVars+numEvolVars+1]=chiAnalytical;
+            #endif
             std::vector<char*> pDataNames_char;
             pDataNames_char.reserve(pDataNames.size());
 
@@ -476,16 +489,16 @@ namespace ode
             char fPrefix[256];
             sprintf(fPrefix,"%s_%d",nlsm::NLSM_VTU_FILE_PREFIX.c_str(),m_uiCurrentStep);
 
-#ifdef NLSM_COMPARE_WITH_ANALYTICAL_SOL
-            io::vtk::mesh2vtuFine(m_uiMesh,fPrefix,2,fDataNames,fData,(numEvolVars+numConstVars+2),(const char **)&pDataNames_char[0],(const double **)pData);
-#else
-            io::vtk::mesh2vtuFine(m_uiMesh,fPrefix,2,fDataNames,fData,(numEvolVars+numConstVars),(const char **)&pDataNames_char[0],(const double **)pData);
-#endif
+            #ifdef NLSM_COMPARE_WITH_ANALYTICAL_SOL
+                        io::vtk::mesh2vtuFine(m_uiMesh,fPrefix,2,fDataNames,fData,(numEvolVars+numConstVars+2),(const char **)&pDataNames_char[0],(const double **)pData);
+            #else
+                        io::vtk::mesh2vtuFine(m_uiMesh,fPrefix,2,fDataNames,fData,(numEvolVars+numConstVars),(const char **)&pDataNames_char[0],(const double **)pData);
+            #endif
 
-#ifdef NLSM_COMPARE_WITH_ANALYTICAL_SOL
-            delete[] diffVec;
-            delete[] chiAnalytical;
-#endif
+            #ifdef NLSM_COMPARE_WITH_ANALYTICAL_SOL
+                        delete[] diffVec;
+                        delete[] chiAnalytical;
+            #endif
 
             nlsm::timer::t_ioVtu.stop();
 
@@ -592,14 +605,14 @@ namespace ode
                     double current_t=m_uiCurrentTime;
                     double current_t_adv=current_t;
 
-#ifdef RK_SOLVER_OVERLAP_COMM_AND_COMP
-                    unzipVars_async(m_uiPrevVar,m_uiUnzipVar);
-#else
-                    //1. perform ghost exchange.
-                    performGhostExchangeVars(m_uiPrevVar);
-                    //2. unzip all the variables.
-                    unzipVars(m_uiPrevVar,m_uiUnzipVar);
-#endif
+                    #ifdef RK_SOLVER_OVERLAP_COMM_AND_COMP
+                                        unzipVars_async(m_uiPrevVar,m_uiUnzipVar);
+                    #else
+                                        //1. perform ghost exchange.
+                                        performGhostExchangeVars(m_uiPrevVar);
+                                        //2. unzip all the variables.
+                                        unzipVars(m_uiPrevVar,m_uiUnzipVar);
+                    #endif
 
 
 
@@ -625,11 +638,11 @@ namespace ode
                     {
 
 
-#ifdef DEBUG_RK_SOLVER
-                        if(!rank)std::cout<<" stage: "<<stage<<" begin: "<<std::endl;
-                    for(unsigned int index=0;index<nlsm::NLSM_NUM_VARS;index++)
-                        ot::test::isUnzipNaN(m_uiMesh,m_uiUnzipVar[index]);
-#endif
+                    #ifdef DEBUG_RK_SOLVER
+                                            if(!rank)std::cout<<" stage: "<<stage<<" begin: "<<std::endl;
+                                        for(unsigned int index=0;index<nlsm::NLSM_NUM_VARS;index++)
+                                            ot::test::isUnzipNaN(m_uiMesh,m_uiUnzipVar[index]);
+                    #endif
 
                         for(unsigned int blk=0;blk<blkList.size();blk++)
                         {
@@ -658,22 +671,22 @@ namespace ode
 
                         }
 
-#ifdef DEBUG_RK_SOLVER
-                        if(!rank)std::cout<<" stage: "<<stage<<" af rhs UNZIP RHS TEST:"<<std::endl;
-                    for(unsigned int index=0;index<nlsm::NLSM_NUM_VARS;index++)
-                        ot::test::isUnzipInternalNaN(m_uiMesh,m_uiUnzipVarRHS[index]);
-#endif
+                        #ifdef DEBUG_RK_SOLVER
+                                                if(!rank)std::cout<<" stage: "<<stage<<" af rhs UNZIP RHS TEST:"<<std::endl;
+                                            for(unsigned int index=0;index<nlsm::NLSM_NUM_VARS;index++)
+                                                ot::test::isUnzipInternalNaN(m_uiMesh,m_uiUnzipVarRHS[index]);
+                        #endif
 
 
 
                         zipVars(m_uiUnzipVarRHS,m_uiStage[stage]);
 
 
-#ifdef DEBUG_RK_SOLVER
-                        for(unsigned int index=0;index<nlsm::NLSM_NUM_VARS;index++)
-                        if(seq::test::isNAN(m_uiStage[stage][index]+m_uiMesh->getNodeLocalBegin(),m_uiMesh->getNumLocalMeshNodes()))
-                            std::cout<<" var: "<<index<<" contains nan af zip  stage: "<<stage<<std::endl;
-#endif
+                        #ifdef DEBUG_RK_SOLVER
+                                                for(unsigned int index=0;index<nlsm::NLSM_NUM_VARS;index++)
+                                                if(seq::test::isNAN(m_uiStage[stage][index]+m_uiMesh->getNodeLocalBegin(),m_uiMesh->getNumLocalMeshNodes()))
+                                                    std::cout<<" var: "<<index<<" contains nan af zip  stage: "<<stage<<std::endl;
+                        #endif
 
                         /*for(unsigned int index=0;index<nlsm::NLSM_NUM_VARS;index++)
                              for(unsigned int node=nodeLocalBegin;node<nodeLocalEnd;node++)
@@ -694,12 +707,12 @@ namespace ode
 
 
                         current_t_adv=current_t+RK4_T[stage+1]*m_uiT_h;
-#ifdef RK_SOLVER_OVERLAP_COMM_AND_COMP
-                        unzipVars_async(m_uiVarIm,m_uiUnzipVar);
-#else
-                        performGhostExchangeVars(m_uiVarIm);
-                        unzipVars(m_uiVarIm,m_uiUnzipVar);
-#endif
+                        #ifdef RK_SOLVER_OVERLAP_COMM_AND_COMP
+                                                unzipVars_async(m_uiVarIm,m_uiUnzipVar);
+                        #else
+                                                performGhostExchangeVars(m_uiVarIm);
+                                                unzipVars(m_uiVarIm,m_uiUnzipVar);
+                        #endif
 
 
                     }
@@ -707,12 +720,12 @@ namespace ode
                     current_t_adv=current_t+RK4_T[(nlsm::NLSM_RK4_STAGES-1)]*m_uiT_h;
 
 
-#ifdef DEBUG_RK_SOLVER
-                    if(!rank)std::cout<<" stage: "<<(nlsm::NLSM_RK4_STAGES-1)<<" begin: "<<std::endl;
+                    #ifdef DEBUG_RK_SOLVER
+                                        if(!rank)std::cout<<" stage: "<<(nlsm::NLSM_RK4_STAGES-1)<<" begin: "<<std::endl;
 
-                for(unsigned int index=0;index<nlsm::NLSM_NUM_VARS;index++)
-                    ot::test::isUnzipNaN(m_uiMesh,m_uiUnzipVar[index]);
-#endif
+                                    for(unsigned int index=0;index<nlsm::NLSM_NUM_VARS;index++)
+                                        ot::test::isUnzipNaN(m_uiMesh,m_uiUnzipVar[index]);
+                    #endif
 
 
                     for(unsigned int blk=0;blk<blkList.size();blk++)
@@ -743,11 +756,11 @@ namespace ode
 
                     }
 
-#ifdef DEBUG_RK_SOLVER
-                    if(!rank)std::cout<<" stage: "<<(nlsm::NLSM_RK4_STAGES-1)<<" af rhs UNZIP RHS TEST:"<<std::endl;
-                    for(unsigned int index=0;index<nlsm::NLSM_NUM_VARS;index++)
-                        ot::test::isUnzipInternalNaN(m_uiMesh,m_uiUnzipVarRHS[index]);
-#endif
+                    #ifdef DEBUG_RK_SOLVER
+                                        if(!rank)std::cout<<" stage: "<<(nlsm::NLSM_RK4_STAGES-1)<<" af rhs UNZIP RHS TEST:"<<std::endl;
+                                        for(unsigned int index=0;index<nlsm::NLSM_NUM_VARS;index++)
+                                            ot::test::isUnzipInternalNaN(m_uiMesh,m_uiUnzipVarRHS[index]);
+                    #endif
 
                     zipVars(m_uiUnzipVarRHS,m_uiStage[(nlsm::NLSM_RK4_STAGES-1)]);
 
@@ -843,27 +856,27 @@ namespace ode
                 if((m_uiCurrentStep%nlsm::NLSM_REMESH_TEST_FREQ)==0)
                 {
 
-#ifdef RK_SOLVER_OVERLAP_COMM_AND_COMP
-                    unzipVars_async(m_uiPrevVar,m_uiUnzipVar);
-#else
-                    performGhostExchangeVars(m_uiPrevVar);
-                    //isRefine=m_uiMesh->isReMesh((const double **)m_uiPrevVar,refineVarIds,refineNumVars,nlsm::NLSM_WAVELET_TOL);
-                    unzipVars(m_uiPrevVar,m_uiUnzipVar);
-#endif
+                    #ifdef RK_SOLVER_OVERLAP_COMM_AND_COMP
+                                        unzipVars_async(m_uiPrevVar,m_uiUnzipVar);
+                    #else
+                                        performGhostExchangeVars(m_uiPrevVar);
+                                        //isRefine=m_uiMesh->isReMesh((const double **)m_uiPrevVar,refineVarIds,refineNumVars,nlsm::NLSM_WAVELET_TOL);
+                                        unzipVars(m_uiPrevVar,m_uiUnzipVar);
+                    #endif
                     
-//                     char fPrefix[256];
-//                     sprintf(fPrefix,"%s_wavelets_%d",nlsm::NLSM_VTU_FILE_PREFIX.c_str(),m_uiCurrentStep);
-//                     io::vtk::waveletsToVTU(m_uiMesh,(const double **)m_uiPrevVar,(const double**)m_uiUnzipVar,refineVarIds,refineNumVars,(const char*)fPrefix);
+                    //                     char fPrefix[256];
+                    //                     sprintf(fPrefix,"%s_wavelets_%d",nlsm::NLSM_VTU_FILE_PREFIX.c_str(),m_uiCurrentStep);
+                    //                     io::vtk::waveletsToVTU(m_uiMesh,(const double **)m_uiPrevVar,(const double**)m_uiUnzipVar,refineVarIds,refineNumVars,(const char*)fPrefix);
 
-#ifdef DEBUG_RK_SOLVER
-                    if(m_uiMesh->isActive())
-                    {
-                        if(!m_uiMesh->getMPIRank())std::cout<<" isRemesh Unzip : "<<std::endl;
-                        for(unsigned int index=0;index<nlsm::NLSM_NUM_VARS;index++)
-                            ot::test::isUnzipNaN(m_uiMesh,m_uiUnzipVar[index]);
+                    #ifdef DEBUG_RK_SOLVER
+                                        if(m_uiMesh->isActive())
+                                        {
+                                            if(!m_uiMesh->getMPIRank())std::cout<<" isRemesh Unzip : "<<std::endl;
+                                            for(unsigned int index=0;index<nlsm::NLSM_NUM_VARS;index++)
+                                                ot::test::isUnzipNaN(m_uiMesh,m_uiUnzipVar[index]);
 
-                    }
-#endif
+                                        }
+                    #endif
                     nlsm::timer::t_isReMesh.start();
                     if(nlsm::NLSM_ENABLE_BLOCK_ADAPTIVITY)
                         isRefine=false;
@@ -875,68 +888,68 @@ namespace ode
                     {
 
 
-#ifdef DEBUG_IS_REMESH
-			unsigned int rank=m_uiMesh->getMPIRankGlobal();
-			MPI_Comm globalComm=m_uiMesh->getMPIGlobalCommunicator();
-                        std::vector<ot::TreeNode> unChanged;
-                        std::vector<ot::TreeNode> refined;
-                        std::vector<ot::TreeNode> coarsened;
-                        std::vector<ot::TreeNode> localBlocks;
+                        #ifdef DEBUG_IS_REMESH
+                            unsigned int rank=m_uiMesh->getMPIRankGlobal();
+                            MPI_Comm globalComm=m_uiMesh->getMPIGlobalCommunicator();
+                            std::vector<ot::TreeNode> unChanged;
+                            std::vector<ot::TreeNode> refined;
+                            std::vector<ot::TreeNode> coarsened;
+                            std::vector<ot::TreeNode> localBlocks;
 
-                        const ot::Block* blkList=&(*(m_uiMesh->getLocalBlockList().begin()));
-                        for(unsigned int ele=0;ele<m_uiMesh->getLocalBlockList().size();ele++)
-                        {
-                            localBlocks.push_back(blkList[ele].getBlockNode());
-                        }
-
-
-                        const ot::TreeNode * pNodes=&(*(m_uiMesh->getAllElements().begin()));
-                        for(unsigned int ele=m_uiMesh->getElementLocalBegin();ele<m_uiMesh->getElementLocalEnd();ele++)
-                        {
-                            if((pNodes[ele].getFlag()>>NUM_LEVEL_BITS)==OCT_NO_CHANGE)
+                            const ot::Block* blkList=&(*(m_uiMesh->getLocalBlockList().begin()));
+                            for(unsigned int ele=0;ele<m_uiMesh->getLocalBlockList().size();ele++)
                             {
-                                unChanged.push_back(pNodes[ele]);
-                            }else if((pNodes[ele].getFlag()>>NUM_LEVEL_BITS)==OCT_SPLIT)
-                            {
-                                refined.push_back(pNodes[ele]);
-                            }else
-                            {
-                                assert((pNodes[ele].getFlag()>>NUM_LEVEL_BITS)==OCT_COARSE);
-                                coarsened.push_back(pNodes[ele]);
+                                localBlocks.push_back(blkList[ele].getBlockNode());
                             }
-                        }
-
-                        char fN1[256];
-                        char fN2[256];
-                        char fN3[256];
-                        char fN4[256];
-
-                        sprintf(fN1,"unchanged_%d",m_uiCurrentStep);
-                        sprintf(fN2,"refined_%d",m_uiCurrentStep);
-                        sprintf(fN3,"coarsend_%d",m_uiCurrentStep);
-                        sprintf(fN4,"blocks_%d",m_uiCurrentStep);
-
-                        DendroIntL localSz=unChanged.size();
-                        DendroIntL globalSz;
-                        par::Mpi_Reduce(&localSz,&globalSz,1,MPI_SUM,0,globalComm);
-                        if(!rank) std::cout<<" total unchanged: "<<globalSz<<std::endl;
-
-                        localSz=refined.size();
-                        par::Mpi_Reduce(&localSz,&globalSz,1,MPI_SUM,0,globalComm);
-                        if(!rank) std::cout<<" total refined: "<<globalSz<<std::endl;
 
 
-                        localSz=coarsened.size();
-                        par::Mpi_Reduce(&localSz,&globalSz,1,MPI_SUM,0,globalComm);
-                        if(!rank) std::cout<<" total coarsend: "<<globalSz<<std::endl;
+                            const ot::TreeNode * pNodes=&(*(m_uiMesh->getAllElements().begin()));
+                            for(unsigned int ele=m_uiMesh->getElementLocalBegin();ele<m_uiMesh->getElementLocalEnd();ele++)
+                            {
+                                if((pNodes[ele].getFlag()>>NUM_LEVEL_BITS)==OCT_NO_CHANGE)
+                                {
+                                    unChanged.push_back(pNodes[ele]);
+                                }else if((pNodes[ele].getFlag()>>NUM_LEVEL_BITS)==OCT_SPLIT)
+                                {
+                                    refined.push_back(pNodes[ele]);
+                                }else
+                                {
+                                    assert((pNodes[ele].getFlag()>>NUM_LEVEL_BITS)==OCT_COARSE);
+                                    coarsened.push_back(pNodes[ele]);
+                                }
+                            }
+
+                            char fN1[256];
+                            char fN2[256];
+                            char fN3[256];
+                            char fN4[256];
+
+                            sprintf(fN1,"unchanged_%d",m_uiCurrentStep);
+                            sprintf(fN2,"refined_%d",m_uiCurrentStep);
+                            sprintf(fN3,"coarsend_%d",m_uiCurrentStep);
+                            sprintf(fN4,"blocks_%d",m_uiCurrentStep);
+
+                            DendroIntL localSz=unChanged.size();
+                            DendroIntL globalSz;
+                            par::Mpi_Reduce(&localSz,&globalSz,1,MPI_SUM,0,globalComm);
+                            if(!rank) std::cout<<" total unchanged: "<<globalSz<<std::endl;
+
+                            localSz=refined.size();
+                            par::Mpi_Reduce(&localSz,&globalSz,1,MPI_SUM,0,globalComm);
+                            if(!rank) std::cout<<" total refined: "<<globalSz<<std::endl;
 
 
-                        io::vtk::oct2vtu(&(*(unChanged.begin())),unChanged.size(),fN1,globalComm);
-                        io::vtk::oct2vtu(&(*(refined.begin())),refined.size(),fN2,globalComm);
-                        io::vtk::oct2vtu(&(*(coarsened.begin())),coarsened.size(),fN3,globalComm);
-                        io::vtk::oct2vtu(&(*(localBlocks.begin())),localBlocks.size(),fN4,globalComm);
+                            localSz=coarsened.size();
+                            par::Mpi_Reduce(&localSz,&globalSz,1,MPI_SUM,0,globalComm);
+                            if(!rank) std::cout<<" total coarsend: "<<globalSz<<std::endl;
 
-#endif
+
+                            io::vtk::oct2vtu(&(*(unChanged.begin())),unChanged.size(),fN1,globalComm);
+                            io::vtk::oct2vtu(&(*(refined.begin())),refined.size(),fN2,globalComm);
+                            io::vtk::oct2vtu(&(*(coarsened.begin())),coarsened.size(),fN3,globalComm);
+                            io::vtk::oct2vtu(&(*(localBlocks.begin())),localBlocks.size(),fN4,globalComm);
+
+                        #endif
                         nlsm::timer::t_mesh.start();
                         ot::Mesh* newMesh=m_uiMesh->ReMesh(nlsm::NLSM_DENDRO_GRAIN_SZ,nlsm::NLSM_LOAD_IMB_TOL,nlsm::NLSM_SPLIT_FIX);
                         nlsm::timer::t_mesh.stop();
@@ -986,10 +999,10 @@ namespace ode
                         std::swap(newMesh,m_uiMesh);
                         delete newMesh;
 
-#ifdef RK_SOLVER_OVERLAP_COMM_AND_COMP
-                        // reallocates mpi resources for the the new mesh. (this will deallocate the old resources)
-                        reallocateMPIResources();
-#endif
+                        #ifdef RK_SOLVER_OVERLAP_COMM_AND_COMP
+                            // reallocates mpi resources for the the new mesh. (this will deallocate the old resources)
+                            reallocateMPIResources();
+                        #endif
 
                         if(m_uiMesh->isActive())
                         {
@@ -1011,18 +1024,18 @@ namespace ode
                 if((m_uiCurrentStep%nlsm::NLSM_IO_OUTPUT_FREQ)==0)
                 {
 
-#ifdef RK_SOLVER_OVERLAP_COMM_AND_COMP
+                    #ifdef RK_SOLVER_OVERLAP_COMM_AND_COMP
                     unzipVars_async(m_uiPrevVar,m_uiUnzipVar);
-#else
+                    #else
                     performGhostExchangeVars(m_uiPrevVar);
                     unzipVars(m_uiPrevVar,m_uiUnzipVar);
-#endif
+                    #endif
 
 
 
-//#ifdef NLSM_ENABLE_VTU_OUTPUT
+                    //#ifdef NLSM_ENABLE_VTU_OUTPUT
                     writeToVTU(m_uiPrevVar,m_uiConstraintVars,nlsm::NLSM_NUM_EVOL_VARS_VTU_OUTPUT,0,nlsm::NLSM_VTU_OUTPUT_EVOL_INDICES,NULL);
-//#endif
+                    //#endif
 
                 }
 

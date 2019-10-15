@@ -470,12 +470,28 @@ namespace ot
 
                 }else if(flags[i]==DA_FLAGS::Refine::DA_COARSEN) {
 
+                    bool isNoChange=false;
+                    bool isRefine=false;
+
                     if(((i+NUM_CHILDREN-1)<sz)  && (allElements[ele].getParent() == allElements[ele+NUM_CHILDREN-1].getParent()) && (allElements[ele].getLevel()>0))
                     {
                         for(unsigned int child=0;child<NUM_CHILDREN;child++)
-                            octflags[i+child]=OCT_COARSE;
+                        {
+                            if((octflags[i+child] == OCT_NO_CHANGE))
+                                isNoChange =true;
+                            
+                            if((octflags[i+child] == OCT_SPLIT))
+                            {
+                                isRefine =true;
+                                isRemesh= true;
+                            }
+                        }
 
-                        isRemesh= true;
+                        if(isRefine || isNoChange)
+                           octflags[i] = OCT_NO_CHANGE;
+                        else
+                           octflags[i] = OCT_COARSE;
+                        
                         i+=(NUM_CHILDREN-1);
                     }
                 }else{

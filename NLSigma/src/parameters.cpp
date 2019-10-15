@@ -89,14 +89,20 @@ namespace nlsm
     double NLSM_ID_XC2 = 0.0;
     double NLSM_ID_YC2 = 0.0;
     double NLSM_ID_ZC2 = 0.0;
-    double NLSM_ID_EPSX1 = 0.0;
-    double NLSM_ID_EPSY1 = 0.0;
-    double NLSM_ID_EPSX2 = 0.0;
-    double NLSM_ID_EPSY2 = 0.0;
+    double NLSM_ID_EPSX1 = 1.0;
+    double NLSM_ID_EPSY1 = 1.0;
+    double NLSM_ID_EPSZ1 = 1.0;
+    double NLSM_ID_EPSX2 = 1.0;
+    double NLSM_ID_EPSY2 = 1.0;
+    double NLSM_ID_EPSZ2 = 1.0;
     double NLSM_ID_R1 = 0.0;
     double NLSM_ID_R2 = 0.0;
     double NLSM_ID_NU1 = 0.0;
     double NLSM_ID_NU2 = 0.0;
     double NLSM_ID_OMEGA = 0.0;
 
+    double NLSM_WAVE_SPEED_X = 1.0;
+    double NLSM_WAVE_SPEED_Y = 0.0;
+    double NLSM_WAVE_SPEED_Z = 0.0;
+    
 }

@@ -204,11 +204,17 @@ namespace nlsm
     /**@brief: Initial data Gaussian elliptic y factor */
     extern double NLSM_ID_EPSY1;
 
+    /**@brief: Initial data Gaussian elliptic z factor */
+    extern double NLSM_ID_EPSZ1;
+
     /**@brief: Initial data Gaussian elliptic x factor */
     extern double NLSM_ID_EPSX2;
 
     /**@brief: Initial data Gaussian elliptic y factor */
     extern double NLSM_ID_EPSY2;
+
+    /**@brief: Initial data Gaussian elliptic z factor */
+    extern double NLSM_ID_EPSZ2;
 
     /**@brief: Initial data Gaussian R */
     extern double NLSM_ID_R1;
@@ -225,6 +231,14 @@ namespace nlsm
     /**@brief: Initial data Gaussian Omega */
     extern double NLSM_ID_OMEGA;
 
+    /**@brief: wave speed direction x*/
+    extern double NLSM_WAVE_SPEED_X;
+
+    /**@brief: wave speed direction y*/
+    extern double NLSM_WAVE_SPEED_Y;
+    
+    /**@brief: wave speed direction z*/
+    extern double NLSM_WAVE_SPEED_Z;
 }
 
 #endif //SFCSORTBENCH_PARAMETERS_H

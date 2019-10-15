@@ -75,10 +75,15 @@ namespace nlsm
             nlsm::NLSM_ID_XC2=parFile["NLSM_ID_XC2"];
             nlsm::NLSM_ID_YC2=parFile["NLSM_ID_YC2"];
             nlsm::NLSM_ID_ZC2=parFile["NLSM_ID_ZC2"];
+            
             nlsm::NLSM_ID_EPSX1=parFile["NLSM_ID_EPSX1"];
             nlsm::NLSM_ID_EPSY1=parFile["NLSM_ID_EPSY1"];
+            nlsm::NLSM_ID_EPSZ1=parFile["NLSM_ID_EPSZ1"];
+            
             nlsm::NLSM_ID_EPSX2=parFile["NLSM_ID_EPSX2"];
             nlsm::NLSM_ID_EPSY2=parFile["NLSM_ID_EPSY2"];
+            nlsm::NLSM_ID_EPSZ2=parFile["NLSM_ID_EPSZ2"];
+
             nlsm::NLSM_ID_R1=parFile["NLSM_ID_R1"];
             nlsm::NLSM_ID_R2=parFile["NLSM_ID_R2"];
             nlsm::NLSM_ID_NU1=parFile["NLSM_ID_NU1"];
@@ -87,6 +92,15 @@ namespace nlsm
 
             nlsm::NLSM_WAVELET_TOL=parFile["NLSM_WAVELET_TOL"];
             nlsm::NLSM_CFL_FACTOR=parFile["NLSM_CFL_FACTOR"];
+
+            if(parFile.find("NLSM_WAVE_SPEED_X")!=parFile.end())
+                nlsm::NLSM_WAVE_SPEED_X = parFile["NLSM_WAVE_SPEED_X"];
+            
+            if(parFile.find("NLSM_WAVE_SPEED_Y")!=parFile.end())
+                nlsm::NLSM_WAVE_SPEED_Y = parFile["NLSM_WAVE_SPEED_Y"];
+
+            if(parFile.find("NLSM_WAVE_SPEED_Z")!=parFile.end())
+                nlsm::NLSM_WAVE_SPEED_Z = parFile["NLSM_WAVE_SPEED_Z"];
 
             nlsm::NLSM_NUM_REFINE_VARS=parFile["NLSM_NUM_REFINE_VARS"];
             for(unsigned int i=0;i<nlsm::NLSM_NUM_REFINE_VARS;i++)
@@ -119,6 +133,10 @@ namespace nlsm
         par::Mpi_Bcast(&NLSM_ASYNC_COMM_K,1,0,comm);
 
         par::Mpi_Bcast(&NLSM_CFL_FACTOR,1,0,comm);
+
+        par::Mpi_Bcast(&NLSM_WAVE_SPEED_X,1,0,comm);
+        par::Mpi_Bcast(&NLSM_WAVE_SPEED_Y,1,0,comm);
+        par::Mpi_Bcast(&NLSM_WAVE_SPEED_Z,1,0,comm);
 
         char vtu_name[vtu_len+1];
         char chp_name[chp_len+1];
@@ -176,10 +194,15 @@ namespace nlsm
         par::Mpi_Bcast(&NLSM_ID_XC2,1,0,comm);
         par::Mpi_Bcast(&NLSM_ID_YC2,1,0,comm);
         par::Mpi_Bcast(&NLSM_ID_ZC2,1,0,comm);
+        
         par::Mpi_Bcast(&NLSM_ID_EPSX1,1,0,comm);
         par::Mpi_Bcast(&NLSM_ID_EPSY1,1,0,comm);
+        par::Mpi_Bcast(&NLSM_ID_EPSZ1,1,0,comm);
+
         par::Mpi_Bcast(&NLSM_ID_EPSX2,1,0,comm);
         par::Mpi_Bcast(&NLSM_ID_EPSY2,1,0,comm);
+        par::Mpi_Bcast(&NLSM_ID_EPSZ2,1,0,comm);
+
         par::Mpi_Bcast(&NLSM_ID_R1,1,0,comm);
         par::Mpi_Bcast(&NLSM_ID_R2,1,0,comm);
         par::Mpi_Bcast(&NLSM_ID_NU1,1,0,comm);
@@ -249,8 +272,10 @@ namespace nlsm
         const double zc2 = nlsm::NLSM_ID_ZC2;
         const double epsx1 = nlsm::NLSM_ID_EPSX1;
         const double epsy1 = nlsm::NLSM_ID_EPSY1;
+        const double epsz1 = nlsm::NLSM_ID_EPSZ1;
         const double epsx2 = nlsm::NLSM_ID_EPSX2;
         const double epsy2 = nlsm::NLSM_ID_EPSY2;
+        const double epsz2 = nlsm::NLSM_ID_EPSZ2;
         const double R1 = nlsm::NLSM_ID_R1;
         const double R2 = nlsm::NLSM_ID_R2;
         const double nu1 = nlsm::NLSM_ID_NU1;
@@ -261,32 +286,31 @@ namespace nlsm
 
         //std::cout<<"initData: "<<x<<", "<<y<<", "<<z<<std::endl;
 
-#ifdef NLSM_NONLINEAR
-       /* regularity requires that chi=0 at the origin for all times. */
-        double rsq =  x*x + y*y + z*z;
-        if (rsq < 1.0e-13) {
-          chi = 0.0;
-          phi = 0.0;
-          return;
-        }
-#endif
+        #ifdef NLSM_NONLINEAR
+            /* regularity requires that chi=0 at the origin for all times. */
+                double rsq =  x*x + y*y + z*z;
+                if (rsq < 1.0e-13) {
+                chi = 0.0;
+                phi = 0.0;
+                return;
+                }
+        #endif
 
-       /* if we are not at the origin, then specify a particular ID family */
-        
+        /* if we are not at the origin, then specify a particular ID family */
         if (nlsm::NLSM_ID_TYPE == 0) {
          /* this is the original test data */
-          const double amp = 1.0;
-          const double delta = 3.0;
-          const double xc = 0.0;
-          const double yc = 0.0;
-          const double zc = 0.0;
-          const double epsx = 1.0;
-          const double epsy = 1.0;
-          const double epsz = 1.0;
-          const double R = 0.0;
+          const double amp = amp1;
+          const double delta = delta1;
+          const double xc = xc1;
+          const double yc = yc1;
+          const double zc = zc1;
+          const double epsx = epsx1;
+          const double epsy = epsy1;
+          const double epsz = epsz1;
+          const double R = R1;
 	      double rt = sqrt( epsx*(x-xc)*(x-xc) + epsy*(y-yc)*(y-yc) + epsz*(z-zc)*(z-zc) );
           chi = amp * exp(-(rt-R)*(rt-R)/(delta*delta));
-          //chi = amp * exp(-(x-R)*(x-R)/(delta*delta));
+          //chi = amp * exp(-( (x-R)*(x-R) + (y-R)*(y-R) + (z-R)*(z-R) )/(delta*delta));
           phi = 0.0; 
 
         } else if (nlsm::NLSM_ID_TYPE == 1) {
@@ -322,18 +346,18 @@ namespace nlsm
 
         // simplistic initial data to make the comparison with analytical solution easier
 
-          const double amp = 1.0e-2;
-          const double delta = 1.0;
-          const double xc = 0.0;
-          const double yc = 0.0;
-          const double zc = 0.0;
-          const double epsx = 1.0;
-          const double epsy = 1.0;
-          const double epsz = 1.0;
-          const double R = 0.0;
-	      double rt = epsx*(x-xc)+epsy*(y-yc)+epsz*(z-zc);//sqrt( epsx*(x-xc)*(x-xc) + epsy*(y-yc)*(y-yc) + epsz*(z-zc)*(z-zc) );
+          const double amp = amp1;
+          const double delta = delta1;
+          const double xc = xc1;
+          const double yc = yc1;
+          const double zc = zc1;
+          const double epsx = epsx1;
+          const double epsy = epsy1;
+          const double epsz = epsz1;
+          const double R = R1;
+	      double rt = epsx*(x-xc)+epsy*(y-yc)+epsz*(z-zc);
           chi = amp * exp(-(rt-R)/(delta*delta));
-          phi =-sqrt(3)*amp * exp(-(rt-R)/(delta*delta));//0.0; 
+          phi =0;//-sqrt(3)*amp * exp(-(rt-R)/(delta*delta)); 
 
         } else if (nlsm::NLSM_ID_TYPE == 4) {
 
@@ -378,8 +402,10 @@ namespace nlsm
         const double zc2 = nlsm::NLSM_ID_ZC2;
         const double epsx1 = nlsm::NLSM_ID_EPSX1;
         const double epsy1 = nlsm::NLSM_ID_EPSY1;
+        const double epsz1 = nlsm::NLSM_ID_EPSZ1;
         const double epsx2 = nlsm::NLSM_ID_EPSX2;
         const double epsy2 = nlsm::NLSM_ID_EPSY2;
+        const double epsz2 = nlsm::NLSM_ID_EPSZ2;
         const double R1 = nlsm::NLSM_ID_R1;
         const double R2 = nlsm::NLSM_ID_R2;
         const double nu1 = nlsm::NLSM_ID_NU1;
@@ -390,18 +416,18 @@ namespace nlsm
 
         if (nlsm::NLSM_ID_TYPE == 0) {
          /* this is the original test data */
-          const double amp = 1.0;
-          const double delta = 3.0;
-          const double xc = 0.0;
-          const double yc = 0.0;
-          const double zc = 0.0;
-          const double epsx = 1.0;
-          const double epsy = 1.0;
-          const double epsz = 1.0;
-          const double R = 0.0;
+          const double amp = amp1;
+          const double delta = delta1;
+          const double xc = xc1;
+          const double yc = yc1;
+          const double zc = zc1;
+          const double epsx = epsx1;
+          const double epsy = epsy1;
+          const double epsz = epsz1;
+          const double R = R1;
 	      double rt = sqrt( epsx*(x-xc)*(x-xc) + epsy*(y-yc)*(y-yc) + epsz*(z-zc)*(z-zc) );
-          double rt_pt = rt + t;
-          double rt_mt = rt - t;
+          double rt_pt = sqrt( epsx*(x + nlsm::NLSM_WAVE_SPEED_X*t -xc)*(x + nlsm::NLSM_WAVE_SPEED_X*t -xc) + epsy*(y + nlsm::NLSM_WAVE_SPEED_Y*t -yc)*(y + nlsm::NLSM_WAVE_SPEED_Y*t -yc) + epsz*(z + nlsm::NLSM_WAVE_SPEED_Z*t -zc)*(z + nlsm::NLSM_WAVE_SPEED_Z*t -zc) ); 
+          double rt_mt = sqrt( epsx*(x - nlsm::NLSM_WAVE_SPEED_X*t -xc)*(x - nlsm::NLSM_WAVE_SPEED_X*t -xc) + epsy*(y - nlsm::NLSM_WAVE_SPEED_Y*t -yc)*(y - nlsm::NLSM_WAVE_SPEED_Y*t -yc) + epsz*(z - nlsm::NLSM_WAVE_SPEED_Z*t -zc)*(z - nlsm::NLSM_WAVE_SPEED_Z*t -zc) );
           chi = 0.5*amp *(exp(-(rt_pt-R)*(rt_pt-R)/(delta*delta)) + exp(-(rt_mt-R)*(rt_mt-R)/(delta*delta))); 
           phi = 0.0; 
 
@@ -416,11 +442,10 @@ namespace nlsm
             const double epsy = 1.0;
             const double epsz = 1.0;
             const double R = 0.0;
-            double rt = sqrt( epsx*(x-xc)*(x-xc) + epsy*(y-yc)*(y-yc) + epsz*(z-zc)*(z-zc) );
-            double rt_plus_t  = ( epsx*(x-xc) + epsy*(y-yc) + epsz*(z-zc) +sqrt(3)*t );
-            double rt_minus_t = ( epsx*(x-xc) + epsy*(y-yc) + epsz*(z-zc) -sqrt(3)*t );
+            double rt = ( epsx*(x-xc)*(x-xc) + epsy*(y-yc)*(y-yc) + epsz*(z-zc)*(z-zc) );
+            double rt_plus_t  = (epsx*(x + t - xc)*(x + t - xc) + epsy*(y + t - yc)*(y + t - yc) + epsz*(z + t - zc)*(z + t - zc) );
+            double rt_minus_t = (epsx*(x - t - xc)*(x - t - xc) + epsy*(y - t - yc)*(y - t - yc) + epsz*(z - t - zc)*(z - t - zc) );
             chi = amp *exp(-(rt_plus_t-R)/(delta*delta));
-            //chi = 0.5*amp *(exp(-(rt_plus_t-R)/(delta*delta))+ exp(-(rt_minus_t-R)/(delta*delta)));
             phi = 0.0;
             
         } else if (nlsm::NLSM_ID_TYPE == 4) {
@@ -473,7 +498,7 @@ namespace nlsm
         unsigned int zRange_b=pt_g_min[2],zRange_e=pt_g_max[2];
 
         xRange_b=pt_g_min[0];//(rank*(pt_g_max[0]-pt_g_min[0]))/npes + pt_g_min[0];
-        xRange_e=pt_g_max[1];//((rank+1)*(pt_g_max[0]-pt_g_min[0]))/npes + pt_g_min[0];
+        xRange_e=pt_g_max[0];//((rank+1)*(pt_g_max[0]-pt_g_min[0]))/npes + pt_g_min[0];
 
         unsigned int stepSz=1u<<(maxDepth-regLev);
 

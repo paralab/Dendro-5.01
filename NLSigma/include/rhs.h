@@ -9,7 +9,7 @@
 #include "nlsmUtils.h"
 #include "mathUtils.h"
 
-#define IDX(i,j,k) ( (i) + nx * ( (j) + ny * (k) ) )
+//#define IDX(i,j,k) ( (i) + nx * ( (j) + ny * (k) ) )
 
 #define deriv_x deriv42_x
 #define deriv_y deriv42_y
@@ -18,6 +18,10 @@
 #define deriv_xx deriv42_xx
 #define deriv_yy deriv42_yy
 #define deriv_zz deriv42_zz
+
+/*#define deriv_xx deriv22_xx
+#define deriv_yy deriv22_yy
+#define deriv_zz deriv22_zz*/
 
 #define adv_deriv_x deriv42adv_x
 #define adv_deriv_y deriv42adv_y

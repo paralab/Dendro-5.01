@@ -88,7 +88,7 @@ nlsm::timer::t_rhs.stop();
            phi_rhs[pp] = 0.0;
          }
 #else
-         phi_rhs[pp] = grad2_0_0_chi[pp]+grad2_1_1_chi[pp]+grad2_2_2_chi[pp];
+         phi_rhs[pp] =  NLSM_WAVE_SPEED_X*grad2_0_0_chi[pp] + NLSM_WAVE_SPEED_Y*grad2_1_1_chi[pp] + NLSM_WAVE_SPEED_Z*grad2_2_2_chi[pp];
 //--
          chi_rhs[pp] = phi[pp];
 #endif
@@ -108,25 +108,26 @@ nlsm::timer::t_rhs.stop();
     }
   }
 
+  #ifdef NLSM_NONLINEAR
+    if (bflag != 0) {
 
-  if (bflag != 0) {
+      nlsm::timer::t_bdyc.start();
 
-    nlsm::timer::t_bdyc.start();
+      deriv_x(grad_0_chi, chi, hx, sz, bflag);
+      deriv_y(grad_1_chi, chi, hy, sz, bflag);
+      deriv_z(grad_2_chi, chi, hz, sz, bflag);
 
-    deriv_x(grad_0_chi, chi, hx, sz, bflag);
-    deriv_y(grad_1_chi, chi, hy, sz, bflag);
-    deriv_z(grad_2_chi, chi, hz, sz, bflag);
+      deriv_x(grad_0_phi, phi, hx, sz, bflag);
+      deriv_y(grad_1_phi, phi, hy, sz, bflag);
+      deriv_z(grad_2_phi, phi, hz, sz, bflag);
 
-    deriv_x(grad_0_phi, phi, hx, sz, bflag);
-    deriv_y(grad_1_phi, phi, hy, sz, bflag);
-    deriv_z(grad_2_phi, phi, hz, sz, bflag);
-
-    nlsm_bcs(chi_rhs, chi, grad_0_chi, grad_1_chi, grad_2_chi, pmin, pmax,
-             1.0, 0.0, sz, bflag);
-    nlsm_bcs(phi_rhs, phi, grad_0_phi, grad_1_phi, grad_2_phi, pmin, pmax,
-             1.0, 0.0, sz, bflag);
-    nlsm::timer::t_bdyc.stop();
-  }
+      nlsm_bcs(chi_rhs, chi, grad_0_chi, grad_1_chi, grad_2_chi, pmin, pmax,
+              1.0, 0.0, sz, bflag);
+      nlsm_bcs(phi_rhs, phi, grad_0_phi, grad_1_phi, grad_2_phi, pmin, pmax,
+              1.0, 0.0, sz, bflag);
+      nlsm::timer::t_bdyc.stop();
+    }
+  #endif
 
 
 nlsm::timer::t_deriv.start();
