@@ -33,6 +33,7 @@ set(NLSM_SRC src/rk4nlsm.cpp
 
 set(SOURCE_FILES src/nlsm.cpp  include/nlsm.h ${NLSM_INC} ${NLSM_SRC})
 add_executable(nlsmSolver ${SOURCE_FILES})
+install(TARGETS nlsmSolver RUNTIME DESTINATION bin)
 target_include_directories(nlsmSolver PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_include_directories(nlsmSolver PRIVATE ${CMAKE_SOURCE_DIR}/include)
 target_include_directories(nlsmSolver PRIVATE ${CMAKE_SOURCE_DIR}/include/test)
