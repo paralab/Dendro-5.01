@@ -83,9 +83,8 @@ Once you successfully building the Dendro, you will have `quadgravSolver`
 in your `build` directory and/or `${HOME}/DENDRO/local/bin`.
 
 You can run `quadgravSolver` as follow
-```
-{english=sh}
-mpirun -np <number of mpi tasks> ./quadgravSolver <parameter file name>.par
+```{english=sh}
+  mpirun -np <number of mpi tasks> ./quadgravSolver <parameter file name>.par
 ```
 An example parameter file can be found in `QuadGrav/par`. You can 
 create your own parameter file based on this
