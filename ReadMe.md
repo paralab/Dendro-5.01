@@ -28,7 +28,7 @@ You need CMake to build dendro. Create a build directory using 'mkdir build'. Th
 ## Detailed Instruction to build Dendro 
 
 If you would like to know about detailed instruction to build Dendro,
-please check [here](https://github.com/hlim88/Dendro-5.01/edit/master/ReadMe.md). 
+please check [here](https://github.com/hlim88/Dendro-5.01/blob/master/INSTALL_QG.md). 
 This instruction would be suitable who is interested in
 beyond general relativity project (Currently, testing quadratic gravity).
 
