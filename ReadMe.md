@@ -25,6 +25,13 @@ You need CMake to build dendro. Create a build directory using 'mkdir build'. Th
 * `NUM_NPES_THRESHOLD`: square root of P (number of processors) 
 * `SPLITTER_SELECTION_FIX`: ON. This will perform the data exchange in the octree partitioning in stages. This is mandatory when you run dendro in very large scale. 
 
+## Detailed Instruction to build Dendro 
+
+If you would like to know about detailed instruction to build Dendro,
+please check [here](https://github.com/hlim88/Dendro-5.01/edit/master/ReadMe.md). 
+This instruction would be suitable who is interested in
+beyond general relativity project (Currently, testing quadratic gravity).
+
 ## Simple simulation: Nonlinear Sigma Model (NLSigma)
 
 NlSigma folder consists of simple, non lineat wave equation with adaptive mesh refinement (AMR). You can copy the parameter file from `NLSigma/pars` folder and simply run `mpirun -np 8 ./NlSigma/nlsmSolver nlsm.par.json`, on  your lattop to large supercomputer with higher resolution. 
