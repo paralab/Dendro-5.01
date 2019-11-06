@@ -694,3 +694,4 @@ target_include_directories(sfcLaplaceEq PRIVATE ${MPI_INCLUDE_PATH})
 target_include_directories(sfcLaplaceEq PRIVATE ${GSL_INCLUDE_DIRS})
 
 add_subdirectory(NLSigma)
+add_subdirectory(QuadGrav)
