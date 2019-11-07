@@ -70,10 +70,13 @@ After cloning the repo, follow the configure command:
        -DNUM_NPES_THRESHOLD=2                    \
 ```
 
-Build and install:
-
-    % make -j install
-
+Build and install inside of your `build` directory by:
+```{engine=sh}
+     make -j 
+     make install
+```
+Note that if your machine do not support parallel job, 
+you may not use `-j` option during `make`
 
 ### Building Dendro with Spack
 
