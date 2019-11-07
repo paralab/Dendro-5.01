@@ -52,7 +52,7 @@ building code unless you want to generate RHS during runtime)
 Clone the master branch from the Dendro-5.01 git repo:
 ```{engine=sh}
    cd $HOME/DENDRO
-   git clone https://github.com/paralab/Dendro-5.01.git
+   git clone https://github.com/hlim88/Dendro-5.01.git
 ```    
 
 After cloning the repo, follow the configure command:
