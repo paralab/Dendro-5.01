@@ -68,6 +68,7 @@ After cloning the repo, follow the configure command:
        -DPROFILE_TREE_SORT=OFF                   \
        -DSPLITTER_SELECTION_FIX=OFF              \
        -DNUM_NPES_THRESHOLD=2                    \
+       -Who-dev
 ```
 
 Normally, you should have the C, C++, Objective-C, Fortran, and among other
