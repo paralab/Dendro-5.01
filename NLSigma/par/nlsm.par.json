@@ -98,6 +98,7 @@
             "NLSM_ID_ZC1": 0.0,
             "NLSM_ID_EPSX1": 0.5,
             "NLSM_ID_EPSY1": 1.0,
+            "NLSM_ID_EPSZ1": 0.0,
             "NLSM_ID_NU1": 0.0,
             "NLSM_ID_OMEGA": 0.4,
 
@@ -109,6 +110,7 @@
             "NLSM_ID_ZC2": 0.0,
             "NLSM_ID_EPSX2": 2.0,
             "NLSM_ID_EPSY2": 1.0,
+            "NLSM_ID_EPSZ2": 1.0,
             "NLSM_ID_NU2": 0.0,
 
 
