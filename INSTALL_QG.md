@@ -104,7 +104,7 @@ After configuration, build and install inside of your `build` directory by:
      make -j 
      make install
 ```
-Note that if your machine do not support parallel job, 
+Note that if your machine does not support parallel job, 
 you may not use `-j` option during `make`
 
 ### Note for MAC OSX user
@@ -123,7 +123,7 @@ You can install this, and link this for using OpenMp in Mac.
 
 This will be added once Dendro moves into Spack package repo.
 
-### Running Dendro application : Concentrating with QG project
+## Running Dendro application : Concentrating with QG project
 
 Once you successfully building the Dendro, you will have `quadgravSolver` 
 in your `build` directory and/or `${HOME}/DENDRO/local/bin`.
@@ -134,3 +134,9 @@ You can run `quadgravSolver` as follow
 ```
 An example parameter file can be found in `QuadGrav/par`. You can 
 create your own parameter file based on this
+
+## Parameter Description
+
+## Contact
+Please contact Hyun Lim via hyunlim@lanl.gov if you have any
+questions or problem.
