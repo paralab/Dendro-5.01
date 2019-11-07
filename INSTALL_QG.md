@@ -58,7 +58,7 @@ Clone the master branch from the Dendro-5.01 git repo:
 After cloning the repo, follow the configure command:
 (copy and paste below into your temrinal)
 ```{engine=sh}
-   # in ${HOME}/DENDRO/Dendro-5.01:
+   cd Dendor-5.01 ;
    mkdir build ; cd build
    export CMAKE_PREFIX_PATH=${HOME}/DENDRO/local
    cmake .. \
@@ -70,13 +70,54 @@ After cloning the repo, follow the configure command:
        -DNUM_NPES_THRESHOLD=2                    \
 ```
 
-Build and install inside of your `build` directory by:
+Normally, you should have the C, C++, Objective-C, Fortran, and among other
+compilers, as well as runtime libraries for C++, Objective-C, and Fortran if you install GCC.
+Sometimes, CMake complains such as
+
+```{engine=sh}
+  No CMAKE_Fortran_COMPILER could be found.
+```
+
+In this case, you can check whether you have that compiler or not by using
+```{engine=sh}
+which <CMake_not_found_complier>
+```
+This will show the path of complier. If this does not show anything, 
+you should install that specific complier. If this shows the path, you can export via
+
+```{engine=sh}
+export CMAKE_<Complier_name>_COMPILER = <path_to_compiler>
+```
+After that, following above configure command again. 
+Similar argument can be applied to `MPI` library.
+
+Once your configuration is successful, you will see
+```{engine=sh}
+-- Configuring done
+-- Generating done
+-- Build files have been written to: ${HOME}/DENDRO/Dendro-5.01/build
+```
+at the end of configuration.
+
+After configuration, build and install inside of your `build` directory by:
 ```{engine=sh}
      make -j 
      make install
 ```
 Note that if your machine do not support parallel job, 
 you may not use `-j` option during `make`
+
+### Note for MAC OSX user
+
+Because of MacOS use LLVM complier, gcc (or g++) links to clang complier. 
+This is not compatible OpenMp. (You cannot use -fopenmp as the flag). Here is two possible solution.
+
+You can install gnu complier manually, and use gnu complier as your complier. 
+Then, gnu links OpenMP automatically.
+
+Mac has own version of OpenMP, called [clang-omp](https://clang-omp.github.io/). 
+You can install this, and link this for using OpenMp in Mac.
+
 
 ### Building Dendro with Spack
 
