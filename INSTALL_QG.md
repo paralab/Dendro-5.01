@@ -57,7 +57,8 @@ Clone the master branch from the Dendro-5.01 git repo:
 After cloning the repo, follow the configure command:
 (copy and paste below into your temrinal)
 ```{engine=sh}
-   # in ${HOME}/DENDRO/build:
+   # in ${HOME}/DENDRO/Dendro-5.01:
+   mkdir build ; cd build
    export CMAKE_PREFIX_PATH=${HOME}/DENDRO/local
    cmake .. \
        -DCMAKE_INSTALL_PREFIX=$CMAKE_PREFIX_PATH \
