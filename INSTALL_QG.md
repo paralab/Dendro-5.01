@@ -42,7 +42,8 @@ You will need the following tools:
   (`--enable-mpi-thread-multiple` for OpenMPI and
    `--enable-threads=multiple` for MPICH);
 - cmake version > 2.8;
-- Python version > 3.5;
+- Python version > 3.5; (For RHS generation scripts. Not required for 
+building code unless you want to generate RHS during runtime)
 - zlib compression library;
 - Optional : BLAS and LAPACK
 
