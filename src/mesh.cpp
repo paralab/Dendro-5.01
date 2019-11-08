@@ -160,6 +160,9 @@ namespace ot {
             {
                 buildFEM_E2N();
                 // note that: after this function call it ghost round 1 can contain l2 ghost elements as well if it is hanging to a local elements. 
+            }else if(m_uiScatterMapType == SM_TYPE::FEM_DG)
+            {
+                buildE2N_DG();
             }
 
             double t_e2n_end = MPI_Wtime();
@@ -171,8 +174,14 @@ namespace ot {
             //if(m_uiActiveNpes>1)computeNodalScatterMap1(m_uiCommActive);
             //if(m_uiActiveNpes>1)computeNodalScatterMap2(m_uiCommActive);
             if (m_uiActiveNpes > 1)
-            {
-                computeNodalScatterMap4(m_uiCommActive);
+            {   
+                if(m_uiScatterMapType == SM_TYPE::FEM_DG)
+                {
+                    computeNodalScatterMapDG(m_uiCommActive);
+                    buildF2EMap();
+                }
+                else
+                    computeNodalScatterMap4(m_uiCommActive);
             }
             
 
@@ -410,6 +419,9 @@ namespace ot {
             {
                 buildFEM_E2N();
                 //note that: after this function call it ghost round 1 can contain l2 ghost elements as well if it is hanging to a local elements. 
+            }else if(m_uiScatterMapType == SM_TYPE::FEM_DG)
+            {
+                buildE2N_DG();
             }
            
             double t_e2n_end=MPI_Wtime();
@@ -422,8 +434,16 @@ namespace ot {
             //if(m_uiActiveNpes>1)computeNodalScatterMap2(m_uiCommActive);
             if (m_uiActiveNpes > 1)
             {
-                computeNodalScatterMap4(m_uiCommActive);
+                if(m_uiScatterMapType == SM_TYPE::FEM_DG)
+                {
+                    computeNodalScatterMapDG(m_uiCommActive);
+                    buildF2EMap();
+                }
+                 
+                else
+                 computeNodalScatterMap4(m_uiCommActive);
             }
+
 
             double t_sm_end=MPI_Wtime();
             t_sm=t_sm_end-t_sm_begin;
@@ -3634,7 +3654,151 @@ namespace ot {
         
     }
 
+    void Mesh::buildE2N_DG()
+    {
 
+        unsigned int lookUp = 0;
+        unsigned int lev1 = 0;
+        unsigned int lev2 = 0;
+
+        unsigned int child;
+        unsigned int parent;
+
+        #ifdef DEBUG_E2N_MAPPING
+                for(unsigned int ge=m_uiElementPreGhostBegin;ge<m_uiElementPreGhostEnd;ge++)
+                {
+                    for(unsigned int dir=0;dir<m_uiNumDirections;dir++)
+                    if(m_uiE2EMapping[ge*m_uiNumDirections+dir]!=LOOK_UP_TABLE_DEFAULT)
+                        assert((m_uiE2EMapping[ge*m_uiNumDirections+dir]>=m_uiElementLocalBegin) && (m_uiE2EMapping[ge*m_uiNumDirections+dir]<m_uiElementLocalEnd) );
+                }
+
+                for(unsigned int ge=m_uiElementPostGhostBegin;ge<m_uiElementPostGhostEnd;ge++)
+                {
+                    for(unsigned int dir=0;dir<m_uiNumDirections;dir++)
+                        if(m_uiE2EMapping[ge*m_uiNumDirections+dir]!=LOOK_UP_TABLE_DEFAULT)
+                            assert((m_uiE2EMapping[ge*m_uiNumDirections+dir]>=m_uiElementLocalBegin) && (m_uiE2EMapping[ge*m_uiNumDirections+dir]<m_uiElementLocalEnd) );
+                }
+
+        #endif
+
+        assert(m_uiNumTotalElements == m_uiAllElements.size());
+        assert((m_uiElementPostGhostEnd - m_uiElementPreGhostBegin) > 0);
+        assert(m_uiNumTotalElements == ((m_uiElementPostGhostEnd - m_uiElementPreGhostBegin)));
+
+        m_uiE2NMapping_CG.resize(m_uiNumTotalElements * m_uiNpE);
+        m_uiE2NMapping_DG.resize(m_uiNumTotalElements * m_uiNpE);
+
+        // initialize the DG mapping. // this order is mandotory.
+        for (unsigned int e = 0; e < (m_uiNumTotalElements); e++)
+            for (unsigned int k = 0; k < (m_uiElementOrder + 1); k++) //z coordinate
+                for (unsigned int j = 0; j < (m_uiElementOrder + 1); j++) // y coordinate
+                    for (unsigned int i = 0; i < (m_uiElementOrder + 1); i++) // x coordinate
+                        m_uiE2NMapping_CG[e * m_uiNpE + k * (m_uiElementOrder + 1) * (m_uiElementOrder + 1) +
+                                          j * (m_uiElementOrder + 1) + i] =
+                                e * m_uiNpE + k * (m_uiElementOrder + 1) * (m_uiElementOrder + 1) +
+                                j * (m_uiElementOrder + 1) + i;
+
+
+
+        m_uiNodePreGhostBegin = m_uiElementPreGhostBegin * m_uiNpE;
+        m_uiNodePreGhostEnd = m_uiElementPreGhostEnd * m_uiNpE;
+
+        m_uiNodeLocalBegin = m_uiElementLocalBegin * m_uiNpE;
+        m_uiNodeLocalEnd = m_uiElementLocalEnd * m_uiNpE;
+
+        m_uiNodePostGhostBegin = m_uiElementPostGhostBegin * m_uiNpE;
+        m_uiNodePostGhostEnd = m_uiElementPostGhostEnd * m_uiNpE;
+
+        
+        m_uiNumActualNodes = (m_uiNodePreGhostEnd - m_uiNodePreGhostBegin) + (m_uiNodeLocalEnd - m_uiNodeLocalBegin ) + (m_uiNodeLocalEnd - m_uiNodeLocalBegin);
+
+        m_uiE2NMapping_DG = m_uiE2NMapping_CG;
+        m_uiCG2DG = m_uiE2NMapping_CG;
+        //m_uiCG2DG.resize(m_uiE2NMapping_CG.size(),1);
+
+        if(!m_uiActiveRank)
+            std::cout<<"E2N_DG Ended"<<std::endl;
+
+
+    }
+
+
+    void Mesh::computeNodalScatterMapDG(MPI_Comm comm)
+    {
+        
+        // should not be called if the mesh is not active
+        if(!m_uiIsActive) return;
+
+        int rank,npes;
+        MPI_Comm_rank(comm,&rank);
+        MPI_Comm_size(comm,&npes);
+
+        if(npes<=1) return; // nothing to do in the sequential case. (No scatter map required.)
+
+        m_uiSendNodeCount.resize(npes);
+        m_uiRecvNodeCount.resize(npes);
+        m_uiSendNodeOffset.resize(npes);
+        m_uiRecvNodeOffset.resize(npes);
+
+        for(unsigned int p=0;p<npes;p++)
+            m_uiSendNodeCount[p] = m_uiSendOctCountRound1[p];
+
+        par::Mpi_Alltoall(m_uiSendNodeCount.data(),m_uiRecvNodeCount.data(),1,comm);
+        
+        m_uiSendNodeOffset[0] = 0;
+        m_uiRecvNodeOffset[0] = 0;
+
+        omp_par::scan(m_uiSendNodeCount.data(),m_uiSendNodeOffset.data(),npes);
+        omp_par::scan(m_uiRecvNodeCount.data(),m_uiRecvNodeOffset.data(),npes);
+
+        if((m_uiRecvNodeOffset[npes-1] + m_uiRecvNodeCount[npes-1]) != m_uiGhostElementRound1Index.size() )
+        {
+            std::cout<<"Error: "<<__func__ <<" line: "<<__LINE__<<" send and recv DG node mismatch "<<std::endl;
+            MPI_Abort(comm,0);
+        }
+
+
+        m_uiScatterMapActualNodeSend.clear();
+        m_uiScatterMapActualNodeRecv.clear();
+
+        m_uiScatterMapActualNodeSend.resize( (m_uiSendNodeOffset[npes-1] + m_uiSendNodeCount[npes-1]) * m_uiNpE );
+        m_uiScatterMapActualNodeRecv.resize( (m_uiRecvNodeOffset[npes-1] + m_uiRecvNodeCount[npes-1]) * m_uiNpE );
+
+        unsigned int nCount = 0; 
+        // note that we don't need all the only surface points are enough. 
+        for(unsigned int p=0; p < npes; p++)
+        {
+            for(unsigned int k= m_uiSendNodeOffset[p]; k < (m_uiSendNodeOffset[p] + m_uiSendNodeCount[p]) ; k++)
+            {
+                for(unsigned int n=0; n  < m_uiNpE; n++, nCount++)
+                    m_uiScatterMapActualNodeSend[nCount] = m_uiE2NMapping_CG[m_uiScatterMapElementRound1[k]*m_uiNpE + n];
+            }
+        }
+        
+        nCount=0;
+        for(unsigned int p=0; p < npes; p++)
+        {
+            for(unsigned int k= m_uiRecvNodeOffset[p]; k < (m_uiRecvNodeOffset[p] + m_uiRecvNodeCount[p]) ; k++)
+            {
+                for(unsigned int n=0; n  < m_uiNpE; n++, nCount++)
+                    m_uiScatterMapActualNodeRecv[nCount] = m_uiE2NMapping_CG[m_uiGhostElementRound1Index[k]*m_uiNpE + n];
+            }
+        }
+
+
+        for(unsigned int p=0;p<npes;p++)
+        {
+            m_uiSendNodeCount[p] *= m_uiNpE;
+            m_uiRecvNodeCount[p] *= m_uiNpE;
+
+            m_uiSendNodeOffset[p] *= m_uiNpE;
+            m_uiRecvNodeOffset[p] *= m_uiNpE;
+
+        }
+        
+        return;
+
+    }
 
     void Mesh::computeNodeScatterMaps(MPI_Comm comm)
     {
@@ -10478,7 +10642,8 @@ namespace ot {
 
         m_uiIsF2ESetup=true;
 
-
+        if(!m_uiActiveRank)
+            std::cout<<"F2E Ended "<<std::endl;
 
     }
 

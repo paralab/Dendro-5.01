@@ -497,6 +497,7 @@ private:
     /**@brief: element to block map */
     std::vector<unsigned int> m_uiE2BlkMap;
 
+   
 
 private:
     /**@brief build E2N map for FEM computation*/
@@ -550,6 +551,12 @@ private:
          * */
 
     void buildE2NMap();
+
+    /**
+     * @brief: Builds the Element to nodal mapping for DG computations. 
+     * (No hanging node consideration)
+    */
+    void buildE2N_DG();
 
     /**
          * @author Milinda Fernando
@@ -625,6 +632,9 @@ private:
           *
        **/
     void computeNodalScatterMap4(MPI_Comm comm);
+
+
+    void computeNodalScatterMapDG(MPI_Comm comm);
 
     /**
          * childf1 and childf2 denotes the edge that happens ar the intersection of those two planes.

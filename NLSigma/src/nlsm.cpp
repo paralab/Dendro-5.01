@@ -47,6 +47,7 @@ int main (int argc, char** argv)
         std::cout<<"parameters read: "<<std::endl;
 
         std::cout<<YLW<<"\tnpes :"<<npes<<NRM<<std::endl;
+        std::cout<<YLW<<"\tNLSM_ELE_ORDER :"<<nlsm::NLSM_ELE_ORDER<<NRM<<std::endl;
         std::cout<<YLW<<"\tNLSM_DIM :"<<nlsm::NLSM_DIM<<NRM<<std::endl;
         std::cout<<YLW<<"\tNLSM_IO_OUTPUT_FREQ :"<<nlsm::NLSM_IO_OUTPUT_FREQ<<NRM<<std::endl;
         std::cout<<YLW<<"\tNLSM_REMESH_TEST_FREQ :"<<nlsm::NLSM_REMESH_TEST_FREQ<<NRM<<std::endl;
@@ -120,6 +121,7 @@ int main (int argc, char** argv)
 
     _InitializeHcurve(nlsm::NLSM_DIM);
     m_uiMaxDepth=nlsm::NLSM_MAXDEPTH;
+    MAXDEAPTH_LEVEL_DIFF = binOp::fastLog2(nlsm::NLSM_ELE_ORDER)-1;
 
     if(nlsm::NLSM_NUM_VARS%nlsm::NLSM_ASYNC_COMM_K!=0)
     {
@@ -153,7 +155,7 @@ int main (int argc, char** argv)
         const Point pt_min(nlsm::NLSM_BLK_MIN_X,nlsm::NLSM_BLK_MIN_Y,nlsm::NLSM_BLK_MIN_Z);
         const Point pt_max(nlsm::NLSM_BLK_MAX_X,nlsm::NLSM_BLK_MAX_Y,nlsm::NLSM_BLK_MAX_Z);
 
-        nlsm::blockAdaptiveOctree(tmpNodes,pt_min,pt_max,m_uiMaxDepth-2,m_uiMaxDepth,comm);
+        nlsm::blockAdaptiveOctree(tmpNodes,pt_min,pt_max,m_uiMaxDepth-(binOp::fastLog2(nlsm::NLSM_ELE_ORDER)),m_uiMaxDepth,comm);
     }else
     {
 

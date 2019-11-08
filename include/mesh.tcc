@@ -1484,8 +1484,38 @@ namespace ot
             unsigned int bflag,offset;
             unsigned int regLev;
             unsigned int eIndex[3];
-            double *  waveletR=new double[NUM_REFINE_WAVELET_COEF];
-            double *  waveletC=new double[NUM_COARSE_WAVELET_COEF];
+            double *  waveletR = NULL;
+            double *  waveletC = NULL;
+            unsigned int num_wr =0 ,num_wc =0;
+
+            double * wsIn = new double[m_uiNpE];
+            double * wsOut = new double[m_uiNpE];
+            double ** ws = new double*[2];
+            ws[0] = wsIn;
+            ws[1] = wsOut;
+
+            if(m_uiElementOrder == 4)
+            {
+                
+
+                waveletR = new double[64];
+                num_wr = 64;
+                
+
+                waveletC = new double[64];
+                num_wc = 64 ;
+
+                
+            }else if(m_uiElementOrder == 8)
+            {
+
+                waveletR = new double[64];
+                num_wr = 64;
+
+                waveletC = new double[64];
+                num_wc = 64;
+
+            }
 
             const unsigned int paddWidth=3;
             unsigned int eleIndexMin=0,eleIndexMax=0;
@@ -1537,12 +1567,33 @@ namespace ot
                     for(unsigned int var=0;var<numVars;var++)
                     {
 
-                        computeRefineWavelets(unzippedVec[varIds[var]],offset,m_uiElementOrder,eIndex,paddWidth,sz,waveletR);
-                    //for(unsigned int k=0;k<NUM_REFINE_WAVELET_COEF;k++)
-                    //std::cout<<"elem: "<<m_uiAllElements[ele]<<" wR["<<k<<"]: "<<waveletR[k]<<std::endl;
-                        l_inf=normLInfty(waveletR,NUM_REFINE_WAVELET_COEF);
+                         refine_wavelets(&unzippedVec[varIds[var]][offset],m_uiElementOrder,eIndex,paddWidth,sz,waveletR,num_wr,(double**)ws);
+                        //  for(unsigned int k=0; k<4; k+=3)
+                        //      for(unsigned int j=0; j<4; j+=3)
+                        //       for(unsigned int i=0; i<4; i+=3)                                
+                        //         waveletR[k*16 + j*4 + i] =0;
+
+                         l_inf=normLInfty(waveletR,num_wr);
+
+                            // for(unsigned int k=1; k<3; k+=1)
+                            //   for(unsigned int j=1; j<3; j+=1)
+                            //    for(unsigned int i=1; i<3; i+=1)
+                            //     std::cout<<"ref1: (i,j,k) : " << (i-1)<<" , "<<(j-1)<<" , "<<(k-1)<<": "<<waveletR[k*16 + j*4 + i]<<std::endl;
+                            
+                        
+                       
+                        // computeRefineWavelets(&unzippedVec[varIds[var]][offset],0,m_uiElementOrder,eIndex,paddWidth,sz,waveletR);
+                        // l_inf=normLInfty(waveletR,NUM_REFINE_WAVELET_COEF);
+
+                        //     for(unsigned int k=1; k<3; k+=1)
+                        //       for(unsigned int j=1; j<3; j+=1)
+                        //        for(unsigned int i=1; i<3; i+=1)
+                        //         std::cout<<"ref2: (i,j,k) : " << (i-1)<<" , "<<(j-1)<<" , "<<(k-1)<<": "<<waveletR[(k-1)*4 + (j-1)*2 +i-1]<<std::endl;
+
                         if(l_inf>tol)
                         {
+                            // for(unsigned int k=0;k<num_wr;k++)
+                            //    std::cout<<"elem: "<<m_uiAllElements[ele]<<" wr["<<k<<"]: "<<waveletR[k]<<std::endl;
                             assert((m_uiAllElements[ele].getLevel()+MAXDEAPTH_LEVEL_DIFF+1)<m_uiMaxDepth);
                             //std::cout<<"rank: "<<m_uiActiveRank<<" element R: "<<m_uiAllElements[ele]<<" w_tol: "<<l_inf<<std::endl;
                             m_uiAllElements[ele].setFlag(((OCT_SPLIT<<NUM_LEVEL_BITS)|m_uiAllElements[ele].getLevel()));
@@ -1628,10 +1679,9 @@ namespace ot
 
                         for(unsigned int var=0;var<numVars;var++)
                         {
-                            computeCoarsenWavelets(unzippedVec[varIds[var]],offset,m_uiElementOrder,eIndex,paddWidth,sz,waveletC);
-                            /*for(unsigned int k=0;k<NUM_COARSE_WAVELET_COEF;k++)
-                               std::cout<<"elem: "<<m_uiAllElements[ele]<<" wC["<<k<<"]: "<<waveletC[k]<<std::endl;*/
-                            l_inf=dh[0]*normLInfty(waveletC,NUM_COARSE_WAVELET_COEF);
+                            coarsen_wavelets(&unzippedVec[varIds[var]][offset],m_uiElementOrder,eIndex,paddWidth,sz,waveletC,num_wc,(double**)ws);
+                            //computeCoarsenWavelets(unzippedVec[varIds[var]],offset,m_uiElementOrder,eIndex,paddWidth,sz,waveletC);
+                            l_inf=normLInfty(waveletC,NUM_COARSE_WAVELET_COEF);
 
                             if(l_inf>amr_coarse_fac*tol)
                             {
@@ -1664,7 +1714,10 @@ namespace ot
 
             delete [] waveletR;
             delete [] waveletC;
-
+            delete [] wsIn;
+            delete [] wsOut;
+            delete [] ws;
+            
             isOctChange=false;
             for(unsigned int ele=m_uiElementLocalBegin;ele<m_uiElementLocalEnd;ele++)
                 if((m_uiAllElements[ele].getFlag()>>NUM_LEVEL_BITS)==OCT_SPLIT) // trigger remesh only when some refinement occurs (laid back remesh :)  ) //if((m_uiAllElements[ele].getFlag()>>NUM_LEVEL_BITS)!=OCT_NO_CHANGE)
@@ -6814,8 +6867,13 @@ namespace ot
         #endif
 
         // NOTE: Be careful when you access ghost elements for padding. (You should only access the level 1 ghost elements. You should not access the level 2 ghost elements at any time. )
-
-        readSpecialPtsBegin(zippedVec);
+        paddWidth = m_uiLocalBlockList[0].get1DPadWidth();
+        if((m_uiElementOrder>>1u) < paddWidth )
+        {
+            //std::cout<<"read spt points : "<<m_uiElementOrder<<" pwidth : "<<paddWidth<<std::endl;
+            readSpecialPtsBegin(zippedVec);
+        }
+            
 
         for(unsigned int blk=0;blk<m_uiLocalBlockList.size();blk++)
         {
@@ -7000,10 +7058,24 @@ namespace ot
                             child[7]=m_uiE2EMapping[child[3]*m_uiNumDirections+OCT_DIR_FRONT];
                             assert(child[7]!=LOOK_UP_TABLE_DEFAULT);
 
-                            child[0]=m_uiE2EMapping[child[1]*m_uiNumDirections+OCT_DIR_LEFT];
-                            child[2]=m_uiE2EMapping[child[3]*m_uiNumDirections+OCT_DIR_LEFT];
-                            child[4]=m_uiE2EMapping[child[5]*m_uiNumDirections+OCT_DIR_LEFT];
-                            child[6]=m_uiE2EMapping[child[7]*m_uiNumDirections+OCT_DIR_LEFT];
+                            if((m_uiElementOrder>>1u) < paddWidth )
+                            {
+                                // we need to search for the additional points. 
+                                child[0]=m_uiE2EMapping[child[1]*m_uiNumDirections+OCT_DIR_LEFT];
+                                child[2]=m_uiE2EMapping[child[3]*m_uiNumDirections+OCT_DIR_LEFT];
+                                child[4]=m_uiE2EMapping[child[5]*m_uiNumDirections+OCT_DIR_LEFT];
+                                child[6]=m_uiE2EMapping[child[7]*m_uiNumDirections+OCT_DIR_LEFT];
+
+                            }else
+                            {
+                                child[0]=LOOK_UP_TABLE_DEFAULT;//m_uiE2EMapping[child[1]*m_uiNumDirections+OCT_DIR_LEFT];
+                                child[2]=LOOK_UP_TABLE_DEFAULT;//m_uiE2EMapping[child[3]*m_uiNumDirections+OCT_DIR_LEFT];
+                                child[4]=LOOK_UP_TABLE_DEFAULT;//m_uiE2EMapping[child[5]*m_uiNumDirections+OCT_DIR_LEFT];
+                                child[6]=LOOK_UP_TABLE_DEFAULT;//m_uiE2EMapping[child[7]*m_uiNumDirections+OCT_DIR_LEFT];
+
+                            }
+
+                            
 
                             for(unsigned int cnum=0;cnum<NUM_CHILDREN;cnum++) {
                                 
@@ -7188,10 +7260,23 @@ namespace ot
                             child[6]=m_uiE2EMapping[child[2]*m_uiNumDirections+OCT_DIR_FRONT];
                             assert(child[6]!=LOOK_UP_TABLE_DEFAULT);
 
-                            child[1]=m_uiE2EMapping[child[0]*m_uiNumDirections+OCT_DIR_RIGHT];
-                            child[3]=m_uiE2EMapping[child[2]*m_uiNumDirections+OCT_DIR_RIGHT];
-                            child[5]=m_uiE2EMapping[child[4]*m_uiNumDirections+OCT_DIR_RIGHT];
-                            child[7]=m_uiE2EMapping[child[6]*m_uiNumDirections+OCT_DIR_RIGHT];
+                            if((m_uiElementOrder>>1u) < paddWidth )
+                            {
+                                child[1]=m_uiE2EMapping[child[0]*m_uiNumDirections+OCT_DIR_RIGHT];
+                                child[3]=m_uiE2EMapping[child[2]*m_uiNumDirections+OCT_DIR_RIGHT];
+                                child[5]=m_uiE2EMapping[child[4]*m_uiNumDirections+OCT_DIR_RIGHT];
+                                child[7]=m_uiE2EMapping[child[6]*m_uiNumDirections+OCT_DIR_RIGHT];
+
+                            }else
+                            {
+                                child[1]=LOOK_UP_TABLE_DEFAULT;//m_uiE2EMapping[child[0]*m_uiNumDirections+OCT_DIR_RIGHT];
+                                child[3]=LOOK_UP_TABLE_DEFAULT;//m_uiE2EMapping[child[2]*m_uiNumDirections+OCT_DIR_RIGHT];
+                                child[5]=LOOK_UP_TABLE_DEFAULT;//m_uiE2EMapping[child[4]*m_uiNumDirections+OCT_DIR_RIGHT];
+                                child[7]=LOOK_UP_TABLE_DEFAULT;//m_uiE2EMapping[child[6]*m_uiNumDirections+OCT_DIR_RIGHT];
+
+                            }
+
+                            
 
 
                             for(unsigned int cnum=0;cnum<NUM_CHILDREN;cnum++) {
@@ -7379,11 +7464,24 @@ namespace ot
                             child[7]=m_uiE2EMapping[child[3]*m_uiNumDirections+OCT_DIR_FRONT];
                             assert(child[7]!=LOOK_UP_TABLE_DEFAULT);
 
-                            child[0]=m_uiE2EMapping[child[2]*m_uiNumDirections+OCT_DIR_DOWN];
-                            child[1]=m_uiE2EMapping[child[3]*m_uiNumDirections+OCT_DIR_DOWN];
-                            child[4]=m_uiE2EMapping[child[6]*m_uiNumDirections+OCT_DIR_DOWN];
-                            child[5]=m_uiE2EMapping[child[7]*m_uiNumDirections+OCT_DIR_DOWN];
+                            if((m_uiElementOrder>>1u) < paddWidth )
+                            {
+                                child[0]=m_uiE2EMapping[child[2]*m_uiNumDirections+OCT_DIR_DOWN];
+                                child[1]=m_uiE2EMapping[child[3]*m_uiNumDirections+OCT_DIR_DOWN];
+                                child[4]=m_uiE2EMapping[child[6]*m_uiNumDirections+OCT_DIR_DOWN];
+                                child[5]=m_uiE2EMapping[child[7]*m_uiNumDirections+OCT_DIR_DOWN];
 
+
+                            }else
+                            {
+                                child[0]=LOOK_UP_TABLE_DEFAULT;//m_uiE2EMapping[child[2]*m_uiNumDirections+OCT_DIR_DOWN];
+                                child[1]=LOOK_UP_TABLE_DEFAULT;//m_uiE2EMapping[child[3]*m_uiNumDirections+OCT_DIR_DOWN];
+                                child[4]=LOOK_UP_TABLE_DEFAULT;//m_uiE2EMapping[child[6]*m_uiNumDirections+OCT_DIR_DOWN];
+                                child[5]=LOOK_UP_TABLE_DEFAULT;//m_uiE2EMapping[child[7]*m_uiNumDirections+OCT_DIR_DOWN];
+
+                            }
+
+                            
                             for(unsigned int cnum=0;cnum<NUM_CHILDREN;cnum++) {
 
                                 if(child[cnum] == LOOK_UP_TABLE_DEFAULT || pNodes[child[cnum]].getLevel()!=pNodes[lookUp].getLevel() ||  !m_uiIsNodalMapValid[child[cnum]]) continue;
@@ -7567,10 +7665,23 @@ namespace ot
                             child[5]=m_uiE2EMapping[child[1]*m_uiNumDirections+OCT_DIR_FRONT];
                             assert(child[5]!=LOOK_UP_TABLE_DEFAULT);
 
-                            child[2]=m_uiE2EMapping[child[0]*m_uiNumDirections+OCT_DIR_UP];
-                            child[3]=m_uiE2EMapping[child[1]*m_uiNumDirections+OCT_DIR_UP];
-                            child[6]=m_uiE2EMapping[child[4]*m_uiNumDirections+OCT_DIR_UP];
-                            child[7]=m_uiE2EMapping[child[5]*m_uiNumDirections+OCT_DIR_UP];
+                            if((m_uiElementOrder>>1u) < paddWidth )
+                            {
+                                child[2]=m_uiE2EMapping[child[0]*m_uiNumDirections+OCT_DIR_UP];
+                                child[3]=m_uiE2EMapping[child[1]*m_uiNumDirections+OCT_DIR_UP];
+                                child[6]=m_uiE2EMapping[child[4]*m_uiNumDirections+OCT_DIR_UP];
+                                child[7]=m_uiE2EMapping[child[5]*m_uiNumDirections+OCT_DIR_UP];
+
+
+                            }else
+                            {
+                                child[2]=LOOK_UP_TABLE_DEFAULT;//m_uiE2EMapping[child[0]*m_uiNumDirections+OCT_DIR_UP];
+                                child[3]=LOOK_UP_TABLE_DEFAULT;//m_uiE2EMapping[child[1]*m_uiNumDirections+OCT_DIR_UP];
+                                child[6]=LOOK_UP_TABLE_DEFAULT;//m_uiE2EMapping[child[4]*m_uiNumDirections+OCT_DIR_UP];
+                                child[7]=LOOK_UP_TABLE_DEFAULT;//m_uiE2EMapping[child[5]*m_uiNumDirections+OCT_DIR_UP];
+                            }
+
+                            
 
 
                             for(unsigned int cnum=0;cnum<NUM_CHILDREN;cnum++) {
@@ -7761,10 +7872,22 @@ namespace ot
                             child[7]=m_uiE2EMapping[child[5]*m_uiNumDirections+OCT_DIR_UP];
                             assert(child[7]!=LOOK_UP_TABLE_DEFAULT);
 
-                            child[0]=m_uiE2EMapping[child[4]*m_uiNumDirections+OCT_DIR_BACK];
-                            child[1]=m_uiE2EMapping[child[5]*m_uiNumDirections+OCT_DIR_BACK];
-                            child[2]=m_uiE2EMapping[child[6]*m_uiNumDirections+OCT_DIR_BACK];
-                            child[3]=m_uiE2EMapping[child[7]*m_uiNumDirections+OCT_DIR_BACK];
+                            if((m_uiElementOrder>>1u) < paddWidth )
+                            {
+                                child[0]=m_uiE2EMapping[child[4]*m_uiNumDirections+OCT_DIR_BACK];
+                                child[1]=m_uiE2EMapping[child[5]*m_uiNumDirections+OCT_DIR_BACK];
+                                child[2]=m_uiE2EMapping[child[6]*m_uiNumDirections+OCT_DIR_BACK];
+                                child[3]=m_uiE2EMapping[child[7]*m_uiNumDirections+OCT_DIR_BACK];
+
+                            }else
+                            {
+                                child[0]=LOOK_UP_TABLE_DEFAULT;//m_uiE2EMapping[child[4]*m_uiNumDirections+OCT_DIR_BACK];
+                                child[1]=LOOK_UP_TABLE_DEFAULT;//m_uiE2EMapping[child[5]*m_uiNumDirections+OCT_DIR_BACK];
+                                child[2]=LOOK_UP_TABLE_DEFAULT;//m_uiE2EMapping[child[6]*m_uiNumDirections+OCT_DIR_BACK];
+                                child[3]=LOOK_UP_TABLE_DEFAULT;//m_uiE2EMapping[child[7]*m_uiNumDirections+OCT_DIR_BACK];
+                            }
+
+                            
 
                             for(unsigned int cnum=0;cnum<NUM_CHILDREN;cnum++) {
 
@@ -7947,10 +8070,23 @@ namespace ot
                             child[3]=m_uiE2EMapping[child[1]*m_uiNumDirections+OCT_DIR_UP];
                             assert(child[3]!=LOOK_UP_TABLE_DEFAULT);
 
-                            child[4]=m_uiE2EMapping[child[0]*m_uiNumDirections+OCT_DIR_FRONT];
-                            child[5]=m_uiE2EMapping[child[1]*m_uiNumDirections+OCT_DIR_FRONT];
-                            child[6]=m_uiE2EMapping[child[2]*m_uiNumDirections+OCT_DIR_FRONT];
-                            child[7]=m_uiE2EMapping[child[3]*m_uiNumDirections+OCT_DIR_FRONT];
+                            if((m_uiElementOrder>>1u) < paddWidth )
+                            {
+                                child[4]=m_uiE2EMapping[child[0]*m_uiNumDirections+OCT_DIR_FRONT];
+                                child[5]=m_uiE2EMapping[child[1]*m_uiNumDirections+OCT_DIR_FRONT];
+                                child[6]=m_uiE2EMapping[child[2]*m_uiNumDirections+OCT_DIR_FRONT];
+                                child[7]=m_uiE2EMapping[child[3]*m_uiNumDirections+OCT_DIR_FRONT];
+
+                            }else
+                            {
+                                child[4]=LOOK_UP_TABLE_DEFAULT;//m_uiE2EMapping[child[0]*m_uiNumDirections+OCT_DIR_FRONT];
+                                child[5]=LOOK_UP_TABLE_DEFAULT;//m_uiE2EMapping[child[1]*m_uiNumDirections+OCT_DIR_FRONT];
+                                child[6]=LOOK_UP_TABLE_DEFAULT;//m_uiE2EMapping[child[2]*m_uiNumDirections+OCT_DIR_FRONT];
+                                child[7]=LOOK_UP_TABLE_DEFAULT;//m_uiE2EMapping[child[3]*m_uiNumDirections+OCT_DIR_FRONT];
+
+                            }
+
+                            
 
                             for(unsigned int cnum=0;cnum<NUM_CHILDREN;cnum++) {
 
@@ -8038,34 +8174,40 @@ namespace ot
 
         }
 
-        std::vector<T> recv_buf;
-        recv_buf.resize(m_uiRecvOffsetRePt[m_uiActiveNpes-1] + m_uiRecvCountRePt[m_uiActiveNpes-1]);
-
-        readSpecialPtsEnd(zippedVec,&(*(recv_buf.begin())));
-        int rCount=0;
-        
-        for(unsigned int i=0;i<m_uiUnzip_3pt_keys.size();i++)
+        if((m_uiElementOrder>>1u) < paddWidth )
         {
-            const std::vector<unsigned int> * ownerList = m_uiUnzip_3pt_keys[i].getOwnerList();
-            for(unsigned int w=0; w< ownerList->size(); w++)
+            //std::cout<<"read spt points : "<<m_uiElementOrder<<" pwidth : "<<paddWidth<<std::endl;
+            std::vector<T> recv_buf;
+            recv_buf.resize(m_uiRecvOffsetRePt[m_uiActiveNpes-1] + m_uiRecvCountRePt[m_uiActiveNpes-1]);
+
+            readSpecialPtsEnd(zippedVec,&(*(recv_buf.begin())));
+            int rCount=0;
+            
+            for(unsigned int i=0;i<m_uiUnzip_3pt_keys.size();i++)
             {
-                
-                #ifdef DEBUG_UNZIP_OP_3PT
-                    if(fabs(unzippedVec[(*(ownerList))[w]]-recv_buf[rCount])>1e-3)
-                    {
-                        std::cout<<"rank: "<<m_uiActiveRank<<" interp_deriv : "<< unzippedVec[(*(ownerList))[w]]<<" recv: "<<recv_buf[rCount]<<" diff: "<<fabs(unzippedVec[(*(ownerList))[w]]-recv_buf[rCount])<<" unzip index: "<<(*(ownerList))[w]<<std::endl;
-                        //MPI_Abort(m_uiCommActive,0);
-                    }
-                        
-                #endif
-                unzippedVec[(*(ownerList))[w]] = recv_buf[rCount];
+                const std::vector<unsigned int> * ownerList = m_uiUnzip_3pt_keys[i].getOwnerList();
+                for(unsigned int w=0; w< ownerList->size(); w++)
+                {
+                    
+                    #ifdef DEBUG_UNZIP_OP_3PT
+                        if(fabs(unzippedVec[(*(ownerList))[w]]-recv_buf[rCount])>1e-3)
+                        {
+                            std::cout<<"rank: "<<m_uiActiveRank<<" interp_deriv : "<< unzippedVec[(*(ownerList))[w]]<<" recv: "<<recv_buf[rCount]<<" diff: "<<fabs(unzippedVec[(*(ownerList))[w]]-recv_buf[rCount])<<" unzip index: "<<(*(ownerList))[w]<<std::endl;
+                            //MPI_Abort(m_uiCommActive,0);
+                        }
+                            
+                    #endif
+                    unzippedVec[(*(ownerList))[w]] = recv_buf[rCount];
+                }
+
+                if(m_uiUnzip_3pt_keys[i].getOwnerList()->size()>0)
+                    rCount++;
+
+                    
             }
 
-            if(m_uiUnzip_3pt_keys[i].getOwnerList()->size()>0)
-                rCount++;
-
-                
         }
+        
 
         
 

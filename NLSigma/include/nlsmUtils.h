@@ -40,12 +40,6 @@
 using json = nlohmann::json;
 namespace nlsm
 {
-/**
- * @brief These variable indexes are based on the variables defined in rkNLSM.h
- * */
-enum VAR {U_CHI=0,U_PHI};
-
-static const char * NLSM_VAR_NAMES[]={"U_CHI","U_PHI"};
 
 /**
  * @brief internal variables needed for rk update.
@@ -87,6 +81,11 @@ static const char * NLSM_VAR_NAMES[]={"U_CHI","U_PHI"};
    * @brief wavelet tolerance as a function of space.
    * */
   double computeWTol(double x,double y,double z,double tol_min);
+
+  /**
+   * @brief force refinement at the pulse. 
+   */
+  bool isRemeshForce(const ot::Mesh* pMesh, const double ** unzipVec, unsigned int vIndex, double refine_th, double coarsen_th, bool isOverwrite);
 
 }// end of namespace nlsm
 

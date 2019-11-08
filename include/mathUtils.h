@@ -197,7 +197,6 @@ void kron(const T* M1, const T* M2, T* out, unsigned int r1,unsigned int c1, uns
 
 
 
-
 #include "mathUtils.tcc"
 
 

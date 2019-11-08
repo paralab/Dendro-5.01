@@ -240,7 +240,11 @@ namespace ode
                 if(nlsm::NLSM_ENABLE_BLOCK_ADAPTIVITY)
                     isRefine=false;
                 else
-                    isRefine=m_uiMesh->isReMeshUnzip((const double **)m_uiUnzipVar,refineVarIds,refineNumVars,waveletTolFunc,nlsm::NLSM_DENDRO_AMR_FAC);
+                {
+                    isRefine=nlsm::isRemeshForce(m_uiMesh,(const double **)m_uiUnzipVar,nlsm::VAR::U_CHI,nlsm::NLSM_CHI_REFINE_VAL,nlsm::NLSM_CHI_COARSEN_VAL,true);
+                    //m_uiMesh->isReMeshUnzip((const double **)m_uiUnzipVar,refineVarIds,refineNumVars,waveletTolFunc,nlsm::NLSM_DENDRO_AMR_FAC);
+                }
+                    
 
                 if(isRefine)
                 {
@@ -372,6 +376,9 @@ namespace ode
 
         void RK4_NLSM::writeToVTU(double **evolZipVarIn, double ** constrZipVarIn, unsigned int numEvolVars,unsigned int numConstVars,const unsigned int * evolVarIndices, const unsigned int * constVarIndices)
         {
+            if(!m_uiMesh->isActive())
+                return;
+                
             nlsm::timer::t_ioVtu.start();
 
             std::vector<std::string> pDataNames;
@@ -434,6 +441,7 @@ namespace ode
                             m_uiMesh->performGhostExchange(diffVec);
                             m_uiMesh->performGhostExchange(chiAnalytical);
 
+                            double l_rs = rsNormLp<double>(m_uiMesh,chiAnalytical,evolZipVarIn[nlsm::VAR::U_CHI],2);
                             double l_min=vecMin(diffVec+m_uiMesh->getNodeLocalBegin(),(m_uiMesh->getNumLocalMeshNodes()),m_uiMesh->getMPICommunicator());
                             double l_max=vecMax(diffVec+m_uiMesh->getNodeLocalBegin(),(m_uiMesh->getNumLocalMeshNodes()),m_uiMesh->getMPICommunicator());
                             double l2_norm=normL2(diffVec+m_uiMesh->getNodeLocalBegin(),(m_uiMesh->getNumLocalMeshNodes()),m_uiMesh->getMPICommunicator());
@@ -445,7 +453,7 @@ namespace ode
                             if(!m_uiMesh->getMPIRank()) {
                                 //std::cout << "executing step: " << m_uiCurrentStep << " dt: " << m_uiT_h << " rk_time : "<< m_uiCurrentTime << std::endl;
                                 l2_norm=sqrt((l2_norm*l2_norm)/(double)(total_dof*total_dof));
-                                std::cout <<YLW<< "\t ||VAR::DIFF|| (min, max,l2) : ("<<l_min<<", "<<l_max<<", "<<l2_norm<<" ) "<<NRM<<std::endl;
+                                std::cout <<YLW<< "\t ||VAR::DIFF|| (min, max,l2,l_2rs) : ("<<l_min<<", "<<l_max<<", "<<l2_norm<<", "<<l_rs<<" ) "<<NRM<<std::endl;
 
                                 std::ofstream fileGW;
                                 char fName[256];
@@ -453,9 +461,9 @@ namespace ode
                                 fileGW.open (fName,std::ofstream::app);
                                 // writes the header
                                 if(m_uiCurrentStep==0)
-                                    fileGW<<"TimeStep\t"<<" time\t"<<" min\t"<<" max\t"<<" l2\t"<<std::endl;
+                                    fileGW<<"TimeStep\t"<<" time\t"<<" min\t"<<" max\t"<<" l2\t cgNodes\t l2_rs"<<std::endl;
 
-                                fileGW<<m_uiCurrentStep<<"\t"<<m_uiCurrentTime<<"\t"<<l_min<<"\t"<<l_max<<"\t"<<l2_norm<<std::endl;
+                                fileGW<<m_uiCurrentStep<<"\t"<<m_uiCurrentTime<<"\t"<<l_min<<"\t"<<l_max<<"\t"<<l2_norm<<"\t"<<total_dof<<"\t "<<l_rs<<std::endl;
                                 fileGW.close();
 
 
@@ -808,7 +816,7 @@ namespace ode
 
             if(m_uiCurrentStep==0)
             {
-                applyInitialConditions(m_uiPrevVar);
+                //applyInitialConditions(m_uiPrevVar);
                 initialGridConverge();
             }
 
@@ -855,7 +863,6 @@ namespace ode
 
                 if((m_uiCurrentStep%nlsm::NLSM_REMESH_TEST_FREQ)==0)
                 {
-
                     #ifdef RK_SOLVER_OVERLAP_COMM_AND_COMP
                                         unzipVars_async(m_uiPrevVar,m_uiUnzipVar);
                     #else
@@ -880,13 +887,33 @@ namespace ode
                     nlsm::timer::t_isReMesh.start();
                     if(nlsm::NLSM_ENABLE_BLOCK_ADAPTIVITY)
                         isRefine=false;
-                    else
-                        isRefine=m_uiMesh->isReMeshUnzip((const double **)m_uiUnzipVar,refineVarIds,refineNumVars,waveletTolFunc,nlsm::NLSM_DENDRO_AMR_FAC);
+                    else 
+                    {
+                        
+                        if(nlsm::NLSM_REFINE_MODE == nlsm::RefineMode::WAMR)
+                            isRefine=m_uiMesh->isReMeshUnzip((const double **)m_uiUnzipVar,refineVarIds,refineNumVars,waveletTolFunc,nlsm::NLSM_DENDRO_AMR_FAC);
+                        
+
+                        if(nlsm::NLSM_REFINE_MODE == nlsm::RefineMode::FR)
+                            isRefine=nlsm::isRemeshForce(m_uiMesh,(const double **)m_uiUnzipVar,nlsm::VAR::U_CHI,nlsm::NLSM_CHI_REFINE_VAL,nlsm::NLSM_CHI_COARSEN_VAL,true);
+
+
+                        if(nlsm::NLSM_REFINE_MODE == nlsm::RefineMode::WAMR_FR)
+                        {
+                            const bool isRefine1 = m_uiMesh->isReMeshUnzip((const double **)m_uiUnzipVar,refineVarIds,refineNumVars,waveletTolFunc,nlsm::NLSM_DENDRO_AMR_FAC);
+                            const bool isRefine2 = isRefine=nlsm::isRemeshForce(m_uiMesh,(const double **)m_uiUnzipVar,nlsm::VAR::U_CHI,nlsm::NLSM_CHI_REFINE_VAL,nlsm::NLSM_CHI_COARSEN_VAL,false);
+                            isRefine = (isRefine1 || isRefine2 );
+                        }
+
+                       
+
+
+                    }
+                        
                     nlsm::timer::t_isReMesh.stop();
 
                     if(isRefine)
                     {
-
 
                         #ifdef DEBUG_IS_REMESH
                             unsigned int rank=m_uiMesh->getMPIRankGlobal();
@@ -966,6 +993,7 @@ namespace ode
                         // performs the inter-grid transfer
                         intergridTransferVars(m_uiPrevVar,newMesh);
 
+                        
                         for(unsigned int index=0;index<nlsm::NLSM_NUM_VARS;index++)
                         {
                             delete [] m_uiVar[index];
@@ -998,6 +1026,9 @@ namespace ode
 
                         std::swap(newMesh,m_uiMesh);
                         delete newMesh;
+
+                        if(m_uiCurrentStep==0)
+                         applyInitialConditions(m_uiPrevVar);
 
                         #ifdef RK_SOLVER_OVERLAP_COMM_AND_COMP
                             // reallocates mpi resources for the the new mesh. (this will deallocate the old resources)

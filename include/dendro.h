@@ -111,8 +111,8 @@ typedef unsigned __int128 DendroUInt_128;
 
 #define OCT_DIR_TOTAL 27
 
-
-#define MAXDEAPTH_LEVEL_DIFF 1 // difference between maxdepth and the level when constructing and balancing octrees. Used to ensure higher order mesh generation get proper octants sizes divisible by m_uiElementOrder.
+/** variable to ensure the element sz % element order =0 for higher order elemnts */
+extern unsigned int MAXDEAPTH_LEVEL_DIFF;
 
 
 #define NUM_LEVEL_BITS 5u

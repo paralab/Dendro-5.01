@@ -93,10 +93,10 @@ int main (int argc, char** argv) {
 
     bool isActive;
     MPI_Comm commActive;
-    const int p_npes_prev=binOp::getPrevHighestPowerOfTwo((globalSz/grainSz));
-    const int p_npes_next=binOp::getNextHighestPowerOfTwo((globalSz/grainSz));
+    const int p_npes_prev=binOp::getPrevHighestPowerOfTwo(std::max((globalSz/grainSz),1LL));
+    const int p_npes_next=binOp::getNextHighestPowerOfTwo(std::max((globalSz/grainSz),1LL));
 
-    int p_npes=globalSz/grainSz;
+    int p_npes=std::max((globalSz/grainSz),1LL);
     (std::abs(p_npes_prev-p_npes)<=std::abs(p_npes_next-p_npes)) ? p_npes=p_npes_prev : p_npes=p_npes_next;
 
     if(p_npes>npes) p_npes=npes;
@@ -258,6 +258,7 @@ int main (int argc, char** argv) {
     }
 
     mesh->unzip(&(*(funcVal.begin())),&(*(funcValUnZip.begin())));
+    std::cout<<"unzip ended "<<std::endl;
     //assert(ot::test::isUnzipValid(&mesh,&(*(funcValUnZip.begin())),func,1e-3));
     ot::test::isUnzipValid(mesh,&(*(funcValUnZip.begin())),func,1e-3);
 

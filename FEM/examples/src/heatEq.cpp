@@ -101,7 +101,7 @@ int main (int argc, char** argv)
     createRegularOctree(oct,4,m_uiDim,m_uiMaxDepth,comm);
     ot::DA* octDA=new ot::DA(oct,comm,eOrder,2,0.2);*/
 
-    ot::DA* octDA=new ot::DA(f_rhs,1,comm,eOrder,wavelet_tol,100,partition_tol);
+    ot::DA* octDA=new ot::DA(f_rhs,1,comm,eOrder,wavelet_tol,100,partition_tol,ot::FEM_CG);
 
     // Point *pts = new Point[100];
     // double x_start = 0.2;

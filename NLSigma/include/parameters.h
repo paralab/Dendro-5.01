@@ -19,8 +19,24 @@
 namespace nlsm
 {
 
+    /** @brief These variable indexes are based on the variables defined in rkNLSM.h */
+    enum VAR {U_CHI=0,U_PHI};
+
+
+    /**@brief variable names. */
+    static const char * NLSM_VAR_NAMES[]={"U_CHI","U_PHI"};
+
+
+    /**
+     * @brief refinement modes
+     * WAMR for wavelet bases refinement 
+     * FR: force refinement based on limit of a specific variable. 
+     * WAMR_FR : combine WAMR and FR.
+    */
+    enum RefineMode {WAMR=0,FR,WAMR_FR};
+
     /**@brief element order*/
-    static const unsigned int NLSM_ELE_ORDER=4;
+    extern unsigned int NLSM_ELE_ORDER;
 
     /**@brief number of variables*/
     static const unsigned int NLSM_NUM_VARS=2;
@@ -47,7 +63,6 @@ namespace nlsm
 
     /**@brief CFL stability number number (specifies how dt=NLSM_CFL_FACTOR*dx)*/
     extern double NLSM_CFL_FACTOR;
-
 
     /**@brief min coords of the OCTREE */
     extern double NLSM_OCTREE_MIN[3];
@@ -112,7 +127,6 @@ namespace nlsm
     /**@brief: async. communication at a time. (upper bound shoud be NLSM_NUM_VARS) */
     extern unsigned int NLSM_ASYNC_COMM_K;
 
-
     /**@brief simulation begin time. */
     extern double NLSM_RK45_TIME_BEGIN;
     /**@brief simulation end time*/
@@ -173,8 +187,6 @@ namespace nlsm
 
     /**@brief: Kreiss-Oliger dissipation */
     extern double KO_DISS_SIGMA;
-
-
 
     /**@brief: Initial data Gaussian amplitude */
     extern double NLSM_ID_AMP1;
@@ -239,6 +251,17 @@ namespace nlsm
     
     /**@brief: wave speed direction z*/
     extern double NLSM_WAVE_SPEED_Z;
+
+    /**@brief: nlsm force refinement threshold for */
+    extern double NLSM_CHI_REFINE_VAL;
+
+    /**@brief: nlsm force coarsen threshold for */
+    extern double NLSM_CHI_COARSEN_VAL;
+
+    /**@brief: nlsm specify the refinement mode.  */
+    extern RefineMode NLSM_REFINE_MODE;
+    
+
 }
 
 #endif //SFCSORTBENCH_PARAMETERS_H

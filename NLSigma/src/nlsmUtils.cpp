@@ -31,6 +31,9 @@ namespace nlsm
             if(!infile) {std::cout<<fName<<" parameter file open failed "<<std::endl;}
             infile>>parFile;
 
+            if(parFile.find("NLSM_ELE_ORDER")!=parFile.end())
+                nlsm::NLSM_ELE_ORDER = parFile["NLSM_ELE_ORDER"];
+
             nlsm::NLSM_IO_OUTPUT_FREQ=parFile["NLSM_IO_OUTPUT_FREQ"];
             nlsm::NLSM_REMESH_TEST_FREQ=parFile["NLSM_REMESH_TEST_FREQ"];
             nlsm::NLSM_CHECKPT_FREQ=parFile["NLSM_CHECKPT_FREQ"];
@@ -102,7 +105,17 @@ namespace nlsm
             if(parFile.find("NLSM_WAVE_SPEED_Z")!=parFile.end())
                 nlsm::NLSM_WAVE_SPEED_Z = parFile["NLSM_WAVE_SPEED_Z"];
 
+            if(parFile.find("NLSM_CHI_REFINE_VAL")!=parFile.end())
+                nlsm::NLSM_CHI_REFINE_VAL = parFile["NLSM_CHI_REFINE_VAL"];
+
+            if(parFile.find("NLSM_CHI_COARSEN_VAL")!=parFile.end())
+                nlsm::NLSM_CHI_COARSEN_VAL = parFile["NLSM_CHI_COARSEN_VAL"];
+
+            if(parFile.find("NLSM_REFINE_MODE")!=parFile.end())
+                nlsm::NLSM_REFINE_MODE = static_cast<nlsm::RefineMode>(parFile["NLSM_REFINE_MODE"]);
+
             nlsm::NLSM_NUM_REFINE_VARS=parFile["NLSM_NUM_REFINE_VARS"];
+
             for(unsigned int i=0;i<nlsm::NLSM_NUM_REFINE_VARS;i++)
                 nlsm::NLSM_REFINE_VARIABLE_INDICES[i]=parFile["NLSM_REFINE_VARIABLE_INDICES"][i];
 
@@ -118,7 +131,7 @@ namespace nlsm
 
         }
 
-
+        par::Mpi_Bcast(&NLSM_ELE_ORDER,1,0,comm);
         par::Mpi_Bcast(&NLSM_IO_OUTPUT_FREQ,1,0,comm);
         par::Mpi_Bcast(&NLSM_REMESH_TEST_FREQ,1,0,comm);
         par::Mpi_Bcast(&NLSM_CHECKPT_FREQ,1,0,comm);
@@ -137,6 +150,11 @@ namespace nlsm
         par::Mpi_Bcast(&NLSM_WAVE_SPEED_X,1,0,comm);
         par::Mpi_Bcast(&NLSM_WAVE_SPEED_Y,1,0,comm);
         par::Mpi_Bcast(&NLSM_WAVE_SPEED_Z,1,0,comm);
+
+        par::Mpi_Bcast(&NLSM_CHI_REFINE_VAL,1,0,comm);
+        par::Mpi_Bcast(&NLSM_CHI_COARSEN_VAL,1,0,comm);
+        par::Mpi_Bcast((unsigned int*)&NLSM_REFINE_MODE,1,0,comm);
+        
 
         char vtu_name[vtu_len+1];
         char chp_name[chp_len+1];
@@ -523,6 +541,162 @@ namespace nlsm
        return nlsm::NLSM_WAVELET_TOL;
     }
 
+
+    bool isRemeshForce(const ot::Mesh* pMesh, const double ** unzipVec, unsigned int vIndex, double refine_th, double coarsen_th, bool isOverwrite)
+    {
+        const unsigned int eleLocalBegin = pMesh->getElementLocalBegin();
+        const unsigned int eleLocalEnd = pMesh->getElementLocalEnd();
+        bool isOctChange=false;
+        bool isOctChange_g =false;
+        const unsigned int eOrder = pMesh->getElementOrder();
+
+        if(pMesh->isActive())
+        {
+            ot::TreeNode * pNodes = (ot::TreeNode*) &(*(pMesh->getAllElements().begin()));
+            
+            if(isOverwrite)
+            for(unsigned int ele = eleLocalBegin; ele< eleLocalEnd; ele++)
+                pNodes[ele].setFlag(((OCT_NO_CHANGE<<NUM_LEVEL_BITS)|pNodes[ele].getLevel()));
+
+
+            const std::vector<ot::Block> blkList = pMesh->getLocalBlockList();
+            unsigned int sz[3];
+            unsigned int ei[3];
+            
+            // refine test
+            for(unsigned int b=0; b< blkList.size(); b++)
+            {
+                const ot::TreeNode blkNode = blkList[b].getBlockNode();
+
+                sz[0]=blkList[b].getAllocationSzX();
+                sz[1]=blkList[b].getAllocationSzY();
+                sz[2]=blkList[b].getAllocationSzZ();
+
+                const unsigned int bflag = blkList[b].getBlkNodeFlag();
+                const unsigned int offset = blkList[b].getOffset();
+
+                const unsigned int regLev=blkList[b].getRegularGridLev();
+                const unsigned int eleIndexMax=(1u<<(regLev-blkNode.getLevel()))-1;
+                const unsigned int eleIndexMin=0;
+
+                for(unsigned int ele = blkList[b].getLocalElementBegin(); ele< blkList[b].getLocalElementEnd(); ele++)
+                {
+                    ei[0]=(pNodes[ele].getX()-blkNode.getX())>>(m_uiMaxDepth-regLev);
+                    ei[1]=(pNodes[ele].getY()-blkNode.getY())>>(m_uiMaxDepth-regLev);
+                    ei[2]=(pNodes[ele].getZ()-blkNode.getZ())>>(m_uiMaxDepth-regLev);
+
+                    if((bflag &(1u<<OCT_DIR_LEFT)) && ei[0]==eleIndexMin)   continue;
+                    if((bflag &(1u<<OCT_DIR_DOWN)) && ei[1]==eleIndexMin)   continue;
+                    if((bflag &(1u<<OCT_DIR_BACK)) && ei[2]==eleIndexMin)   continue;
+
+                    if((bflag &(1u<<OCT_DIR_RIGHT)) && ei[0]==eleIndexMax)  continue;
+                    if((bflag &(1u<<OCT_DIR_UP)) && ei[1]==eleIndexMax)     continue;
+                    if((bflag &(1u<<OCT_DIR_FRONT)) && ei[2]==eleIndexMax)  continue;
+
+                    // refine test. 
+                    for(unsigned int k=3; k< eOrder+1 +   3; k++)
+                     for(unsigned int j=3; j< eOrder+1 +  3; j++)
+                      for(unsigned int i=3; i< eOrder+1 + 3; i++)
+                      {
+                          if ( (unzipVec[vIndex][offset + (ei[2]*eOrder + k)*sz[0]*sz[1] + (ei[1]*eOrder + j)*sz[0] + (ei[0]*eOrder + i)] < refine_th) &&  (unzipVec[vIndex][offset + (ei[2]*eOrder + k)*sz[0]*sz[1] + (ei[1]*eOrder + j)*sz[0] + (ei[0]*eOrder + i)]) > coarsen_th )
+                          {
+                            if( (pNodes[ele].getLevel() + MAXDEAPTH_LEVEL_DIFF +1) < m_uiMaxDepth  )
+                                pNodes[ele].setFlag(((OCT_SPLIT<<NUM_LEVEL_BITS)|pNodes[ele].getLevel()));
+
+                          }
+
+                      }
+                    
+                    
+                }
+
+            }
+
+            //coarsen test. 
+            for(unsigned int b=0; b< blkList.size(); b++)
+            {
+                const ot::TreeNode blkNode = blkList[b].getBlockNode();
+
+                sz[0]=blkList[b].getAllocationSzX();
+                sz[1]=blkList[b].getAllocationSzY();
+                sz[2]=blkList[b].getAllocationSzZ();
+
+                const unsigned int bflag = blkList[b].getBlkNodeFlag();
+                const unsigned int offset = blkList[b].getOffset();
+
+                const unsigned int regLev=blkList[b].getRegularGridLev();
+                const unsigned int eleIndexMax=(1u<<(regLev-blkNode.getLevel()))-1;
+                const unsigned int eleIndexMin=0;
+
+                if((eleIndexMax==0) || (bflag!=0)) continue; // this implies the blocks with only 1 child and boundary blocks.
+
+                for(unsigned int ele = blkList[b].getLocalElementBegin(); ele< blkList[b].getLocalElementEnd(); ele++)
+                {
+                    assert(pNodes[ele].getParent()==pNodes[ele+NUM_CHILDREN-1].getParent());
+                    bool isCoarsen =true;
+
+                    for(unsigned int child=0;child<NUM_CHILDREN;child++)
+                    {
+                        if((pNodes[ele+child].getFlag()>>NUM_LEVEL_BITS)==OCT_SPLIT)
+                        {
+                            isCoarsen=false;
+                            break;
+                        }
+
+                    }
+
+                    if(isCoarsen && pNodes[ele].getLevel()>1)
+                    {
+                        bool coarse = true;
+                        for(unsigned int child=0;child<NUM_CHILDREN;child++)
+                        {
+                            ei[0]=(pNodes[ele + child].getX()-blkNode.getX())>>(m_uiMaxDepth-regLev);
+                            ei[1]=(pNodes[ele + child].getY()-blkNode.getY())>>(m_uiMaxDepth-regLev);
+                            ei[2]=(pNodes[ele + child].getZ()-blkNode.getZ())>>(m_uiMaxDepth-regLev);
+
+                            for(unsigned int k=3; k< eOrder+1 + 3; k++)
+                            for(unsigned int j=3; j< eOrder+1 +3; j++)
+                             for(unsigned int i=3; i< eOrder+ +3; i++)
+                             {
+                                if ( (unzipVec[vIndex][offset + (ei[2]*eOrder + k)*sz[0]*sz[1] + (ei[1]*eOrder + j)*sz[0] + (ei[0]*eOrder + i)]) > coarsen_th )
+                                    coarse = false;
+                             }
+                        }
+
+                        if(coarse)
+                            for(unsigned int child=0;child<NUM_CHILDREN;child++)
+                                pNodes[ele+child].setFlag(((OCT_COARSE<<NUM_LEVEL_BITS)|pNodes[ele].getLevel()));
+
+
+                    }
+
+                    ele = ele + NUM_CHILDREN-1;
+
+                    
+                    
+                    
+                }
+
+            }
+
+
+
+            for(unsigned int ele=eleLocalBegin;ele<eleLocalEnd;ele++)
+                if((pNodes[ele].getFlag()>>NUM_LEVEL_BITS)==OCT_SPLIT) // trigger remesh only when some refinement occurs (laid back remesh :)  )
+                { 
+                    isOctChange=true;
+                    break;
+                }
+
+            
+
+        }
+
+        bool isOctChanged_g;
+        MPI_Allreduce(&isOctChange,&isOctChanged_g,1,MPI_CXX_BOOL,MPI_LOR,pMesh->getMPIGlobalCommunicator());
+        //if(!m_uiGlobalRank) std::cout<<"is oct changed: "<<isOctChanged_g<<std::endl;
+        return isOctChanged_g;
+    }
 
 }// end of namespace nlsm
 

@@ -11,6 +11,8 @@
 
 namespace nlsm
 {
+    
+    unsigned int NLSM_ELE_ORDER =4;
     unsigned int NLSM_IO_OUTPUT_FREQ=10;
     unsigned int NLSM_TIME_STEP_OUTPUT_FREQ=10;
     unsigned int NLSM_REMESH_TEST_FREQ=10;
@@ -19,7 +21,7 @@ namespace nlsm
     double NLSM_WAVELET_TOL=0.0001;
 
     double NLSM_LOAD_IMB_TOL=0.1;
-    unsigned int NLSM_SPLIT_FIX=2;
+    unsigned int NLSM_SPLIT_FIX=256;
     unsigned int NLSM_ASYNC_COMM_K=4;
     double NLSM_RK45_TIME_BEGIN=0;
     double NLSM_RK45_TIME_END=10;
@@ -104,5 +106,11 @@ namespace nlsm
     double NLSM_WAVE_SPEED_X = 1.0;
     double NLSM_WAVE_SPEED_Y = 0.0;
     double NLSM_WAVE_SPEED_Z = 0.0;
+
+    double NLSM_CHI_REFINE_VAL= std::max(nlsm::NLSM_ID_AMP1,nlsm::NLSM_ID_AMP2);
+    double NLSM_CHI_COARSEN_VAL=0.1;
+
+    RefineMode NLSM_REFINE_MODE=RefineMode::WAMR;
+
     
 }

@@ -229,6 +229,58 @@ namespace basis {
 
     }
 
+    void jacobisf(double alpha, double beta, unsigned int N, double *x, double *p , unsigned int np)
+    {
+        double * y  = new double[(N+1)]; // zeros of jacobi N+1;
+        double * w  = new double[(N+1)];
+        double * py = new double[(N+1)];
 
+        jacobigq(alpha,beta,N,y,w);
+        jacobip(alpha,beta,N,y,py,N+1);
+
+        double py_fac=0;
+        for(unsigned int i=0; i < (N+1); i++)
+            py_fac += py[i]*py[i];
+
+        for(unsigned int i=0; i < (N+1); i++)
+            py[i] = py[i]/py_fac;
+
+        // for(unsigned int i=0; i< (N+1); i++)
+        // {
+        //   std::cout<<"i: "<<i<<"root of order :"<<N+1<<" jac : "<<py[i]<<std::endl;
+        // }
+        
+        double * px = new double[(N+1)*np];
+
+        for(unsigned int d = 0 ; d < (N+1); d++)
+          jacobip(alpha,beta,d,x,(px+d*np),np);
+
+        
+        
+        
+        for(unsigned int i=0; i< np; i++)
+        {
+            p[i]=0;
+            for(unsigned int d = 0 ; d < (N+1); d++)
+            {
+              p[i] += px[d*np + i] * py[d];
+            }
+
+            p[i]=px[N*np+i];
+
+            
+
+          
+        }
+
+
+        delete [] y;
+        delete [] w;
+        delete [] py;
+        delete [] px;
+            
+        
+
+    }
 
 }

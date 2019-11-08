@@ -139,6 +139,12 @@ namespace basis {
     void lagrange(const double * x0, int N, int at, const double * x, double* px,  int m); 
 
 
+    /**
+     * @brief wavelet scaling function construction based on the Jacobi polynomials.
+     * 
+     */
+    void jacobisf(double alpha, double beta, unsigned int N, double *x, double *p , unsigned int np);
+
 
 }
 

@@ -101,8 +101,11 @@ RefElement::RefElement(unsigned int dim, unsigned int order)
     double* w1=new double[m_uiNrp];
     double* wgll1=new double[m_uiNrp];
 
-    basis::jacobiglq(0,0,m_uiOrder,&(*(r.begin())),wgll1);
-    basis::jacobigq(0,0,m_uiOrder,&(*(g.begin())),w1);
+    const double alpha =0.0;
+    const double beta =0.0;
+
+    basis::jacobiglq(alpha,beta,m_uiOrder,&(*(r.begin())),wgll1);
+    basis::jacobigq(alpha,beta,m_uiOrder,&(*(g.begin())),w1);
     //std::cout<<"gauss-labatto quadrature end "<<std::endl;
 
     for(unsigned int k=0;k<m_uiNrp;k++)
@@ -125,17 +128,17 @@ RefElement::RefElement(unsigned int dim, unsigned int order)
     for(unsigned int i=0;i<m_uiNrp;i++) {
 
 
-        basis::jacobip(0, 0, i, (&(*(u_0.begin()))), &(*(Vu_0.begin() + i*m_uiNrp )), m_uiNrp);
-        basis::jacobip(0, 0, i, (&(*(u_1.begin()))), &(*(Vu_1.begin() + i*m_uiNrp )), m_uiNrp);
+        basis::jacobip(alpha,beta, i, (&(*(u_0.begin()))), &(*(Vu_0.begin() + i*m_uiNrp )), m_uiNrp);
+        basis::jacobip(alpha,beta, i, (&(*(u_1.begin()))), &(*(Vu_1.begin() + i*m_uiNrp )), m_uiNrp);
 
-        basis::jacobip(0, 0, i, (&(*(u.begin()))), &(*(Vu.begin() + i*m_uiNrp)), m_uiNrp);
-        basis::gradjacobip(0, 0, i, (&(*(u.begin()))), &(*(gradVu.begin() + i*m_uiNrp)), m_uiNrp);
+        basis::jacobip(alpha,beta, i, (&(*(u.begin()))), &(*(Vu.begin() + i*m_uiNrp)), m_uiNrp);
+        basis::gradjacobip(alpha,beta, i, (&(*(u.begin()))), &(*(gradVu.begin() + i*m_uiNrp)), m_uiNrp);
 
-        basis::jacobip(0, 0, i, (&(*(r.begin()))), &(*(Vr.begin() + i*m_uiNrp)), m_uiNrp);
-        basis::gradjacobip(0, 0, i, (&(*(r.begin()))), &(*(gradVr.begin() + i*m_uiNrp)), m_uiNrp);
+        basis::jacobip(alpha,beta, i, (&(*(r.begin()))), &(*(Vr.begin() + i*m_uiNrp)), m_uiNrp);
+        basis::gradjacobip(alpha,beta, i, (&(*(r.begin()))), &(*(gradVr.begin() + i*m_uiNrp)), m_uiNrp);
 
-        basis::jacobip(0, 0, i, (&(*(g.begin()))), &(*(Vg.begin() + i*m_uiNrp)), m_uiNrp);
-        basis::gradjacobip(0, 0, i, (&(*(g.begin()))), &(*(gradVg.begin() + i*m_uiNrp)), m_uiNrp);
+        basis::jacobip(alpha,beta, i, (&(*(g.begin()))), &(*(Vg.begin() + i*m_uiNrp)), m_uiNrp);
+        basis::gradjacobip(alpha,beta, i, (&(*(g.begin()))), &(*(gradVg.begin() + i*m_uiNrp)), m_uiNrp);
 
         //std::cout<<i<<" r eval : ";printArray_1D(&(*(Vr.begin() + i*m_uiNrp)),m_uiNrp);
         //std::cout<<i<<" r0 eval : ";printArray_1D(&(*(xCh_0.begin())),m_uiNrp);

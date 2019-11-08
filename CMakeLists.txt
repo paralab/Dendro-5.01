@@ -226,6 +226,7 @@ set(DENDRO_INCLUDE_FILES
         include/test/meshTestUtils.h
         include/octUtils.h
         include/dendroIO.h
+        include/mathMeshUtils.h
         include/mathUtils.h
         include/mathUtils.tcc
         include/stencil.h
@@ -266,6 +267,7 @@ set(DENDRO_SOURCE_FILES
         src/oda.cpp
         src/odaUtils.cpp
         src/sub_oda.cpp
+        src/dendro.cpp
         )
 
 
