@@ -2703,7 +2703,7 @@ void parallel_rank(const T* in, unsigned int sz , DendroIntL* out, MPI_Comm comm
   for(unsigned int i=0; i < sz; i++)
   {
     
-    key[i].p = npes;
+    key[i].p = rank;
     key[i].idx = i;
     key[i].val = in[i];
 
@@ -2714,8 +2714,8 @@ void parallel_rank(const T* in, unsigned int sz , DendroIntL* out, MPI_Comm comm
   par::bitonicSort(key, comm);
   std::swap(key,key_sorted);
   key.clear();
-  
-  unsigned int localSz = key_sorted.size();
+
+  unsigned int localSz = sz;
 
   unsigned int*  sorted_couts = new unsigned int [npes];
   unsigned int*  sorted_offset = new unsigned int [npes];
@@ -2724,8 +2724,15 @@ void parallel_rank(const T* in, unsigned int sz , DendroIntL* out, MPI_Comm comm
   sorted_offset[0] = 0;
   omp_par::scan(sorted_couts,sorted_offset,npes);
 
-  for(unsigned int i=0; i < sz; i++)
+  
+  for(unsigned int i=0; i < key_sorted.size(); i++)
     key_sorted[i].rank = sorted_offset[rank] + i;
+
+
+  // for(unsigned int i=0;i<key_sorted.size();i++)
+  // {
+  //   std::cout<<"val: "<<key_sorted[i].val<<" p: "<<key_sorted[i].p<<" rank: "<<key_sorted[i].rank<<" idx : "<<key_sorted[i].idx<<std::endl;
+  // }
   
 
   int * sCounts = new int [npes];
@@ -2741,8 +2748,10 @@ void parallel_rank(const T* in, unsigned int sz , DendroIntL* out, MPI_Comm comm
   }
     
 
-  for(unsigned int i=0; i < sz; i++)
+  for(unsigned int i=0; i < key_sorted.size(); i++)
      sCounts[key_sorted[i].p]++;
+
+
 
   for(unsigned int i=0; i < npes; i++)
     sCounts[i] = sizeof(_T<T>)*sCounts[i];
@@ -2759,16 +2768,19 @@ void parallel_rank(const T* in, unsigned int sz , DendroIntL* out, MPI_Comm comm
   std::vector<_T<T>> sBuf;
   sBuf.resize( (sOffset[npes-1] + sCounts[npes-1])/sizeof(_T<T>) );
 
-  for(unsigned int i=0; i < npes; i++)
-    sCounts[i] = 0;
 
-  for(unsigned int i=0; i < sz; i++){
+  
+  for(unsigned int i=0; i < key_sorted.size(); i++){
      sBuf[sOffset[key_sorted[i].p] + ccount[key_sorted[i].p]] = key_sorted[i];
      ccount[key_sorted[i].p]++;
   }
 
   key.resize( (rOffset[npes-1] + rCounts[npes-1]) / sizeof(_T<T>) );
+
+
+  
   MPI_Alltoallv(&(*(sBuf.begin())),sCounts,sOffset,MPI_BYTE,&(*(key.begin())),rCounts,rOffset,MPI_BYTE,comm);
+
 
   for(unsigned int i = 0; i < key.size() ; i++ )
     out[key[i].idx] = key[i].rank;
