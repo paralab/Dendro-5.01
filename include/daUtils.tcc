@@ -235,7 +235,7 @@ namespace ot
                             coord[0]=coords[3*(*ownerList)[w]];
                             coord[1]=coords[3*(*ownerList)[w]+1];
                             coord[2]=coords[3*(*ownerList)[w]+2];
-                            out[(*ownerList)[w]]=lagrangeInterpElementToCoord(mesh,in,coord,searchResult,4);
+                            out[(*ownerList)[w]]=lagrangeInterpElementToCoord(mesh,in,coord,searchResult,mesh->getElementOrder());
                             validIndices.push_back((*ownerList)[w]);
                         }
 

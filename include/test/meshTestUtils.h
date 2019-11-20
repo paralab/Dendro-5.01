@@ -14,7 +14,7 @@
 #include <iostream>
 #include <functional>
 #include "daUtils.h"
-#include "lebedev.h"
+#include "../../BSSN_GR/include/lebedev.h"
 
 
 
@@ -128,9 +128,10 @@ bool ot::test::isElementalNodalValuesValid( ot::Mesh * pMesh,T* vec,std::functio
 
     const std::vector<ot::TreeNode> pNodes=pMesh->getAllElements();
     const std::vector<unsigned int> e2n_dg=pMesh->getE2NMapping_DG();
-    unsigned int x,y,z,sz,owner,ix,jy,kz;
+    unsigned int owner,ix,jy,kz;
     const unsigned int nPe=pMesh->getNumNodesPerElement();
     bool isValid=true;
+    double x,y,z,sz;
 
     for(unsigned int ele=pMesh->getElementLocalBegin();ele<pMesh->getElementLocalEnd();ele++)
     {
@@ -294,7 +295,7 @@ bool ot::test::isUnzipValid(ot::Mesh* pMesh, T* unzipVec,std::function<T(T,T,T)>
     double pt_max[3];
     unsigned int regLev;
     unsigned int lx,ly,lz;
-    unsigned int hx,hy,hz;
+    double hx,hy,hz;
     const unsigned int pW=3;
     unsigned int bflag;
     unsigned int offset;

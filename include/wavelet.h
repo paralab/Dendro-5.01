@@ -338,10 +338,15 @@ void refine_wavelets(const T* unzippedVec, const unsigned int eleOrder,const uns
            for(unsigned int i=0; i<2; i++)
             wavelets[wc1[k]*wn[1]*wn[0] + wc1[j]*wn[0] + wc1[i] ] = fabs(unzippedVec[(eI[2]*eleOrder + uc1[k])*sz[0]*sz[1] + (eI[1]*eleOrder + uc1[j])*sz[0]  + (eI[0]*eleOrder + uc1[i]) ]-wOut[(c1[k])*n[1]*n[0] + (c1[j])*n[0] + (c1[i])]);
         
-        // for(unsigned int k=0; k<4; k+=3)
-        //   for(unsigned int j=0; j<4; j+=3)
-        //    for(unsigned int i=0; i<4; i+=3)
-        //     wavelets[k*wn[1]*wn[0] + j*wn[0] + i ] =0.0;
+        
+        for(unsigned int k=0; k<4; k+=1)
+          for(unsigned int j=0; j<4; j+=1)
+           for(unsigned int i=0; i<4; i+=1)
+           {
+             if(i==0 || i==3 || j==0 || j==3 || k==0 || k==3)
+              wavelets[k*wn[1]*wn[0] + j*wn[0] + i ] =0.0;
+           }
+            
 
 
 
@@ -446,6 +451,14 @@ void refine_wavelets(const T* unzippedVec, const unsigned int eleOrder,const uns
           for(unsigned int j=0; j<2; j++)
            for(unsigned int i=0; i<2; i++)
             wavelets[wc1[k]*wn[1]*wn[0] + wc1[j]*wn[0] + wc1[i] ] = fabs(unzippedVec[(eI[2]*eleOrder + uc1[k])*sz[0]*sz[1] + (eI[1]*eleOrder + uc1[j])*sz[0]  + (eI[0]*eleOrder + uc1[i]) ]-wOut[(c1[k])*n[1]*n[0] + (c1[j])*n[0] + (c1[i])]);
+
+         for(unsigned int k=0; k<4; k+=1)
+          for(unsigned int j=0; j<4; j+=1)
+           for(unsigned int i=0; i<4; i+=1)
+           {
+             if(i==0 || i==3 || j==0 || j==3 || k==0 || k==3)
+              wavelets[k*wn[1]*wn[0] + j*wn[0] + i ] =0.0;
+           }
 
 
     }

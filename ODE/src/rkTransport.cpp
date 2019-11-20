@@ -60,7 +60,7 @@ namespace ode
 
             if(fprefix==NULL)
             {
-                m_uiFilePrefix={"sol_step"};
+                m_uiFilePrefix=(char*)"sol_step";
             }else
                 m_uiFilePrefix=(char *)fprefix;
 
@@ -350,7 +350,7 @@ namespace ode
                     sprintf(fPrefix,"%s_%d",m_uiFilePrefix,m_uiCurrentStep);
 
                     const char * fDataNames[]={"Time","Cyvle"};
-                    const double fData[]={m_uiCurrentTime,m_uiCurrentStep};
+                    const double fData[]={m_uiCurrentTime,(double)m_uiCurrentStep};
                     m_uiMesh->performGhostExchange(m_uiPrevU);
                     const char * pDataNames[]={"U(x,t)"};
                     const double * pData[]={&(*(m_uiPrevU.begin()))};

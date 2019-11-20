@@ -44,7 +44,8 @@ namespace ot
 
         unsigned int nodeLookUp_CG;
         unsigned int nodeLookUp_DG;
-        unsigned int x,y,z,len;
+        unsigned int len;
+        double x,y,z;
         const ot::TreeNode * pNodes=&(*(m_uiAllElements.begin()));
         unsigned int ownerID,ii_x,jj_y,kk_z;
 
@@ -62,11 +63,10 @@ namespace ot
                             nodeLookUp_DG=m_uiE2NMapping_DG[elem*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
                             dg2eijk(nodeLookUp_DG,ownerID,ii_x,jj_y,kk_z);
                             len=1u<<(m_uiMaxDepth-pNodes[ownerID].getLevel());
-                            x=pNodes[ownerID].getX()+ ii_x*(len/(m_uiElementOrder));
-                            y=pNodes[ownerID].getY()+ jj_y*(len/(m_uiElementOrder));
-                            z=pNodes[ownerID].getZ()+ kk_z*(len/(m_uiElementOrder));
-                            assert(len%m_uiElementOrder==0);
-                            vec[nodeLookUp_CG]=func((double)x,(double)y,(double)z);
+                            x=pNodes[ownerID].getX()+ ii_x*(len/((double)m_uiElementOrder));
+                            y=pNodes[ownerID].getY()+ jj_y*(len/((double)m_uiElementOrder));
+                            z=pNodes[ownerID].getZ()+ kk_z*(len/((double)m_uiElementOrder));
+                            vec[nodeLookUp_CG]=func(x,y,z);
                         }
 
                     }
@@ -100,7 +100,8 @@ namespace ot
         vec.resize(m_uiNumActualNodes,0);
         unsigned int nodeLookUp_CG;
         unsigned int nodeLookUp_DG;
-        unsigned int x,y,z,len;
+        unsigned int len;
+        double x,y,z;
         const ot::TreeNode * pNodes=&(*(m_uiAllElements.begin()));
         unsigned int ownerID,ii_x,jj_y,kk_z;
 
@@ -118,11 +119,10 @@ namespace ot
                             nodeLookUp_DG=m_uiE2NMapping_DG[elem*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
                             dg2eijk(nodeLookUp_DG,ownerID,ii_x,jj_y,kk_z);
                             len=1u<<(m_uiMaxDepth-pNodes[ownerID].getLevel());
-                            x=pNodes[ownerID].getX()+ ii_x*(len/(m_uiElementOrder));
-                            y=pNodes[ownerID].getY()+ jj_y*(len/(m_uiElementOrder));
-                            z=pNodes[ownerID].getZ()+ kk_z*(len/(m_uiElementOrder));
-                            assert(len%m_uiElementOrder==0);
-                            vec[nodeLookUp_CG]=func((double)x,(double)y,(double)z);
+                            x=pNodes[ownerID].getX()+ ii_x*(len/((double)m_uiElementOrder));
+                            y=pNodes[ownerID].getY()+ jj_y*(len/((double)m_uiElementOrder));
+                            z=pNodes[ownerID].getZ()+ kk_z*(len/((double)m_uiElementOrder));
+                            vec[nodeLookUp_CG]=func(x,y,z);
                         }
 
                     }
@@ -491,7 +491,7 @@ namespace ot
                 paddWidth=m_uiLocalBlockList[blk].get1DPadWidth();
 
                 //h=((1u<<(m_uiMaxDepth))*m_uiElementOrder)/((0.5-(-0.5)) * ((1u<<(regLev-blkNode.getLevel()))));
-                h=((blkNode.maxX()-blkNode.minX()))/((1u<<(regLev-blkNode.getLevel()))*m_uiElementOrder);
+                h=((blkNode.maxX()-blkNode.minX()))/((double)(1u<<(regLev-blkNode.getLevel()))*m_uiElementOrder);
                 h=1.0/h;
                 blkNpe_1D=m_uiElementOrder*(1u<<(regLev-blkNode.getLevel()))+1+2*paddWidth;
                 assert(blkNpe_1D>paddWidth);
@@ -617,7 +617,7 @@ namespace ot
                 paddWidth=m_uiLocalBlockList[blk].get1DPadWidth();
 
 
-                h=((blkNode.maxY()-blkNode.minY()))/((1u<<(regLev-blkNode.getLevel()))*m_uiElementOrder);
+                h=((blkNode.maxY()-blkNode.minY()))/((double)(1u<<(regLev-blkNode.getLevel()))*m_uiElementOrder);
                 h=1.0/h;
                 blkNpe_1D=m_uiElementOrder*(1u<<(regLev-blkNode.getLevel()))+1+2*paddWidth;
                 assert(blkNpe_1D>paddWidth);
@@ -745,7 +745,7 @@ namespace ot
                 offset=m_uiLocalBlockList[blk].getOffset();
                 paddWidth=m_uiLocalBlockList[blk].get1DPadWidth();
 
-                h=((blkNode.maxZ()-blkNode.minZ()))/((1u<<(regLev-blkNode.getLevel()))*m_uiElementOrder);
+                h=((blkNode.maxZ()-blkNode.minZ()))/((double)(1u<<(regLev-blkNode.getLevel()))*m_uiElementOrder);
                 h=1.0/h;
                 blkNpe_1D=m_uiElementOrder*(1u<<(regLev-blkNode.getLevel()))+1+2*paddWidth;
                 assert(blkNpe_1D>paddWidth);
@@ -1573,7 +1573,8 @@ namespace ot
                         //       for(unsigned int i=0; i<4; i+=3)                                
                         //         waveletR[k*16 + j*4 + i] =0;
 
-                         l_inf=normLInfty(waveletR,num_wr);
+                         //l_inf=normLInfty(waveletR,num_wr);
+                         l_inf = normL2(waveletR,num_wr)/8.0;
 
                             // for(unsigned int k=1; k<3; k+=1)
                             //   for(unsigned int j=1; j<3; j+=1)
@@ -1681,8 +1682,9 @@ namespace ot
                         {
                             coarsen_wavelets(&unzippedVec[varIds[var]][offset],m_uiElementOrder,eIndex,paddWidth,sz,waveletC,num_wc,(double**)ws);
                             //computeCoarsenWavelets(unzippedVec[varIds[var]],offset,m_uiElementOrder,eIndex,paddWidth,sz,waveletC);
-                            l_inf=normLInfty(waveletC,NUM_COARSE_WAVELET_COEF);
-
+                            //l_inf=normLInfty(waveletC,NUM_COARSE_WAVELET_COEF);
+                            //l_inf=normLInfty(waveletC,num_wc);
+                            l_inf = normL2(waveletC,num_wc)/num_wc;
                             if(l_inf>amr_coarse_fac*tol)
                             {
                                 isCoarsen=false;
@@ -3781,9 +3783,20 @@ namespace ot
                             if(isHanging)
                             {
                                 interpOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]=zippedVec[nodeLookUp_CG];
+                            }else
+                            {
+                                const unsigned int iix = m_uiElementOrder * (int) (cnum & 1u)  +  i;
+                                const unsigned int jjy = m_uiElementOrder * (int) ((cnum & 2u)>>1u)  +  j;
+                                const unsigned int kkz = m_uiElementOrder * (int) ((cnum & 4u)>>2u)  +  k;
+                                //std::cout<<" iix: "<<iix<<" jjy: "<<jjy<<" kkz: "<<kkz<<std::endl;
+
+                                if( (iix %2 ==0) && (jjy%2 ==0) && (kkz%2==0))
+                                {
+                                    interpOut[ (kkz>>1u) * (m_uiElementOrder+1)*(m_uiElementOrder+1) + (jjy>>1u) * (m_uiElementOrder+1)+(iix>>1u)] = zippedVec[nodeLookUp_CG];
+                                    
+                                }
+
                             }
-                            else if( (i%2==0) && (j%2==0) && (k%2==0))
-                                interpOut[((((cnum & 4u)>>2u)*m_uiElementOrder+k)>>1)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+((((cnum & 2u)>>1u)*m_uiElementOrder+j)>>1)*(m_uiElementOrder+1)+(((((cnum & (1u)))*m_uiElementOrder+i)>>1))]=zippedVec[nodeLookUp_CG];
 
 
                         }
@@ -3804,8 +3817,21 @@ namespace ot
                             {
                                 interpOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]=zippedVec[nodeLookUp_CG];
                             }
-                            else if( (i%2==0) && (j%2==0) && (k%2==0))
-                                interpOut[((((cnum & 4u)>>2u)*m_uiElementOrder+k)>>1)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+((((cnum & 2u)>>1u)*m_uiElementOrder+j)>>1)*(m_uiElementOrder+1)+(((((cnum & (1u)))*m_uiElementOrder+i)>>1))]=zippedVec[nodeLookUp_CG];
+                            else
+                            {
+                                const unsigned int iix = m_uiElementOrder * (int) (cnum & 1u)  +  i;
+                                const unsigned int jjy = m_uiElementOrder * (int) ((cnum & 2u)>>1u)  +  j;
+                                const unsigned int kkz = m_uiElementOrder * (int) ((cnum & 4u)>>2u)  +  k;
+                                //std::cout<<" iix: "<<iix<<" jjy: "<<jjy<<" kkz: "<<kkz<<std::endl;
+
+                                if( (iix %2 ==0) && (jjy%2 ==0) && (kkz%2==0))
+                                {
+                                    interpOut[ (kkz>>1u) * (m_uiElementOrder+1)*(m_uiElementOrder+1) + (jjy>>1u) * (m_uiElementOrder+1)+(iix>>1u)] = zippedVec[nodeLookUp_CG];
+                                    
+                                }
+
+                            }
+
 
                         }
 
@@ -3961,8 +3987,21 @@ namespace ot
                             {
                                 interpOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]=zippedVec[nodeLookUp_CG];
                             }
-                            else if( (i%2==0) && (j%2==0) && (k%2==0))
-                                interpOut[((((cnum & 4u)>>2u)*m_uiElementOrder+k)>>1)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+((((cnum & 2u)>>1u)*m_uiElementOrder+j)>>1)*(m_uiElementOrder+1)+(((((cnum & (1u)))*m_uiElementOrder+i)>>1))]=zippedVec[nodeLookUp_CG];
+                            else
+                            {
+                                const unsigned int iix = m_uiElementOrder * (int) (cnum & 1u)  +  i;
+                                const unsigned int jjy = m_uiElementOrder * (int) ((cnum & 2u)>>1u)  +  j;
+                                const unsigned int kkz = m_uiElementOrder * (int) ((cnum & 4u)>>2u)  +  k;
+                                //std::cout<<" iix: "<<iix<<" jjy: "<<jjy<<" kkz: "<<kkz<<std::endl;
+
+                                if( (iix %2 ==0) && (jjy%2 ==0) && (kkz%2==0))
+                                {
+                                    interpOut[ (kkz>>1u) * (m_uiElementOrder+1)*(m_uiElementOrder+1) + (jjy>>1u) * (m_uiElementOrder+1)+(iix>>1u)] = zippedVec[nodeLookUp_CG];
+                                    
+                                }
+
+                            }
+
 
 
                         }
@@ -3983,8 +4022,21 @@ namespace ot
                             {
                                 interpOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]=zippedVec[nodeLookUp_CG];
                             }
-                            else if( (i%2==0) && (j%2==0) && (k%2==0))
-                                interpOut[((((cnum & 4u)>>2u)*m_uiElementOrder+k)>>1)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+((((cnum & 2u)>>1u)*m_uiElementOrder+j)>>1)*(m_uiElementOrder+1)+(((((cnum & (1u)))*m_uiElementOrder+i)>>1))]=zippedVec[nodeLookUp_CG];
+                            else
+                            {
+                                const unsigned int iix = m_uiElementOrder * (int) (cnum & 1u)  +  i;
+                                const unsigned int jjy = m_uiElementOrder * (int) ((cnum & 2u)>>1u)  +  j;
+                                const unsigned int kkz = m_uiElementOrder * (int) ((cnum & 4u)>>2u)  +  k;
+                                //std::cout<<" iix: "<<iix<<" jjy: "<<jjy<<" kkz: "<<kkz<<std::endl;
+
+                                if( (iix %2 ==0) && (jjy%2 ==0) && (kkz%2==0))
+                                {
+                                    interpOut[ (kkz>>1u) * (m_uiElementOrder+1)*(m_uiElementOrder+1) + (jjy>>1u) * (m_uiElementOrder+1)+(iix>>1u)] = zippedVec[nodeLookUp_CG];
+                                    
+                                }
+
+                            }
+
 
                         }
 
@@ -4139,8 +4191,20 @@ namespace ot
                             {
                                 interpOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]=zippedVec[nodeLookUp_CG];
                             }
-                            else if( (i%2==0) && (j%2==0) && (k%2==0))
-                                interpOut[((((cnum & 4u)>>2u)*m_uiElementOrder+k)>>1)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+((((cnum & 2u)>>1u)*m_uiElementOrder+j)>>1)*(m_uiElementOrder+1)+(((((cnum & (1u)))*m_uiElementOrder+i)>>1))]=zippedVec[nodeLookUp_CG];
+                            else
+                            {
+                                const unsigned int iix = m_uiElementOrder * (int) (cnum & 1u)  +  i;
+                                const unsigned int jjy = m_uiElementOrder * (int) ((cnum & 2u)>>1u)  +  j;
+                                const unsigned int kkz = m_uiElementOrder * (int) ((cnum & 4u)>>2u)  +  k;
+                                //std::cout<<" iix: "<<iix<<" jjy: "<<jjy<<" kkz: "<<kkz<<std::endl;
+
+                                if( (iix %2 ==0) && (jjy%2 ==0) && (kkz%2==0))
+                                {
+                                    interpOut[ (kkz>>1u) * (m_uiElementOrder+1)*(m_uiElementOrder+1) + (jjy>>1u) * (m_uiElementOrder+1)+(iix>>1u)] = zippedVec[nodeLookUp_CG];
+                                    
+                                }
+
+                            }
 
 
                         }
@@ -4160,8 +4224,20 @@ namespace ot
                             {
                                 interpOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]=zippedVec[nodeLookUp_CG];
                             }
-                            else if( (i%2==0) && (j%2==0) && (k%2==0))
-                                interpOut[((((cnum & 4u)>>2u)*m_uiElementOrder+k)>>1)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+((((cnum & 2u)>>1u)*m_uiElementOrder+j)>>1)*(m_uiElementOrder+1)+(((((cnum & (1u)))*m_uiElementOrder+i)>>1))]=zippedVec[nodeLookUp_CG];
+                            else
+                            {
+                                const unsigned int iix = m_uiElementOrder * (int) (cnum & 1u)  +  i;
+                                const unsigned int jjy = m_uiElementOrder * (int) ((cnum & 2u)>>1u)  +  j;
+                                const unsigned int kkz = m_uiElementOrder * (int) ((cnum & 4u)>>2u)  +  k;
+                                //std::cout<<" iix: "<<iix<<" jjy: "<<jjy<<" kkz: "<<kkz<<std::endl;
+
+                                if( (iix %2 ==0) && (jjy%2 ==0) && (kkz%2==0))
+                                {
+                                    interpOut[ (kkz>>1u) * (m_uiElementOrder+1)*(m_uiElementOrder+1) + (jjy>>1u) * (m_uiElementOrder+1)+(iix>>1u)] = zippedVec[nodeLookUp_CG];
+                                    
+                                }
+
+                            }
 
                         }
 
@@ -4319,8 +4395,20 @@ namespace ot
                             {
                                 interpOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]=zippedVec[nodeLookUp_CG];
                             }
-                            else if( (i%2==0) && (j%2==0) && (k%2==0))
-                                interpOut[((((cnum & 4u)>>2u)*m_uiElementOrder+k)>>1)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+((((cnum & 2u)>>1u)*m_uiElementOrder+j)>>1)*(m_uiElementOrder+1)+(((((cnum & (1u)))*m_uiElementOrder+i)>>1))]=zippedVec[nodeLookUp_CG];
+                            else
+                            {
+                                const unsigned int iix = m_uiElementOrder * (int) (cnum & 1u)  +  i;
+                                const unsigned int jjy = m_uiElementOrder * (int) ((cnum & 2u)>>1u)  +  j;
+                                const unsigned int kkz = m_uiElementOrder * (int) ((cnum & 4u)>>2u)  +  k;
+                                //std::cout<<" iix: "<<iix<<" jjy: "<<jjy<<" kkz: "<<kkz<<std::endl;
+
+                                if( (iix %2 ==0) && (jjy%2 ==0) && (kkz%2==0))
+                                {
+                                    interpOut[ (kkz>>1u) * (m_uiElementOrder+1)*(m_uiElementOrder+1) + (jjy>>1u) * (m_uiElementOrder+1)+(iix>>1u)] = zippedVec[nodeLookUp_CG];
+                                    
+                                }
+
+                            }
 
 
                         }
@@ -4340,9 +4428,20 @@ namespace ot
                             {
                                 interpOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]=zippedVec[nodeLookUp_CG];
                             }
-                            else if( (i%2==0) && (j%2==0) && (k%2==0))
-                                interpOut[((((cnum & 4u)>>2u)*m_uiElementOrder+k)>>1)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+((((cnum & 2u)>>1u)*m_uiElementOrder+j)>>1)*(m_uiElementOrder+1)+(((((cnum & (1u)))*m_uiElementOrder+i)>>1))]=zippedVec[nodeLookUp_CG];
+                            else
+                            {
+                                const unsigned int iix = m_uiElementOrder * (int) (cnum & 1u)  +  i;
+                                const unsigned int jjy = m_uiElementOrder * (int) ((cnum & 2u)>>1u)  +  j;
+                                const unsigned int kkz = m_uiElementOrder * (int) ((cnum & 4u)>>2u)  +  k;
+                                //std::cout<<" iix: "<<iix<<" jjy: "<<jjy<<" kkz: "<<kkz<<std::endl;
 
+                                if( (iix %2 ==0) && (jjy%2 ==0) && (kkz%2==0))
+                                {
+                                    interpOut[ (kkz>>1u) * (m_uiElementOrder+1)*(m_uiElementOrder+1) + (jjy>>1u) * (m_uiElementOrder+1)+(iix>>1u)] = zippedVec[nodeLookUp_CG];
+                                    
+                                }
+
+                            }
                         }
 
                 for(unsigned int k=kb;k<ke;k++)
@@ -4502,8 +4601,20 @@ namespace ot
                             {
                                 interpOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]=zippedVec[nodeLookUp_CG];
                             }
-                            else if( (i%2==0) && (j%2==0) && (k%2==0))
-                                interpOut[((((cnum & 4u)>>2u)*m_uiElementOrder+k)>>1)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+((((cnum & 2u)>>1u)*m_uiElementOrder+j)>>1)*(m_uiElementOrder+1)+(((((cnum & (1u)))*m_uiElementOrder+i)>>1))]=zippedVec[nodeLookUp_CG];
+                            else
+                            {
+                                const unsigned int iix = m_uiElementOrder * (int) (cnum & 1u)  +  i;
+                                const unsigned int jjy = m_uiElementOrder * (int) ((cnum & 2u)>>1u)  +  j;
+                                const unsigned int kkz = m_uiElementOrder * (int) ((cnum & 4u)>>2u)  +  k;
+                                //std::cout<<" iix: "<<iix<<" jjy: "<<jjy<<" kkz: "<<kkz<<std::endl;
+
+                                if( (iix %2 ==0) && (jjy%2 ==0) && (kkz%2==0))
+                                {
+                                    interpOut[ (kkz>>1u) * (m_uiElementOrder+1)*(m_uiElementOrder+1) + (jjy>>1u) * (m_uiElementOrder+1)+(iix>>1u)] = zippedVec[nodeLookUp_CG];
+                                    
+                                }
+
+                            }
 
 
                         }
@@ -4523,8 +4634,20 @@ namespace ot
                             {
                                 interpOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]=zippedVec[nodeLookUp_CG];
                             }
-                            else if( (i%2==0) && (j%2==0) && (k%2==0))
-                                interpOut[((((cnum & 4u)>>2u)*m_uiElementOrder+k)>>1)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+((((cnum & 2u)>>1u)*m_uiElementOrder+j)>>1)*(m_uiElementOrder+1)+(((((cnum & (1u)))*m_uiElementOrder+i)>>1))]=zippedVec[nodeLookUp_CG];
+                            else
+                            {
+                                const unsigned int iix = m_uiElementOrder * (int) (cnum & 1u)  +  i;
+                                const unsigned int jjy = m_uiElementOrder * (int) ((cnum & 2u)>>1u)  +  j;
+                                const unsigned int kkz = m_uiElementOrder * (int) ((cnum & 4u)>>2u)  +  k;
+                                //std::cout<<" iix: "<<iix<<" jjy: "<<jjy<<" kkz: "<<kkz<<std::endl;
+
+                                if( (iix %2 ==0) && (jjy%2 ==0) && (kkz%2==0))
+                                {
+                                    interpOut[ (kkz>>1u) * (m_uiElementOrder+1)*(m_uiElementOrder+1) + (jjy>>1u) * (m_uiElementOrder+1)+(iix>>1u)] = zippedVec[nodeLookUp_CG];
+                                    
+                                }
+
+                            }
 
                         }
 
@@ -4681,8 +4804,20 @@ namespace ot
                             {
                                 interpOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]=zippedVec[nodeLookUp_CG];
                             }
-                            else if( (i%2==0) && (j%2==0) && (k%2==0))
-                                interpOut[((((cnum & 4u)>>2u)*m_uiElementOrder+k)>>1)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+((((cnum & 2u)>>1u)*m_uiElementOrder+j)>>1)*(m_uiElementOrder+1)+(((((cnum & (1u)))*m_uiElementOrder+i)>>1))]=zippedVec[nodeLookUp_CG];
+                            else
+                            {
+                                const unsigned int iix = m_uiElementOrder * (int) (cnum & 1u)  +  i;
+                                const unsigned int jjy = m_uiElementOrder * (int) ((cnum & 2u)>>1u)  +  j;
+                                const unsigned int kkz = m_uiElementOrder * (int) ((cnum & 4u)>>2u)  +  k;
+                                //std::cout<<" iix: "<<iix<<" jjy: "<<jjy<<" kkz: "<<kkz<<std::endl;
+
+                                if( (iix %2 ==0) && (jjy%2 ==0) && (kkz%2==0))
+                                {
+                                    interpOut[ (kkz>>1u) * (m_uiElementOrder+1)*(m_uiElementOrder+1) + (jjy>>1u) * (m_uiElementOrder+1)+(iix>>1u)] = zippedVec[nodeLookUp_CG];
+                                    
+                                }
+
+                            }
 
 
                         }
@@ -4702,8 +4837,20 @@ namespace ot
                             {
                                 interpOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]=zippedVec[nodeLookUp_CG];
                             }
-                            else if( (i%2==0) && (j%2==0) && (k%2==0))
-                                interpOut[((((cnum & 4u)>>2u)*m_uiElementOrder+k)>>1)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+((((cnum & 2u)>>1u)*m_uiElementOrder+j)>>1)*(m_uiElementOrder+1)+(((((cnum & (1u)))*m_uiElementOrder+i)>>1))]=zippedVec[nodeLookUp_CG];
+                            else
+                            {
+                                const unsigned int iix = m_uiElementOrder * (int) (cnum & 1u)  +  i;
+                                const unsigned int jjy = m_uiElementOrder * (int) ((cnum & 2u)>>1u)  +  j;
+                                const unsigned int kkz = m_uiElementOrder * (int) ((cnum & 4u)>>2u)  +  k;
+                                //std::cout<<" iix: "<<iix<<" jjy: "<<jjy<<" kkz: "<<kkz<<std::endl;
+
+                                if( (iix %2 ==0) && (jjy%2 ==0) && (kkz%2==0))
+                                {
+                                    interpOut[ (kkz>>1u) * (m_uiElementOrder+1)*(m_uiElementOrder+1) + (jjy>>1u) * (m_uiElementOrder+1)+(iix>>1u)] = zippedVec[nodeLookUp_CG];
+                                    
+                                }
+
+                            }
 
                         }
 
@@ -4859,8 +5006,20 @@ namespace ot
                             {
                                 interpOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]=zippedVec[nodeLookUp_CG];
                             }
-                            else if( (i%2==0) && (j%2==0) && (k%2==0))
-                                interpOut[((((cnum & 4u)>>2u)*m_uiElementOrder+k)>>1)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+((((cnum & 2u)>>1u)*m_uiElementOrder+j)>>1)*(m_uiElementOrder+1)+(((((cnum & (1u)))*m_uiElementOrder+i)>>1))]=zippedVec[nodeLookUp_CG];
+                            else
+                            {
+                                const unsigned int iix = m_uiElementOrder * (int) (cnum & 1u)  +  i;
+                                const unsigned int jjy = m_uiElementOrder * (int) ((cnum & 2u)>>1u)  +  j;
+                                const unsigned int kkz = m_uiElementOrder * (int) ((cnum & 4u)>>2u)  +  k;
+                                //std::cout<<" iix: "<<iix<<" jjy: "<<jjy<<" kkz: "<<kkz<<std::endl;
+
+                                if( (iix %2 ==0) && (jjy%2 ==0) && (kkz%2==0))
+                                {
+                                    interpOut[ (kkz>>1u) * (m_uiElementOrder+1)*(m_uiElementOrder+1) + (jjy>>1u) * (m_uiElementOrder+1)+(iix>>1u)] = zippedVec[nodeLookUp_CG];
+                                    
+                                }
+
+                            }
 
 
                         }
@@ -4880,8 +5039,20 @@ namespace ot
                             {
                                 interpOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]=zippedVec[nodeLookUp_CG];
                             }
-                            else if( (i%2==0) && (j%2==0) && (k%2==0))
-                                interpOut[((((cnum & 4u)>>2u)*m_uiElementOrder+k)>>1)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+((((cnum & 2u)>>1u)*m_uiElementOrder+j)>>1)*(m_uiElementOrder+1)+(((((cnum & (1u)))*m_uiElementOrder+i)>>1))]=zippedVec[nodeLookUp_CG];
+                            else
+                            {
+                                const unsigned int iix = m_uiElementOrder * (int) (cnum & 1u)  +  i;
+                                const unsigned int jjy = m_uiElementOrder * (int) ((cnum & 2u)>>1u)  +  j;
+                                const unsigned int kkz = m_uiElementOrder * (int) ((cnum & 4u)>>2u)  +  k;
+                                //std::cout<<" iix: "<<iix<<" jjy: "<<jjy<<" kkz: "<<kkz<<std::endl;
+
+                                if( (iix %2 ==0) && (jjy%2 ==0) && (kkz%2==0))
+                                {
+                                    interpOut[ (kkz>>1u) * (m_uiElementOrder+1)*(m_uiElementOrder+1) + (jjy>>1u) * (m_uiElementOrder+1)+(iix>>1u)] = zippedVec[nodeLookUp_CG];
+                                    
+                                }
+
+                            }
 
                         }
 
@@ -5039,8 +5210,20 @@ namespace ot
                             {
                                 interpOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]=zippedVec[nodeLookUp_CG];
                             }
-                            else if( (i%2==0) && (j%2==0) && (k%2==0))
-                                interpOut[((((cnum & 4u)>>2u)*m_uiElementOrder+k)>>1)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+((((cnum & 2u)>>1u)*m_uiElementOrder+j)>>1)*(m_uiElementOrder+1)+(((((cnum & (1u)))*m_uiElementOrder+i)>>1))]=zippedVec[nodeLookUp_CG];
+                           else
+                            {
+                                const unsigned int iix = m_uiElementOrder * (int) (cnum & 1u)  +  i;
+                                const unsigned int jjy = m_uiElementOrder * (int) ((cnum & 2u)>>1u)  +  j;
+                                const unsigned int kkz = m_uiElementOrder * (int) ((cnum & 4u)>>2u)  +  k;
+                                //std::cout<<" iix: "<<iix<<" jjy: "<<jjy<<" kkz: "<<kkz<<std::endl;
+
+                                if( (iix %2 ==0) && (jjy%2 ==0) && (kkz%2==0))
+                                {
+                                    interpOut[ (kkz>>1u) * (m_uiElementOrder+1)*(m_uiElementOrder+1) + (jjy>>1u) * (m_uiElementOrder+1)+(iix>>1u)] = zippedVec[nodeLookUp_CG];
+                                    
+                                }
+
+                            }
 
 
                         }
@@ -5060,8 +5243,20 @@ namespace ot
                             {
                                 interpOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]=zippedVec[nodeLookUp_CG];
                             }
-                            else if( (i%2==0) && (j%2==0) && (k%2==0))
-                                interpOut[((((cnum & 4u)>>2u)*m_uiElementOrder+k)>>1)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+((((cnum & 2u)>>1u)*m_uiElementOrder+j)>>1)*(m_uiElementOrder+1)+(((((cnum & (1u)))*m_uiElementOrder+i)>>1))]=zippedVec[nodeLookUp_CG];
+                            else
+                            {
+                                const unsigned int iix = m_uiElementOrder * (int) (cnum & 1u)  +  i;
+                                const unsigned int jjy = m_uiElementOrder * (int) ((cnum & 2u)>>1u)  +  j;
+                                const unsigned int kkz = m_uiElementOrder * (int) ((cnum & 4u)>>2u)  +  k;
+                                //std::cout<<" iix: "<<iix<<" jjy: "<<jjy<<" kkz: "<<kkz<<std::endl;
+
+                                if( (iix %2 ==0) && (jjy%2 ==0) && (kkz%2==0))
+                                {
+                                    interpOut[ (kkz>>1u) * (m_uiElementOrder+1)*(m_uiElementOrder+1) + (jjy>>1u) * (m_uiElementOrder+1)+(iix>>1u)] = zippedVec[nodeLookUp_CG];
+                                    
+                                }
+
+                            }
 
                         }
 
@@ -5220,8 +5415,20 @@ namespace ot
                             {
                                 interpOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]=zippedVec[nodeLookUp_CG];
                             }
-                            else if( (i%2==0) && (j%2==0) && (k%2==0))
-                                interpOut[((((cnum & 4u)>>2u)*m_uiElementOrder+k)>>1)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+((((cnum & 2u)>>1u)*m_uiElementOrder+j)>>1)*(m_uiElementOrder+1)+(((((cnum & (1u)))*m_uiElementOrder+i)>>1))]=zippedVec[nodeLookUp_CG];
+                            else
+                            {
+                                const unsigned int iix = m_uiElementOrder * (int) (cnum & 1u)  +  i;
+                                const unsigned int jjy = m_uiElementOrder * (int) ((cnum & 2u)>>1u)  +  j;
+                                const unsigned int kkz = m_uiElementOrder * (int) ((cnum & 4u)>>2u)  +  k;
+                                //std::cout<<" iix: "<<iix<<" jjy: "<<jjy<<" kkz: "<<kkz<<std::endl;
+
+                                if( (iix %2 ==0) && (jjy%2 ==0) && (kkz%2==0))
+                                {
+                                    interpOut[ (kkz>>1u) * (m_uiElementOrder+1)*(m_uiElementOrder+1) + (jjy>>1u) * (m_uiElementOrder+1)+(iix>>1u)] = zippedVec[nodeLookUp_CG];
+                                    
+                                }
+
+                            }
 
 
                         }
@@ -5241,8 +5448,20 @@ namespace ot
                             {
                                 interpOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]=zippedVec[nodeLookUp_CG];
                             }
-                            else if( (i%2==0) && (j%2==0) && (k%2==0))
-                                interpOut[((((cnum & 4u)>>2u)*m_uiElementOrder+k)>>1)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+((((cnum & 2u)>>1u)*m_uiElementOrder+j)>>1)*(m_uiElementOrder+1)+(((((cnum & (1u)))*m_uiElementOrder+i)>>1))]=zippedVec[nodeLookUp_CG];
+                            else
+                            {
+                                const unsigned int iix = m_uiElementOrder * (int) (cnum & 1u)  +  i;
+                                const unsigned int jjy = m_uiElementOrder * (int) ((cnum & 2u)>>1u)  +  j;
+                                const unsigned int kkz = m_uiElementOrder * (int) ((cnum & 4u)>>2u)  +  k;
+                                //std::cout<<" iix: "<<iix<<" jjy: "<<jjy<<" kkz: "<<kkz<<std::endl;
+
+                                if( (iix %2 ==0) && (jjy%2 ==0) && (kkz%2==0))
+                                {
+                                    interpOut[ (kkz>>1u) * (m_uiElementOrder+1)*(m_uiElementOrder+1) + (jjy>>1u) * (m_uiElementOrder+1)+(iix>>1u)] = zippedVec[nodeLookUp_CG];
+                                    
+                                }
+
+                            }
 
                         }
 
@@ -5400,8 +5619,20 @@ namespace ot
                             {
                                 interpOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]=zippedVec[nodeLookUp_CG];
                             }
-                            else if( (i%2==0) && (j%2==0) && (k%2==0))
-                                interpOut[((((cnum & 4u)>>2u)*m_uiElementOrder+k)>>1)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+((((cnum & 2u)>>1u)*m_uiElementOrder+j)>>1)*(m_uiElementOrder+1)+(((((cnum & (1u)))*m_uiElementOrder+i)>>1))]=zippedVec[nodeLookUp_CG];
+                            else
+                            {
+                                const unsigned int iix = m_uiElementOrder * (int) (cnum & 1u)  +  i;
+                                const unsigned int jjy = m_uiElementOrder * (int) ((cnum & 2u)>>1u)  +  j;
+                                const unsigned int kkz = m_uiElementOrder * (int) ((cnum & 4u)>>2u)  +  k;
+                                //std::cout<<" iix: "<<iix<<" jjy: "<<jjy<<" kkz: "<<kkz<<std::endl;
+
+                                if( (iix %2 ==0) && (jjy%2 ==0) && (kkz%2==0))
+                                {
+                                    interpOut[ (kkz>>1u) * (m_uiElementOrder+1)*(m_uiElementOrder+1) + (jjy>>1u) * (m_uiElementOrder+1)+(iix>>1u)] = zippedVec[nodeLookUp_CG];
+                                    
+                                }
+
+                            }
 
 
                         }
@@ -5421,8 +5652,20 @@ namespace ot
                             {
                                 interpOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]=zippedVec[nodeLookUp_CG];
                             }
-                            else if( (i%2==0) && (j%2==0) && (k%2==0))
-                                interpOut[((((cnum & 4u)>>2u)*m_uiElementOrder+k)>>1)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+((((cnum & 2u)>>1u)*m_uiElementOrder+j)>>1)*(m_uiElementOrder+1)+(((((cnum & (1u)))*m_uiElementOrder+i)>>1))]=zippedVec[nodeLookUp_CG];
+                            else
+                            {
+                                const unsigned int iix = m_uiElementOrder * (int) (cnum & 1u)  +  i;
+                                const unsigned int jjy = m_uiElementOrder * (int) ((cnum & 2u)>>1u)  +  j;
+                                const unsigned int kkz = m_uiElementOrder * (int) ((cnum & 4u)>>2u)  +  k;
+                                //std::cout<<" iix: "<<iix<<" jjy: "<<jjy<<" kkz: "<<kkz<<std::endl;
+
+                                if( (iix %2 ==0) && (jjy%2 ==0) && (kkz%2==0))
+                                {
+                                    interpOut[ (kkz>>1u) * (m_uiElementOrder+1)*(m_uiElementOrder+1) + (jjy>>1u) * (m_uiElementOrder+1)+(iix>>1u)] = zippedVec[nodeLookUp_CG];
+                                    
+                                }
+
+                            }
 
                         }
 
@@ -5580,8 +5823,20 @@ namespace ot
                             {
                                 interpOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]=zippedVec[nodeLookUp_CG];
                             }
-                            else if( (i%2==0) && (j%2==0) && (k%2==0))
-                                interpOut[((((cnum & 4u)>>2u)*m_uiElementOrder+k)>>1)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+((((cnum & 2u)>>1u)*m_uiElementOrder+j)>>1)*(m_uiElementOrder+1)+(((((cnum & (1u)))*m_uiElementOrder+i)>>1))]=zippedVec[nodeLookUp_CG];
+                            else
+                            {
+                                const unsigned int iix = m_uiElementOrder * (int) (cnum & 1u)  +  i;
+                                const unsigned int jjy = m_uiElementOrder * (int) ((cnum & 2u)>>1u)  +  j;
+                                const unsigned int kkz = m_uiElementOrder * (int) ((cnum & 4u)>>2u)  +  k;
+                                //std::cout<<" iix: "<<iix<<" jjy: "<<jjy<<" kkz: "<<kkz<<std::endl;
+
+                                if( (iix %2 ==0) && (jjy%2 ==0) && (kkz%2==0))
+                                {
+                                    interpOut[ (kkz>>1u) * (m_uiElementOrder+1)*(m_uiElementOrder+1) + (jjy>>1u) * (m_uiElementOrder+1)+(iix>>1u)] = zippedVec[nodeLookUp_CG];
+                                    
+                                }
+
+                            }
 
 
                         }
@@ -5601,8 +5856,20 @@ namespace ot
                             {
                                 interpOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]=zippedVec[nodeLookUp_CG];
                             }
-                            else if( (i%2==0) && (j%2==0) && (k%2==0))
-                                interpOut[((((cnum & 4u)>>2u)*m_uiElementOrder+k)>>1)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+((((cnum & 2u)>>1u)*m_uiElementOrder+j)>>1)*(m_uiElementOrder+1)+(((((cnum & (1u)))*m_uiElementOrder+i)>>1))]=zippedVec[nodeLookUp_CG];
+                            else
+                            {
+                                const unsigned int iix = m_uiElementOrder * (int) (cnum & 1u)  +  i;
+                                const unsigned int jjy = m_uiElementOrder * (int) ((cnum & 2u)>>1u)  +  j;
+                                const unsigned int kkz = m_uiElementOrder * (int) ((cnum & 4u)>>2u)  +  k;
+                                //std::cout<<" iix: "<<iix<<" jjy: "<<jjy<<" kkz: "<<kkz<<std::endl;
+
+                                if( (iix %2 ==0) && (jjy%2 ==0) && (kkz%2==0))
+                                {
+                                    interpOut[ (kkz>>1u) * (m_uiElementOrder+1)*(m_uiElementOrder+1) + (jjy>>1u) * (m_uiElementOrder+1)+(iix>>1u)] = zippedVec[nodeLookUp_CG];
+                                    
+                                }
+
+                            }
 
                         }
 
@@ -5760,8 +6027,20 @@ namespace ot
                             {
                                 interpOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]=zippedVec[nodeLookUp_CG];
                             }
-                            else if( (i%2==0) && (j%2==0) && (k%2==0))
-                                interpOut[((((cnum & 4u)>>2u)*m_uiElementOrder+k)>>1)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+((((cnum & 2u)>>1u)*m_uiElementOrder+j)>>1)*(m_uiElementOrder+1)+(((((cnum & (1u)))*m_uiElementOrder+i)>>1))]=zippedVec[nodeLookUp_CG];
+                            else
+                            {
+                                const unsigned int iix = m_uiElementOrder * (int) (cnum & 1u)  +  i;
+                                const unsigned int jjy = m_uiElementOrder * (int) ((cnum & 2u)>>1u)  +  j;
+                                const unsigned int kkz = m_uiElementOrder * (int) ((cnum & 4u)>>2u)  +  k;
+                                //std::cout<<" iix: "<<iix<<" jjy: "<<jjy<<" kkz: "<<kkz<<std::endl;
+
+                                if( (iix %2 ==0) && (jjy%2 ==0) && (kkz%2==0))
+                                {
+                                    interpOut[ (kkz>>1u) * (m_uiElementOrder+1)*(m_uiElementOrder+1) + (jjy>>1u) * (m_uiElementOrder+1)+(iix>>1u)] = zippedVec[nodeLookUp_CG];
+                                    
+                                }
+
+                            }
 
 
                         }
@@ -5781,8 +6060,20 @@ namespace ot
                             {
                                 interpOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]=zippedVec[nodeLookUp_CG];
                             }
-                            else if( (i%2==0) && (j%2==0) && (k%2==0))
-                                interpOut[((((cnum & 4u)>>2u)*m_uiElementOrder+k)>>1)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+((((cnum & 2u)>>1u)*m_uiElementOrder+j)>>1)*(m_uiElementOrder+1)+(((((cnum & (1u)))*m_uiElementOrder+i)>>1))]=zippedVec[nodeLookUp_CG];
+                            else
+                            {
+                                const unsigned int iix = m_uiElementOrder * (int) (cnum & 1u)  +  i;
+                                const unsigned int jjy = m_uiElementOrder * (int) ((cnum & 2u)>>1u)  +  j;
+                                const unsigned int kkz = m_uiElementOrder * (int) ((cnum & 4u)>>2u)  +  k;
+                                //std::cout<<" iix: "<<iix<<" jjy: "<<jjy<<" kkz: "<<kkz<<std::endl;
+
+                                if( (iix %2 ==0) && (jjy%2 ==0) && (kkz%2==0))
+                                {
+                                    interpOut[ (kkz>>1u) * (m_uiElementOrder+1)*(m_uiElementOrder+1) + (jjy>>1u) * (m_uiElementOrder+1)+(iix>>1u)] = zippedVec[nodeLookUp_CG];
+                                    
+                                }
+
+                            }
 
                         }
 
@@ -5897,9 +6188,20 @@ namespace ot
                         {
                             interpOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]=zippedVec[nodeLookUp_CG];
                         }
-                        else if( (i%2==0) && (j%2==0) && (k%2==0))
-                            interpOut[((((cnum & 4u)>>2u)*m_uiElementOrder+k)>>1)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+((((cnum & 2u)>>1u)*m_uiElementOrder+j)>>1)*(m_uiElementOrder+1)+(((((cnum & (1u)))*m_uiElementOrder+i)>>1))]=zippedVec[nodeLookUp_CG];
+                        else
+                        {
+                            const unsigned int iix = m_uiElementOrder * (int) (cnum & 1u)  +  i;
+                            const unsigned int jjy = m_uiElementOrder * (int) ((cnum & 2u)>>1u)  +  j;
+                            const unsigned int kkz = m_uiElementOrder * (int) ((cnum & 4u)>>2u)  +  k;
+                            //std::cout<<" iix: "<<iix<<" jjy: "<<jjy<<" kkz: "<<kkz<<std::endl;
 
+                            if( (iix %2 ==0) && (jjy%2 ==0) && (kkz%2==0))
+                            {
+                                interpOut[ (kkz>>1u) * (m_uiElementOrder+1)*(m_uiElementOrder+1) + (jjy>>1u) * (m_uiElementOrder+1)+(iix>>1u)] = zippedVec[nodeLookUp_CG];
+                                
+                            }
+
+                        }
                     }
 
 
@@ -6014,8 +6316,20 @@ namespace ot
                         {
                             interpOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]=zippedVec[nodeLookUp_CG];
                         }
-                        else if( (i%2==0) && (j%2==0) && (k%2==0))
-                            interpOut[((((cnum & 4u)>>2u)*m_uiElementOrder+k)>>1)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+((((cnum & 2u)>>1u)*m_uiElementOrder+j)>>1)*(m_uiElementOrder+1)+(((((cnum & (1u)))*m_uiElementOrder+i)>>1))]=zippedVec[nodeLookUp_CG];
+                        else
+                        {
+                            const unsigned int iix = m_uiElementOrder * (int) (cnum & 1u)  +  i;
+                            const unsigned int jjy = m_uiElementOrder * (int) ((cnum & 2u)>>1u)  +  j;
+                            const unsigned int kkz = m_uiElementOrder * (int) ((cnum & 4u)>>2u)  +  k;
+                            //std::cout<<" iix: "<<iix<<" jjy: "<<jjy<<" kkz: "<<kkz<<std::endl;
+
+                            if( (iix %2 ==0) && (jjy%2 ==0) && (kkz%2==0))
+                            {
+                                interpOut[ (kkz>>1u) * (m_uiElementOrder+1)*(m_uiElementOrder+1) + (jjy>>1u) * (m_uiElementOrder+1)+(iix>>1u)] = zippedVec[nodeLookUp_CG];
+                                
+                            }
+
+                        }
 
                     }
 
@@ -6130,8 +6444,20 @@ namespace ot
                         {
                             interpOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]=zippedVec[nodeLookUp_CG];
                         }
-                        else if( (i%2==0) && (j%2==0) && (k%2==0))
-                            interpOut[((((cnum & 4u)>>2u)*m_uiElementOrder+k)>>1)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+((((cnum & 2u)>>1u)*m_uiElementOrder+j)>>1)*(m_uiElementOrder+1)+(((((cnum & (1u)))*m_uiElementOrder+i)>>1))]=zippedVec[nodeLookUp_CG];
+                        else
+                        {
+                            const unsigned int iix = m_uiElementOrder * (int) (cnum & 1u)  +  i;
+                            const unsigned int jjy = m_uiElementOrder * (int) ((cnum & 2u)>>1u)  +  j;
+                            const unsigned int kkz = m_uiElementOrder * (int) ((cnum & 4u)>>2u)  +  k;
+                            //std::cout<<" iix: "<<iix<<" jjy: "<<jjy<<" kkz: "<<kkz<<std::endl;
+
+                            if( (iix %2 ==0) && (jjy%2 ==0) && (kkz%2==0))
+                            {
+                                interpOut[ (kkz>>1u) * (m_uiElementOrder+1)*(m_uiElementOrder+1) + (jjy>>1u) * (m_uiElementOrder+1)+(iix>>1u)] = zippedVec[nodeLookUp_CG];
+                                
+                            }
+
+                        }
 
                     }
 
@@ -6247,8 +6573,20 @@ namespace ot
                         {
                             interpOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]=zippedVec[nodeLookUp_CG];
                         }
-                        else if( (i%2==0) && (j%2==0) && (k%2==0))
-                            interpOut[((((cnum & 4u)>>2u)*m_uiElementOrder+k)>>1)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+((((cnum & 2u)>>1u)*m_uiElementOrder+j)>>1)*(m_uiElementOrder+1)+(((((cnum & (1u)))*m_uiElementOrder+i)>>1))]=zippedVec[nodeLookUp_CG];
+                        else
+                        {
+                            const unsigned int iix = m_uiElementOrder * (int) (cnum & 1u)  +  i;
+                            const unsigned int jjy = m_uiElementOrder * (int) ((cnum & 2u)>>1u)  +  j;
+                            const unsigned int kkz = m_uiElementOrder * (int) ((cnum & 4u)>>2u)  +  k;
+                            //std::cout<<" iix: "<<iix<<" jjy: "<<jjy<<" kkz: "<<kkz<<std::endl;
+
+                            if( (iix %2 ==0) && (jjy%2 ==0) && (kkz%2==0))
+                            {
+                                interpOut[ (kkz>>1u) * (m_uiElementOrder+1)*(m_uiElementOrder+1) + (jjy>>1u) * (m_uiElementOrder+1)+(iix>>1u)] = zippedVec[nodeLookUp_CG];
+                                
+                            }
+
+                        }
 
                     }
 
@@ -6365,8 +6703,20 @@ namespace ot
                         {
                             interpOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]=zippedVec[nodeLookUp_CG];
                         }
-                        else if( (i%2==0) && (j%2==0) && (k%2==0))
-                            interpOut[((((cnum & 4u)>>2u)*m_uiElementOrder+k)>>1)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+((((cnum & 2u)>>1u)*m_uiElementOrder+j)>>1)*(m_uiElementOrder+1)+(((((cnum & (1u)))*m_uiElementOrder+i)>>1))]=zippedVec[nodeLookUp_CG];
+                        else
+                        {
+                            const unsigned int iix = m_uiElementOrder * (int) (cnum & 1u)  +  i;
+                            const unsigned int jjy = m_uiElementOrder * (int) ((cnum & 2u)>>1u)  +  j;
+                            const unsigned int kkz = m_uiElementOrder * (int) ((cnum & 4u)>>2u)  +  k;
+                            //std::cout<<" iix: "<<iix<<" jjy: "<<jjy<<" kkz: "<<kkz<<std::endl;
+
+                            if( (iix %2 ==0) && (jjy%2 ==0) && (kkz%2==0))
+                            {
+                                interpOut[ (kkz>>1u) * (m_uiElementOrder+1)*(m_uiElementOrder+1) + (jjy>>1u) * (m_uiElementOrder+1)+(iix>>1u)] = zippedVec[nodeLookUp_CG];
+                                
+                            }
+
+                        }
 
                     }
 
@@ -6482,8 +6832,20 @@ namespace ot
                         {
                             interpOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]=zippedVec[nodeLookUp_CG];
                         }
-                        else if( (i%2==0) && (j%2==0) && (k%2==0))
-                            interpOut[((((cnum & 4u)>>2u)*m_uiElementOrder+k)>>1)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+((((cnum & 2u)>>1u)*m_uiElementOrder+j)>>1)*(m_uiElementOrder+1)+(((((cnum & (1u)))*m_uiElementOrder+i)>>1))]=zippedVec[nodeLookUp_CG];
+                        else
+                        {
+                            const unsigned int iix = m_uiElementOrder * (int) (cnum & 1u)  +  i;
+                            const unsigned int jjy = m_uiElementOrder * (int) ((cnum & 2u)>>1u)  +  j;
+                            const unsigned int kkz = m_uiElementOrder * (int) ((cnum & 4u)>>2u)  +  k;
+                            //std::cout<<" iix: "<<iix<<" jjy: "<<jjy<<" kkz: "<<kkz<<std::endl;
+
+                            if( (iix %2 ==0) && (jjy%2 ==0) && (kkz%2==0))
+                            {
+                                interpOut[ (kkz>>1u) * (m_uiElementOrder+1)*(m_uiElementOrder+1) + (jjy>>1u) * (m_uiElementOrder+1)+(iix>>1u)] = zippedVec[nodeLookUp_CG];
+                                
+                            }
+
+                        }
 
                     }
 
@@ -6598,8 +6960,20 @@ namespace ot
                         {
                             interpOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]=zippedVec[nodeLookUp_CG];
                         }
-                        else if( (i%2==0) && (j%2==0) && (k%2==0))
-                            interpOut[((((cnum & 4u)>>2u)*m_uiElementOrder+k)>>1)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+((((cnum & 2u)>>1u)*m_uiElementOrder+j)>>1)*(m_uiElementOrder+1)+(((((cnum & (1u)))*m_uiElementOrder+i)>>1))]=zippedVec[nodeLookUp_CG];
+                        else
+                        {
+                            const unsigned int iix = m_uiElementOrder * (int) (cnum & 1u)  +  i;
+                            const unsigned int jjy = m_uiElementOrder * (int) ((cnum & 2u)>>1u)  +  j;
+                            const unsigned int kkz = m_uiElementOrder * (int) ((cnum & 4u)>>2u)  +  k;
+                            //std::cout<<" iix: "<<iix<<" jjy: "<<jjy<<" kkz: "<<kkz<<std::endl;
+
+                            if( (iix %2 ==0) && (jjy%2 ==0) && (kkz%2==0))
+                            {
+                                interpOut[ (kkz>>1u) * (m_uiElementOrder+1)*(m_uiElementOrder+1) + (jjy>>1u) * (m_uiElementOrder+1)+(iix>>1u)] = zippedVec[nodeLookUp_CG];
+                                
+                            }
+
+                        }
 
                     }
 
@@ -6715,8 +7089,20 @@ namespace ot
                         {
                             interpOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]=zippedVec[nodeLookUp_CG];
                         }
-                        else if( (i%2==0) && (j%2==0) && (k%2==0))
-                            interpOut[((((cnum & 4u)>>2u)*m_uiElementOrder+k)>>1)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+((((cnum & 2u)>>1u)*m_uiElementOrder+j)>>1)*(m_uiElementOrder+1)+(((((cnum & (1u)))*m_uiElementOrder+i)>>1))]=zippedVec[nodeLookUp_CG];
+                        else
+                        {
+                            const unsigned int iix = m_uiElementOrder * (int) (cnum & 1u)  +  i;
+                            const unsigned int jjy = m_uiElementOrder * (int) ((cnum & 2u)>>1u)  +  j;
+                            const unsigned int kkz = m_uiElementOrder * (int) ((cnum & 4u)>>2u)  +  k;
+                            //std::cout<<" iix: "<<iix<<" jjy: "<<jjy<<" kkz: "<<kkz<<std::endl;
+
+                            if( (iix %2 ==0) && (jjy%2 ==0) && (kkz%2==0))
+                            {
+                                interpOut[ (kkz>>1u) * (m_uiElementOrder+1)*(m_uiElementOrder+1) + (jjy>>1u) * (m_uiElementOrder+1)+(iix>>1u)] = zippedVec[nodeLookUp_CG];
+                                
+                            }
+
+                        }
 
                     }
 
@@ -6774,6 +7160,44 @@ namespace ot
         OCT_DIR_LEFT_UP_FRONT_Unzip(blk,zippedVec,unzippedVec);
         OCT_DIR_RIGHT_UP_FRONT_Unzip(blk,zippedVec,unzippedVec);
     }
+
+    template<typename T>
+    void Mesh::child2ParentInjection(const T* in , T* out, unsigned int* child, unsigned int lev) const 
+    {
+
+        for(unsigned int cnum=0;cnum<NUM_CHILDREN;cnum++)
+        {
+            if(child[cnum] == LOOK_UP_TABLE_DEFAULT || m_uiAllElements[child[cnum]].getLevel()!= lev ||  !m_uiIsNodalMapValid[child[cnum]]) continue;
+            
+            for(unsigned int k=0;k<m_uiElementOrder+1;k++)
+            for(unsigned int j=0;j<m_uiElementOrder+1;j++)
+            for(unsigned int i=0;i<m_uiElementOrder+1;i++)
+            {
+                const bool isHanging=this->isNodeHanging(child[cnum],i,j,k);
+                if(isHanging)
+                {
+                    out[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]=in[m_uiE2NMapping_CG[child[cnum]*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]];
+                }
+                else
+                {
+                    const unsigned int iix = m_uiElementOrder * (int) (cnum & 1u)  +  i;
+                    const unsigned int jjy = m_uiElementOrder * (int) ((cnum & 2u)>>1u)  +  j;
+                    const unsigned int kkz = m_uiElementOrder * (int) ((cnum & 4u)>>2u)  +  k;
+                    //std::cout<<" iix: "<<iix<<" jjy: "<<jjy<<" kkz: "<<kkz<<std::endl;
+
+                    if( (iix %2 ==0) && (jjy%2 ==0) && (kkz%2==0))
+                    {
+                        out[ (kkz>>1u) * (m_uiElementOrder+1)*(m_uiElementOrder+1) + (jjy>>1u) * (m_uiElementOrder+1)+(iix>>1u)] = in [m_uiE2NMapping_CG [child[cnum]*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j *(m_uiElementOrder+1)+ i ] ];
+                        
+                    }
+
+                }
+
+            }
+        }
+
+    }
+
 
     template <typename T>
     void Mesh::unzip(const T* zippedVec, T* unzippedVec)
@@ -6868,7 +7292,7 @@ namespace ot
 
         // NOTE: Be careful when you access ghost elements for padding. (You should only access the level 1 ghost elements. You should not access the level 2 ghost elements at any time. )
         paddWidth = m_uiLocalBlockList[0].get1DPadWidth();
-        if((m_uiElementOrder>>1u) < paddWidth )
+        if(m_uiElementOrder ==4 && paddWidth==3)
         {
             //std::cout<<"read spt points : "<<m_uiElementOrder<<" pwidth : "<<paddWidth<<std::endl;
             readSpecialPtsBegin(zippedVec);
@@ -7058,7 +7482,7 @@ namespace ot
                             child[7]=m_uiE2EMapping[child[3]*m_uiNumDirections+OCT_DIR_FRONT];
                             assert(child[7]!=LOOK_UP_TABLE_DEFAULT);
 
-                            if((m_uiElementOrder>>1u) < paddWidth )
+                            if(m_uiElementOrder ==4 && paddWidth==3)
                             {
                                 // we need to search for the additional points. 
                                 child[0]=m_uiE2EMapping[child[1]*m_uiNumDirections+OCT_DIR_LEFT];
@@ -7075,29 +7499,12 @@ namespace ot
 
                             }
 
+
+                            this->child2ParentInjection(zippedVec,interpOrInjectionOut.data(),child.data(),pNodes[lookUp].getLevel());
+
                             
 
-                            for(unsigned int cnum=0;cnum<NUM_CHILDREN;cnum++) {
-                                
-                                if(child[cnum] == LOOK_UP_TABLE_DEFAULT || pNodes[child[cnum]].getLevel()!=pNodes[lookUp].getLevel() ||  !m_uiIsNodalMapValid[child[cnum]]) continue;
-                                
-                                for(unsigned int k=0;k<m_uiElementOrder+1;k++)
-                                    for(unsigned int j=0;j<m_uiElementOrder+1;j++)
-                                        for(unsigned int i=0;i<m_uiElementOrder+1;i++)
-                                        {
-                                            isHanging=pNodes[(m_uiE2NMapping_DG[child[cnum]*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]/m_uiNpE)].getLevel()<pNodes[child[cnum]].getLevel();
-                                            if(isHanging)
-                                            {
-                                                interpOrInjectionOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]=zippedVec[m_uiE2NMapping_CG[child[cnum]*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]];
-                                            }
-                                            else if( (i%2==0) && (j%2==0) && (k%2==0))
-                                                interpOrInjectionOut[((((cnum & 4u)>>2u)*m_uiElementOrder+k)>>1)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+((((cnum & 2u)>>1u)*m_uiElementOrder+j)>>1)*(m_uiElementOrder+1)+(((((cnum & (1u)))*m_uiElementOrder+i)>>1))]=zippedVec[m_uiE2NMapping_CG[child[cnum]*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]];
-
-
-                                        }
-
-
-                            }
+                            
 
                             #ifdef DEBUG_UNZIP_OP_3PT
                                 faceNeighCnum1[0]=1;faceNeighCnum1[1]=3;faceNeighCnum1[2]=5;faceNeighCnum1[3]=7;
@@ -7260,7 +7667,7 @@ namespace ot
                             child[6]=m_uiE2EMapping[child[2]*m_uiNumDirections+OCT_DIR_FRONT];
                             assert(child[6]!=LOOK_UP_TABLE_DEFAULT);
 
-                            if((m_uiElementOrder>>1u) < paddWidth )
+                            if(m_uiElementOrder ==4 && paddWidth==3)
                             {
                                 child[1]=m_uiE2EMapping[child[0]*m_uiNumDirections+OCT_DIR_RIGHT];
                                 child[3]=m_uiE2EMapping[child[2]*m_uiNumDirections+OCT_DIR_RIGHT];
@@ -7279,29 +7686,7 @@ namespace ot
                             
 
 
-                            for(unsigned int cnum=0;cnum<NUM_CHILDREN;cnum++) {
-
-                                if(child[cnum] == LOOK_UP_TABLE_DEFAULT || pNodes[child[cnum]].getLevel()!=pNodes[lookUp].getLevel() ||  !m_uiIsNodalMapValid[child[cnum]]) continue;
-                                
-                                for(unsigned int k=0;k<(m_uiElementOrder+1);k++)
-                                    for(unsigned int j=0;j<(m_uiElementOrder+1);j++)
-                                        for(unsigned int i=0;i<(m_uiElementOrder+1);i++)
-                                        {
-
-                                            isHanging=pNodes[(m_uiE2NMapping_DG[child[cnum]*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]/m_uiNpE)].getLevel()<pNodes[child[cnum]].getLevel();
-                                            if(isHanging)
-                                            {
-                                                interpOrInjectionOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]=zippedVec[m_uiE2NMapping_CG[child[cnum]*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]];
-
-                                            }
-                                            else if( (i%2==0) && (j%2==0) && (k%2==0))
-                                                interpOrInjectionOut[((((cnum & 4u)>>2u)*m_uiElementOrder+k)>>1)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+((((cnum & 2u)>>1u)*m_uiElementOrder+j)>>1)*(m_uiElementOrder+1)+(((((cnum & (1u)))*m_uiElementOrder+i)>>1))]=zippedVec[m_uiE2NMapping_CG[child[cnum]*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]];
-
-
-                                        }
-
-
-                            }
+                            this->child2ParentInjection(zippedVec,interpOrInjectionOut.data(),child.data(),pNodes[lookUp].getLevel());
 
                             #ifdef DEBUG_UNZIP_OP_3PT
                                 faceNeighCnum1[0]=0;faceNeighCnum1[1]=2;faceNeighCnum1[2]=4;faceNeighCnum1[3]=6;
@@ -7464,7 +7849,7 @@ namespace ot
                             child[7]=m_uiE2EMapping[child[3]*m_uiNumDirections+OCT_DIR_FRONT];
                             assert(child[7]!=LOOK_UP_TABLE_DEFAULT);
 
-                            if((m_uiElementOrder>>1u) < paddWidth )
+                            if(m_uiElementOrder ==4 && paddWidth==3)
                             {
                                 child[0]=m_uiE2EMapping[child[2]*m_uiNumDirections+OCT_DIR_DOWN];
                                 child[1]=m_uiE2EMapping[child[3]*m_uiNumDirections+OCT_DIR_DOWN];
@@ -7482,27 +7867,7 @@ namespace ot
                             }
 
                             
-                            for(unsigned int cnum=0;cnum<NUM_CHILDREN;cnum++) {
-
-                                if(child[cnum] == LOOK_UP_TABLE_DEFAULT || pNodes[child[cnum]].getLevel()!=pNodes[lookUp].getLevel() ||  !m_uiIsNodalMapValid[child[cnum]]) continue;
-                                
-                                for(unsigned int k=0;k<m_uiElementOrder+1;k++)
-                                    for(unsigned int j=0;j<m_uiElementOrder+1;j++)
-                                        for(unsigned int i=0;i<m_uiElementOrder+1;i++)
-                                        {
-                                            isHanging=pNodes[(m_uiE2NMapping_DG[child[cnum]*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]/m_uiNpE)].getLevel()<pNodes[child[cnum]].getLevel();
-                                            if(isHanging)
-                                            {
-                                                interpOrInjectionOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]=zippedVec[m_uiE2NMapping_CG[child[cnum]*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]];
-                                            }
-                                            else if( (i%2==0) && (j%2==0) && (k%2==0))
-                                                interpOrInjectionOut[((((cnum & 4u)>>2u)*m_uiElementOrder+k)>>1)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+((((cnum & 2u)>>1u)*m_uiElementOrder+j)>>1)*(m_uiElementOrder+1)+(((((cnum & (1u)))*m_uiElementOrder+i)>>1))]=zippedVec[m_uiE2NMapping_CG[child[cnum]*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]];
-
-
-                                        }
-
-
-                            }
+                            this->child2ParentInjection(zippedVec,interpOrInjectionOut.data(),child.data(),pNodes[lookUp].getLevel());
 
                             #ifdef DEBUG_UNZIP_OP_3PT
                                 faceNeighCnum1[0]=2;faceNeighCnum1[1]=3;faceNeighCnum1[2]=6;faceNeighCnum1[3]=7;
@@ -7665,7 +8030,7 @@ namespace ot
                             child[5]=m_uiE2EMapping[child[1]*m_uiNumDirections+OCT_DIR_FRONT];
                             assert(child[5]!=LOOK_UP_TABLE_DEFAULT);
 
-                            if((m_uiElementOrder>>1u) < paddWidth )
+                            if(m_uiElementOrder ==4 && paddWidth==3)
                             {
                                 child[2]=m_uiE2EMapping[child[0]*m_uiNumDirections+OCT_DIR_UP];
                                 child[3]=m_uiE2EMapping[child[1]*m_uiNumDirections+OCT_DIR_UP];
@@ -7684,29 +8049,7 @@ namespace ot
                             
 
 
-                            for(unsigned int cnum=0;cnum<NUM_CHILDREN;cnum++) {
-
-                                if(child[cnum] == LOOK_UP_TABLE_DEFAULT || pNodes[child[cnum]].getLevel()!=pNodes[lookUp].getLevel() ||  !m_uiIsNodalMapValid[child[cnum]]) continue;
-                                
-                                for(unsigned int k=0;k<(m_uiElementOrder+1);k++)
-                                    for(unsigned int j=0;j<(m_uiElementOrder+1);j++)
-                                        for(unsigned int i=0;i<(m_uiElementOrder+1);i++)
-                                        {
-
-
-                                            isHanging=pNodes[(m_uiE2NMapping_DG[child[cnum]*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]/m_uiNpE)].getLevel()<pNodes[child[cnum]].getLevel();
-                                            if(isHanging)
-                                            {
-                                                interpOrInjectionOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]=zippedVec[m_uiE2NMapping_CG[child[cnum]*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]];
-                                            }
-                                            else if( (i%2==0) && (j%2==0) && (k%2==0))
-                                                interpOrInjectionOut[((((cnum & 4u)>>2u)*m_uiElementOrder+k)>>1)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+((((cnum & 2u)>>1u)*m_uiElementOrder+j)>>1)*(m_uiElementOrder+1)+(((((cnum & (1u)))*m_uiElementOrder+i)>>1))]=zippedVec[m_uiE2NMapping_CG[child[cnum]*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]];
-
-
-                                        }
-
-
-                            }
+                            this->child2ParentInjection(zippedVec,interpOrInjectionOut.data(),child.data(),pNodes[lookUp].getLevel());
 
                             #ifdef DEBUG_UNZIP_OP_3PT
                                 faceNeighCnum1[0]=0;faceNeighCnum1[1]=1;faceNeighCnum1[2]=4;faceNeighCnum1[3]=5;
@@ -7872,7 +8215,7 @@ namespace ot
                             child[7]=m_uiE2EMapping[child[5]*m_uiNumDirections+OCT_DIR_UP];
                             assert(child[7]!=LOOK_UP_TABLE_DEFAULT);
 
-                            if((m_uiElementOrder>>1u) < paddWidth )
+                            if(m_uiElementOrder ==4 && paddWidth==3)
                             {
                                 child[0]=m_uiE2EMapping[child[4]*m_uiNumDirections+OCT_DIR_BACK];
                                 child[1]=m_uiE2EMapping[child[5]*m_uiNumDirections+OCT_DIR_BACK];
@@ -7889,27 +8232,7 @@ namespace ot
 
                             
 
-                            for(unsigned int cnum=0;cnum<NUM_CHILDREN;cnum++) {
-
-                                if(child[cnum] == LOOK_UP_TABLE_DEFAULT || pNodes[child[cnum]].getLevel()!=pNodes[lookUp].getLevel() ||  !m_uiIsNodalMapValid[child[cnum]]) continue;
-                                
-                                for(unsigned int k=0;k<m_uiElementOrder+1;k++)
-                                    for(unsigned int j=0;j<m_uiElementOrder+1;j++)
-                                        for(unsigned int i=0;i<m_uiElementOrder+1;i++)
-                                        {
-                                            isHanging=pNodes[(m_uiE2NMapping_DG[child[cnum]*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]/m_uiNpE)].getLevel()<pNodes[child[cnum]].getLevel();
-                                            if(isHanging)
-                                            {
-                                                interpOrInjectionOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]=zippedVec[m_uiE2NMapping_CG[child[cnum]*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]];
-                                            }
-                                            else if( (i%2==0) && (j%2==0) && (k%2==0))
-                                                interpOrInjectionOut[((((cnum & 4u)>>2u)*m_uiElementOrder+k)>>1)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+((((cnum & 2u)>>1u)*m_uiElementOrder+j)>>1)*(m_uiElementOrder+1)+(((((cnum & (1u)))*m_uiElementOrder+i)>>1))]=zippedVec[m_uiE2NMapping_CG[child[cnum]*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]];
-
-
-                                        }
-
-
-                            }
+                            this->child2ParentInjection(zippedVec,interpOrInjectionOut.data(),child.data(),pNodes[lookUp].getLevel());
 
 
                             #ifdef DEBUG_UNZIP_OP_3PT
@@ -7950,7 +8273,8 @@ namespace ot
                 #ifdef ENABLE_DENDRO_PROFILE_COUNTERS
                     dendro::timer::t_unzip_sync_face[5].start();
                 #endif
-                 if((pNodes[elem].maxZ()==blkNode.maxZ()))
+                
+                if((pNodes[elem].maxZ()==blkNode.maxZ()))
                 {
                     assert(ek==(1u<<(regLev-blkNode.getLevel()))-1);
                     lookUp=m_uiE2EMapping[elem*m_uiNumDirections+OCT_DIR_FRONT];
@@ -8070,7 +8394,7 @@ namespace ot
                             child[3]=m_uiE2EMapping[child[1]*m_uiNumDirections+OCT_DIR_UP];
                             assert(child[3]!=LOOK_UP_TABLE_DEFAULT);
 
-                            if((m_uiElementOrder>>1u) < paddWidth )
+                            if(m_uiElementOrder ==4 && paddWidth==3)
                             {
                                 child[4]=m_uiE2EMapping[child[0]*m_uiNumDirections+OCT_DIR_FRONT];
                                 child[5]=m_uiE2EMapping[child[1]*m_uiNumDirections+OCT_DIR_FRONT];
@@ -8086,30 +8410,7 @@ namespace ot
 
                             }
 
-                            
-
-                            for(unsigned int cnum=0;cnum<NUM_CHILDREN;cnum++) {
-
-                                if(child[cnum] == LOOK_UP_TABLE_DEFAULT || pNodes[child[cnum]].getLevel()!=pNodes[lookUp].getLevel() ||  !m_uiIsNodalMapValid[child[cnum]]) continue;
-                                
-                                for(unsigned int k=0;k<(m_uiElementOrder+1);k++)
-                                    for(unsigned int j=0;j<(m_uiElementOrder+1);j++)
-                                        for(unsigned int i=0;i<(m_uiElementOrder+1);i++)
-                                        {
-
-                                            isHanging=pNodes[(m_uiE2NMapping_DG[child[cnum]*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]/m_uiNpE)].getLevel()<pNodes[child[cnum]].getLevel();
-                                            if(isHanging)
-                                            {
-                                                interpOrInjectionOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]=zippedVec[m_uiE2NMapping_CG[child[cnum]*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]];
-                                            }
-                                            else if( (i%2==0) && (j%2==0) && (k%2==0))
-                                                interpOrInjectionOut[((((cnum & 4u)>>2u)*m_uiElementOrder+k)>>1)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+((((cnum & 2u)>>1u)*m_uiElementOrder+j)>>1)*(m_uiElementOrder+1)+(((((cnum & (1u)))*m_uiElementOrder+i)>>1))]=zippedVec[m_uiE2NMapping_CG[child[cnum]*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]];
-
-
-                                        }
-
-
-                            }
+                            this->child2ParentInjection(zippedVec,interpOrInjectionOut.data(),child.data(),pNodes[lookUp].getLevel());
 
 
                             #ifdef DEBUG_UNZIP_OP_3PT
@@ -8174,7 +8475,7 @@ namespace ot
 
         }
 
-        if((m_uiElementOrder>>1u) < paddWidth )
+        if(m_uiElementOrder ==4 && paddWidth==3)
         {
             //std::cout<<"read spt points : "<<m_uiElementOrder<<" pwidth : "<<paddWidth<<std::endl;
             std::vector<T> recv_buf;

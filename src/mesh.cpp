@@ -154,12 +154,11 @@ namespace ot {
             if(smType==SM_TYPE::FDM)
             {
                 // build the scatter map for finite difference computations
-                buildE2NMap();
-
+                buildE2NWithSM();
             }else if(smType == SM_TYPE::FEM_CG)
             {
-                buildFEM_E2N();
-                // note that: after this function call it ghost round 1 can contain l2 ghost elements as well if it is hanging to a local elements. 
+                buildE2NWithSM();
+
             }else if(m_uiScatterMapType == SM_TYPE::FEM_DG)
             {
                 buildE2N_DG();
@@ -177,11 +176,14 @@ namespace ot {
             {   
                 if(m_uiScatterMapType == SM_TYPE::FEM_DG)
                 {
+                    // elemental scatter map. 
                     computeNodalScatterMapDG(m_uiCommActive);
                     buildF2EMap();
+
                 }
-                else
-                    computeNodalScatterMap4(m_uiCommActive);
+                // nodal scatter map is build above. 
+                // else
+                // computeNodalScatterMap4(m_uiCommActive);
             }
             
 
@@ -413,12 +415,11 @@ namespace ot {
             if(m_uiScatterMapType==SM_TYPE::FDM)
             {
                 // build the scatter map for finite difference computations
-                buildE2NMap();
+                buildE2NWithSM();
 
             }else if(m_uiScatterMapType == SM_TYPE::FEM_CG)
             {
-                buildFEM_E2N();
-                //note that: after this function call it ghost round 1 can contain l2 ghost elements as well if it is hanging to a local elements. 
+                buildE2NWithSM(); 
             }else if(m_uiScatterMapType == SM_TYPE::FEM_DG)
             {
                 buildE2N_DG();
@@ -437,11 +438,12 @@ namespace ot {
                 if(m_uiScatterMapType == SM_TYPE::FEM_DG)
                 {
                     computeNodalScatterMapDG(m_uiCommActive);
-                    buildF2EMap();
+                    buildF2EMap(); // this is more of the elemental scatter map. 
                 }
-                 
-                else
-                 computeNodalScatterMap4(m_uiCommActive);
+                // Note: that the scatter map is updated from above. 
+                // else
+                // computeNodalScatterMap4(m_uiCommActive);
+            
             }
 
 
@@ -2833,6 +2835,519 @@ namespace ot {
 
     }
 
+    void Mesh::buildE2NWithSM()
+    {
+        if(!m_uiIsActive) 
+            return;
+
+        // 1. first build all data structures for element order 2. (this serves as auxilary data strucutre to figure out hanging node information)
+        const unsigned int eleOrder = m_uiElementOrder;
+        const unsigned int pp = 2;
+        m_uiElementOrder = pp;
+        if(m_uiDim == 2 )
+         m_uiNpE = (pp+1)*(pp+1);
+        else if(m_uiDim==3) 
+         m_uiNpE = (pp+1)*(pp+1)*(pp+1);
+
+        buildE2NMap();
+
+        if(m_uiActiveNpes > 1 )
+            computeNodalScatterMap4(m_uiCommActive);
+
+        // 2. Use face edge vertex hanging information to modifying the data strucutres to the specified element order. 
+        std::vector<unsigned int > e2n_dg;
+        std::vector<unsigned int > e2n_cg;
+
+        const unsigned int nPe_1d = (eleOrder+1);
+        const unsigned int nPe_2d = (eleOrder+1)*(eleOrder+1);
+        const unsigned int nPe_3d = (eleOrder+1)*(eleOrder+1)*(eleOrder+1);
+
+        e2n_dg.resize(nPe_3d*m_uiNumTotalElements);
+        e2n_cg.resize(nPe_3d*m_uiNumTotalElements);
+
+        unsigned int ownerID, ii_x,jj_y,kk_z;
+        // idx for the element order 2
+        #define IDX2(i,j,k)  k*(pp+1)*(pp+1) + j*(pp+1) + i
+
+        // idx for the element order p. 
+        #define IDXp(i,j,k)  k*(eleOrder+1)*(eleOrder+1) + j*(eleOrder+1) + i
+        
+        for(unsigned int e=m_uiElementPreGhostBegin; e < m_uiElementPostGhostEnd; e++)
+        {
+            for(unsigned int n=0; n < nPe_3d; n++)
+                e2n_dg[e*(nPe_3d) + n ] = e*(nPe_3d) + n;
+
+         
+            // OCT_DIR_LEFT
+            dg2eijk(m_uiE2NMapping_DG[e*m_uiNpE + IDX2(0,1,1)],ownerID,ii_x,jj_y,kk_z);
+            if(e != ownerID)
+            { // e does not own the face. 
+              
+              for(unsigned int d2 = 0; d2 < nPe_1d; d2++)
+                for(unsigned int d1 = 0; d1< nPe_1d; d1++)
+                 e2n_dg[e*(nPe_3d) + IDXp(0,d1,d2) ] = ownerID*(nPe_3d) + IDXp(eleOrder,d1,d2);
+            }
+
+
+            // OCT_DIR_RIGHT
+            dg2eijk(m_uiE2NMapping_DG[e*m_uiNpE + IDX2(2,1,1)],ownerID,ii_x,jj_y,kk_z);
+            if(e != ownerID)
+            { // e does not own the face. 
+              for(unsigned int d2 = 0; d2 < nPe_1d; d2++)
+                for(unsigned int d1 = 0; d1< nPe_1d; d1++)
+                 e2n_dg[e*(nPe_3d) + IDXp(eleOrder,d1,d2) ] = ownerID*(nPe_3d) + IDXp(0,d1,d2);
+            }
+
+
+            // OCT_DIR_DOWN
+            dg2eijk(m_uiE2NMapping_DG[e*m_uiNpE + IDX2(1,0,1)],ownerID,ii_x,jj_y,kk_z);
+            if(e != ownerID)
+            { // e does not own the face. 
+              for(unsigned int d2 = 0; d2 < nPe_1d; d2++)
+                for(unsigned int d1 = 0; d1< nPe_1d; d1++)
+                 e2n_dg[e*(nPe_3d) + IDXp(d1,0,d2) ] = ownerID*(nPe_3d) + IDXp(d1,eleOrder,d2);
+            }
+
+            // OCT_DIR_UP
+            dg2eijk(m_uiE2NMapping_DG[e*m_uiNpE + IDX2(1,2,1)],ownerID,ii_x,jj_y,kk_z);
+            if(e != ownerID)
+            { // e does not own the face. 
+              for(unsigned int d2 = 0; d2 < nPe_1d; d2++)
+                for(unsigned int d1 = 0; d1< nPe_1d; d1++)
+                 e2n_dg[e*(nPe_3d) + IDXp(d1,eleOrder,d2) ] = ownerID*(nPe_3d) + IDXp(d1,0,d2);
+            }
+
+            // OCT_DIR_BACK
+            dg2eijk(m_uiE2NMapping_DG[e*m_uiNpE + IDX2(1,1,0)],ownerID,ii_x,jj_y,kk_z);
+            if(e != ownerID)
+            { // e does not own the face. 
+              for(unsigned int d2 = 0; d2 < nPe_1d; d2++)
+                for(unsigned int d1 = 0; d1< nPe_1d; d1++)
+                 e2n_dg[e*(nPe_3d) + IDXp(d1,d2,0) ] = ownerID*(nPe_3d) + IDXp(d1,d2,eleOrder);
+            }
+
+            // OCT_DIR_FRONT
+            dg2eijk(m_uiE2NMapping_DG[e*m_uiNpE + IDX2(1,1,2)],ownerID,ii_x,jj_y,kk_z);
+            if(e != ownerID)
+            { // e does not own the face. 
+              for(unsigned int d2 = 0; d2 < nPe_1d; d2++)
+                for(unsigned int d1 = 0; d1< nPe_1d; d1++)
+                 e2n_dg[e*(nPe_3d) + IDXp(d1,d2,eleOrder) ] = ownerID*(nPe_3d) + IDXp(d1,d2,0);
+            }
+
+
+            // LEFT FACE EDGES --------------------------------------------------------
+            unsigned int f1 = 0;
+            unsigned int f2 = 0;
+
+            // OCT_DIR_LEFT_DOWN
+            dg2eijk(m_uiE2NMapping_DG[e*m_uiNpE + IDX2(0,0,1)],ownerID,ii_x,jj_y,kk_z);
+            if(e != ownerID)
+            { 
+              assert(kk_z==1);
+              // e does not own the edge. 
+              f1 = (ii_x*eleOrder)/pp;
+              f2 = (jj_y*eleOrder)/pp;
+
+              for(unsigned int d1 = 0; d1< nPe_1d; d1++)
+                e2n_dg[e*(nPe_3d) + IDXp(0,0,d1) ] = ownerID*(nPe_3d) + IDXp(f1,f2,d1);
+            }
+
+            // OCT_DIR_LEFT_UP
+            dg2eijk(m_uiE2NMapping_DG[e*m_uiNpE + IDX2(0,2,1)],ownerID,ii_x,jj_y,kk_z);
+            if(e != ownerID)
+            { // e does not own the face. 
+
+              f1 = (ii_x*eleOrder)/pp;
+              f2 = (jj_y*eleOrder)/pp;  
+              for(unsigned int d1 = 0; d1< nPe_1d; d1++)
+                e2n_dg[e*(nPe_3d) + IDXp(0,eleOrder,d1) ] = ownerID*(nPe_3d) + IDXp(f1,f2,d1);
+            }
+
+            // OCT_DIR_LEFT_BACK
+            dg2eijk(m_uiE2NMapping_DG[e*m_uiNpE + IDX2(0,1,0)],ownerID,ii_x,jj_y,kk_z);
+            if(e != ownerID)
+            { 
+              // e does not own the face. 
+              f1 = (ii_x*eleOrder)/pp;
+              f2 = (kk_z*eleOrder)/pp;
+              for(unsigned int d1 = 0; d1< nPe_1d; d1++)
+                e2n_dg[e*(nPe_3d) + IDXp(0,d1,0) ] = ownerID*(nPe_3d) + IDXp(f1,d1,f2);
+            }
+
+            // OCT_DIR_LEFT_FRONT
+            dg2eijk(m_uiE2NMapping_DG[e*m_uiNpE + IDX2(0,1,2)],ownerID,ii_x,jj_y,kk_z);
+            if(e != ownerID)
+            { // e does not own the face. 
+
+              f1 = (ii_x*eleOrder)/pp;
+              f2 = (kk_z*eleOrder)/pp; 
+
+              for(unsigned int d1 = 0; d1< nPe_1d; d1++)
+                e2n_dg[e*(nPe_3d) + IDXp(0,d1,eleOrder) ] = ownerID*(nPe_3d) + IDXp(f1,d1,f2);
+            }
+
+            // RIGHT FACE EDGES -------------------------------------------------------
+
+            // OCT_DIR_RIGHT_DOWN
+            dg2eijk(m_uiE2NMapping_DG[e*m_uiNpE + IDX2(2,0,1)],ownerID,ii_x,jj_y,kk_z);
+            if(e != ownerID)
+            { // e does not own the face.
+            
+              f1 = (ii_x*eleOrder)/pp;
+              f2 = (jj_y*eleOrder)/pp; 
+
+              for(unsigned int d1 = 0; d1< nPe_1d; d1++)
+                e2n_dg[e*(nPe_3d) + IDXp(eleOrder,0,d1) ] = ownerID*(nPe_3d) + IDXp(f1,f2,d1);
+            }
+
+            // OCT_DIR_RIGHT_UP
+            dg2eijk(m_uiE2NMapping_DG[e*m_uiNpE + IDX2(2,2,1)],ownerID,ii_x,jj_y,kk_z);
+            if(e != ownerID)
+            { // e does not own the face. 
+              
+              f1 = (ii_x*eleOrder)/pp;
+              f2 = (jj_y*eleOrder)/pp; 
+
+              for(unsigned int d1 = 0; d1< nPe_1d; d1++)
+                e2n_dg[e*(nPe_3d) + IDXp(eleOrder,eleOrder,d1) ] = ownerID*(nPe_3d) + IDXp(f1,f2,d1);
+            }
+
+            // OCT_DIR_RIGHT_BACK
+            dg2eijk(m_uiE2NMapping_DG[e*m_uiNpE + IDX2(2,1,0)],ownerID,ii_x,jj_y,kk_z);
+            if(e != ownerID)
+            { 
+              // e does not own the face. 
+              f1 = (ii_x*eleOrder)/pp;
+              f2 = (kk_z*eleOrder)/pp; 
+              for(unsigned int d1 = 0; d1< nPe_1d; d1++)
+                e2n_dg[e*(nPe_3d) + IDXp(eleOrder,d1,0) ] = ownerID*(nPe_3d) + IDXp(f1,d1,f2);
+            }
+
+            // OCT_DIR_RIGHT_FRONT
+            dg2eijk(m_uiE2NMapping_DG[e*m_uiNpE + IDX2(2,1,2)],ownerID,ii_x,jj_y,kk_z);
+            if(e != ownerID)
+            { // e does not own the face. 
+
+               f1 = (ii_x*eleOrder)/pp;
+               f2 = (kk_z*eleOrder)/pp; 
+               for(unsigned int d1 = 0; d1< nPe_1d; d1++)
+                e2n_dg[e*(nPe_3d) + IDXp(eleOrder,d1,eleOrder) ] = ownerID*(nPe_3d) + IDXp(f1,d1,f2);
+            }
+
+
+            // BACK FACE EDGES ----------------------------------------------------
+
+            // OCT_DIR_BACK_DOWN
+            dg2eijk(m_uiE2NMapping_DG[e*m_uiNpE + IDX2(1,0,0)],ownerID,ii_x,jj_y,kk_z);
+            if(e != ownerID)
+            { // e does not own the face. 
+              
+               f1 = (jj_y*eleOrder)/pp;
+               f2 = (kk_z*eleOrder)/pp; 
+
+               for(unsigned int d1 = 0; d1< nPe_1d; d1++)
+                 e2n_dg[e*(nPe_3d) + IDXp(d1,0,0) ] = ownerID*(nPe_3d) + IDXp(d1,f1,f2);
+            }
+
+            // OCT_DIR_BACK_UP
+            dg2eijk(m_uiE2NMapping_DG[e*m_uiNpE + IDX2(1,2,0)],ownerID,ii_x,jj_y,kk_z);
+            if(e != ownerID)
+            { // e does not own the face. 
+               
+              f1 = (jj_y*eleOrder)/pp;
+              f2 = (kk_z*eleOrder)/pp; 
+
+              for(unsigned int d1 = 0; d1< nPe_1d; d1++)
+                e2n_dg[e*(nPe_3d) + IDXp(d1,eleOrder,0) ] = ownerID*(nPe_3d) + IDXp(d1,f1,f2);
+            }
+
+            // FRONT FACE EDGES ----------------------------------------------------
+
+            // OCT_DIR_FRONT_DOWN
+            dg2eijk(m_uiE2NMapping_DG[e*m_uiNpE + IDX2(1,0,2)],ownerID,ii_x,jj_y,kk_z);
+            if(e != ownerID)
+            { // e does not own the face. 
+              
+              f1 = (jj_y*eleOrder)/pp;
+              f2 = (kk_z*eleOrder)/pp; 
+
+              for(unsigned int d1 = 0; d1< nPe_1d; d1++)
+                e2n_dg[e*(nPe_3d) + IDXp(d1,0,eleOrder) ] = ownerID*(nPe_3d) + IDXp(d1,f1,f2);
+            }
+
+            // OCT_DIR_FRONT_UP
+            dg2eijk(m_uiE2NMapping_DG[e*m_uiNpE + IDX2(1,2,2)],ownerID,ii_x,jj_y,kk_z);
+            if(e != ownerID)
+            { // e does not own the face. 
+              
+              f1 = (jj_y*eleOrder)/pp;
+              f2 = (kk_z*eleOrder)/pp; 
+
+              for(unsigned int d1 = 0; d1< nPe_1d; d1++)
+                e2n_dg[e*(nPe_3d) + IDXp(d1,eleOrder,eleOrder) ] = ownerID*(nPe_3d) + IDXp(d1,f1,f2);
+            }
+
+            // VERTICES  --  (coner 2^dim)
+            dg2eijk(m_uiE2NMapping_DG[e*m_uiNpE + IDX2(0,0,0)],ownerID,ii_x,jj_y,kk_z);
+            if(e != ownerID)
+                e2n_dg[e*(nPe_3d) + IDXp(0,0,0) ] = ownerID*(nPe_3d) + IDXp((ii_x*eleOrder)/pp,(jj_y*eleOrder)/pp,(kk_z*eleOrder)/pp);
+
+            dg2eijk(m_uiE2NMapping_DG[e*m_uiNpE + IDX2(2,0,0)],ownerID,ii_x,jj_y,kk_z);
+            if(e != ownerID)
+                e2n_dg[e*(nPe_3d) + IDXp(eleOrder,0,0) ] = ownerID*(nPe_3d) + IDXp((ii_x*eleOrder)/pp,(jj_y*eleOrder)/pp,(kk_z*eleOrder)/pp);
+
+            dg2eijk(m_uiE2NMapping_DG[e*m_uiNpE + IDX2(0,2,0)],ownerID,ii_x,jj_y,kk_z);
+            if(e != ownerID)
+                e2n_dg[e*(nPe_3d) + IDXp(0,eleOrder,0) ] = ownerID*(nPe_3d) + IDXp((ii_x*eleOrder)/pp,(jj_y*eleOrder)/pp,(kk_z*eleOrder)/pp);
+
+            dg2eijk(m_uiE2NMapping_DG[e*m_uiNpE + IDX2(2,2,0)],ownerID,ii_x,jj_y,kk_z);
+            if(e != ownerID)
+                e2n_dg[e*(nPe_3d) + IDXp(eleOrder,eleOrder,0) ] = ownerID*(nPe_3d) + IDXp((ii_x*eleOrder)/pp,(jj_y*eleOrder)/pp,(kk_z*eleOrder)/pp);
+
+
+            dg2eijk(m_uiE2NMapping_DG[e*m_uiNpE + IDX2(0,0,2)],ownerID,ii_x,jj_y,kk_z);
+            if(e != ownerID)
+                e2n_dg[e*(nPe_3d) + IDXp(0,0,eleOrder) ] = ownerID*(nPe_3d) + IDXp((ii_x*eleOrder)/pp,(jj_y*eleOrder)/pp,(kk_z*eleOrder)/pp);
+
+            dg2eijk(m_uiE2NMapping_DG[e*m_uiNpE + IDX2(2,0,2)],ownerID,ii_x,jj_y,kk_z);
+            if(e != ownerID)
+                e2n_dg[e*(nPe_3d) + IDXp(eleOrder,0,eleOrder) ] = ownerID*(nPe_3d) + IDXp((ii_x*eleOrder)/pp,(jj_y*eleOrder)/pp,(kk_z*eleOrder)/pp);
+
+            dg2eijk(m_uiE2NMapping_DG[e*m_uiNpE + IDX2(0,2,2)],ownerID,ii_x,jj_y,kk_z);
+            if(e != ownerID)
+                e2n_dg[e*(nPe_3d) + IDXp(0,eleOrder,eleOrder) ] = ownerID*(nPe_3d) + IDXp((ii_x*eleOrder)/pp,(jj_y*eleOrder)/pp,(kk_z*eleOrder)/pp);
+
+            dg2eijk(m_uiE2NMapping_DG[e*m_uiNpE + IDX2(2,2,2)],ownerID,ii_x,jj_y,kk_z);
+            if(e != ownerID)
+                e2n_dg[e*(nPe_3d) + IDXp(eleOrder,eleOrder,eleOrder) ] = ownerID*(nPe_3d) + IDXp((ii_x*eleOrder)/pp,(jj_y*eleOrder)/pp,(kk_z*eleOrder)/pp);
+
+                
+        }
+
+        e2n_cg = e2n_dg;
+        std::sort(e2n_dg.begin(),e2n_dg.end());
+        e2n_dg.erase(std::unique(e2n_dg.begin(),e2n_dg.end()),e2n_dg.end());
+
+        std::vector<unsigned int > cg2dg;
+        cg2dg.resize(e2n_dg.size());
+        cg2dg = e2n_dg;
+
+        e2n_dg.resize(nPe_3d*m_uiNumTotalElements);
+        e2n_dg = e2n_cg;
+
+        std::vector<unsigned int > dg2cg;
+        dg2cg.resize(nPe_3d*m_uiNumTotalElements,LOOK_UP_TABLE_DEFAULT);
+
+        for(unsigned int i=0; i < cg2dg.size(); i++ )
+            dg2cg[cg2dg[i]] = i;
+
+        
+        for(unsigned int i=0; i < e2n_cg.size(); i++)
+            e2n_cg[i] = dg2cg[e2n_cg[i]];
+        
+        // for(unsigned int i=0;i< e2n_cg.size(); i++)
+        // {
+        //     std::cout<<"i: "<<i<<" e2n_dg: "<<e2n_dg[i]<<" m_uiE2N_DG:"<<m_uiE2NMapping_DG[i]<<std::endl;;
+        // }
+        const unsigned int numCGNodes = cg2dg.size();
+        
+        unsigned int n_dg;
+        unsigned int dir;
+        unsigned int ib,ie,jb,je,kb,ke;
+
+       
+        if(m_uiActiveNpes>1)
+        {
+
+            std::vector<unsigned int> sendNodeCount;
+            std::vector<unsigned int> recvNodeCount;
+            std::vector<unsigned int> sendNodeSM;
+            std::vector<unsigned int> recvNodeSM;
+
+            sendNodeCount.resize(m_uiActiveNpes,0);
+            recvNodeCount.resize(m_uiActiveNpes,0);
+
+            
+            // send SM
+            for(unsigned int m = 0; m < m_uiActiveNpes ; m++)
+            {
+                for(unsigned int n = m_uiSendNodeOffset[m]; n< (m_uiSendNodeOffset[m] + m_uiSendNodeCount[m]); n++)
+                {
+                    n_dg = m_uiCG2DG[m_uiScatterMapActualNodeSend[n]];
+                    dg2eijk(n_dg,ownerID,ii_x,jj_y,kk_z);
+
+                    // std::cout << " owner "<<ownerID<<" ii_x: "<<ii_x<<" jj_y: "<<jj_y<<" kk_z: "<<kk_z<<std::endl; 
+
+                    
+                    if( ii_x  == 0 ) { ib=0; ie=0;}
+                    if( jj_y  == 0 ) { jb=0; je=0;}
+                    if( kk_z  == 0 ) { kb=0; ke=0;}
+
+                    if( ii_x == 1)  { ib=1; ie = eleOrder-1;}
+                    if( jj_y == 1)  { jb=1; je = eleOrder-1;}
+                    if( kk_z == 1)  { kb=1; ke = eleOrder-1;}
+
+                    if( ii_x == 2 ) { ib=eleOrder; ie = eleOrder;}
+                    if( jj_y == 2 ) { jb=eleOrder; je = eleOrder;}
+                    if( kk_z == 2 ) { kb=eleOrder; ke = eleOrder;}
+
+
+                    for(unsigned int k=kb; k<= ke; k++)
+                    for(unsigned int j=jb; j<= je; j++)
+                    for(unsigned int i=ib; i<= ie; i++)
+                    {
+                        sendNodeCount[m]++;
+                        sendNodeSM.push_back(e2n_cg[ownerID*nPe_3d + IDXp(i,j,k)]);
+                    }
+                    
+                }
+            
+            }
+
+            // recv SM
+            for(unsigned int m = 0; m < m_uiActiveNpes ; m++)
+            {
+                for(unsigned int n = m_uiRecvNodeOffset[m]; n< (m_uiRecvNodeOffset[m] + m_uiRecvNodeCount[m]); n++)
+                {
+                    n_dg = m_uiCG2DG[m_uiScatterMapActualNodeRecv[n]];
+                    dg2eijk(n_dg,ownerID,ii_x,jj_y,kk_z);
+                    
+                    if( ii_x  == 0 ) { ib=0; ie=0;}
+                    if( jj_y  == 0 ) { jb=0; je=0;}
+                    if( kk_z  == 0 ) { kb=0; ke=0;}
+
+                    if( ii_x == 1)  { ib=1; ie = eleOrder-1;}
+                    if( jj_y == 1)  { jb=1; je = eleOrder-1;}
+                    if( kk_z == 1)  { kb=1; ke = eleOrder-1;}
+
+                    if( ii_x == 2 ) { ib=eleOrder; ie = eleOrder;}
+                    if( jj_y == 2 ) { jb=eleOrder; je = eleOrder;}
+                    if( kk_z == 2 ) { kb=eleOrder; ke = eleOrder;}
+
+                    for(unsigned int k=kb; k<= ke; k++)
+                    for(unsigned int j=jb; j<= je; j++)
+                    for(unsigned int i=ib; i<= ie; i++)
+                    {
+                        recvNodeCount[m]++;
+                        recvNodeSM.push_back(e2n_cg[ownerID*nPe_3d + IDXp(i,j,k)]);
+                    }
+                    
+                }
+            
+            }
+
+            // for(unsigned int k=0 ; k < m_uiScatterMapActualNodeSend.size(); k++)
+            // {
+            //     std::cout<<" k : "<<k<< " scatter map : "<<m_uiScatterMapActualNodeSend[k]<<" "<<sendNodeSM[k]<<" "<<std::endl;
+            // }
+
+            // for(unsigned int k=0 ; k < m_uiScatterMapActualNodeRecv.size(); k++)
+            // {
+            //     std::cout<<" k : "<<k<< " scatter map : "<<m_uiScatterMapActualNodeRecv[k]<<" "<<recvNodeSM[k]<<" "<<std::endl;
+            // }
+
+            // up date the scatter maps. 
+            std::swap(m_uiSendNodeCount,sendNodeCount);
+            std::swap(m_uiRecvNodeCount,recvNodeCount);
+
+            m_uiSendNodeOffset[0]=0;
+            m_uiRecvNodeOffset[0]=0;
+
+            omp_par::scan(m_uiSendNodeCount.data(),m_uiSendNodeOffset.data(),m_uiActiveNpes);
+            omp_par::scan(m_uiRecvNodeCount.data(),m_uiRecvNodeOffset.data(),m_uiActiveNpes);
+
+            std::swap(m_uiScatterMapActualNodeSend, sendNodeSM);
+            std::swap(m_uiScatterMapActualNodeRecv, recvNodeSM);
+
+
+        }
+
+        // update the nodal bounds. 
+        m_uiNumActualNodes = numCGNodes;
+        m_uiElementOrder = eleOrder;
+
+        if(m_uiDim==2 )
+           m_uiNpE = (m_uiElementOrder+1)*(m_uiElementOrder+1);
+        else
+           m_uiNpE = (m_uiElementOrder+1)*(m_uiElementOrder+1)*(m_uiElementOrder+1);
+
+
+
+        std::swap(m_uiE2NMapping_CG,e2n_cg);
+        std::swap(m_uiE2NMapping_DG,e2n_dg);
+        std::swap(m_uiCG2DG,cg2dg);
+        std::swap(m_uiDG2CG,dg2cg);
+        
+
+        m_uiNodePreGhostBegin=UINT_MAX;
+        m_uiNodeLocalBegin=UINT_MAX;
+        m_uiNodePostGhostBegin=UINT_MAX;
+
+        unsigned int preOwner=UINT_MAX;
+        unsigned int localOwner=UINT_MAX;
+        unsigned int postOwner=UINT_MAX;
+
+        for(unsigned int e=m_uiElementPreGhostBegin;e<m_uiElementPostGhostEnd;e++)
+        {
+            unsigned int tmpIndex;
+            for(unsigned int k=0;k<m_uiNpE;k++)
+            {
+
+                tmpIndex = (m_uiE2NMapping_DG[e * m_uiNpE + k]/m_uiNpE);
+                if ((tmpIndex >= m_uiElementPreGhostBegin) && (tmpIndex < m_uiElementPreGhostEnd) && /*(preOwner>=(m_uiE2NMapping_CG[e * m_uiNpE + k])/m_uiNpE) &&*/ (m_uiNodePreGhostBegin>m_uiE2NMapping_DG[e * m_uiNpE + k])){
+                    //preOwner = m_uiE2NMapping_CG[e * m_uiNpE + k]/m_uiNpE;
+                    m_uiNodePreGhostBegin = m_uiE2NMapping_DG[e * m_uiNpE + k];
+                }
+
+                if ((tmpIndex >= m_uiElementLocalBegin) && (tmpIndex < m_uiElementLocalEnd) && /*(localOwner >=(m_uiE2NMapping_CG[e * m_uiNpE + k])/m_uiNpE) &&*/ (m_uiNodeLocalBegin > m_uiE2NMapping_DG[e * m_uiNpE + k])) {
+                    //localOwner = m_uiE2NMapping_CG[e * m_uiNpE + k]/m_uiNpE;
+                    m_uiNodeLocalBegin = m_uiE2NMapping_DG[e * m_uiNpE + k];
+                }
+
+                if ((tmpIndex >= m_uiElementPostGhostBegin) && (tmpIndex < m_uiElementPostGhostEnd) && /*(postOwner >=(m_uiE2NMapping_CG[e * m_uiNpE + k])/m_uiNpE) &&*/ (m_uiNodePostGhostBegin>m_uiE2NMapping_DG[e * m_uiNpE + k])) {
+                    //postOwner = m_uiE2NMapping_CG[e * m_uiNpE + k]/m_uiNpE;
+                    m_uiNodePostGhostBegin = m_uiE2NMapping_DG[e * m_uiNpE + k];
+                }
+
+            }
+
+        }
+
+
+        assert(m_uiNodeLocalBegin!=UINT_MAX); // local node begin should be found.
+        assert(m_uiDG2CG[m_uiNodeLocalBegin]!=LOOK_UP_TABLE_DEFAULT);
+        m_uiNodeLocalBegin=m_uiDG2CG[m_uiNodeLocalBegin];//(std::lower_bound(E2N_DG_Sorted.begin(),E2N_DG_Sorted.end(),m_uiNodeLocalBegin)-E2N_DG_Sorted.begin());
+        if(m_uiNodePreGhostBegin==UINT_MAX) {
+            m_uiNodePreGhostBegin=0;
+            m_uiNodePreGhostEnd=0;
+            assert(m_uiNodeLocalBegin==0);
+        }
+        else{
+            assert(m_uiDG2CG[m_uiNodePreGhostBegin]!=LOOK_UP_TABLE_DEFAULT);
+            m_uiNodePreGhostBegin=m_uiDG2CG[m_uiNodePreGhostBegin];//(std::lower_bound(E2N_DG_Sorted.begin(),E2N_DG_Sorted.end(),m_uiNodePreGhostBegin)-E2N_DG_Sorted.begin());
+            m_uiNodePreGhostEnd=m_uiNodeLocalBegin;
+        }
+
+        if(m_uiNodePostGhostBegin==UINT_MAX) {
+            m_uiNodeLocalEnd=m_uiCG2DG.size(); //E2N_DG_Sorted.size();
+            m_uiNodePostGhostBegin=m_uiNodeLocalEnd;
+            m_uiNodePostGhostEnd=m_uiNodeLocalEnd;
+        }
+        else
+        {
+            assert(m_uiDG2CG[m_uiNodePostGhostBegin]!=LOOK_UP_TABLE_DEFAULT);
+            m_uiNodePostGhostBegin=m_uiDG2CG[m_uiNodePostGhostBegin];//(std::lower_bound(E2N_DG_Sorted.begin(),E2N_DG_Sorted.end(),m_uiNodePostGhostBegin)-E2N_DG_Sorted.begin());
+            m_uiNodeLocalEnd=m_uiNodePostGhostBegin;
+            m_uiNodePostGhostEnd=m_uiCG2DG.size();//E2N_DG_Sorted.size();
+
+        }
+
+        if(!m_uiActiveRank) std::cout<<"E2N Mapping ended"<<std::endl;
+
+    }
+
+
     void Mesh::buildE2NMap() {
 
         // should not be called if the mesh is not active
@@ -3611,7 +4126,7 @@ namespace ot {
         //---------------------------------------print out the final e2n mapping of all, actual and fake element to node mapping.--------------------------------------------------------------------------
 
         //----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-        if(!m_uiActiveRank) std::cout<<"E2N Mapping ended"<<std::endl;
+        //if(!m_uiActiveRank) std::cout<<"E2N Mapping ended"<<std::endl;
 
 
     }
