@@ -69,17 +69,17 @@ ot::Block::~Block()
 
 double ot::Block::computeGridDx() const
 {
-    return ((m_uiBlockNode.maxX()-m_uiBlockNode.minX()))/((1u<<(m_uiRegGridLev-m_uiBlockNode.getLevel()))*m_uiEleOrder);
+    return ((m_uiBlockNode.maxX()-m_uiBlockNode.minX()))/((double)((1u<<(m_uiRegGridLev-m_uiBlockNode.getLevel()))*m_uiEleOrder));
 }
 
 double ot::Block::computeGridDy() const
 {
-    return ((m_uiBlockNode.maxY()-m_uiBlockNode.minY()))/((1u<<(m_uiRegGridLev-m_uiBlockNode.getLevel()))*m_uiEleOrder);
+    return ((m_uiBlockNode.maxY()-m_uiBlockNode.minY()))/((double)((1u<<(m_uiRegGridLev-m_uiBlockNode.getLevel()))*m_uiEleOrder));
 }
 
 double ot::Block::computeGridDz() const
 {
-    return ((m_uiBlockNode.maxZ()-m_uiBlockNode.minZ()))/((1u<<(m_uiRegGridLev-m_uiBlockNode.getLevel()))*m_uiEleOrder);
+    return ((m_uiBlockNode.maxZ()-m_uiBlockNode.minZ()))/((double)((1u<<(m_uiRegGridLev-m_uiBlockNode.getLevel()))*m_uiEleOrder));
 }
 
 double ot::Block::computeDx(const Point & d_min,const Point & d_max) const

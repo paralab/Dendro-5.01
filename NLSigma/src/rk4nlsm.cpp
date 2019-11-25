@@ -158,7 +158,7 @@ namespace ode
         {
             unsigned int nodeLookUp_CG;
             unsigned int nodeLookUp_DG;
-            unsigned int x,y,z,len;
+            double x,y,z,len;
             const ot::TreeNode * pNodes=&(*(m_uiMesh->getAllElements().begin()));
             unsigned int ownerID,ii_x,jj_y,kk_z;
             unsigned int eleOrder=m_uiMesh->getElementOrder();
@@ -186,12 +186,11 @@ namespace ode
                             {
                                 nodeLookUp_DG=e2n_dg[elem*nPe+k*(eleOrder+1)*(eleOrder+1)+j*(eleOrder+1)+i];
                                 m_uiMesh->dg2eijk(nodeLookUp_DG,ownerID,ii_x,jj_y,kk_z);
-                                len=1u<<(m_uiMaxDepth-pNodes[ownerID].getLevel());
+                                len= (double) (1u<<(m_uiMaxDepth-pNodes[ownerID].getLevel()));
                                 x=pNodes[ownerID].getX()+ ii_x*(len/(eleOrder));
                                 y=pNodes[ownerID].getY()+ jj_y*(len/(eleOrder));
                                 z=pNodes[ownerID].getZ()+ kk_z*(len/(eleOrder));
-                                assert(len%eleOrder==0);
-
+                                
                                 nlsm::initData((double)x,(double)y,(double)z,var);
                                 for(unsigned int v=0;v<nlsm::NLSM_NUM_VARS;v++)
                                     zipIn[v][nodeLookUp_CG]=var[v];
@@ -393,7 +392,7 @@ namespace ode
                             // initialize diff begin.
                             unsigned int nodeLookUp_CG;
                             unsigned int nodeLookUp_DG;
-                            unsigned int x,y,z,len;
+                            double x,y,z,len;
                             const ot::TreeNode * pNodes=&(*(m_uiMesh->getAllElements().begin()));
                             unsigned int ownerID,ii_x,jj_y,kk_z;
                             unsigned int eleOrder=m_uiMesh->getElementOrder();
@@ -421,11 +420,10 @@ namespace ode
                                             {
                                                 nodeLookUp_DG=e2n_dg[elem*nPe+k*(eleOrder+1)*(eleOrder+1)+j*(eleOrder+1)+i];
                                                 m_uiMesh->dg2eijk(nodeLookUp_DG,ownerID,ii_x,jj_y,kk_z);
-                                                len=1u<<(m_uiMaxDepth-pNodes[ownerID].getLevel());
+                                                len= (double) (1u<<(m_uiMaxDepth-pNodes[ownerID].getLevel()));
                                                 x=pNodes[ownerID].getX()+ ii_x*(len/(eleOrder));
                                                 y=pNodes[ownerID].getY()+ jj_y*(len/(eleOrder));
                                                 z=pNodes[ownerID].getZ()+ kk_z*(len/(eleOrder));
-                                                assert(len%eleOrder==0);
                                                 
                                                 u_x_t((double)x,(double)y,(double)z,m_uiCurrentTime,var);
                                                 diffVec[nodeLookUp_CG]=var[nlsm::VAR::U_CHI]-evolZipVarIn[nlsm::VAR::U_CHI][nodeLookUp_CG];

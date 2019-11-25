@@ -121,8 +121,7 @@ int main (int argc, char** argv)
 
     _InitializeHcurve(nlsm::NLSM_DIM);
     m_uiMaxDepth=nlsm::NLSM_MAXDEPTH;
-    MAXDEAPTH_LEVEL_DIFF = binOp::fastLog2(nlsm::NLSM_ELE_ORDER)-1;
-
+    
     if(nlsm::NLSM_NUM_VARS%nlsm::NLSM_ASYNC_COMM_K!=0)
     {
         if(!rank) std::cout<<"[overlap communication error]: total NLSM_NUM_VARS: "<<nlsm::NLSM_NUM_VARS<<" is not divisable by NLSM_ASYNC_COMM_K: "<<nlsm::NLSM_ASYNC_COMM_K<<std::endl;

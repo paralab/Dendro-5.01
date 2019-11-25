@@ -179,24 +179,46 @@ private :
 
 
 public:
+    /**@brief: default constructor for the reference element*/
     RefElement();
-    RefElement(unsigned int dim, unsigned int order);
-    ~RefElement();
-    // some getter methods to access required data.
-    inline int getOrder() const {return m_uiOrder;}
-    inline int getDim() const {return m_uiDimension;}
-    inline int get1DNumInterpolationPoints(){return m_uiNrp;}
 
-    inline const double * getIMChild0() const {return &(*(ip_1D_0.begin()));}
-    inline const double * getIMChild1() const {return &(*(ip_1D_1.begin()));}
-    inline const double * getIMTChild0() const { return &(*(ipT_1D_0.begin()));}
-    inline const double * getIMTChild1() const {return &(*(ipT_1D_1.begin()));}
+    /**@brief: constructs a reference element
+     * @param dim: dimension of the reference element. 
+     * @param order: element order 
+    */
+    RefElement(unsigned int dim, unsigned int order);
+
+    /**@brief: distructor for the reference element. */
+    ~RefElement();
+
+    /**@brief: Get reference element order*/
+    inline int getOrder() const {return m_uiOrder;}
     
+    /**@brief: get reference element dimension*/
+    inline int getDim() const {return m_uiDimension;}
+    
+    /**@brief: size of the interpolation points 1D*/
+    inline int get1DNumInterpolationPoints(){return m_uiNrp;}
+    
+    /**@brief: parent to child 0 interpolation operator*/
+    inline const double * getIMChild0() const {return &(*(ip_1D_0.begin()));}
+    /**@brief: parent to child 1 interpolation operator*/
+    inline const double * getIMChild1() const {return &(*(ip_1D_1.begin()));}
+    /**@brief: parent to child 0 interpolation operator (transpose)*/
+    inline const double * getIMTChild0() const { return &(*(ipT_1D_0.begin()));}
+    /**@brief: parent to child 1 interpolation operator (transpose)*/
+    inline const double * getIMTChild1() const {return &(*(ipT_1D_1.begin()));}
+    /**@brief: get the quadrature points*/
     inline const double * getQ1d() const {return &(*(quad_1D.begin()));}
+    /**@brief: get the quadrature points (transpose)*/
     inline const double * getQT1d()const {return &(*(quadT_1D.begin()));}
+    /**@brief: derivative of the basis functions evaluated at the quadrature points. */
     inline const double * getDg1d()const {return &(*(Dg.begin()));}
+    /**@brief: derivative of the basis functions evaluated at the quadrature points (Transpose) */
     inline const double * getDgT1d()const {return &(*(DgT.begin()));}
+    /**@brief: derivative of the basis functions evaluated at the nodal locations points  */
     inline const double * getDr1d()const {return &(*(Dr.begin()));}
+    
     inline const double * getFr1D() const {return &(*(Fr.begin()));}
 
     inline double * getImVec1() {return &(*(im_vec1.begin()));}

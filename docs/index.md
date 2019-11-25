@@ -1,5 +1,7 @@
 <img src="fig/dendro.png" alt="nlsm" width="500"/>
 
+For questions: [![Gitter](https://badges.gitter.im/Dendro-5-01/community.svg)](https://gitter.im/Dendro-5-01/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
+
 ## What is Dendro ?
 
 "Dendro" in Greek language means tree. The Dendro library is a large scale (262K cores on ORNL's Titan) distributed memory 
@@ -7,12 +9,12 @@ adaptive octree framework. The main goal of Dendro is to perform large scale mul
 
 ***
 
-## Get Dendro
+## Get Dendro ([git repo](https://github.com/paralab/Dendro-5.01.git) )
 
 You can clone the repository using , `git clone https://github.com/paralab/Dendro-5.01.git`
 
 ## Dendro-5.01 Documentation
-Doxygen documentation can be found [here](https://paralab.github.io/Dendro-5.01/html/annotated.html)
+**Doxygen** documentation can be found [here](https://paralab.github.io/Dendro-5.01/html/annotated.html)
 
 ## How to build Dendro-5.0 ?
 
@@ -74,6 +76,48 @@ phi_rhs[pp] = grad2_0_0_chi[pp] + grad2_1_1_chi[pp] + grad2_2_2_chi[pp] - sin(2*
 chi_rhs[pp] = phi[pp];
 // Dendro: reduced ops:  10
 ```
+
+### Parameters for NLSigma
+
+* Grid parameters
+    * `NLSM_GRID_MIN_X`, `NLSM_GRID_MIN_Y`, `NLSM_GRID_MIN_Z`: The minimum coordinate values for the computational domain in the *x*-, *y*-, and *z-* directions.
+    * `NLSM_GRID_MAX_X`, `NLSM_GRID_MAX_Y`, `NLSM_GRID_MAX_Z`: The maximum coordinate values for the computational domain in the *x*-, *y*-, and *z-* directions.
+
+* Evolution parameters    
+    * `NLSM_CFL_FACTOR`: The Courant factor used for time integration.  *dt* = `NLSM_CFL_FACTOR *` *dx*
+    * `KO_DISS_SIGMA`: Coefficient for Kreiss-Oliger dissipation that is added to the solution.
+    * `NLSM_RK45_TIME_BEGIN`: Initial time label for the evolution, usually this is set to 0.
+    * `NLSM_RK45_TIME_END`: The final time for the evolution. The code exits when this time is reached.
+    * `NLSM_RK45_TIME_STEP_SIZE`: Initial time step for the Runge-Kutta 4-5 adaptive time integrator.
+    * `NLSM_RK45_DESIRED_TOL`: Tolerance for the RK4-5 adaptive time integrator.
+
+* Output parameters
+    * `NLSM_IO_OUTPUT_FREQ`: Frequency for output.  Output is written as 3D VTK files.
+    * `NLSM_VTU_FILE_PREFIX`: Prefix for naming the output files.  Each processor outputs all variables to a single file labeled by the timestep.
+    * `NLSM_NUM_EVOL_VARS_VTU_OUTPUT`: The number of evolution variables to be output.
+    * `NLSM_VTU_OUTPUT_EVOL_INDICES`: A list of variable indices to specify which variables will be written to output. The first `NLSM_NUM_EVOL_VARS_VTU_OUTPUT` in this list are written to the output file.
+
+* General refinement parameters
+    * `NLSM_MAXDEPTH`: The maximum refinement depth for the octree. The minimum possible grid resolution is proportional to 1/2^k, where k is the maximum depth.
+    * `NLSM_REMESH_TEST_FREQ`: Frequency for updating an adaptive grid.
+    * `NLSM_LOAD_IMB_TOL`: Dendro load imbalance tolerance for flexible partitioning.
+    * `NLSM_DENDRO_GRAIN_SZ`: Grain size N/p , Where N number of total octants, p number of active cores.  This is essentially the number of octants per core, and essentially functions as a measure of the computational load per core. (Dendro does not automatically use all cores that are available in a multiprocessor run, but gives each core a minimum amount of work before adding new cores.)
+
+* Wavelet refinement parameters
+    * `NLSM_WAVELET_TOL`: The wavelet error tolerance for the solution.  Refinement is added when the estimated error in the solution, measured by the wavelet coefficient, is larger than this tolerance.
+    * `NLSM_NUM_REFINE_VARS`: The number of variables used to evaluate refinement on the grid.
+    * `NLSM_REFINE_VARIABLE_INDICES`: A list of variable indicies to specify which variables are used to determine the grid refinement.  Wavelet coefficients will be calculated for the first `NLSM_NUM_REFINE_VARS` in this list.
+    * `NLSM_DENDRO_AMR_FAC`: A factor to determine the threshold for coarsening the grid. The grid is coarsened when the wavelet coefficients are less than `NLSM_DENDRO_AMR_FAC * NLSM_WAVELET_TOL`.
+
+* Block refinement parameters
+    * `NLSM_ENABLE_BLOCK_ADAPTIVITY`: Block adaptivity provides simple fixed-mesh refinement.  The grid is refined to the maximum depth (or minimum resolution) inside a fixed region set by `NLSM_BLK_MIN_X`, `NLSM_BLK_MAX_X`, and related variables.  Set this parameter to "1" to enable block adaptivity, or "0" otherwise (default). Block adaptivity is used primarily for testing and debugging.  For example, a uniform grid can be created by specifying maximum refinement region to cover the entire domain.
+    * `NLSM_BLK_MIN_X`: The minimum *x*-coordinate for the block that is refined to the maximum depth. Same for *y*- and *z*-coordinates.
+    * `NLSM_BLK_MAX_X`: The maximum *x*-coordinate for the block that is refined to the maximum depth. Same for *y*- and *z*-coordinates.
+
+* Checkpoint parameters
+    * `NLSM_RESTORE_SOLVER`: Set this parameter to "1" to read from checkpoint files, otherwise set it to "0" (default).  When checkpointing is used, the code automatically selects the latest checkpoint files for restoring the solver.
+    * `NLSM_CHECKPT_FREQ`: The checkpoint frequency.
+    * `NLSM_CHKPT_FILE_PREFIX`: A string prefix for naming the checkpoint files.
 
 
 ***
