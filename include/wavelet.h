@@ -19,11 +19,17 @@ static const RefElement RE_OR3 = RefElement(1,3);
 /**@brief : Reference element for order 4*/
 static const RefElement RE_OR4 = RefElement(1,4);
 
+static const RefElement RE_OR5 = RefElement(1,5);
+
+static const RefElement RE_OR6 = RefElement(1,6);
+
 /**@brief : Reference element for order 7*/
 static const RefElement RE_OR7 = RefElement(1,7);
 
 /**@brief : Reference element for order 8*/
 static const RefElement RE_OR8 = RefElement(1,8);
+
+
 
 
 #define REFINE_INDEX_OFFSET 2
@@ -40,6 +46,14 @@ const double BH_EH_THRESHOLD_REFINE = 0.3;
 const double BH_EH_THRESHOLD_COARSEN = 0.4;
 
 // Below matrices are generated from HOMG (for uniform points.) matlab code. Don't change those unless you know exactly what you are doing.
+
+static int isRefEleSetup =0;
+static RefElement refEl;
+static std::vector<double> wIn;
+static std::vector<double> wOut;
+static std::vector<double> interpIn;
+static std::vector<double> interpOut;
+
 
 
 
@@ -237,222 +251,102 @@ void refine_wavelets(const T* unzippedVec, const unsigned int eleOrder,const uns
     for(unsigned int w=0;w<szn;w++)
         wavelets[w]=0.0;
 
-    if(eleOrder == 4)
-    {
+    unsigned int ib,ie,jb,je,kb,ke;
+    ib= (eI[0]*eleOrder + pWidth);  jb = (eI[1]*eleOrder + pWidth) ; kb = (eI[2]*eleOrder + pWidth);
+    ie = ib + (eleOrder + 1); je = jb + (eleOrder+1); ke = kb + (eleOrder+1);
 
-        // 0, 1, ------------------8,9 - 10
+    if(eleOrder % 2  == 0 )
+    { 
+      const unsigned int pp = (eleOrder>>1u);
+      
+      if(isRefEleSetup  == 0)
+      {
+        refEl = RefElement(1,pp);
+        interpIn.resize((pp+1)*(pp+1)*(pp+1));
+        interpOut.resize((pp+1)*(pp+1)*(pp+1));
+        wIn.resize((2*pp+1)*(2*pp+1)*(2*pp+1));
+        wOut.resize((2*pp+1)*(2*pp+1)*(2*pp+1));
+        isRefEleSetup =1;
+      }
 
-        const unsigned int ib=1;
-        const unsigned int ie = 10;
+      //   RefElement refEl = RefElement(1,pp);
+      //   std::vector<double>  wIn;
+      //   std::vector<double>  wOut;  
+      //   std::vector<double>  interpOut;
+      //   std::vector<double>  interpIn;
 
-        const unsigned int jb=1;
-        const unsigned int je = 10;
+      interpIn.resize((pp+1)*(pp+1)*(pp+1));
+      interpOut.resize((pp+1)*(pp+1)*(pp+1));
+      wIn.resize((2*pp+1)*(2*pp+1)*(2*pp+1));
+      wOut.resize((2*pp+1)*(2*pp+1)*(2*pp+1));
 
-        const unsigned int kb=1;
-        const unsigned int ke = 10;
+      unsigned int m=0;
+      for(unsigned int k = kb; k < ke; k+=2 )
+       for(unsigned int j = jb; j < je; j+=2 )
+        for(unsigned int i = ib; i < ie; i+=2, m++)
+        {
+           interpIn[m] = unzippedVec[k*sz[0]*sz[1] + j*sz[0]  + i ];
+           //std::cout<<"interp m : "<<m<< " value: "<<interpIn[m] <<" i,j,k "<<i<<" , "<<j<<" , "<<k<<" siz: "<<sz[0]<<std::endl;
+        }
+          
 
-        T* wIn = ws[0];
-        T* wOut = ws[1];
 
+
+
+      unsigned char bit[3];
+      for(unsigned int cnum = 0 ; cnum < NUM_CHILDREN; cnum++ )
+      {
+        refEl.I3D_Parent2Child(interpIn.data(),interpOut.data(),cnum);
+        
+        bit[0] = binOp::getBit(cnum,0);
+        bit[1] = binOp::getBit(cnum,1);
+        bit[2] = binOp::getBit(cnum,2);
+        
         unsigned int m=0;
+        for(unsigned int k = (bit[2]*pp) ; k < ((bit[2] + 1)*pp) +1 ; k++)
+         for(unsigned int j = (bit[1]*pp) ; j < ((bit[1] + 1)*pp) +1 ; j++)
+          for(unsigned int i = (bit[0]*pp) ; i < ((bit[0] + 1)*pp) +1 ; i++ , m++)
+          {
+            wIn [ (k)*(eleOrder+1)*(eleOrder+1) + (j)*(eleOrder+1) + (i) ] = unzippedVec[ (k+kb)*sz[0]*sz[1] + (j+jb)*sz[0]  + (i+ib) ] ;
+            wOut[ (k)*(eleOrder+1)*(eleOrder+1) + (j)*(eleOrder+1) + (i) ] = interpOut[m];
+          }
+           
 
-        for(unsigned int k=kb; k < ke; k+=2)
-         for(unsigned int j=jb; j < je; j+=2)
-          for(unsigned int i=ib; i < ie; i+=2,m++)
-            wIn[m] = unzippedVec[(eI[2]*eleOrder + k)*sz[0]*sz[1] + (eI[1]*eleOrder + j)*sz[0]  + (eI[0]*eleOrder + i) ];
-        
-        const unsigned int n[3]={5,5,5};
+      }
 
-        const unsigned int wn[3] = {4,4,4};
-        
-        const unsigned int c0[2]={1,3};
-        const unsigned int c1[2]={1,3};
+      m=0;  
+      for(unsigned int k = 1; k < 2*pp+1; k+=2 )
+       for(unsigned int j = 1; j < 2*pp+1; j+=2 )
+        for(unsigned int i = 1; i < 2*pp+1; i+=2, m++)
+        {
+            wavelets[m] = fabs(wIn[(k)*(eleOrder+1)*(eleOrder+1) + (j)*(eleOrder+1) + (i)] - wOut[(k)*(eleOrder+1)*(eleOrder+1) + (j)*(eleOrder+1) + (i)] );
+            //std::cout<<" wIn: "<<wIn[(k)*(eleOrder+1)*(eleOrder+1) + (j)*(eleOrder+1) + (i)] <<" wOut: "<<wOut[(k)*(eleOrder+1)*(eleOrder+1) + (j)*(eleOrder+1) + (i)]//<<std::endl;  
+        }
 
-        const unsigned int uc0[2]={2,4};
-        const unsigned int uc1[2]={6,8};
+      
+    }else
+    { 
+      
+      // const unsigned int pp = ((eleOrder + 1)>>1u);
+      // if(isRefEleSetup  == 0)
+      // {
+      //   refEl = RefElement(1,pp);
+      //   wIn.resize((pp+1)*(pp+1)*(pp+1));
+      //   wOut.resize((2*pp+1)*(2*pp+1)*(2*pp+1));     isRefEleSetup =1;
+      //   isRefEleSetup =1;
+      
+      // }
 
-        const unsigned int wc0[2]={0,1};
-        const unsigned int wc1[2]={2,3};
-
-        assert( (wn[0]*wn[1]*wn[2])  == (szn) );
-
-        RE_OR4.I3D_Parent2Child(wIn, wOut, 0);
-
-        for(unsigned int k=0; k<2; k++)
-          for(unsigned int j=0; j<2; j++)
-           for(unsigned int i=0; i<2; i++)
-            wavelets[wc0[k]*wn[1]*wn[0] + wc0[j]*wn[0] + wc0[i] ] = fabs(unzippedVec[(eI[2]*eleOrder + uc0[k])*sz[0]*sz[1] + (eI[1]*eleOrder + uc0[j])*sz[0]  + (eI[0]*eleOrder + uc0[i]) ]-wOut[(c0[k])*n[1]*n[0] + (c0[j])*n[0] + (c0[i])]);
-        
-        RE_OR4.I3D_Parent2Child(wIn, wOut, 1);
-
-        for(unsigned int k=0; k<2; k++)
-          for(unsigned int j=0; j<2; j++)
-           for(unsigned int i=0; i<2; i++)
-            wavelets[wc0[k]*wn[1]*wn[0] + wc0[j]*wn[0] + wc1[i] ] = fabs(unzippedVec[(eI[2]*eleOrder + uc0[k])*sz[0]*sz[1] + (eI[1]*eleOrder + uc0[j])*sz[0]  + (eI[0]*eleOrder + uc1[i]) ]-wOut[(c0[k])*n[1]*n[0] + (c0[j])*n[0] + (c1[i])]);
-        
-
-        RE_OR4.I3D_Parent2Child(wIn, wOut, 2);
-        
-        for(unsigned int k=0; k<2; k++)
-          for(unsigned int j=0; j<2; j++)
-           for(unsigned int i=0; i<2; i++)
-            wavelets[wc0[k]*wn[1]*wn[0] + wc1[j]*wn[0] + wc0[i] ] = fabs(unzippedVec[(eI[2]*eleOrder + uc0[k])*sz[0]*sz[1] + (eI[1]*eleOrder + uc1[j])*sz[0]  + (eI[0]*eleOrder + uc0[i]) ]-wOut[(c0[k])*n[1]*n[0] + (c1[j])*n[0] + (c0[i])]);
-
-
-        RE_OR4.I3D_Parent2Child(wIn, wOut, 3);
-        
-        for(unsigned int k=0; k<2; k++)
-          for(unsigned int j=0; j<2; j++)
-           for(unsigned int i=0; i<2; i++)
-            wavelets[wc0[k]*wn[1]*wn[0] + wc1[j]*wn[0] + wc1[i] ] = fabs(unzippedVec[(eI[2]*eleOrder + uc0[k])*sz[0]*sz[1] + (eI[1]*eleOrder + uc1[j])*sz[0]  + (eI[0]*eleOrder + uc1[i]) ]-wOut[(c0[k])*n[1]*n[0] + (c1[j])*n[0] + (c1[i])]);
-
-
-
-        RE_OR4.I3D_Parent2Child(wIn, wOut, 4);
-
-        for(unsigned int k=0; k<2; k++)
-          for(unsigned int j=0; j<2; j++)
-           for(unsigned int i=0; i<2; i++)
-            wavelets[wc1[k]*wn[1]*wn[0] + wc0[j]*wn[0] + wc0[i] ] = fabs(unzippedVec[(eI[2]*eleOrder + uc1[k])*sz[0]*sz[1] + (eI[1]*eleOrder + uc0[j])*sz[0]  + (eI[0]*eleOrder + uc0[i]) ]-wOut[(c1[k])*n[1]*n[0] + (c0[j])*n[0] + (c0[i])]);
-        
-        RE_OR4.I3D_Parent2Child(wIn, wOut, 5);
-
-        for(unsigned int k=0; k<2; k++)
-          for(unsigned int j=0; j<2; j++)
-           for(unsigned int i=0; i<2; i++)
-            wavelets[wc1[k]*wn[1]*wn[0] + wc0[j]*wn[0] + wc1[i] ] = fabs(unzippedVec[(eI[2]*eleOrder + uc1[k])*sz[0]*sz[1] + (eI[1]*eleOrder + uc0[j])*sz[0]  + (eI[0]*eleOrder + uc1[i]) ]-wOut[(c1[k])*n[1]*n[0] + (c0[j])*n[0] + (c1[i])]);
-        
-
-        RE_OR4.I3D_Parent2Child(wIn, wOut, 6);
-        
-        for(unsigned int k=0; k<2; k++)
-          for(unsigned int j=0; j<2; j++)
-           for(unsigned int i=0; i<2; i++)
-            wavelets[wc1[k]*wn[1]*wn[0] + wc1[j]*wn[0] + wc0[i] ] = fabs(unzippedVec[(eI[2]*eleOrder + uc1[k])*sz[0]*sz[1] + (eI[1]*eleOrder + uc1[j])*sz[0]  + (eI[0]*eleOrder + uc0[i]) ]-wOut[(c1[k])*n[1]*n[0] + (c1[j])*n[0] + (c0[i])]);
-
-
-        RE_OR4.I3D_Parent2Child(wIn, wOut, 7);
-        
-        for(unsigned int k=0; k<2; k++)
-          for(unsigned int j=0; j<2; j++)
-           for(unsigned int i=0; i<2; i++)
-            wavelets[wc1[k]*wn[1]*wn[0] + wc1[j]*wn[0] + wc1[i] ] = fabs(unzippedVec[(eI[2]*eleOrder + uc1[k])*sz[0]*sz[1] + (eI[1]*eleOrder + uc1[j])*sz[0]  + (eI[0]*eleOrder + uc1[i]) ]-wOut[(c1[k])*n[1]*n[0] + (c1[j])*n[0] + (c1[i])]);
-        
-        // for(unsigned int k=0; k<4; k+=3)
-        //   for(unsigned int j=0; j<4; j+=3)
-        //    for(unsigned int i=0; i<4; i+=3)
-        //     wavelets[k*wn[1]*wn[0] + j*wn[0] + i ] =0.0;
-
-
-
-
-    }else if(eleOrder == 8)
-    {
-
-        const unsigned int ib=pWidth;
-        const unsigned int ie = 15-pWidth;
-
-        const unsigned int jb=pWidth;
-        const unsigned int je = 15-pWidth;
-
-        const unsigned int kb=pWidth;
-        const unsigned int ke = 15-pWidth;
-
-        
-        // 7th order interpolation
-        T* wIn = ws[0];
-        T* wOut = ws[1];
-
-        unsigned int m=0;
-
-        for(unsigned int k=kb; k < ke; k+=2)
-         for(unsigned int j=jb; j < je; j+=2)
-          for(unsigned int i=ib; i < ie; i+=2,m++)
-            wIn[m] = unzippedVec[(eI[2]*eleOrder + k)*sz[0]*sz[1] + (eI[1]*eleOrder + j)*sz[0]  + (eI[0]*eleOrder + i) ];
-
-
-
-        const unsigned int n[3]={5,5,5};
-        const unsigned int wn[3] = {2,2,2};
-
-        const unsigned int c0[2]={1,3};
-        const unsigned int c1[2]={1,3};
-        const unsigned int uc0[2]={4,6};
-        const unsigned int uc1[2]={8,10};
-
-        const unsigned int wc0[2]={0,1};
-        const unsigned int wc1[2]={2,3};
-
-        assert( (wn[0]*wn[1]*wn[2])  == (szn) );
-
-        RE_OR4.I3D_Parent2Child(wIn, wOut, 0);
-
-        for(unsigned int k=0; k<2; k++)
-          for(unsigned int j=0; j<2; j++)
-           for(unsigned int i=0; i<2; i++)
-            wavelets[wc0[k]*wn[1]*wn[0] + wc0[j]*wn[0] + wc0[i] ] = fabs(unzippedVec[(eI[2]*eleOrder + uc0[k])*sz[0]*sz[1] + (eI[1]*eleOrder + uc0[j])*sz[0]  + (eI[0]*eleOrder + uc0[i]) ]-wOut[(c0[k])*n[1]*n[0] + (c0[j])*n[0] + (c0[i])]);
-        
-        RE_OR4.I3D_Parent2Child(wIn, wOut, 1);
-
-        for(unsigned int k=0; k<2; k++)
-          for(unsigned int j=0; j<2; j++)
-           for(unsigned int i=0; i<2; i++)
-            wavelets[wc0[k]*wn[1]*wn[0] + wc0[j]*wn[0] + wc1[i] ] = fabs(unzippedVec[(eI[2]*eleOrder + uc0[k])*sz[0]*sz[1] + (eI[1]*eleOrder + uc0[j])*sz[0]  + (eI[0]*eleOrder + uc1[i]) ]-wOut[(c0[k])*n[1]*n[0] + (c0[j])*n[0] + (c1[i])]);
-        
-
-        RE_OR4.I3D_Parent2Child(wIn, wOut, 2);
-        
-        for(unsigned int k=0; k<2; k++)
-          for(unsigned int j=0; j<2; j++)
-           for(unsigned int i=0; i<2; i++)
-            wavelets[wc0[k]*wn[1]*wn[0] + wc1[j]*wn[0] + wc0[i] ] = fabs(unzippedVec[(eI[2]*eleOrder + uc0[k])*sz[0]*sz[1] + (eI[1]*eleOrder + uc1[j])*sz[0]  + (eI[0]*eleOrder + uc0[i]) ]-wOut[(c0[k])*n[1]*n[0] + (c1[j])*n[0] + (c0[i])]);
-
-
-        RE_OR4.I3D_Parent2Child(wIn, wOut, 3);
-        
-        for(unsigned int k=0; k<2; k++)
-          for(unsigned int j=0; j<2; j++)
-           for(unsigned int i=0; i<2; i++)
-            wavelets[wc0[k]*wn[1]*wn[0] + wc1[j]*wn[0] + wc1[i] ] = fabs(unzippedVec[(eI[2]*eleOrder + uc0[k])*sz[0]*sz[1] + (eI[1]*eleOrder + uc1[j])*sz[0]  + (eI[0]*eleOrder + uc1[i]) ]-wOut[(c0[k])*n[1]*n[0] + (c1[j])*n[0] + (c1[i])]);
-
-
-
-        RE_OR4.I3D_Parent2Child(wIn, wOut, 4);
-
-        for(unsigned int k=0; k<2; k++)
-          for(unsigned int j=0; j<2; j++)
-           for(unsigned int i=0; i<2; i++)
-            wavelets[wc1[k]*wn[1]*wn[0] + wc0[j]*wn[0] + wc0[i] ] = fabs(unzippedVec[(eI[2]*eleOrder + uc1[k])*sz[0]*sz[1] + (eI[1]*eleOrder + uc0[j])*sz[0]  + (eI[0]*eleOrder + uc0[i]) ]-wOut[(c1[k])*n[1]*n[0] + (c0[j])*n[0] + (c0[i])]);
-        
-        RE_OR4.I3D_Parent2Child(wIn, wOut, 5);
-
-        for(unsigned int k=0; k<2; k++)
-          for(unsigned int j=0; j<2; j++)
-           for(unsigned int i=0; i<2; i++)
-            wavelets[wc1[k]*wn[1]*wn[0] + wc0[j]*wn[0] + wc1[i] ] = fabs(unzippedVec[(eI[2]*eleOrder + uc1[k])*sz[0]*sz[1] + (eI[1]*eleOrder + uc0[j])*sz[0]  + (eI[0]*eleOrder + uc1[i]) ]-wOut[(c1[k])*n[1]*n[0] + (c0[j])*n[0] + (c1[i])]);
-        
-
-        RE_OR4.I3D_Parent2Child(wIn, wOut, 6);
-        
-        for(unsigned int k=0; k<2; k++)
-          for(unsigned int j=0; j<2; j++)
-           for(unsigned int i=0; i<2; i++)
-            wavelets[wc1[k]*wn[1]*wn[0] + wc1[j]*wn[0] + wc0[i] ] = fabs(unzippedVec[(eI[2]*eleOrder + uc1[k])*sz[0]*sz[1] + (eI[1]*eleOrder + uc1[j])*sz[0]  + (eI[0]*eleOrder + uc0[i]) ]-wOut[(c1[k])*n[1]*n[0] + (c1[j])*n[0] + (c0[i])]);
-
-
-        RE_OR4.I3D_Parent2Child(wIn, wOut, 7);
-        
-        for(unsigned int k=0; k<2; k++)
-          for(unsigned int j=0; j<2; j++)
-           for(unsigned int i=0; i<2; i++)
-            wavelets[wc1[k]*wn[1]*wn[0] + wc1[j]*wn[0] + wc1[i] ] = fabs(unzippedVec[(eI[2]*eleOrder + uc1[k])*sz[0]*sz[1] + (eI[1]*eleOrder + uc1[j])*sz[0]  + (eI[0]*eleOrder + uc1[i]) ]-wOut[(c1[k])*n[1]*n[0] + (c1[j])*n[0] + (c1[i])]);
+      // unsigned int m=0;
+      // for(unsigned int k = kb; k < ke; k+=2 )
+      //  for(unsigned int j = jb; j < je; j+=2 )
+      //   for(unsigned int i = ib; i < ie; i+=2, m++)
+      //     wIn[m] = unzippedVec[(eI[2]*eleOrder + k)*sz[0]*sz[1] + (eI[1]*eleOrder + j)*sz[0]  + (eI[0]*eleOrder + i) ];
 
 
     }
 
-
-
-
+    return;
 
 
 }
@@ -476,209 +370,102 @@ void coarsen_wavelets(const T* unzippedVec, const unsigned int eleOrder,const un
     for(unsigned int w=0;w<szn;w++)
         wavelets[w]=0.0;
 
-    if(eleOrder == 4)
-    {
-        // note that the ele vec size for the coarsening is 15 = 9 + 3 + 3
+    //return;
 
-        const unsigned int ib=1;
-        const unsigned int ie = 15-1;
+    unsigned int ib,ie,jb,je,kb,ke;
+    ib= (eI[0]*eleOrder + pWidth);  jb = (eI[1]*eleOrder + pWidth) ; kb = (eI[2]*eleOrder + pWidth);
+    ie = ib + (2*eleOrder + 1); je = jb + (2*eleOrder+1); ke = kb + (2*eleOrder+1);
 
-        const unsigned int jb=1;
-        const unsigned int je = 15-1;
+    if(eleOrder % 2  == 0 )
+    { 
+      const unsigned int pp = (eleOrder>>1u);
+      
+      if(isRefEleSetup  == 0)
+      {
+        refEl = RefElement(1,pp);
+        interpIn.resize((pp+1)*(pp+1)*(pp+1));
+        interpOut.resize((pp+1)*(pp+1)*(pp+1));
+        wIn.resize((2*pp+1)*(2*pp+1)*(2*pp+1));
+        wOut.resize((2*pp+1)*(2*pp+1)*(2*pp+1));
+        isRefEleSetup =1;
+      }
 
-        const unsigned int kb=1;
-        const unsigned int ke = 15-1;
+      //   RefElement refEl = RefElement(1,pp);
+      //   std::vector<double>  wIn;
+      //   std::vector<double>  wOut;  
+      //   std::vector<double>  interpOut;
+      //   std::vector<double>  interpIn;
 
-        T* wIn = ws[0];
-        T* wOut = ws[1];
+      interpIn.resize((pp+1)*(pp+1)*(pp+1));
+      interpOut.resize((pp+1)*(pp+1)*(pp+1));
+      wIn.resize((2*pp+1)*(2*pp+1)*(2*pp+1));
+      wOut.resize((2*pp+1)*(2*pp+1)*(2*pp+1));
 
+      unsigned int m=0;
+      for(unsigned int k = kb; k < ke; k+=4 )
+       for(unsigned int j = jb; j < je; j+=4 )
+        for(unsigned int i = ib; i < ie; i+=4, m++)
+          interpIn[m] = unzippedVec[k*sz[0]*sz[1] + j*sz[0]  + i ];
+
+      //std::cout<<" m: in : "<<m<<std::endl;
+      unsigned char bit[3];
+      
+      for(unsigned int cnum = 0 ; cnum < NUM_CHILDREN; cnum++ )
+      {
+        refEl.I3D_Parent2Child(interpIn.data(),interpOut.data(),cnum);
+        
+        bit[0] = binOp::getBit(cnum,0);
+        bit[1] = binOp::getBit(cnum,1);
+        bit[2] = binOp::getBit(cnum,2);
+        
         unsigned int m=0;
+        for(unsigned int k = (bit[2]*pp) ; k < ((bit[2] + 1)*pp) +1 ; k++)
+         for(unsigned int j = (bit[1]*pp) ; j < ((bit[1] + 1)*pp) +1 ; j++)
+          for(unsigned int i = (bit[0]*pp) ; i < ((bit[0] + 1)*pp) +1 ; i++ , m++)
+          { 
+              wIn [ (k)*(eleOrder+1)*(eleOrder+1) + (j)*(eleOrder+1) + (i) ] = unzippedVec[ (2*k+kb)*sz[0]*sz[1] + (2*j+jb)*sz[0]  + (2*i+ib) ] ;
+              wOut[ (k)*(eleOrder+1)*(eleOrder+1) + (j)*(eleOrder+1) + (i) ] = interpOut[m];
+          }
+           
 
-        for(unsigned int k=kb; k < ke; k+=4)
-         for(unsigned int j=jb; j < je; j+=4)
-          for(unsigned int i=ib; i < ie; i+=4,m++)
-            wIn[m] = unzippedVec[(eI[2]*eleOrder + k)*sz[0]*sz[1] + (eI[1]*eleOrder + j)*sz[0]  + (eI[0]*eleOrder + i) ];
+      }
 
+      m=0;
+      for(unsigned int k = 1; k < 2*pp+1; k+=2 )
+       for(unsigned int j = 1; j < 2*pp+1; j+=2 )
+        for(unsigned int i = 1; i < 2*pp+1; i+=2, m++)
+        {
+            wavelets[m] = fabs(wIn[(k)*(eleOrder+1)*(eleOrder+1) + (j)*(eleOrder+1) + (i)] - wOut[(k)*(eleOrder+1)*(eleOrder+1) + (j)*(eleOrder+1) + (i)] );
+            //std::cout<<" wIn: "<<wIn[(k)*(eleOrder+1)*(eleOrder+1) + (j)*(eleOrder+1) + (i)] <<" wOut: "<<wOut[(k)*(eleOrder+1)*(eleOrder+1) + (j)*(eleOrder+1) + (i)]<<std::endl;  
+        }
+    
+      
 
-        const unsigned int wn[3] = {4,4,4};
-        const unsigned int n[3]={4,4,4};
+      
+    }else
+    { 
+      
+      // const unsigned int pp = ((eleOrder + 1)>>1u);
+      // if(isRefEleSetup  == 0)
+      // {
+      //   refEl = RefElement(1,pp);
+      //   wIn.resize((pp+1)*(pp+1)*(pp+1));
+      //   wOut.resize((2*pp+1)*(2*pp+1)*(2*pp+1));     isRefEleSetup =1;
+      //   isRefEleSetup =1;
+      
+      // }
 
-        const unsigned int c0[2]={1,3};
-        const unsigned int c1[2]={0,2};
-
-        const unsigned int uc0[2]={3,7};
-        const unsigned int uc1[2]={7,11};
-
-        const unsigned int wc0[2]={0,1};
-        const unsigned int wc1[2]={2,3};
-
-        assert( (wn[0]*wn[1]*wn[2])  == (szn) );
-
-        RE_OR3.I3D_Parent2Child(wIn, wOut, 0);
-
-        for(unsigned int k=0; k<2; k++)
-          for(unsigned int j=0; j<2; j++)
-           for(unsigned int i=0; i<2; i++)
-            wavelets[wc0[k]*wn[1]*wn[0] + wc0[j]*wn[0] + wc0[i] ] = fabs(unzippedVec[(eI[2]*eleOrder + uc0[k])*sz[0]*sz[1] + (eI[1]*eleOrder + uc0[j])*sz[0]  + (eI[0]*eleOrder + uc0[i]) ]-wOut[(c0[k])*n[1]*n[0] + (c0[j])*n[0] + (c0[i])]);
-        
-        RE_OR3.I3D_Parent2Child(wIn, wOut, 1);
-
-        for(unsigned int k=0; k<2; k++)
-          for(unsigned int j=0; j<2; j++)
-           for(unsigned int i=0; i<2; i++)
-            wavelets[wc0[k]*wn[1]*wn[0] + wc0[j]*wn[0] + wc1[i] ] = fabs(unzippedVec[(eI[2]*eleOrder + uc0[k])*sz[0]*sz[1] + (eI[1]*eleOrder + uc0[j])*sz[0]  + (eI[0]*eleOrder + uc1[i]) ]-wOut[(c0[k])*n[1]*n[0] + (c0[j])*n[0] + (c1[i])]);
-        
-
-        RE_OR3.I3D_Parent2Child(wIn, wOut, 2);
-        
-        for(unsigned int k=0; k<2; k++)
-          for(unsigned int j=0; j<2; j++)
-           for(unsigned int i=0; i<2; i++)
-            wavelets[wc0[k]*wn[1]*wn[0] + wc1[j]*wn[0] + wc0[i] ] = fabs(unzippedVec[(eI[2]*eleOrder + uc0[k])*sz[0]*sz[1] + (eI[1]*eleOrder + uc1[j])*sz[0]  + (eI[0]*eleOrder + uc0[i]) ]-wOut[(c0[k])*n[1]*n[0] + (c1[j])*n[0] + (c0[i])]);
-
-
-        RE_OR3.I3D_Parent2Child(wIn, wOut, 3);
-        
-        for(unsigned int k=0; k<2; k++)
-          for(unsigned int j=0; j<2; j++)
-           for(unsigned int i=0; i<2; i++)
-            wavelets[wc0[k]*wn[1]*wn[0] + wc1[j]*wn[0] + wc1[i] ] = fabs(unzippedVec[(eI[2]*eleOrder + uc0[k])*sz[0]*sz[1] + (eI[1]*eleOrder + uc1[j])*sz[0]  + (eI[0]*eleOrder + uc1[i]) ]-wOut[(c0[k])*n[1]*n[0] + (c1[j])*n[0] + (c1[i])]);
-
-
-
-        RE_OR3.I3D_Parent2Child(wIn, wOut, 4);
-
-        for(unsigned int k=0; k<2; k++)
-          for(unsigned int j=0; j<2; j++)
-           for(unsigned int i=0; i<2; i++)
-            wavelets[wc1[k]*wn[1]*wn[0] + wc0[j]*wn[0] + wc0[i] ] = fabs(unzippedVec[(eI[2]*eleOrder + uc1[k])*sz[0]*sz[1] + (eI[1]*eleOrder + uc0[j])*sz[0]  + (eI[0]*eleOrder + uc0[i]) ]-wOut[(c1[k])*n[1]*n[0] + (c0[j])*n[0] + (c0[i])]);
-        
-        RE_OR3.I3D_Parent2Child(wIn, wOut, 5);
-
-        for(unsigned int k=0; k<2; k++)
-          for(unsigned int j=0; j<2; j++)
-           for(unsigned int i=0; i<2; i++)
-            wavelets[wc1[k]*wn[1]*wn[0] + wc0[j]*wn[0] + wc1[i] ] = fabs(unzippedVec[(eI[2]*eleOrder + uc1[k])*sz[0]*sz[1] + (eI[1]*eleOrder + uc0[j])*sz[0]  + (eI[0]*eleOrder + uc1[i]) ]-wOut[(c1[k])*n[1]*n[0] + (c0[j])*n[0] + (c1[i])]);
-        
-
-        RE_OR3.I3D_Parent2Child(wIn, wOut, 6);
-        
-        for(unsigned int k=0; k<2; k++)
-          for(unsigned int j=0; j<2; j++)
-           for(unsigned int i=0; i<2; i++)
-            wavelets[wc1[k]*wn[1]*wn[0] + wc1[j]*wn[0] + wc0[i] ] = fabs(unzippedVec[(eI[2]*eleOrder + uc1[k])*sz[0]*sz[1] + (eI[1]*eleOrder + uc1[j])*sz[0]  + (eI[0]*eleOrder + uc0[i]) ]-wOut[(c1[k])*n[1]*n[0] + (c1[j])*n[0] + (c0[i])]);
-
-
-        RE_OR3.I3D_Parent2Child(wIn, wOut, 7);
-        
-        for(unsigned int k=0; k<2; k++)
-          for(unsigned int j=0; j<2; j++)
-           for(unsigned int i=0; i<2; i++)
-            wavelets[wc1[k]*wn[1]*wn[0] + wc1[j]*wn[0] + wc1[i] ] = fabs(unzippedVec[(eI[2]*eleOrder + uc1[k])*sz[0]*sz[1] + (eI[1]*eleOrder + uc1[j])*sz[0]  + (eI[0]*eleOrder + uc1[i]) ]-wOut[(c1[k])*n[1]*n[0] + (c1[j])*n[0] + (c1[i])]);
-
-
-
-
-    }else if(eleOrder == 8)
-    {
-        // note that the ele vec size for the coarsening is 23 = 17 + 3 + 3
-        const unsigned int ib=pWidth;
-        const unsigned int ie = 23-pWidth;
-
-        const unsigned int jb=pWidth;
-        const unsigned int je = 23-pWidth;
-
-        const unsigned int kb=pWidth;
-        const unsigned int ke = 23-pWidth;
-
-        T* wIn = ws[0];
-        T* wOut = ws[1];
-
-        unsigned int m=0;
-
-        for(unsigned int k=kb; k < ke; k+=4)
-         for(unsigned int j=jb; j < je; j+=4)
-          for(unsigned int i=ib; i < ie; i+=4,m++)
-            wIn[m] = unzippedVec[(eI[2]*eleOrder + k)*sz[0]*sz[1] + (eI[1]*eleOrder + j)*sz[0]  + (eI[0]*eleOrder + i) ];
-
-        const unsigned int wn[3] = {4,4,4};
-        const unsigned int n[3]={5,5,5};
-
-        const unsigned int c0[2]={1,3};
-        const unsigned int c1[2]={1,3};
-
-        const unsigned int uc0[2]={5,9};
-        const unsigned int uc1[2]={13,17};
-
-        const unsigned int wc0[2]={0,1};
-        const unsigned int wc1[2]={2,3};
-
-        assert( (wn[0]*wn[1]*wn[2])  == (szn) );
-
-        RE_OR4.I3D_Parent2Child(wIn, wOut, 0);
-
-        for(unsigned int k=0; k<2; k++)
-          for(unsigned int j=0; j<2; j++)
-           for(unsigned int i=0; i<2; i++)
-            wavelets[wc0[k]*wn[1]*wn[0] + wc0[j]*wn[0] + wc0[i] ] = fabs(unzippedVec[(eI[2]*eleOrder + uc0[k])*sz[0]*sz[1] + (eI[1]*eleOrder + uc0[j])*sz[0]  + (eI[0]*eleOrder + uc0[i]) ]-wOut[(c0[k])*n[1]*n[0] + (c0[j])*n[0] + (c0[i])]);
-        
-        RE_OR4.I3D_Parent2Child(wIn, wOut, 1);
-
-        for(unsigned int k=0; k<2; k++)
-          for(unsigned int j=0; j<2; j++)
-           for(unsigned int i=0; i<2; i++)
-            wavelets[wc0[k]*wn[1]*wn[0] + wc0[j]*wn[0] + wc1[i] ] = fabs(unzippedVec[(eI[2]*eleOrder + uc0[k])*sz[0]*sz[1] + (eI[1]*eleOrder + uc0[j])*sz[0]  + (eI[0]*eleOrder + uc1[i]) ]-wOut[(c0[k])*n[1]*n[0] + (c0[j])*n[0] + (c1[i])]);
-        
-
-        RE_OR4.I3D_Parent2Child(wIn, wOut, 2);
-        
-        for(unsigned int k=0; k<2; k++)
-          for(unsigned int j=0; j<2; j++)
-           for(unsigned int i=0; i<2; i++)
-            wavelets[wc0[k]*wn[1]*wn[0] + wc1[j]*wn[0] + wc0[i] ] = fabs(unzippedVec[(eI[2]*eleOrder + uc0[k])*sz[0]*sz[1] + (eI[1]*eleOrder + uc1[j])*sz[0]  + (eI[0]*eleOrder + uc0[i]) ]-wOut[(c0[k])*n[1]*n[0] + (c1[j])*n[0] + (c0[i])]);
-
-
-        RE_OR4.I3D_Parent2Child(wIn, wOut, 3);
-        
-        for(unsigned int k=0; k<2; k++)
-          for(unsigned int j=0; j<2; j++)
-           for(unsigned int i=0; i<2; i++)
-            wavelets[wc0[k]*wn[1]*wn[0] + wc1[j]*wn[0] + wc1[i] ] = fabs(unzippedVec[(eI[2]*eleOrder + uc0[k])*sz[0]*sz[1] + (eI[1]*eleOrder + uc1[j])*sz[0]  + (eI[0]*eleOrder + uc1[i]) ]-wOut[(c0[k])*n[1]*n[0] + (c1[j])*n[0] + (c1[i])]);
-
-
-
-        RE_OR4.I3D_Parent2Child(wIn, wOut, 4);
-
-        for(unsigned int k=0; k<2; k++)
-          for(unsigned int j=0; j<2; j++)
-           for(unsigned int i=0; i<2; i++)
-            wavelets[wc1[k]*wn[1]*wn[0] + wc0[j]*wn[0] + wc0[i] ] = fabs(unzippedVec[(eI[2]*eleOrder + uc1[k])*sz[0]*sz[1] + (eI[1]*eleOrder + uc0[j])*sz[0]  + (eI[0]*eleOrder + uc0[i]) ]-wOut[(c1[k])*n[1]*n[0] + (c0[j])*n[0] + (c0[i])]);
-        
-        RE_OR4.I3D_Parent2Child(wIn, wOut, 5);
-
-        for(unsigned int k=0; k<2; k++)
-          for(unsigned int j=0; j<2; j++)
-           for(unsigned int i=0; i<2; i++)
-            wavelets[wc1[k]*wn[1]*wn[0] + wc0[j]*wn[0] + wc1[i] ] = fabs(unzippedVec[(eI[2]*eleOrder + uc1[k])*sz[0]*sz[1] + (eI[1]*eleOrder + uc0[j])*sz[0]  + (eI[0]*eleOrder + uc1[i]) ]-wOut[(c1[k])*n[1]*n[0] + (c0[j])*n[0] + (c1[i])]);
-        
-
-        RE_OR4.I3D_Parent2Child(wIn, wOut, 6);
-        
-        for(unsigned int k=0; k<2; k++)
-          for(unsigned int j=0; j<2; j++)
-           for(unsigned int i=0; i<2; i++)
-            wavelets[wc1[k]*wn[1]*wn[0] + wc1[j]*wn[0] + wc0[i] ] = fabs(unzippedVec[(eI[2]*eleOrder + uc1[k])*sz[0]*sz[1] + (eI[1]*eleOrder + uc1[j])*sz[0]  + (eI[0]*eleOrder + uc0[i]) ]-wOut[(c1[k])*n[1]*n[0] + (c1[j])*n[0] + (c0[i])]);
-
-
-        RE_OR4.I3D_Parent2Child(wIn, wOut, 7);
-        
-        for(unsigned int k=0; k<2; k++)
-          for(unsigned int j=0; j<2; j++)
-           for(unsigned int i=0; i<2; i++)
-            wavelets[wc1[k]*wn[1]*wn[0] + wc1[j]*wn[0] + wc1[i] ] = fabs(unzippedVec[(eI[2]*eleOrder + uc1[k])*sz[0]*sz[1] + (eI[1]*eleOrder + uc1[j])*sz[0]  + (eI[0]*eleOrder + uc1[i]) ]-wOut[(c1[k])*n[1]*n[0] + (c1[j])*n[0] + (c1[i])]);
+      // unsigned int m=0;
+      // for(unsigned int k = kb; k < ke; k+=2 )
+      //  for(unsigned int j = jb; j < je; j+=2 )
+      //   for(unsigned int i = ib; i < ie; i+=2, m++)
+      //     wIn[m] = unzippedVec[(eI[2]*eleOrder + k)*sz[0]*sz[1] + (eI[1]*eleOrder + j)*sz[0]  + (eI[0]*eleOrder + i) ];
 
 
     }
+
+    return;
+
 
 
 }

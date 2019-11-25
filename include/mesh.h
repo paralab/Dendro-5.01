@@ -543,6 +543,12 @@ private:
     void buildE2EMap(std::vector<ot::TreeNode> &in);
 
     /**
+     * @brief 
+     * 
+     */
+    void buildE2NWithSM();
+
+    /**
          *
          * @author Milinda Fernando
          * @brief Builds the Element to Node (E2N) mapping to enforce the continuity of the solution. (Needed in continous Galerkin methods. )
@@ -1506,12 +1512,13 @@ public:
 
     /**
          * @brief Performs child to parent injection.
-         * @param [in] children function values. (all the function values of children ordered according to the SFC ordering)
-         * @param [in] isHanging  array of boolean variables specifying each node is hanging ot not.
-         * @param [out] injected values back to parent.
-         *
+         * @param [in] in : input vector. 
+         * @param [out] out : injected vector
+         * @param [in] child : element IDs of the children should be at the same level.
+         * @param [in] lev: level of the children, all the children should be in the same level otherwise they will be skipped.   
          * */
-    inline void child2ParentInjection(double *in, double *out, bool *isHanging) const;
+    template<typename T>
+    void child2ParentInjection(const T *in, T *out, unsigned int* child, unsigned int lev) const;
 
     /**
            * @author Milinda Fernando
@@ -1522,15 +1529,6 @@ public:
            * */
     template <typename T>
     void unzip(const T *zippedVec, T *unzippedVec);
-
-    /**
-           * @brief perform the unzip operation overlap with the communication. GHOST exchage done inside. User doesn't need to perofrm ghost exchange.
-           * @param [in] zippedVec adaptive representation of the variable array. (created by createVec function)
-           * @param [out] unzippedVec decomposed representation of the adaptive array.
-           * @note this routine assumes that for both arrays memory has been allocated (No prior ghost exchange required). Routine is responsible only to fill up the unzipped entries.
-           * */
-    template <typename T>
-    void unzip_async(T *zippedVec, T *unzippedVec, MPI_Request *send_reqs, MPI_Request *recv_reqs, MPI_Status *send_sts, MPI_Status *recv_sts);
 
     /**@author Milinda Fernando
           * @brief Performs the compression frrom regular block grid varable list to adaptive representation.
@@ -1604,20 +1602,6 @@ public:
      * */
     template <typename T>
     void vectorToVTK(const std::vector<T> &vec, char *fprefix, double pTime = 0.0, unsigned int nCycle = 0) const;
-
-    /**
-     * @brief : determine whether any refinement or coarsening need for a specified set of elements. (This uses zipped version of the varibles which needs to satiesfy some constraints. Not every
-     * element is eligible for refinemenet or coarsening).
-     * @param[in] vec: sequence of varaibles to check
-     * @param[in] varIds: variable ids to check. (var ids to index the vec, vec[i] is a T* pointintg to one of the variable in vec. )
-     * @param[in] numVars: number of variables to check
-     * @param[in] tol: wavelet tolerance
-     * Returns true if specified variable violates the specified wavelet toerlance.
-     * @note: this method will flag every element in the mesh with OCT_NO_CHANGE, OCT_SPLIT, OCT_COARSE.
-     *
-     * */
-    template <typename T>
-    bool isReMesh(const T **vec, const unsigned int *varIds, const unsigned int numVars, double tol, double amr_coarse_fac = DENDRO_AMR_COARSEN_FAC);
 
     /**
      * @param[in] vec: sequence of varaibles to check
@@ -1858,39 +1842,7 @@ inline void Mesh::child2ParentInterpolation(const double *in, double *out, unsig
         m_uiRefEl.I1D_Child2Parent(in, out, cnum);
 }
 
-inline void Mesh::child2ParentInjection(double *in, double *out, bool *isHanging) const
-{
 
-    assert(m_uiElementOrder % 2 == 0 || m_uiElementOrder == 1);
-    if (m_uiElementOrder == 1)
-    { // special case
-        for (unsigned int child = 0; child < NUM_CHILDREN; child++)
-        {
-            for (unsigned int k = 0; k < (m_uiElementOrder + 1); k++)
-                for (unsigned int j = 0; j < (m_uiElementOrder + 1); j++)
-                    for (unsigned int i = 0; i < (m_uiElementOrder + 1); i++)
-                        out[k * (m_uiElementOrder + 1) * (m_uiElementOrder + 1) + j * (m_uiElementOrder + 1) + i] = in[child * m_uiNpE + k * (m_uiElementOrder + 1) + j * (m_uiElementOrder + 1) + i];
-        }
-    }
-    else
-    {
-
-        for (unsigned int child = 0; child < NUM_CHILDREN; child++)
-        {
-
-            for (unsigned int k = 0; k < (m_uiElementOrder + 1); k++)
-                for (unsigned int j = 0; j < (m_uiElementOrder + 1); j++)
-                    for (unsigned int i = 0; i < (m_uiElementOrder + 1); i++)
-                    {
-                        if ((i % 2 == 0) && (j % 2 == 0) && (k % 2 == 0) && isHanging[k * (m_uiElementOrder + 1) * (m_uiElementOrder + 1) + j * (m_uiElementOrder + 1) + i])
-                        {
-                            out[((((child & 4u) >> 2u) * m_uiElementOrder + k) >> 1) * (m_uiElementOrder + 1) * (m_uiElementOrder + 1) + ((((child & 2u) >> 1u) * m_uiElementOrder + j) >> 1) * (m_uiElementOrder + 1) + (((((child & (1u))) * m_uiElementOrder + i) >> 1))] = in[child * m_uiNpE + k * (m_uiElementOrder + 1) * (m_uiElementOrder + 1) + j * (m_uiElementOrder + 1) + i];
-                            //if(!m_uiActiveRank) std::cout<<"rank: "<<m_uiActiveRank<<" child: "<<child<<" i: "<<i<<" j: "<<j<<" k: "<<k<<" inserted to node : "<<((((child & 4u)>>2u)*m_uiElementOrder+k)>>1)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+((((child & 2u)>>1u)*m_uiElementOrder+j)>>1)*(m_uiElementOrder+1)+(((((child & (1u)))*m_uiElementOrder+i)>>1))<<std::endl;
-                        }
-                    }
-        }
-    }
-}
 
 inline bool Mesh::computeOveralppingNodes(const ot::TreeNode &parent, const ot::TreeNode &child, int *idx, int *idy, int *idz)
 {
