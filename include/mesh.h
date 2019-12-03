@@ -1530,15 +1530,6 @@ public:
     template <typename T>
     void unzip(const T *zippedVec, T *unzippedVec);
 
-    /**
-           * @brief perform the unzip operation overlap with the communication. GHOST exchage done inside. User doesn't need to perofrm ghost exchange.
-           * @param [in] zippedVec adaptive representation of the variable array. (created by createVec function)
-           * @param [out] unzippedVec decomposed representation of the adaptive array.
-           * @note this routine assumes that for both arrays memory has been allocated (No prior ghost exchange required). Routine is responsible only to fill up the unzipped entries.
-           * */
-    template <typename T>
-    void unzip_async(T *zippedVec, T *unzippedVec, MPI_Request *send_reqs, MPI_Request *recv_reqs, MPI_Status *send_sts, MPI_Status *recv_sts);
-
     /**@author Milinda Fernando
           * @brief Performs the compression frrom regular block grid varable list to adaptive representation.
           * @param [in] unzippedVec decomposed version of the adaptive array
@@ -1611,20 +1602,6 @@ public:
      * */
     template <typename T>
     void vectorToVTK(const std::vector<T> &vec, char *fprefix, double pTime = 0.0, unsigned int nCycle = 0) const;
-
-    /**
-     * @brief : determine whether any refinement or coarsening need for a specified set of elements. (This uses zipped version of the varibles which needs to satiesfy some constraints. Not every
-     * element is eligible for refinemenet or coarsening).
-     * @param[in] vec: sequence of varaibles to check
-     * @param[in] varIds: variable ids to check. (var ids to index the vec, vec[i] is a T* pointintg to one of the variable in vec. )
-     * @param[in] numVars: number of variables to check
-     * @param[in] tol: wavelet tolerance
-     * Returns true if specified variable violates the specified wavelet toerlance.
-     * @note: this method will flag every element in the mesh with OCT_NO_CHANGE, OCT_SPLIT, OCT_COARSE.
-     *
-     * */
-    template <typename T>
-    bool isReMesh(const T **vec, const unsigned int *varIds, const unsigned int numVars, double tol, double amr_coarse_fac = DENDRO_AMR_COARSEN_FAC);
 
     /**
      * @param[in] vec: sequence of varaibles to check

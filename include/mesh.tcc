@@ -1190,283 +1190,7 @@ namespace ot
     }
 
 
-    template <typename T>
-    bool Mesh::isReMesh(const T ** vec,const unsigned int * varIds,const unsigned int numVars,double tol, double amr_coarse_fac)
-    {
-
-        bool isOctChanged=false;
-
-        if(m_uiIsActive)
-        {
-
-            std::vector<ot::TreeNode> coarseOctree;
-            std::vector<std::vector<T>> coarsenValues;
-            std::vector<T*> coarsenValues_ptr; // contains NULL if there doesn't exist coarser octant.
-
-            std::vector<T> interp_input;
-            std::vector<T> interp_out;
-
-            interp_input.resize(numVars*m_uiNpE);
-            interp_out.resize(m_uiNpE);
-
-            unsigned int eleBegin,eleEnd;
-            bool isHanging;
-            unsigned int cnum;
-
-            eleBegin=m_uiElementLocalBegin;
-            eleEnd=m_uiElementLocalEnd;
-            ot::TreeNode* pNodes=&(*(m_uiAllElements.begin()));
-
-            double waveletCoef=0.0;
-            bool isCoarsen=false;
-            bool varSplit=false; // to detect the octant split for specific var.
-            //tol=tol*10;
-
-            for(unsigned int ele=m_uiElementPreGhostBegin;ele<m_uiElementPostGhostEnd;ele++)
-                m_uiAllElements[ele].setFlag(m_uiAllElements[ele].getLevel());
-
-
-            //1. pass 1 over the original octree. [coarsen or refine]
-            for(unsigned int ele=eleBegin;ele<eleEnd;ele++)
-            {
-
-                if(((ele+NUM_CHILDREN-1)<eleEnd) && (pNodes[ele].getParent()==pNodes[ele+NUM_CHILDREN-1].getParent()))
-                {
-                    for(unsigned int vIndex=0;vIndex<numVars;vIndex++)
-                    {
-                        for(unsigned int child=0;child<NUM_CHILDREN;child++)
-                        {
-                            assert(pNodes[ele].getParent()==pNodes[ele+child].getParent());
-                            for(unsigned int k=0;k<m_uiElementOrder+1;k++)
-                                for(unsigned int j=0;j<m_uiElementOrder+1;j++)
-                                    for(unsigned int i=0;i<m_uiElementOrder+1;i++)
-                                    {
-                                        isHanging=this->isNodeHanging((ele+child),i,j,k);
-                                        if(isHanging)
-                                        {
-                                            interp_input[vIndex*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]=vec[varIds[vIndex]][m_uiE2NMapping_CG[(ele+child)*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]];
-                                        }else if( (i%2==0) && (j%2==0) && (k%2==0))
-                                        {
-                                            cnum=pNodes[(ele+child)].getMortonIndex();
-                                            interp_input[vIndex*m_uiNpE+((((cnum & 4u)>>2u)*m_uiElementOrder+k)>>1)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+((((cnum & 2u)>>1u)*m_uiElementOrder+j)>>1)*(m_uiElementOrder+1)+(((((cnum & (1u)))*m_uiElementOrder+i)>>1))]=vec[varIds[vIndex]][m_uiE2NMapping_CG[(ele+child)*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]];
-                                        }
-                                    }
-
-                        }
-                    }
-
-                    isCoarsen=true;
-                    for(unsigned int child=0;child<NUM_CHILDREN;child++)
-                    {
-
-                        cnum=pNodes[ele+child].getMortonIndex();
-                        varSplit=false;
-                        for(unsigned int vIndex=0;vIndex<numVars;vIndex++)
-                        {
-                            this->parent2ChildInterpolation(&(*(interp_input.begin()+vIndex*m_uiNpE)),&(*(interp_out.begin())),cnum,m_uiDim);
-                            waveletCoef=0.0;
-                            for(unsigned int k=1;k<m_uiElementOrder;k++)
-                                for(unsigned int j=1;j<m_uiElementOrder;j++)
-                                    for(unsigned int i=1;i<m_uiElementOrder;i++)
-                                        if(waveletCoef<fabs((vec[varIds[vIndex]][m_uiE2NMapping_CG[(ele+child)*m_uiNpE+(k)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+(j)*(m_uiElementOrder+1)+(i)]]-interp_out[(k)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+(j)*(m_uiElementOrder+1)+(i)])))
-                                            waveletCoef=fabs((vec[varIds[vIndex]][m_uiE2NMapping_CG[(ele+child)*m_uiNpE+(k)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+(j)*(m_uiElementOrder+1)+(i)]]-interp_out[(k)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+(j)*(m_uiElementOrder+1)+(i)]));
-
-
-                            if(waveletCoef<amr_coarse_fac*tol)
-                            {
-                                m_uiAllElements[ele+child].setFlag(((OCT_NO_CHANGE<<NUM_LEVEL_BITS)| m_uiAllElements[ele+child].getLevel()));
-                            }else
-                            {
-                                m_uiAllElements[ele+child].setFlag(((OCT_NO_CHANGE<<NUM_LEVEL_BITS) | m_uiAllElements[ele+child].getLevel()));
-                                varSplit=true;// although we can not split this element there is no point of checking this for other variables as well.
-                                isCoarsen=false; // no coarsening triggered.
-                            }
-                            if(varSplit) break;
-
-                        }
-
-                    }
-
-                    if(isCoarsen && (pNodes[ele].getLevel()>1))
-                    {
-                        assert(pNodes[ele]==m_uiAllElements[ele]);
-                        m_uiAllElements[ele].setFlag(((OCT_COARSE<<NUM_LEVEL_BITS) | m_uiAllElements[ele].getLevel()));
-
-                    }
-
-                    coarseOctree.push_back(pNodes[ele].getParent());
-                    coarsenValues.push_back(interp_input);
-                    coarsenValues_ptr.push_back(&(*(coarsenValues.back().begin())));
-                    ele=ele+NUM_CHILDREN-1;
-
-                }else
-                {
-                    coarseOctree.push_back(pNodes[ele]);
-                    coarsenValues_ptr.push_back(NULL);
-                }
-
-
-            }
-
-            //pass 2- over one level up coasren octree. [refine only]
-            eleBegin=0;
-            eleEnd=coarseOctree.size();
-            pNodes=&(*(coarseOctree.begin()));
-
-            assert(coarsenValues_ptr.size()==coarseOctree.size());
-
-            //treeNodesTovtk(coarseOctree,0,"coarsenOctree");
-
-            unsigned int finerOctreeID=m_uiElementLocalBegin;
-            for(unsigned int ele=eleBegin;ele<eleEnd;ele++)
-            {
-
-                if(((ele+NUM_CHILDREN-1)<eleEnd) &&  (pNodes[ele].getParent()==pNodes[ele+NUM_CHILDREN-1].getParent()))
-                {
-                    for(unsigned int vIndex=0;vIndex<numVars;vIndex++)
-                    {
-
-                        for(unsigned int child=0;child<NUM_CHILDREN;child++)
-                        {
-                            assert(pNodes[ele].getParent()==pNodes[(ele+child)].getParent());
-                            if(coarsenValues_ptr[(ele+child)]==NULL)
-                            {
-                                for(unsigned int k=0;k<m_uiElementOrder+1;k++)
-                                    for(unsigned int j=0;j<m_uiElementOrder+1;j++)
-                                        for(unsigned int i=0;i<m_uiElementOrder+1;i++)
-                                        {
-                                            isHanging=this->isNodeHanging((ele+child),i,j,k);
-                                            if(isHanging)
-                                            {
-                                                interp_input[vIndex*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]=vec[varIds[vIndex]][m_uiE2NMapping_CG[(ele+child)*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]];
-                                            }else if( (i%2==0) && (j%2==0) && (k%2==0))
-                                            {
-                                                cnum=pNodes[(ele+child)].getMortonIndex();
-                                                interp_input[vIndex*m_uiNpE+((((cnum & 4u)>>2u)*m_uiElementOrder+k)>>1)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+((((cnum & 2u)>>1u)*m_uiElementOrder+j)>>1)*(m_uiElementOrder+1)+(((((cnum & (1u)))*m_uiElementOrder+i)>>1))]=vec[varIds[vIndex]][m_uiE2NMapping_CG[(ele+child)*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]];
-                                            }
-                                        }
-
-                            }else
-                            {
-                                assert(coarsenValues_ptr[(ele+child)]!=NULL);
-
-                                for(unsigned int k=0;k<m_uiElementOrder+1;k++)
-                                    for(unsigned int j=0;j<m_uiElementOrder+1;j++)
-                                        for(unsigned int i=0;i<m_uiElementOrder+1;i++)
-                                        {
-
-                                            if( (i%2==0) && (j%2==0) && (k%2==0))
-                                            {
-                                                cnum=pNodes[(ele+child)].getMortonIndex();
-                                                interp_input[vIndex*m_uiNpE+((((cnum & 4u)>>2u)*m_uiElementOrder+k)>>1)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+((((cnum & 2u)>>1u)*m_uiElementOrder+j)>>1)*(m_uiElementOrder+1)+(((((cnum & (1u)))*m_uiElementOrder+i)>>1))]=coarsenValues_ptr[(ele+child)][vIndex*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
-                                            }
-                                        }
-
-
-                            }
-                        }
-
-                    }
-
-
-
-                    for(unsigned int child=0;child<NUM_CHILDREN;child++)
-                    {
-
-
-                        cnum=pNodes[(ele+child)].getMortonIndex();
-                        varSplit=false;
-
-                        for(unsigned int vIndex=0;vIndex<numVars;vIndex++)
-                        {
-                            this->parent2ChildInterpolation(&(*(interp_input.begin()+vIndex*m_uiNpE)),&(*(interp_out.begin())),cnum,m_uiDim);
-                            waveletCoef=0.0;
-                            for(unsigned int k=1;k<m_uiElementOrder;k++)
-                                for(unsigned int j=1;j<m_uiElementOrder;j++)
-                                    for(unsigned int i=1;i<m_uiElementOrder;i++)
-                                        if(waveletCoef<fabs((vec[varIds[vIndex]][m_uiE2NMapping_CG[(ele+child)*m_uiNpE+(k)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+(j)*(m_uiElementOrder+1)+(i)]]-interp_out[(k)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+(j)*(m_uiElementOrder+1)+(i)])))
-                                            waveletCoef=fabs((vec[varIds[vIndex]][m_uiE2NMapping_CG[(ele+child)*m_uiNpE+(k)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+(j)*(m_uiElementOrder+1)+(i)]]-interp_out[(k)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+(j)*(m_uiElementOrder+1)+(i)]));
-
-
-                            if(coarsenValues_ptr[ele+child]==NULL)
-                            {
-
-                                if(pNodes[(ele+child)]!=m_uiAllElements[finerOctreeID]) std::cout<<"pNode: "<<pNodes[ele+child]<<" m_uiAllElements : "<<m_uiAllElements[finerOctreeID]<<std::endl;
-                                assert(pNodes[(ele+child)]==m_uiAllElements[finerOctreeID]);
-
-                                if(waveletCoef>tol)
-                                {
-                                    if(((pNodes[(ele+child)].getLevel()+MAXDEAPTH_LEVEL_DIFF+1)<m_uiMaxDepth))
-                                    {
-
-                                        m_uiAllElements[finerOctreeID].setFlag(((OCT_SPLIT<<NUM_LEVEL_BITS)|m_uiAllElements[finerOctreeID].getLevel()));
-                                        varSplit=true;
-                                    }else
-                                    {
-                                        m_uiAllElements[finerOctreeID].setFlag(((OCT_NO_CHANGE<<NUM_LEVEL_BITS)|m_uiAllElements[finerOctreeID].getLevel()));
-                                        varSplit=true;// although we can not split this element there is no point of checking this for other variables as well.
-
-                                    }
-
-                                }else
-                                {
-                                    m_uiAllElements[finerOctreeID].setFlag(((OCT_NO_CHANGE<<NUM_LEVEL_BITS) | m_uiAllElements[finerOctreeID].getLevel()));
-                                }
-
-                            }else
-                            { // this case is the elements that was candidates for coarsening.
-                                assert(m_uiAllElements[finerOctreeID].getParent()==m_uiAllElements[finerOctreeID+NUM_CHILDREN-1].getParent());
-                                if(waveletCoef>tol)
-                                {
-                                    for(unsigned int ch2=0;ch2<NUM_CHILDREN;ch2++)
-                                        m_uiAllElements[finerOctreeID+ch2].setFlag(((OCT_NO_CHANGE<<NUM_LEVEL_BITS)|m_uiAllElements[finerOctreeID].getLevel()));
-                                }
-
-                            }
-
-                            if(varSplit) break;
-
-                        }
-
-                        (coarsenValues_ptr[ele+child]==NULL) ? finerOctreeID++ : finerOctreeID+=NUM_CHILDREN;
-
-                    }
-
-                    ele=ele+NUM_CHILDREN-1;
-
-                }else
-                {
-                    (coarsenValues_ptr[ele]==NULL) ? finerOctreeID++ : finerOctreeID+=NUM_CHILDREN;
-                }
-
-
-
-            }
-
-            //@note we can change this to use a one bool variable. but this is done to enure to determine the oct has changed
-
-            for(unsigned int ele=m_uiElementLocalBegin;ele<m_uiElementLocalEnd;ele++)
-                if(m_uiAllElements[ele].getFlag()>>NUM_LEVEL_BITS!=OCT_NO_CHANGE)
-                {
-                    isOctChanged=true;
-                    //std::cout<<"rank: "<<m_uiActiveRank<<" ele: "<<m_uiAllElements[ele]<<" flag: "<<(m_uiAllElements[ele].getFlag()>>NUM_LEVEL_BITS)<<std::endl;
-                    break;
-                }
-
-
-            coarsenValues.clear();
-            coarsenValues_ptr.clear();
-            coarseOctree.clear();
-
-        }
-
-        bool isOctChanged_g;
-        MPI_Allreduce(&isOctChanged,&isOctChanged_g,1,MPI_CXX_BOOL,MPI_LOR,m_uiCommGlobal);
-
-        return isOctChanged_g;
-
-    }
-
+   
     template <typename T>
     bool Mesh::isReMeshUnzip(const T **unzippedVec,const unsigned int * varIds,const unsigned int numVars,std::function<double(double,double,double)>wavelet_tol,double amr_coarse_fac, double coarsen_hx)
     {
@@ -1494,28 +1218,12 @@ namespace ot
             ws[0] = wsIn;
             ws[1] = wsOut;
 
-            if(m_uiElementOrder == 4)
-            {
-                
-
-                waveletR = new double[64];
-                num_wr = 64;
-                
-
-                waveletC = new double[64];
-                num_wc = 64 ;
-
-                
-            }else if(m_uiElementOrder == 8)
-            {
-
-                waveletR = new double[64];
-                num_wr = 64;
-
-                waveletC = new double[64];
-                num_wc = 64;
-
-            }
+            // upper bound for the refine and coarsen wavelets.     
+            waveletR = new double[64];
+            num_wr = 64;
+            
+            waveletC = new double[64];
+            num_wc = 64 ;
 
             const unsigned int paddWidth=3;
             unsigned int eleIndexMin=0,eleIndexMax=0;
@@ -1574,7 +1282,7 @@ namespace ot
                         //         waveletR[k*16 + j*4 + i] =0;
 
                          //l_inf=normLInfty(waveletR,num_wr);
-                         l_inf = normL2(waveletR,num_wr)/8.0;
+                         l_inf = normL2(waveletR,num_wr)/num_wr;
 
                             // for(unsigned int k=1; k<3; k+=1)
                             //   for(unsigned int j=1; j<3; j+=1)
@@ -2497,10 +2205,20 @@ namespace ot
                                         {
                                             wVec[m2primeCount*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]=vec[m_uiE2NMapping_CG[(ele+child)*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]];
 
-                                        }else if( ((i%2==0) && (j%2==0) && (k%2==0)) || (i==1 || j==1 || k==1) )
-                                        {
+                                        }else{
+                                            
                                             cnum=m_uiAllElements[(ele+child)].getMortonIndex();
-                                            wVec[m2primeCount*m_uiNpE+((((cnum & 4u)>>2u)*m_uiElementOrder+k)>>1)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+((((cnum & 2u)>>1u)*m_uiElementOrder+j)>>1)*(m_uiElementOrder+1)+(((((cnum & (1u)))*m_uiElementOrder+i)>>1))]=vec[m_uiE2NMapping_CG[(ele+child)*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]];
+                                            const unsigned int iix = m_uiElementOrder * (int) (cnum & 1u)  +  i;
+                                            const unsigned int jjy = m_uiElementOrder * (int) ((cnum & 2u)>>1u)  +  j;
+                                            const unsigned int kkz = m_uiElementOrder * (int) ((cnum & 4u)>>2u)  +  k;
+                                            //std::cout<<" iix: "<<iix<<" jjy: "<<jjy<<" kkz: "<<kkz<<std::endl;
+
+                                            if( (iix %2 ==0) && (jjy%2 ==0) && (kkz%2==0))
+                                            {
+                                                wVec[ m2primeCount*m_uiNpE +  (kkz>>1u) * (m_uiElementOrder+1)*(m_uiElementOrder+1) + (jjy>>1u) * (m_uiElementOrder+1)+(iix>>1u)] = vec[m_uiE2NMapping_CG[(ele+child)*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]];
+                                                
+                                            }
+
                                         }
 
                                     }
@@ -2509,6 +2227,7 @@ namespace ot
 
                     }else
                     {
+                        
                         for(unsigned int child=0;child<NUM_CHILDREN;child++)
                         {
                             for(unsigned int k=0;k<m_uiElementOrder+1;k++)
@@ -2521,10 +2240,20 @@ namespace ot
                                         {
                                             wVec[m2primeCount*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]=vec[m_uiE2NMapping_CG[(ele+child)*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]];
 
-                                        }else if( (i%2==0) && (j%2==0) && (k%2==0))
-                                        {
+                                        }else{
+                                            
                                             cnum=m_uiAllElements[(ele+child)].getMortonIndex();
-                                            wVec[m2primeCount*m_uiNpE+((((cnum & 4u)>>2u)*m_uiElementOrder+k)>>1)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+((((cnum & 2u)>>1u)*m_uiElementOrder+j)>>1)*(m_uiElementOrder+1)+(((((cnum & (1u)))*m_uiElementOrder+i)>>1))]=vec[m_uiE2NMapping_CG[(ele+child)*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]];
+                                            const unsigned int iix = m_uiElementOrder * (int) (cnum & 1u)  +  i;
+                                            const unsigned int jjy = m_uiElementOrder * (int) ((cnum & 2u)>>1u)  +  j;
+                                            const unsigned int kkz = m_uiElementOrder * (int) ((cnum & 4u)>>2u)  +  k;
+                                            //std::cout<<" iix: "<<iix<<" jjy: "<<jjy<<" kkz: "<<kkz<<std::endl;
+
+                                            if( (iix %2 ==0) && (jjy%2 ==0) && (kkz%2==0))
+                                            {
+                                                wVec[ m2primeCount*m_uiNpE +  (kkz>>1u) * (m_uiElementOrder+1)*(m_uiElementOrder+1) + (jjy>>1u) * (m_uiElementOrder+1)+(iix>>1u)] = vec[m_uiE2NMapping_CG[(ele+child)*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]];
+                                                
+                                            }
+
                                         }
 
                                     }
@@ -2882,10 +2611,20 @@ namespace ot
                                         {
                                             wVec[m2primeCount*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]=vec[m_uiE2NMapping_CG[(ele+child)*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]];
 
-                                        }else if( ((i%2==0) && (j%2==0) && (k%2==0)) || (i==1 || j==1 || k==1) )
-                                        {
+                                        }else{
+                                            
                                             cnum=m_uiAllElements[(ele+child)].getMortonIndex();
-                                            wVec[m2primeCount*m_uiNpE+((((cnum & 4u)>>2u)*m_uiElementOrder+k)>>1)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+((((cnum & 2u)>>1u)*m_uiElementOrder+j)>>1)*(m_uiElementOrder+1)+(((((cnum & (1u)))*m_uiElementOrder+i)>>1))]=vec[m_uiE2NMapping_CG[(ele+child)*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]];
+                                            const unsigned int iix = m_uiElementOrder * (int) (cnum & 1u)  +  i;
+                                            const unsigned int jjy = m_uiElementOrder * (int) ((cnum & 2u)>>1u)  +  j;
+                                            const unsigned int kkz = m_uiElementOrder * (int) ((cnum & 4u)>>2u)  +  k;
+                                            //std::cout<<" iix: "<<iix<<" jjy: "<<jjy<<" kkz: "<<kkz<<std::endl;
+
+                                            if( (iix %2 ==0) && (jjy%2 ==0) && (kkz%2==0))
+                                            {
+                                                wVec[ m2primeCount*m_uiNpE +  (kkz>>1u) * (m_uiElementOrder+1)*(m_uiElementOrder+1) + (jjy>>1u) * (m_uiElementOrder+1)+(iix>>1u)] = vec[m_uiE2NMapping_CG[(ele+child)*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]];
+                                                
+                                            }
+
                                         }
 
                                     }
@@ -2906,10 +2645,20 @@ namespace ot
                                         {
                                             wVec[m2primeCount*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]=vec[m_uiE2NMapping_CG[(ele+child)*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]];
 
-                                        }else if( (i%2==0) && (j%2==0) && (k%2==0))
-                                        {
+                                        }else{
+                                            
                                             cnum=m_uiAllElements[(ele+child)].getMortonIndex();
-                                            wVec[m2primeCount*m_uiNpE+((((cnum & 4u)>>2u)*m_uiElementOrder+k)>>1)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+((((cnum & 2u)>>1u)*m_uiElementOrder+j)>>1)*(m_uiElementOrder+1)+(((((cnum & (1u)))*m_uiElementOrder+i)>>1))]=vec[m_uiE2NMapping_CG[(ele+child)*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]];
+                                            const unsigned int iix = m_uiElementOrder * (int) (cnum & 1u)  +  i;
+                                            const unsigned int jjy = m_uiElementOrder * (int) ((cnum & 2u)>>1u)  +  j;
+                                            const unsigned int kkz = m_uiElementOrder * (int) ((cnum & 4u)>>2u)  +  k;
+                                            //std::cout<<" iix: "<<iix<<" jjy: "<<jjy<<" kkz: "<<kkz<<std::endl;
+
+                                            if( (iix %2 ==0) && (jjy%2 ==0) && (kkz%2==0))
+                                            {
+                                                wVec[ m2primeCount*m_uiNpE +  (kkz>>1u) * (m_uiElementOrder+1)*(m_uiElementOrder+1) + (jjy>>1u) * (m_uiElementOrder+1)+(iix>>1u)] = vec[m_uiE2NMapping_CG[(ele+child)*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]];
+                                                
+                                            }
+
                                         }
 
                                     }
@@ -8687,797 +8436,7 @@ namespace ot
     }
 
 
-    template <typename T>
-    void Mesh::unzip_async(T* zippedVec, T* unzippedVec,MPI_Request * send_reqs, MPI_Request* recv_reqs, MPI_Status* send_sts, MPI_Status * recv_sts)
-    {
-
-        if(!m_uiIsActive) return;
-
-        // async unzip done in 2 passes.
-        // pass -0 perform unzip for all the internal block (local blocks)
-        // pass -1 perform unzip for the blocks which need the values in the ghost region to perform the unzip.
-
-        if(m_uiLocalBlockList.empty())
-            return;
-
-
-        ot::TreeNode blkNode;
-        unsigned int ei,ej,ek; // element wise xyz coordinates.
-        const ot::TreeNode * pNodes= &(*(m_uiAllElements.begin()));
-        unsigned int regLev;
-        //unsigned int blkNpe_1D;
-
-        unsigned int lookUp;
-        unsigned int lookUp1;
-        unsigned int cnum;
-        unsigned int faceCnum;
-
-        unsigned int faceNeighCnum1[4]={0,0,0,0}; // immidiate neighbors
-        unsigned int faceNeighCnum2[4]={0,0,0,0}; // neighbor's neighbors
-
-
-        register unsigned int nodeLookUp_CG;
-        register unsigned int nodeLookUp_DG;
-
-        std::vector<T> interpOrInjectionOut; // interpolation or injection output.
-        std::vector<T> injectionInput;// input for the injection (values from all the 8 children) (This should be put in the order of the morton ordering. )
-        std::vector<T> interpolationInput;
-
-        std::vector<T> edgeInterpIn;
-        std::vector<T> edgeInterpOut;
-
-        std::vector<T> faceInterpIn;
-        std::vector<T> faceInterpOut;
-
-        std::vector<T> lookUpElementVec;
-        std::vector<T> parentEleInterpIn;
-        std::vector<T> parentEleInterpOut;
-
-        std::vector<unsigned int> edgeIndex;
-        std::vector<unsigned int > faceIndex;
-        std::vector<unsigned int > child;
-
-        interpOrInjectionOut.resize(m_uiNpE);
-        interpolationInput.resize(m_uiNpE);
-        //injectionInput.resize(m_uiNpE*NUM_CHILDREN);
-
-        std::vector<T> injectionTest;
-        injectionTest.resize(m_uiNpE*NUM_CHILDREN);
-
-        edgeIndex.resize((m_uiElementOrder+1));
-        faceIndex.resize((m_uiElementOrder+1)*(m_uiElementOrder+1));
-
-        edgeInterpIn.resize((m_uiElementOrder+1));
-        edgeInterpOut.resize((m_uiElementOrder+1));
-
-        faceInterpIn.resize((m_uiElementOrder+1)*(m_uiElementOrder+1));
-        faceInterpOut.resize((m_uiElementOrder+1)*(m_uiElementOrder+1));
-
-        lookUpElementVec.resize(m_uiNpE);
-        parentEleInterpIn.resize(m_uiNpE);
-        parentEleInterpOut.resize(m_uiNpE);
-
-
-        child.resize(NUM_CHILDREN);
-        unsigned int mid_bit=0;
-        unsigned int sz;
-        bool isHanging;
-        unsigned int ownerID,ii_x,jj_y,kk_z;
-        unsigned int eleIndexMin=0;
-        unsigned int eleIndexMax=0;
-        bool edgeHanging;
-        bool faceHanging;
-
-        unsigned int lx,ly,lz,offset,paddWidth;
-        bool isParentValue=false;
-
-        #ifdef ENABLE_DENDRO_PROFILE_COUNTERS
-            dendro::timer::t_unzip_async_comm.start();
-        #endif
-        ghostExchangeStart(zippedVec,&(*(m_uiSendBufferNodes.begin())),&(*(m_uiRecvBufferNodes.begin())),send_reqs,recv_reqs);
-
-        #ifdef ENABLE_DENDRO_PROFILE_COUNTERS
-            dendro::timer::t_unzip_async_comm.stop();
-        #endif
-        for(unsigned int PASS=0;PASS<2;PASS++)
-        {
-
-        #ifdef ENABLE_DENDRO_PROFILE_COUNTERS
-            dendro::timer::t_unzip_async_comm.start();
-        #endif
-            if(PASS==1)
-            {
-                ghostExchangeRecvSync(zippedVec, &(*(m_uiRecvBufferNodes.begin())),recv_reqs,recv_sts);
-                ghostExchangeSendSync(send_reqs, send_sts);
-            }
-
-
-        #ifdef ENABLE_DENDRO_PROFILE_COUNTERS
-            dendro::timer::t_unzip_async_comm.stop();
-        #endif
-
-        #ifdef ENABLE_DENDRO_PROFILE_COUNTERS
-            if(PASS==0) dendro::timer::t_unzip_async_internal.start();
-            if(PASS==1) dendro::timer::t_unzip_async_external.start();
-        #endif
-            for(unsigned int blk=0;blk<m_uiLocalBlockList.size();blk++)
-            {
-                blkNode=m_uiLocalBlockList[blk].getBlockNode();
-                assert(blkNode.maxX()<=m_uiMeshDomain_max && blkNode.minX()>=m_uiMeshDomain_min);
-                regLev=m_uiLocalBlockList[blk].getRegularGridLev();
-                //blkNpe_1D=m_uiElementOrder*(1u<<(regLev-blkNode.getLevel()))+1+2*GHOST_WIDTH;
-                //std::cout<<"rank: "<<m_uiActiveRank<<" -- blkNpw_1D: "<<blkNpe_1D<<" blkNode: "<<blkNode<<" regLev: "<<regLev<<std::endl;
-
-
-                if((PASS==0) && (!m_uiLocalBlockList[blk].isInternal())) continue;
-
-                if((PASS==1) && (m_uiLocalBlockList[blk].isInternal())) continue;
-
-
-                sz=1u<<(m_uiMaxDepth-regLev);
-                eleIndexMax=(1u<<(regLev-blkNode.getLevel()))-1;
-                assert(eleIndexMax>=eleIndexMin);
-
-                lx=m_uiLocalBlockList[blk].getAllocationSzX();
-                ly=m_uiLocalBlockList[blk].getAllocationSzY();
-                lz=m_uiLocalBlockList[blk].getAllocationSzZ();
-                offset=m_uiLocalBlockList[blk].getOffset();
-                paddWidth=m_uiLocalBlockList[blk].get1DPadWidth();
-
-
-                for(unsigned int elem=m_uiLocalBlockList[blk].getLocalElementBegin();elem<m_uiLocalBlockList[blk].getLocalElementEnd();elem++)
-                {
-                    ei=(pNodes[elem].getX()-blkNode.getX())>>(m_uiMaxDepth-regLev);
-                    ej=(pNodes[elem].getY()-blkNode.getY())>>(m_uiMaxDepth-regLev);
-                    ek=(pNodes[elem].getZ()-blkNode.getZ())>>(m_uiMaxDepth-regLev);
-
-                    //std::cout<<"blk: "<<blk<<" : "<<blkNode<<" ek: "<<(ek)<<" ej: "<<(ej)<<" ei: "<<(ei)<<" elem: "<<m_uiAllElements[elem]<<std::endl;
-                    assert(pNodes[elem].getLevel()==regLev); // this is enforced by block construction
-
-                    this->getElementNodalValues(zippedVec,&(*(lookUpElementVec.begin())),elem);
-                    //this->getElementNodalValues(zippedVec,&(*(parentEleInterpIn.begin())),elem);
-                    // note: do not change the parentInterpIn values. These are used to interpolate the 3rd point in the advective terms.
-                    for(unsigned int w=0;w<m_uiNpE;w++)
-                        parentEleInterpIn[w]=lookUpElementVec[w];
-
-                    // (1). local nodes copy. Not need to interpolate or inject values. By block construction local octants in the block has is the same level as regular grid.
-                    for(unsigned int k=0;k<(m_uiElementOrder+1);k++)
-                        for(unsigned int j=0;j<(m_uiElementOrder+1);j++)
-                            for(unsigned int i=0;i<(m_uiElementOrder+1);i++)
-                                unzippedVec[offset+(ek*m_uiElementOrder+k+paddWidth)*(ly*lx)+(ej*m_uiElementOrder+j+paddWidth)*(lx)+(ei*m_uiElementOrder+i+paddWidth)]=lookUpElementVec[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
-
-
-                    // (2). copy the ghost layer (we only copy GHOST_WIDTH amounts of data from the zipped array )z`
-                    //---------------------------------------------------------X direction padding --------------------------------------------------------------------------------------------------------------------
-                    if((pNodes[elem].minX()==blkNode.minX()))
-                    {
-                        assert(ei==eleIndexMin);
-
-                        lookUp=m_uiE2EMapping[elem*m_uiNumDirections+OCT_DIR_LEFT];
-                        if(lookUp!=LOOK_UP_TABLE_DEFAULT)
-                        {
-
-                            if(pNodes[lookUp].getLevel()==pNodes[elem].getLevel())
-                            {
-                                assert(paddWidth<(m_uiElementOrder+1));
-                                this->getElementNodalValues(zippedVec,&(*(lookUpElementVec.begin())),lookUp);
-
-                                for(unsigned int k=0;k<(m_uiElementOrder+1);k++)
-                                    for(unsigned int j=0;j<(m_uiElementOrder+1);j++)
-                                        for(unsigned int i=(m_uiElementOrder-paddWidth);i<(m_uiElementOrder+1);i++)
-                                            unzippedVec[offset+(ek*m_uiElementOrder+k+paddWidth)*(ly*lx)+(ej*m_uiElementOrder+j+paddWidth)*(lx)+(ei*m_uiElementOrder+i-(m_uiElementOrder-paddWidth))]=lookUpElementVec[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
-
-
-                            }else if(pNodes[lookUp].getLevel()<pNodes[elem].getLevel())
-                            {
-                                assert(pNodes[lookUp].getLevel()+1==regLev);
-                                mid_bit=m_uiMaxDepth - pNodes[lookUp].getLevel()-1;
-                                cnum=( ((((pNodes[elem].getZ()) >> mid_bit) & 1u) << 2u) | ((((pNodes[elem].getY()) >> mid_bit) & 1u) << 1u) | ((((pNodes[elem].getX()-sz)) >>mid_bit) & 1u));
-                                //std::cout<<"elem: "<<elem<<" : "<<m_uiAllElements[elem]<<" lookup: "<<m_uiAllElements[lookUp]<<" child: "<<ot::TreeNode(pNodes[elem].getX()-sz,pNodes[elem].getY(),pNodes[elem].getZ(),pNodes[elem].getLevel(),m_uiDim,m_uiMaxDepth)<<" cnum: "<<cnum<<std::endl;
-
-                                this->getElementNodalValues(zippedVec,&(*(lookUpElementVec.begin())),lookUp);
-                                this->parent2ChildInterpolation(&(*(lookUpElementVec.begin())),&(*(interpOrInjectionOut.begin())),cnum);
-
-
-                                assert(paddWidth<(m_uiElementOrder+1));
-                                for(unsigned int k=0;k<(m_uiElementOrder+1);k++)
-                                    for(unsigned int j=0;j<(m_uiElementOrder+1);j++)
-                                        for(unsigned int i=(m_uiElementOrder-paddWidth);i<(m_uiElementOrder+1);i++)
-                                            unzippedVec[offset+(ek*m_uiElementOrder+k+paddWidth)*(ly*lx)+(ej*m_uiElementOrder+j+paddWidth)*(lx)+(ei*m_uiElementOrder+i-(m_uiElementOrder-paddWidth))]=interpOrInjectionOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
-
-
-                            }else if(pNodes[lookUp].getLevel()>pNodes[elem].getLevel())
-                            {
-
-                                assert(pNodes[lookUp].getLevel()==(regLev+1));
-                                //child.resize(NUM_CHILDREN,LOOK_UP_TABLE_DEFAULT);
-                                // get the immediate neighbours. These cannot be LOOK_UP_TABLE_DEFAULT.
-                                child[1]=lookUp;
-                                child[3]=m_uiE2EMapping[child[1]*m_uiNumDirections+OCT_DIR_UP];
-                                assert(child[3]!=LOOK_UP_TABLE_DEFAULT);
-                                child[5]=m_uiE2EMapping[child[1]*m_uiNumDirections+OCT_DIR_FRONT];
-                                assert(child[5]!=LOOK_UP_TABLE_DEFAULT);
-                                child[7]=m_uiE2EMapping[child[3]*m_uiNumDirections+OCT_DIR_FRONT];
-                                assert(child[7]!=LOOK_UP_TABLE_DEFAULT);
-
-                                child[0]=LOOK_UP_TABLE_DEFAULT;//m_uiE2EMapping[child[1]*m_uiNumDirections+OCT_DIR_LEFT];
-                                child[2]=LOOK_UP_TABLE_DEFAULT;//m_uiE2EMapping[child[3]*m_uiNumDirections+OCT_DIR_LEFT];
-                                child[4]=LOOK_UP_TABLE_DEFAULT;//m_uiE2EMapping[child[5]*m_uiNumDirections+OCT_DIR_LEFT];
-                                child[6]=LOOK_UP_TABLE_DEFAULT;//m_uiE2EMapping[child[7]*m_uiNumDirections+OCT_DIR_LEFT];
-
-
-                                for(unsigned int cnum=0;cnum<NUM_CHILDREN;cnum++) {
-                                    if((child[cnum]==LOOK_UP_TABLE_DEFAULT) || (pNodes[child[cnum]].getLevel()<(regLev+1))) continue;
-                                    for(unsigned int k=0;k<m_uiElementOrder+1;k++)
-                                        for(unsigned int j=0;j<m_uiElementOrder+1;j++)
-                                            for(unsigned int i=0;i<m_uiElementOrder+1;i++)
-                                            {
-                                                isHanging=pNodes[(m_uiE2NMapping_DG[child[cnum]*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]/m_uiNpE)].getLevel()<pNodes[child[cnum]].getLevel();
-                                                if(isHanging)
-                                                {
-                                                    interpOrInjectionOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]=zippedVec[m_uiE2NMapping_CG[child[cnum]*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]];
-                                                }
-                                                else if( (i%2==0) && (j%2==0) && (k%2==0))
-                                                    interpOrInjectionOut[((((cnum & 4u)>>2u)*m_uiElementOrder+k)>>1)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+((((cnum & 2u)>>1u)*m_uiElementOrder+j)>>1)*(m_uiElementOrder+1)+(((((cnum & (1u)))*m_uiElementOrder+i)>>1))]=zippedVec[m_uiE2NMapping_CG[child[cnum]*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]];
-
-
-                                            }
-
-
-                                }
-
-                                faceNeighCnum1[0]=1;faceNeighCnum1[1]=3;faceNeighCnum1[2]=5;faceNeighCnum1[3]=7;
-                                faceNeighCnum2[0]=0;faceNeighCnum2[1]=2;faceNeighCnum2[2]=4;faceNeighCnum2[3]=6;
-
-
-
-                                for(unsigned int index=0;index<(NUM_CHILDREN>>1u);index++)
-                                {
-                                    interpDownWind(fd::D1_ORDER_4_DOWNWIND,elem,child[faceNeighCnum1[index]],&(*(lookUpElementVec.begin())),faceNeighCnum2[index],&(*(parentEleInterpIn.begin())),&(*(parentEleInterpOut.begin())),OCT_DIR_LEFT,paddWidth,zippedVec,&(*(interpOrInjectionOut.begin())));
-                                }
-
-
-
-                                for(unsigned int k=0;k<(m_uiElementOrder+1);k++)
-                                    for(unsigned int j=0;j<(m_uiElementOrder+1);j++)
-                                        for(unsigned int i=(m_uiElementOrder-paddWidth);i<(m_uiElementOrder+1);i++)
-                                            unzippedVec[offset+(ek*m_uiElementOrder+k+paddWidth)*(ly*lx)+(ej*m_uiElementOrder+j+paddWidth)*(lx)+(ei*m_uiElementOrder+i-(m_uiElementOrder-paddWidth))]=interpOrInjectionOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
-
-
-
-                            }
-
-                        }
-
-                    }
-
-
-                    if((pNodes[elem].maxX()==blkNode.maxX()))
-                    {
-                        assert(ei==eleIndexMax);
-                        lookUp=m_uiE2EMapping[elem*m_uiNumDirections+OCT_DIR_RIGHT];
-                        if(lookUp!=LOOK_UP_TABLE_DEFAULT)
-                        {
-                            if(pNodes[lookUp].getLevel()==pNodes[elem].getLevel())
-                            {
-                                assert(paddWidth<(m_uiElementOrder+1));
-                                this->getElementNodalValues(zippedVec,&(*(lookUpElementVec.begin())),lookUp);
-                                for(unsigned int k=0;k<(m_uiElementOrder+1);k++)
-                                    for(unsigned int j=0;j<(m_uiElementOrder+1);j++)
-                                        for(unsigned int i=0;i<(paddWidth+1);i++)
-                                            unzippedVec[offset+(ek*m_uiElementOrder+k+paddWidth)*(ly*lx)+(ej*m_uiElementOrder+j+paddWidth)*(lx)+((ei+1)*m_uiElementOrder+paddWidth+i)]=lookUpElementVec[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
-
-
-
-                            }else if(pNodes[lookUp].getLevel()<pNodes[elem].getLevel())
-                            {
-
-                                assert(pNodes[lookUp].getLevel()+1==regLev);
-                                mid_bit=m_uiMaxDepth - pNodes[lookUp].getLevel()-1;
-                                cnum=( ((((pNodes[elem].getZ()) >> mid_bit) & 1u) << 2u) | ((((pNodes[elem].getY()) >> mid_bit) & 1u) << 1u) | ((((pNodes[elem].getX()+sz)) >>mid_bit) & 1u));
-                                //std::cout<<"elem: "<<elem<<" : "<<m_uiAllElements[elem]<<" lookup: "<<m_uiAllElements[lookUp]<<" child: "<<ot::TreeNode(pNodes[elem].getX()+sz,pNodes[elem].getY(),pNodes[elem].getZ(),pNodes[elem].getLevel(),m_uiDim,m_uiMaxDepth)<<" cnum: "<<cnum<<std::endl;
-
-                                this->getElementNodalValues(zippedVec,&(*(lookUpElementVec.begin())),lookUp);
-                                this->parent2ChildInterpolation(&(*(lookUpElementVec.begin())),&(*(interpOrInjectionOut.begin())),cnum);
-
-                                assert(paddWidth<(m_uiElementOrder+1));
-                                for(unsigned int k=0;k<(m_uiElementOrder+1);k++)
-                                    for(unsigned int j=0;j<(m_uiElementOrder+1);j++)
-                                        for(unsigned int i=0;i<(paddWidth+1);i++)
-                                            unzippedVec[offset+(ek*m_uiElementOrder+k+paddWidth)*(ly*lx)+(ej*m_uiElementOrder+j+paddWidth)*(lx)+((ei+1)*m_uiElementOrder+paddWidth+i)]=interpOrInjectionOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
-
-
-
-                            }else if(pNodes[lookUp].getLevel()>pNodes[elem].getLevel())
-                            {
-                                // get the immediate neighbours. These cannot be LOOK_UP_TABLE_DEFAULT.
-                                child[0]=lookUp;
-                                child[2]=m_uiE2EMapping[child[0]*m_uiNumDirections+OCT_DIR_UP];
-                                assert(child[2]!=LOOK_UP_TABLE_DEFAULT);
-                                child[4]=m_uiE2EMapping[child[0]*m_uiNumDirections+OCT_DIR_FRONT];
-                                assert(child[4]!=LOOK_UP_TABLE_DEFAULT);
-                                child[6]=m_uiE2EMapping[child[2]*m_uiNumDirections+OCT_DIR_FRONT];
-                                assert(child[6]!=LOOK_UP_TABLE_DEFAULT);
-
-                                child[1]=LOOK_UP_TABLE_DEFAULT;//m_uiE2EMapping[child[0]*m_uiNumDirections+OCT_DIR_RIGHT];
-                                child[3]=LOOK_UP_TABLE_DEFAULT;//m_uiE2EMapping[child[2]*m_uiNumDirections+OCT_DIR_RIGHT];
-                                child[5]=LOOK_UP_TABLE_DEFAULT;//m_uiE2EMapping[child[4]*m_uiNumDirections+OCT_DIR_RIGHT];
-                                child[7]=LOOK_UP_TABLE_DEFAULT;//m_uiE2EMapping[child[6]*m_uiNumDirections+OCT_DIR_RIGHT];
-
-
-                                for(unsigned int cnum=0;cnum<NUM_CHILDREN;cnum++) {
-                                    if(child[cnum]==LOOK_UP_TABLE_DEFAULT) continue;
-                                    for(unsigned int k=0;k<(m_uiElementOrder+1);k++)
-                                        for(unsigned int j=0;j<(m_uiElementOrder+1);j++)
-                                            for(unsigned int i=0;i<(m_uiElementOrder+1);i++)
-                                            {
-
-                                                isHanging=pNodes[(m_uiE2NMapping_DG[child[cnum]*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]/m_uiNpE)].getLevel()<pNodes[child[cnum]].getLevel();
-                                                if(isHanging)
-                                                {
-                                                    interpOrInjectionOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]=zippedVec[m_uiE2NMapping_CG[child[cnum]*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]];
-
-                                                }
-                                                else if( (i%2==0) && (j%2==0) && (k%2==0))
-                                                    interpOrInjectionOut[((((cnum & 4u)>>2u)*m_uiElementOrder+k)>>1)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+((((cnum & 2u)>>1u)*m_uiElementOrder+j)>>1)*(m_uiElementOrder+1)+(((((cnum & (1u)))*m_uiElementOrder+i)>>1))]=zippedVec[m_uiE2NMapping_CG[child[cnum]*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]];
-
-
-                                            }
-
-
-                                }
-
-
-                                faceNeighCnum1[0]=0;faceNeighCnum1[1]=2;faceNeighCnum1[2]=4;faceNeighCnum1[3]=6;
-                                faceNeighCnum2[0]=1;faceNeighCnum2[1]=3;faceNeighCnum2[2]=5;faceNeighCnum2[3]=7;
-
-
-                                for(unsigned int index=0;index<(NUM_CHILDREN>>1u);index++)
-                                {
-                                    interpUpWind(fd::D1_ORDER_4_UPWIND,elem,child[faceNeighCnum1[index]],&(*(lookUpElementVec.begin())),faceNeighCnum2[index],&(*(parentEleInterpIn.begin())),&(*(parentEleInterpOut.begin())),OCT_DIR_RIGHT,paddWidth,zippedVec,&(*(interpOrInjectionOut.begin())));
-                                }
-
-
-                                for(unsigned int k=0;k<(m_uiElementOrder+1);k++)
-                                    for(unsigned int j=0;j<(m_uiElementOrder+1);j++)
-                                        for(unsigned int i=0;i<(paddWidth+1);i++)
-                                            unzippedVec[offset+(ek*m_uiElementOrder+k+paddWidth)*(ly*lx)+(ej*m_uiElementOrder+j+paddWidth)*(lx)+((ei+1)*m_uiElementOrder+paddWidth+i)]=interpOrInjectionOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
-
-
-                            }
-
-                        }
-
-                    }
-
-
-
-                    //--------------------------------------------------------------------------------------------------- Y Direction----------------------------------------------------------------------------------
-
-                    if((pNodes[elem].minY()==blkNode.minY()))
-                    {
-                        assert(ej==0);
-
-                        lookUp=m_uiE2EMapping[elem*m_uiNumDirections+OCT_DIR_DOWN];
-                        if(lookUp!=LOOK_UP_TABLE_DEFAULT)
-                        {
-
-                            if(pNodes[lookUp].getLevel()==pNodes[elem].getLevel())
-                            {
-                                assert(paddWidth<(m_uiElementOrder+1));
-                                this->getElementNodalValues(zippedVec,&(*(lookUpElementVec.begin())),lookUp);
-                                for(unsigned int k=0;k<(m_uiElementOrder+1);k++)
-                                    for(unsigned int i=0;i<(m_uiElementOrder+1);i++)
-                                        for(unsigned int j=(m_uiElementOrder-paddWidth);j<(m_uiElementOrder+1);j++)
-                                            unzippedVec[offset+(ek*m_uiElementOrder+k+paddWidth)*(ly*lx)+(ej*m_uiElementOrder+j-(m_uiElementOrder-paddWidth))*(lx)+(ei*m_uiElementOrder+i+paddWidth)]=lookUpElementVec[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
-
-
-
-                            }else if(pNodes[lookUp].getLevel()<pNodes[elem].getLevel())
-                            {
-                                assert(pNodes[lookUp].getLevel()+1==regLev);
-                                mid_bit=m_uiMaxDepth - pNodes[lookUp].getLevel()-1;
-                                cnum=( ((((pNodes[elem].getZ()) >> mid_bit) & 1u) << 2u) | (((((pNodes[elem].getY()-sz)) >> mid_bit) & 1u) << 1u) | (((pNodes[elem].getX()) >>mid_bit) & 1u));
-
-                                //std::cout<<"elem: "<<elem<<" : "<<m_uiAllElements[elem]<<" lookup: "<<m_uiAllElements[lookUp]<<" child: "<<ot::TreeNode(pNodes[elem].getX()-sz,pNodes[elem].getY(),pNodes[elem].getZ(),pNodes[elem].getLevel(),m_uiDim,m_uiMaxDepth)<<" cnum: "<<cnum<<std::endl;
-                                this->getElementNodalValues(zippedVec,&(*(lookUpElementVec.begin())),lookUp);
-                                this->parent2ChildInterpolation(&(*(lookUpElementVec.begin())),&(*(interpOrInjectionOut.begin())),cnum);
-
-                                //std::cout<<"m_uiActiveRank : "<<m_uiActiveRank<<"parent to child interpolation executed"<<std::endl;
-                                assert(paddWidth<(m_uiElementOrder+1));
-                                for(unsigned int k=0;k<(m_uiElementOrder+1);k++)
-                                    for(unsigned int i=0;i<(m_uiElementOrder+1);i++)
-                                        for(unsigned int j=(m_uiElementOrder-paddWidth);j<(m_uiElementOrder+1);j++)
-                                            unzippedVec[offset+(ek*m_uiElementOrder+k+paddWidth)*(ly*lx)+(ej*m_uiElementOrder+j-(m_uiElementOrder-paddWidth))*(lx)+(ei*m_uiElementOrder+i+paddWidth)]=interpOrInjectionOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
-
-
-
-                            }else if(pNodes[lookUp].getLevel()>pNodes[elem].getLevel())
-                            {
-                                // get the immediate neighbours. These cannot be LOOK_UP_TABLE_DEFAULT.
-                                child[2]=lookUp;
-                                child[3]=m_uiE2EMapping[child[2]*m_uiNumDirections+OCT_DIR_RIGHT];
-                                assert(child[3]!=LOOK_UP_TABLE_DEFAULT);
-                                child[6]=m_uiE2EMapping[child[2]*m_uiNumDirections+OCT_DIR_FRONT];
-                                assert(child[6]!=LOOK_UP_TABLE_DEFAULT);
-                                child[7]=m_uiE2EMapping[child[3]*m_uiNumDirections+OCT_DIR_FRONT];
-                                assert(child[7]!=LOOK_UP_TABLE_DEFAULT);
-
-                                child[0]=LOOK_UP_TABLE_DEFAULT;//m_uiE2EMapping[child[2]*m_uiNumDirections+OCT_DIR_DOWN];
-                                child[1]=LOOK_UP_TABLE_DEFAULT;//m_uiE2EMapping[child[3]*m_uiNumDirections+OCT_DIR_DOWN];
-                                child[4]=LOOK_UP_TABLE_DEFAULT;//m_uiE2EMapping[child[6]*m_uiNumDirections+OCT_DIR_DOWN];
-                                child[5]=LOOK_UP_TABLE_DEFAULT;//m_uiE2EMapping[child[7]*m_uiNumDirections+OCT_DIR_DOWN];
-
-                                for(unsigned int cnum=0;cnum<NUM_CHILDREN;cnum++) {
-                                    if(child[cnum]==LOOK_UP_TABLE_DEFAULT)continue;
-                                    for(unsigned int k=0;k<m_uiElementOrder+1;k++)
-                                        for(unsigned int j=0;j<m_uiElementOrder+1;j++)
-                                            for(unsigned int i=0;i<m_uiElementOrder+1;i++)
-                                            {
-                                                isHanging=pNodes[(m_uiE2NMapping_DG[child[cnum]*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]/m_uiNpE)].getLevel()<pNodes[child[cnum]].getLevel();
-                                                if(isHanging)
-                                                {
-                                                    interpOrInjectionOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]=zippedVec[m_uiE2NMapping_CG[child[cnum]*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]];
-                                                }
-                                                else if( (i%2==0) && (j%2==0) && (k%2==0))
-                                                    interpOrInjectionOut[((((cnum & 4u)>>2u)*m_uiElementOrder+k)>>1)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+((((cnum & 2u)>>1u)*m_uiElementOrder+j)>>1)*(m_uiElementOrder+1)+(((((cnum & (1u)))*m_uiElementOrder+i)>>1))]=zippedVec[m_uiE2NMapping_CG[child[cnum]*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]];
-
-
-                                            }
-
-
-                                }
-
-
-                                faceNeighCnum1[0]=2;faceNeighCnum1[1]=3;faceNeighCnum1[2]=6;faceNeighCnum1[3]=7;
-                                faceNeighCnum2[0]=0;faceNeighCnum2[1]=1;faceNeighCnum2[2]=4;faceNeighCnum2[3]=5;
-
-
-                                for(unsigned int index=0;index<(NUM_CHILDREN>>1u);index++)
-                                {
-                                    interpDownWind(fd::D1_ORDER_4_DOWNWIND,elem,child[faceNeighCnum1[index]],&(*(lookUpElementVec.begin())),faceNeighCnum2[index],&(*(parentEleInterpIn.begin())),&(*(parentEleInterpOut.begin())),OCT_DIR_DOWN,paddWidth,zippedVec,&(*(interpOrInjectionOut.begin())));
-                                }
-
-
-                                //std::cout<<"m_uiActiveRank : "<<m_uiActiveRank<<"child to parent interpolation executed"<<std::endl;
-
-                                for(unsigned int k=0;k<(m_uiElementOrder+1);k++)
-                                    for(unsigned int i=0;i<(m_uiElementOrder+1);i++)
-                                        for(unsigned int j=(m_uiElementOrder-paddWidth);j<(m_uiElementOrder+1);j++)
-                                            unzippedVec[offset+(ek*m_uiElementOrder+k+paddWidth)*(ly*lx)+(ej*m_uiElementOrder+j-(m_uiElementOrder-paddWidth))*(lx)+(ei*m_uiElementOrder+i+paddWidth)]=interpOrInjectionOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
-
-
-                            }
-
-                        }
-
-                    }
-
-
-                    if((pNodes[elem].maxY()==blkNode.maxY()))
-                    {
-                        assert(ej==(1u<<(regLev-blkNode.getLevel()))-1);
-                        lookUp=m_uiE2EMapping[elem*m_uiNumDirections+OCT_DIR_UP];
-                        if(lookUp!=LOOK_UP_TABLE_DEFAULT)
-                        {
-                            if(pNodes[lookUp].getLevel()==pNodes[elem].getLevel())
-                            {
-                                assert(paddWidth<(m_uiElementOrder+1));
-                                this->getElementNodalValues(zippedVec,&(*(lookUpElementVec.begin())),lookUp);
-
-                                for(unsigned int k=0;k<(m_uiElementOrder+1);k++)
-                                    for(unsigned int i=0;i<(m_uiElementOrder+1);i++)
-                                        for(unsigned int j=0;j<(paddWidth+1);j++)
-                                            unzippedVec[offset+(ek*m_uiElementOrder+k+paddWidth)*(ly*lx)+((ej+1)*m_uiElementOrder+paddWidth+j)*(lx)+(ei*m_uiElementOrder+i+paddWidth)]=lookUpElementVec[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
-
-
-
-
-                            }else if(pNodes[lookUp].getLevel()<pNodes[elem].getLevel())
-                            {
-
-                                assert(pNodes[lookUp].getLevel()+1==regLev);
-                                mid_bit=m_uiMaxDepth - pNodes[lookUp].getLevel()-1;
-                                cnum=( ((((pNodes[elem].getZ()) >> mid_bit) & 1u) << 2u) | (((((pNodes[elem].getY()+sz)) >> mid_bit) & 1u) << 1u) | (((pNodes[elem].getX()) >>mid_bit) & 1u));
-                                //std::cout<<"elem: "<<elem<<" : "<<m_uiAllElements[elem]<<" lookup: "<<m_uiAllElements[lookUp]<<" child: "<<ot::TreeNode(pNodes[elem].getX()+sz,pNodes[elem].getY(),pNodes[elem].getZ(),pNodes[elem].getLevel(),m_uiDim,m_uiMaxDepth)<<" cnum: "<<cnum<<std::endl;
-                                this->getElementNodalValues(zippedVec,&(*(lookUpElementVec.begin())),lookUp);
-                                this->parent2ChildInterpolation(&(*(lookUpElementVec.begin())),&(*(interpOrInjectionOut.begin())),cnum);
-                                assert(paddWidth<(m_uiElementOrder+1));
-                                for(unsigned int k=0;k<(m_uiElementOrder+1);k++)
-                                    for(unsigned int i=0;i<(m_uiElementOrder+1);i++)
-                                        for(unsigned int j=0;j<(paddWidth+1);j++)
-                                            unzippedVec[offset+(ek*m_uiElementOrder+k+paddWidth)*(ly*lx)+((ej+1)*m_uiElementOrder+paddWidth+j)*(lx)+(ei*m_uiElementOrder+i+paddWidth)]=interpOrInjectionOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
-
-
-
-                            }else if(pNodes[lookUp].getLevel()>pNodes[elem].getLevel())
-                            {
-                                // get the immediate neighbours. These cannot be LOOK_UP_TABLE_DEFAULT.
-                                child[0]=lookUp;
-                                child[1]=m_uiE2EMapping[child[0]*m_uiNumDirections+OCT_DIR_RIGHT];
-                                assert(child[1]!=LOOK_UP_TABLE_DEFAULT);
-                                child[4]=m_uiE2EMapping[child[0]*m_uiNumDirections+OCT_DIR_FRONT];
-                                assert(child[4]!=LOOK_UP_TABLE_DEFAULT);
-                                child[5]=m_uiE2EMapping[child[1]*m_uiNumDirections+OCT_DIR_FRONT];
-                                assert(child[5]!=LOOK_UP_TABLE_DEFAULT);
-
-                                child[2]=LOOK_UP_TABLE_DEFAULT;//m_uiE2EMapping[child[0]*m_uiNumDirections+OCT_DIR_UP];
-                                child[3]=LOOK_UP_TABLE_DEFAULT;//m_uiE2EMapping[child[1]*m_uiNumDirections+OCT_DIR_UP];
-                                child[6]=LOOK_UP_TABLE_DEFAULT;//m_uiE2EMapping[child[4]*m_uiNumDirections+OCT_DIR_UP];
-                                child[7]=LOOK_UP_TABLE_DEFAULT;//m_uiE2EMapping[child[5]*m_uiNumDirections+OCT_DIR_UP];
-
-
-                                for(unsigned int cnum=0;cnum<NUM_CHILDREN;cnum++) {
-                                    if(child[cnum]==LOOK_UP_TABLE_DEFAULT)continue;
-                                    for(unsigned int k=0;k<(m_uiElementOrder+1);k++)
-                                        for(unsigned int j=0;j<(m_uiElementOrder+1);j++)
-                                            for(unsigned int i=0;i<(m_uiElementOrder+1);i++)
-                                            {
-
-
-                                                isHanging=pNodes[(m_uiE2NMapping_DG[child[cnum]*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]/m_uiNpE)].getLevel()<pNodes[child[cnum]].getLevel();
-                                                if(isHanging)
-                                                {
-                                                    interpOrInjectionOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]=zippedVec[m_uiE2NMapping_CG[child[cnum]*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]];
-                                                }
-                                                else if( (i%2==0) && (j%2==0) && (k%2==0))
-                                                    interpOrInjectionOut[((((cnum & 4u)>>2u)*m_uiElementOrder+k)>>1)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+((((cnum & 2u)>>1u)*m_uiElementOrder+j)>>1)*(m_uiElementOrder+1)+(((((cnum & (1u)))*m_uiElementOrder+i)>>1))]=zippedVec[m_uiE2NMapping_CG[child[cnum]*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]];
-
-
-                                            }
-
-
-                                }
-
-
-                                faceNeighCnum1[0]=0;faceNeighCnum1[1]=1;faceNeighCnum1[2]=4;faceNeighCnum1[3]=5;
-                                faceNeighCnum2[0]=2;faceNeighCnum2[1]=3;faceNeighCnum2[2]=6;faceNeighCnum2[3]=7;
-
-
-                                for(unsigned int index=0;index<(NUM_CHILDREN>>1u);index++)
-                                {
-                                    interpUpWind(fd::D1_ORDER_4_UPWIND,elem,child[faceNeighCnum1[index]],&(*(lookUpElementVec.begin())),faceNeighCnum2[index],&(*(parentEleInterpIn.begin())),&(*(parentEleInterpOut.begin())),OCT_DIR_UP,paddWidth,zippedVec,&(*(interpOrInjectionOut.begin())));
-                                }
-
-
-                                for(unsigned int k=0;k<(m_uiElementOrder+1);k++)
-                                    for(unsigned int i=0;i<(m_uiElementOrder+1);i++)
-                                        for(unsigned int j=0;j<(paddWidth+1);j++)
-                                            unzippedVec[offset+(ek*m_uiElementOrder+k+paddWidth)*(ly*lx)+((ej+1)*m_uiElementOrder+paddWidth+j)*(lx)+(ei*m_uiElementOrder+i+paddWidth)]=interpOrInjectionOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
-
-
-                            }
-
-                        }
-
-                    }
-
-                    //--------------------------------------------------------------------- Z direction padding. -------------------------------------------------------------------------------------------------------
-
-
-                    if((pNodes[elem].minZ()==blkNode.minZ()))
-                    {
-                        assert(ek==0);
-
-                        lookUp=m_uiE2EMapping[elem*m_uiNumDirections+OCT_DIR_BACK];
-                        if(lookUp!=LOOK_UP_TABLE_DEFAULT)
-                        {
-
-                            if(pNodes[lookUp].getLevel()==pNodes[elem].getLevel())
-                            {
-                                assert(paddWidth<(m_uiElementOrder+1));
-                                this->getElementNodalValues(zippedVec,&(*(lookUpElementVec.begin())),lookUp);
-                                for(unsigned int j=0;j<(m_uiElementOrder+1);j++)
-                                    for(unsigned int i=0;i<(m_uiElementOrder+1);i++)
-                                        for(unsigned int k=(m_uiElementOrder-paddWidth);k<(m_uiElementOrder+1);k++)
-                                            unzippedVec[offset+(ek*m_uiElementOrder+k-(m_uiElementOrder-paddWidth))*(ly*lx)+(ej*m_uiElementOrder+j+paddWidth)*(lx)+(ei*m_uiElementOrder+i+paddWidth)]=lookUpElementVec[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
-
-
-
-                            }else if(pNodes[lookUp].getLevel()<pNodes[elem].getLevel())
-                            {
-                                assert(pNodes[lookUp].getLevel()+1==regLev);
-                                mid_bit=m_uiMaxDepth - pNodes[lookUp].getLevel()-1;
-                                cnum=( (((((pNodes[elem].getZ()-sz)) >> mid_bit) & 1u) << 2u) | ((((pNodes[elem].getY()) >> mid_bit) & 1u) << 1u) | (((pNodes[elem].getX()) >>mid_bit) & 1u));
-                                //std::cout<<"elem: "<<elem<<" : "<<m_uiAllElements[elem]<<" lookup: "<<m_uiAllElements[lookUp]<<" child: "<<ot::TreeNode(pNodes[elem].getX()-sz,pNodes[elem].getY(),pNodes[elem].getZ(),pNodes[elem].getLevel(),m_uiDim,m_uiMaxDepth)<<" cnum: "<<cnum<<std::endl;
-                                this->getElementNodalValues(zippedVec,&(*(lookUpElementVec.begin())),lookUp);
-                                this->parent2ChildInterpolation(&(*(lookUpElementVec.begin())),&(*(interpOrInjectionOut.begin())),cnum);
-
-                                //std::cout<<"m_uiActiveRank : "<<m_uiActiveRank<<"parent to child interpolation executed"<<std::endl;
-                                assert(paddWidth<(m_uiElementOrder+1));
-                                for(unsigned int j=0;j<(m_uiElementOrder+1);j++)
-                                    for(unsigned int i=0;i<(m_uiElementOrder+1);i++)
-                                        for(unsigned int k=(m_uiElementOrder-paddWidth);k<(m_uiElementOrder+1);k++)
-                                            unzippedVec[offset+(ek*m_uiElementOrder+k-(m_uiElementOrder-paddWidth))*(ly*lx)+(ej*m_uiElementOrder+j+paddWidth)*(lx)+(ei*m_uiElementOrder+i+paddWidth)]=interpOrInjectionOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
-
-
-
-                            }else if(pNodes[lookUp].getLevel()>pNodes[elem].getLevel())
-                            {
-
-                                // get the immediate neighbours. These cannot be LOOK_UP_TABLE_DEFAULT.
-                                child[4]=lookUp;
-                                child[5]=m_uiE2EMapping[child[4]*m_uiNumDirections+OCT_DIR_RIGHT];
-                                assert(child[5]!=LOOK_UP_TABLE_DEFAULT);
-                                child[6]=m_uiE2EMapping[child[4]*m_uiNumDirections+OCT_DIR_UP];
-                                assert(child[6]!=LOOK_UP_TABLE_DEFAULT);
-                                child[7]=m_uiE2EMapping[child[5]*m_uiNumDirections+OCT_DIR_UP];
-                                assert(child[7]!=LOOK_UP_TABLE_DEFAULT);
-
-                                child[0]=LOOK_UP_TABLE_DEFAULT;//m_uiE2EMapping[child[4]*m_uiNumDirections+OCT_DIR_BACK];
-                                child[1]=LOOK_UP_TABLE_DEFAULT;//m_uiE2EMapping[child[5]*m_uiNumDirections+OCT_DIR_BACK];
-                                child[2]=LOOK_UP_TABLE_DEFAULT;//m_uiE2EMapping[child[6]*m_uiNumDirections+OCT_DIR_BACK];
-                                child[3]=LOOK_UP_TABLE_DEFAULT;//m_uiE2EMapping[child[7]*m_uiNumDirections+OCT_DIR_BACK];
-
-                                for(unsigned int cnum=0;cnum<NUM_CHILDREN;cnum++) {
-                                    if(child[cnum]==LOOK_UP_TABLE_DEFAULT)continue;
-                                    for(unsigned int k=0;k<m_uiElementOrder+1;k++)
-                                        for(unsigned int j=0;j<m_uiElementOrder+1;j++)
-                                            for(unsigned int i=0;i<m_uiElementOrder+1;i++)
-                                            {
-                                                isHanging=pNodes[(m_uiE2NMapping_DG[child[cnum]*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]/m_uiNpE)].getLevel()<pNodes[child[cnum]].getLevel();
-                                                if(isHanging)
-                                                {
-                                                    interpOrInjectionOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]=zippedVec[m_uiE2NMapping_CG[child[cnum]*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]];
-                                                }
-                                                else if( (i%2==0) && (j%2==0) && (k%2==0))
-                                                    interpOrInjectionOut[((((cnum & 4u)>>2u)*m_uiElementOrder+k)>>1)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+((((cnum & 2u)>>1u)*m_uiElementOrder+j)>>1)*(m_uiElementOrder+1)+(((((cnum & (1u)))*m_uiElementOrder+i)>>1))]=zippedVec[m_uiE2NMapping_CG[child[cnum]*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]];
-
-
-                                            }
-
-
-                                }
-
-
-
-                                faceNeighCnum1[0]=4;faceNeighCnum1[1]=5;faceNeighCnum1[2]=6;faceNeighCnum1[3]=7;
-                                faceNeighCnum2[0]=0;faceNeighCnum2[1]=1;faceNeighCnum2[2]=2;faceNeighCnum2[3]=3;
-
-
-                                for(unsigned int index=0;index<(NUM_CHILDREN>>1u);index++)
-                                {
-                                    interpDownWind(fd::D1_ORDER_4_DOWNWIND,elem,child[faceNeighCnum1[index]],&(*(lookUpElementVec.begin())),faceNeighCnum2[index],&(*(parentEleInterpIn.begin())),&(*(parentEleInterpOut.begin())),OCT_DIR_BACK,paddWidth,zippedVec,&(*(interpOrInjectionOut.begin())));
-                                }
-
-
-
-                                //std::cout<<"m_uiActiveRank : "<<m_uiActiveRank<<"child to parent interpolation executed"<<std::endl;
-
-                                for(unsigned int j=0;j<(m_uiElementOrder+1);j++)
-                                    for(unsigned int i=0;i<(m_uiElementOrder+1);i++)
-                                        for(unsigned int k=(m_uiElementOrder-paddWidth);k<(m_uiElementOrder+1);k++)
-                                            unzippedVec[offset+(ek*m_uiElementOrder+k-(m_uiElementOrder-paddWidth))*(ly*lx)+(ej*m_uiElementOrder+j+paddWidth)*(lx)+(ei*m_uiElementOrder+i+paddWidth)]=interpOrInjectionOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
-
-
-                            }
-
-                        }
-
-                    }
-
-                    if((pNodes[elem].maxZ()==blkNode.maxZ()))
-                    {
-                        assert(ek==(1u<<(regLev-blkNode.getLevel()))-1);
-                        lookUp=m_uiE2EMapping[elem*m_uiNumDirections+OCT_DIR_FRONT];
-                        if(lookUp!=LOOK_UP_TABLE_DEFAULT)
-                        {
-                            if(pNodes[lookUp].getLevel()==pNodes[elem].getLevel())
-                            {
-                                assert(paddWidth<(m_uiElementOrder+1));
-                                this->getElementNodalValues(zippedVec,&(*(lookUpElementVec.begin())),lookUp);
-                                for(unsigned int j=0;j<(m_uiElementOrder+1);j++)
-                                    for(unsigned int i=0;i<(m_uiElementOrder+1);i++)
-                                        for(unsigned int k=0;k<(paddWidth+1);k++)
-                                            unzippedVec[offset+((ek+1)*m_uiElementOrder+paddWidth+k)*(ly*lx)+(ej*m_uiElementOrder+j+paddWidth)*(lx)+(ei*m_uiElementOrder+i+paddWidth)]=lookUpElementVec[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
-
-
-                            }else if(pNodes[lookUp].getLevel()<pNodes[elem].getLevel())
-                            {
-
-                                assert(pNodes[lookUp].getLevel()+1==regLev);
-                                mid_bit=m_uiMaxDepth - pNodes[lookUp].getLevel()-1;
-                                cnum=( (((((pNodes[elem].getZ()+sz)) >> mid_bit) & 1u) << 2u) | ((((pNodes[elem].getY()) >> mid_bit) & 1u) << 1u) | (((pNodes[elem].getX()) >>mid_bit) & 1u));
-                                //std::cout<<"elem: "<<elem<<" : "<<m_uiAllElements[elem]<<" lookup: "<<m_uiAllElements[lookUp]<<" child: "<<ot::TreeNode(pNodes[elem].getX()+sz,pNodes[elem].getY(),pNodes[elem].getZ(),pNodes[elem].getLevel(),m_uiDim,m_uiMaxDepth)<<" cnum: "<<cnum<<std::endl;
-
-                                this->getElementNodalValues(zippedVec,&(*(lookUpElementVec.begin())),lookUp);
-                                this->parent2ChildInterpolation(&(*(lookUpElementVec.begin())),&(*(interpOrInjectionOut.begin())),cnum);
-                                assert(paddWidth<(m_uiElementOrder+1));
-
-                                for(unsigned int j=0;j<(m_uiElementOrder+1);j++)
-                                    for(unsigned int i=0;i<(m_uiElementOrder+1);i++)
-                                        for(unsigned int k=0;k<(paddWidth+1);k++)
-                                            unzippedVec[offset+((ek+1)*m_uiElementOrder+paddWidth+k)*(ly*lx)+(ej*m_uiElementOrder+j+paddWidth)*(lx)+(ei*m_uiElementOrder+i+paddWidth)]=interpOrInjectionOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
-
-
-
-
-                            }else if(pNodes[lookUp].getLevel()>pNodes[elem].getLevel())
-                            {
-                                // get the immediate neighbours. These cannot be LOOK_UP_TABLE_DEFAULT.
-                                child[0]=lookUp;
-                                child[1]=m_uiE2EMapping[child[0]*m_uiNumDirections+OCT_DIR_RIGHT];
-                                assert(child[1]!=LOOK_UP_TABLE_DEFAULT);
-                                child[2]=m_uiE2EMapping[child[0]*m_uiNumDirections+OCT_DIR_UP];
-                                assert(child[2]!=LOOK_UP_TABLE_DEFAULT);
-                                child[3]=m_uiE2EMapping[child[1]*m_uiNumDirections+OCT_DIR_UP];
-                                assert(child[3]!=LOOK_UP_TABLE_DEFAULT);
-
-                                child[4]=LOOK_UP_TABLE_DEFAULT;//m_uiE2EMapping[child[0]*m_uiNumDirections+OCT_DIR_FRONT];
-                                child[5]=LOOK_UP_TABLE_DEFAULT;//m_uiE2EMapping[child[1]*m_uiNumDirections+OCT_DIR_FRONT];
-                                child[6]=LOOK_UP_TABLE_DEFAULT;//m_uiE2EMapping[child[2]*m_uiNumDirections+OCT_DIR_FRONT];
-                                child[7]=LOOK_UP_TABLE_DEFAULT;//m_uiE2EMapping[child[3]*m_uiNumDirections+OCT_DIR_FRONT];
-
-
-                                for(unsigned int cnum=0;cnum<NUM_CHILDREN;cnum++) {
-                                    if(child[cnum]==LOOK_UP_TABLE_DEFAULT)continue;
-                                    for(unsigned int k=0;k<(m_uiElementOrder+1);k++)
-                                        for(unsigned int j=0;j<(m_uiElementOrder+1);j++)
-                                            for(unsigned int i=0;i<(m_uiElementOrder+1);i++)
-                                            {
-
-
-
-                                                isHanging=pNodes[(m_uiE2NMapping_DG[child[cnum]*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]/m_uiNpE)].getLevel()<pNodes[child[cnum]].getLevel();
-                                                if(isHanging)
-                                                {
-                                                    interpOrInjectionOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]=zippedVec[m_uiE2NMapping_CG[child[cnum]*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]];
-                                                }
-                                                else if( (i%2==0) && (j%2==0) && (k%2==0))
-                                                    interpOrInjectionOut[((((cnum & 4u)>>2u)*m_uiElementOrder+k)>>1)*(m_uiElementOrder+1)*(m_uiElementOrder+1)+((((cnum & 2u)>>1u)*m_uiElementOrder+j)>>1)*(m_uiElementOrder+1)+(((((cnum & (1u)))*m_uiElementOrder+i)>>1))]=zippedVec[m_uiE2NMapping_CG[child[cnum]*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]];
-
-
-                                            }
-
-
-                                }
-
-
-
-                                faceNeighCnum1[0]=0;faceNeighCnum1[1]=1;faceNeighCnum1[2]=2;faceNeighCnum1[3]=3;
-                                faceNeighCnum2[0]=4;faceNeighCnum2[1]=5;faceNeighCnum2[2]=6;faceNeighCnum2[3]=7;
-
-                                for(unsigned int index=0;index<(NUM_CHILDREN>>1u);index++)
-                                {
-                                    interpUpWind(fd::D1_ORDER_4_UPWIND,elem,child[faceNeighCnum1[index]],&(*(lookUpElementVec.begin())),faceNeighCnum2[index],&(*(parentEleInterpIn.begin())),&(*(parentEleInterpOut.begin())),OCT_DIR_FRONT,paddWidth,zippedVec,&(*(interpOrInjectionOut.begin())));
-                                }
-
-
-                                for(unsigned int j=0;j<(m_uiElementOrder+1);j++)
-                                    for(unsigned int i=0;i<(m_uiElementOrder+1);i++)
-                                        for(unsigned int k=0;k<(paddWidth+1);k++)
-                                            unzippedVec[offset+((ek+1)*m_uiElementOrder+paddWidth+k)*(ly*lx)+(ej*m_uiElementOrder+j+paddWidth)*(lx)+(ei*m_uiElementOrder+i+paddWidth)]=interpOrInjectionOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
-
-
-                            }
-
-                        }
-
-                    }
-
-
-
-
-                }
-
-
-                blockDiagonalUnZip(m_uiLocalBlockList[blk],zippedVec,unzippedVec);
-                blockVertexUnZip(m_uiLocalBlockList[blk],zippedVec,unzippedVec);
-
-
-
-            }
-
-        #ifdef ENABLE_DENDRO_PROFILE_COUNTERS
-            if(PASS==0) dendro::timer::t_unzip_async_internal.stop();
-            if(PASS==1) dendro::timer::t_unzip_async_external.stop();
-        #endif
-
-        }
-
-
-    }
-
+    
 
     template<typename T>
     int Mesh::getFaceNeighborValues(unsigned int eleID, const T* in, T* out, T* coords, unsigned int * neighID, unsigned int face, NeighbourLevel & level) const
