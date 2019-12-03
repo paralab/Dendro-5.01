@@ -448,10 +448,8 @@ namespace ot
         bool isRemesh=false;
         bool isRemesh_g;
         MPI_Comm commGlobal=m_uiMesh->getMPIGlobalCommunicator();
-
         std::vector<unsigned int> octflags;
         octflags.resize(sz,OCT_NO_CHANGE);
-
         if(m_uiMesh->isActive())
         {
             const ot::TreeNode* allElements=&(*(m_uiMesh->getAllElements().begin()));
@@ -467,54 +465,53 @@ namespace ot
                         octflags[i]=OCT_SPLIT;
                         isRemesh=true;
                     }
-
                 }else if(flags[i]==DA_FLAGS::Refine::DA_COARSEN) {
-
                     bool isNoChange=false;
                     bool isRefine=false;
-
                     if(((i+NUM_CHILDREN-1)<sz)  && (allElements[ele].getParent() == allElements[ele+NUM_CHILDREN-1].getParent()) && (allElements[ele].getLevel()>0))
                     {
                         for(unsigned int child=0;child<NUM_CHILDREN;child++)
                         {
-                            if((octflags[i+child] == OCT_NO_CHANGE))
+                            if((flags[i+child] == OCT_NO_CHANGE))
+                            {
                                 isNoChange =true;
-                            
-                            if((octflags[i+child] == OCT_SPLIT))
+                                
+                            }
+                            if((flags[i+child] == OCT_SPLIT))
                             {
                                 isRefine =true;
                                 isRemesh= true;
                             }
                         }
-
+                        
                         if(isRefine || isNoChange)
                            octflags[i] = OCT_NO_CHANGE;
                         else
-                           octflags[i] = OCT_COARSE;
+                        {
+                            octflags[i] = OCT_COARSE;
+                            isRemesh= true;
+                            i+=NUM_CHILDREN-1;
                         
-                        i+=(NUM_CHILDREN-1);
+                        }
+                    }
+                    else
+                    {
+                        octflags[i]=OCT_NO_CHANGE;
                     }
                 }else{
                     octflags[i]=OCT_NO_CHANGE;
                 }
-
+                
             }
-
         }
-
-
         MPI_Allreduce(&isRemesh,&isRemesh_g,1,MPI_CXX_BOOL,MPI_LOR,commGlobal);
         // return null da since no need to remesh
         if(!isRemesh_g)
             return NULL;
-
         m_uiMesh->setOctreeRefineFlags(&(*(octflags.begin())),octflags.size());
         ot::Mesh* newMesh=m_uiMesh->ReMesh(grainSz,ld_bal,sfK,getWeight);
-
         ot::DA* newDA= new DA(newMesh);
-
         return newDA;
-
     }
 
     void DA::computeTreeNodeOwnerProc(const ot::TreeNode * pNodes, unsigned int n, int* ownerranks)
