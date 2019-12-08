@@ -114,6 +114,17 @@ public:
     * */
     virtual void matVec(const VECType *in, VECType *out, double scale = 1.0);
 
+    /**@brief: Computes the diagonal of the matrix for mat free.   
+     * @param[out] diag : computed diagonal (allocation happens inside the function)
+     * for multiple dof values the diagonal is ordered by the dof. 
+     * dof_0 dof_0,,,,,,,dof_1,dof_1,,,,,,dof_2,dof_2 etc (Dendro Vector format. )
+     * @paramp[in] scale: scale for the diagonal element.  
+    */
+    virtual void getMatDiagonal(VECType*& diag, double scale = 1.0);
+
+
+    virtual void getMatBlockDiagonal(std::vector<ot::MatRecord>& blkDiag, double scale = 1.0);
+
 
     /**@brief Computes the elemental matvec
       * @param [in] in input vector u
@@ -318,6 +329,242 @@ void feMatrix<T>::matVec(const VECType *in, VECType *out, double scale) {
     return;
 
 }
+
+template<typename T>
+void feMatrix<T>::getMatDiagonal(VECType*& diag, double scale)
+{
+
+    VECType *_diag = NULL;
+    diag = NULL;
+    
+    if (!(m_uiOctDA->isActive()))
+        return;
+    
+    m_uiOctDA->createVector(_diag, false, true, m_uiDof);
+
+    VECType *val = new VECType[m_uiDof];
+    for (unsigned int var = 0; var < m_uiDof; var++)
+        val[var] = (VECType) 0;
+
+    m_uiOctDA->setVectorByScalar(_diag, val, false, true, m_uiDof);
+
+    delete[] val;
+
+    const unsigned int eleOrder = m_uiOctDA->getElementOrder();
+    const unsigned int npe_1d = eleOrder + 1;
+    const unsigned int npe_2d = (eleOrder + 1) * (eleOrder + 1);
+    const unsigned int nPe = (eleOrder + 1) * (eleOrder + 1) * (eleOrder + 1);
+    
+    const ot::Mesh *pMesh = m_uiOctDA->getMesh();
+    const ot::TreeNode *allElements = &(*(pMesh->getAllElements().begin()));
+    
+    DendroScalar *p2cEleMat = new DendroScalar[nPe * nPe];
+    
+    preMat();
+
+    unsigned int nCount = 0;
+
+    double *coords = new double[m_uiDim * nPe];
+    
+    bool faceHang[NUM_FACES];
+    bool edgeHang[NUM_EDGES];
+    unsigned int cnumFace[NUM_FACES];
+    unsigned int cnumEdge[NUM_EDGES];
+
+    const unsigned int * e2n_cg = &(*(pMesh->getE2NMapping().begin()));
+    const unsigned int * e2n_dg = &(*(pMesh->getE2NMapping_DG().begin()));
+    const unsigned int * e2e = &(*(pMesh->getE2EMapping().begin()));
+
+    const unsigned int eleLocalBegin = pMesh->getElementLocalBegin();
+    const unsigned int eleLocalEnd = pMesh -> getElementLocalEnd();
+    const unsigned int totalNodes = pMesh->getDegOfFreedom();
+
+    for (m_uiOctDA->init<ot::DA_FLAGS::LOCAL_ELEMENTS>();m_uiOctDA->curr() < m_uiOctDA->end<ot::DA_FLAGS::LOCAL_ELEMENTS>(); m_uiOctDA->next<ot::DA_FLAGS::LOCAL_ELEMENTS>()) 
+    {
+        std::vector<ot::MatRecord> records;
+        const unsigned int currentId = m_uiOctDA->curr();
+        m_uiOctDA->getElementalCoords(currentId, coords);
+        getElementalMatrix(m_uiOctDA->curr(), records, coords);
+        const unsigned int cnum = allElements[currentId].getMortonIndex();
+        
+        pMesh->getElementQMat(m_uiOctDA->curr(),p2cEleMat,true);
+        //printArray_2D(p2cEleMat,nPe,nPe);
+        fem_eMatTogMat(records.data() , p2cEleMat, eleOrder,m_uiDof);
+        
+        for(unsigned int i = 0; i < records.size(); i++)
+        {
+            if( (records[i].getRowID() == records[i].getColID()) && (records[i].getRowDim() == records[i].getColDim()))
+                _diag[ records[i].getRowDim() * totalNodes + records[i].getRowID() ] += (scale*records[i].getMatVal());
+        }
+
+        
+
+    }
+
+    postMat();
+
+    m_uiOctDA->writeToGhostsBegin(_diag,m_uiDof);
+    m_uiOctDA->writeToGhostsEnd(_diag,ot::DA_FLAGS::WriteMode::ADD_VALUES,m_uiDof);
+    
+    delete [] coords;
+    delete [] p2cEleMat;
+
+    m_uiOctDA->ghostedNodalToNodalVec(_diag,diag,false,m_uiDof);
+
+    return;
+
+}
+
+
+template <typename T>
+void feMatrix<T>::getMatBlockDiagonal(std::vector<ot::MatRecord>& blkDiag, double scale)
+{
+    blkDiag.clear();
+    if (!(m_uiOctDA->isActive()))
+        return;
+    
+    const unsigned int activeNpes = m_uiOctDA->getRankActive();
+
+    const unsigned int eleOrder = m_uiOctDA->getElementOrder();
+    const unsigned int npe_1d = eleOrder + 1;
+    const unsigned int npe_2d = (eleOrder + 1) * (eleOrder + 1);
+    const unsigned int nPe = (eleOrder + 1) * (eleOrder + 1) * (eleOrder + 1);
+    
+    const ot::Mesh *pMesh = m_uiOctDA->getMesh();
+    const ot::TreeNode *allElements = &(*(pMesh->getAllElements().begin()));
+    
+    DendroScalar *p2cEleMat = new DendroScalar[nPe * nPe];
+    preMat();
+
+    unsigned int nCount = 0;
+    double * coords = new double[m_uiDim * nPe];
+    
+    bool faceHang[NUM_FACES];
+    bool edgeHang[NUM_EDGES];
+    unsigned int cnumFace[NUM_FACES];
+    unsigned int cnumEdge[NUM_EDGES];
+
+    const unsigned int * e2n_cg = &(*(pMesh->getE2NMapping().begin()));
+    const unsigned int * e2n_dg = &(*(pMesh->getE2NMapping_DG().begin()));
+    const unsigned int * e2e = &(*(pMesh->getE2EMapping().begin()));
+    const DendroIntL * l2g = m_uiOctDA->getNodeLocalToGlobalMap().data();
+    const DendroIntL * nodalOffsets = m_uiOctDA->getNodalOffsets().data();
+
+    int * _n2p = NULL;
+    m_uiOctDA->createVector(_n2p,false, true, 1);
+
+    for(unsigned int i = pMesh->getNodeLocalBegin(); i < pMesh->getNodeLocalEnd(); i++)
+        _n2p [i] = pMesh->getMPIRank();
+    
+    m_uiOctDA->readFromGhostBegin(_n2p,1);
+    m_uiOctDA->readFromGhostEnd(_n2p,1);
+    
+    const unsigned int eleLocalBegin = pMesh->getElementLocalBegin();
+    const unsigned int eleLocalEnd = pMesh -> getElementLocalEnd();
+    const unsigned int totalNodes = pMesh->getDegOfFreedom();
+
+    int * rSendCount  = new int[activeNpes];
+    int * rRecvCount  = new int[activeNpes];
+    int * rSendOffset = new int[activeNpes];
+    int * rRecvOffset = new int[activeNpes];
+
+    for(unsigned int i=0; i< activeNpes; i++)
+        rSendCount[i]=0;
+
+    for (m_uiOctDA->init<ot::DA_FLAGS::LOCAL_ELEMENTS>();m_uiOctDA->curr() < m_uiOctDA->end<ot::DA_FLAGS::LOCAL_ELEMENTS>(); m_uiOctDA->next<ot::DA_FLAGS::LOCAL_ELEMENTS>())
+    {
+        const unsigned int currentId = m_uiOctDA->curr();
+        for(unsigned int i=0; i < nPe; i++)
+        for(unsigned int j=0; j < nPe; j++)
+        {
+            if(_n2p[ e2n_cg[currentId*nPe + i] ] == _n2p[ e2n_cg[currentId*nPe + j] ])
+              rSendCount[ _n2p[ e2n_cg[currentId*nPe + i] ] ] ++;  
+        }
+    }
+
+    for(unsigned int i=0; i< activeNpes; i++)
+        rSendCount[i]*=m_uiDof;
+
+    rSendOffset[0] =0;
+    omp_par::scan(rSendCount, rSendOffset,activeNpes);
+
+    std::vector<ot::MatRecord> sendBuf;
+    sendBuf.resize(rSendOffset[activeNpes-1] + rSendCount[activeNpes-1]);
+    
+    for(unsigned int i=0; i< activeNpes; i++)
+        rSendCount[i] = 0;
+
+    std::vector<ot::MatRecord> records;
+    
+    nCount = 0;
+    for (m_uiOctDA->init<ot::DA_FLAGS::LOCAL_ELEMENTS>();m_uiOctDA->curr() < m_uiOctDA->end<ot::DA_FLAGS::LOCAL_ELEMENTS>(); m_uiOctDA->next<ot::DA_FLAGS::LOCAL_ELEMENTS>()) 
+    {
+        const unsigned int currentId = m_uiOctDA->curr();
+        m_uiOctDA->getElementalCoords(currentId, coords);
+        getElementalMatrix(m_uiOctDA->curr(), records, coords);
+        const unsigned int cnum = allElements[currentId].getMortonIndex();
+        
+        pMesh->getElementQMat(m_uiOctDA->curr(),p2cEleMat,true);
+        //printArray_2D(p2cEleMat,nPe,nPe);
+        fem_eMatTogMat(records.data() + nCount , p2cEleMat, eleOrder,m_uiDof);
+        
+        for(unsigned int i = nCount; i < records.size(); i++)
+        {
+            if(_n2p[ records[i].getRowID() ] == _n2p[ records[i].getColID()])
+            {   
+                const unsigned int rid = records[i].getRowID();
+                const unsigned int cid = records[i].getColID();
+                const unsigned int rid_g = l2g[rid];
+                const unsigned int cid_g = l2g[cid];
+                const unsigned int proc_owner = _n2p[rid];
+                assert(rid_g >= nodalOffsets[proc_owner]);
+                const unsigned int rid_l = rid_g - nodalOffsets[proc_owner];
+                const unsigned int cid_l = cid_g - nodalOffsets[proc_owner];
+
+                records[i].setRowID(rid_l);
+                records[i].setColID(cid_l);
+                
+                sendBuf[rSendCount[_n2p[rid]]] = records[i];
+                rSendCount[_n2p[ records[i].getRowID() ]] ++;
+            }
+                
+        }
+
+    }
+
+    postMat();
+    par::Mpi_Alltoall(rSendCount,rRecvCount,1,m_uiOctDA->getCommActive());
+    
+    rRecvOffset[0] = 0;
+    omp_par::scan(rRecvCount,rRecvOffset,activeNpes);
+
+    std::vector<ot::MatRecord> recvBuf;
+    recvBuf.resize( rRecvOffset[activeNpes-1] + rRecvCount[activeNpes-1]);
+    par::Mpi_Alltoallv(sendBuf.data(),rSendCount,rSendOffset,recvBuf.data(),rRecvCount,rRecvOffset,m_uiOctDA->getCommActive());
+
+    delete [] rSendCount;
+    delete [] rRecvCount;
+    delete [] rSendOffset;
+    delete [] rRecvOffset;
+    
+    std::sort(recvBuf.begin(),recvBuf.end());
+    blkDiag.clear();
+
+    for(unsigned int i = 0; i < recvBuf.size(); i++)
+    {
+        unsigned int curr =i;
+        while( ( (i+1) < recvBuf.size() ) && (recvBuf[i].getRowID() == recvBuf[i + 1].getRowID()) && ( recvBuf[i].getColID() == recvBuf[i+1].getColID()) && (recvBuf[i].getRowDim() == recvBuf[i + 1].getRowDim()) && ( recvBuf[i].getColDim() == recvBuf[i+1].getColDim()) )
+        {
+            recvBuf[i].setMatValue(recvBuf[i].getMatVal() + recvBuf[i+1].getMatVal());
+            i=i+1;
+        }
+       blkDiag.push_back(recvBuf[curr]);
+    }
+
+    return;
+
+}
+
 
 #ifdef BUILD_WITH_PETSC
 

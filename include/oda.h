@@ -170,6 +170,8 @@ namespace ot
         /**@brief total number of nodes accross all the processes*/
         DendroIntL m_uiGlobalNodeSz;
 
+        std::vector<DendroIntL> m_uiNodalOffset;
+
 
 
 
@@ -261,6 +263,9 @@ namespace ot
 
         /**@brief: returns the global MPI communicator*/
         inline MPI_Comm getGlobalComm() const { return m_uiMesh->getMPIGlobalCommunicator();}
+
+        /**@brief: returns the get nodal offset values. */
+        inline const std::vector<DendroIntL>& getNodalOffsets() const { return m_uiNodalOffset; }
         
         /**@brief: returns node local to node global map*/
         inline const std::vector<DendroIntL> getNodeLocalToGlobalMap() const {return m_uiLocalToGlobalNodalMap;}

@@ -38,7 +38,7 @@ namespace ot
         // perform element flags.
         ot::computeODAFlags(m_uiMesh,m_uiOctantFlags);
         // compute the local node to global node mapping.
-        ot::computeLocalToGlobalNodalMap(m_uiMesh,m_uiLocalToGlobalNodalMap,m_uiGlobalNodeSz);
+        ot::computeLocalToGlobalNodalMap(m_uiMesh,m_uiLocalToGlobalNodalMap,m_uiGlobalNodeSz,m_uiNodalOffset);
 
 
 
@@ -97,7 +97,7 @@ namespace ot
         // perform element flags.
         ot::computeODAFlags(m_uiMesh,m_uiOctantFlags);
         // compute the local node to global node mapping.
-        ot::computeLocalToGlobalNodalMap(m_uiMesh,m_uiLocalToGlobalNodalMap,m_uiGlobalNodeSz);
+        ot::computeLocalToGlobalNodalMap(m_uiMesh,m_uiLocalToGlobalNodalMap,m_uiGlobalNodeSz,m_uiNodalOffset);
 
 
 
@@ -197,7 +197,7 @@ namespace ot
             // perform element flags.
             ot::computeODAFlags(m_uiMesh,m_uiOctantFlags);
             // compute the local node to global node mapping.
-            ot::computeLocalToGlobalNodalMap(m_uiMesh,m_uiLocalToGlobalNodalMap,m_uiGlobalNodeSz);
+            ot::computeLocalToGlobalNodalMap(m_uiMesh,m_uiLocalToGlobalNodalMap,m_uiGlobalNodeSz,m_uiNodalOffset);
 
 
 

@@ -14,7 +14,7 @@
 #include <iostream>
 #include <functional>
 #include "daUtils.h"
-#include "../../BSSN_GR/include/lebedev.h"
+#include "lebedev.h"
 
 
 
