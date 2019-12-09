@@ -280,7 +280,7 @@ namespace ot {
     }
 
 
-    Mesh::Mesh(std::vector<ot::TreeNode> &in, unsigned int k_s, unsigned int pOrder,MPI_Comm comm,bool pBlockSetup, SM_TYPE smType, unsigned int grainSz,double ld_tol,unsigned int sf_k)
+    Mesh::Mesh(std::vector<ot::TreeNode> &in, unsigned int k_s, unsigned int pOrder,MPI_Comm comm,bool pBlockSetup, SM_TYPE smType, unsigned int grainSz,double ld_tol,unsigned int sf_k,unsigned int (*getWeight)(const ot::TreeNode *))
     {
 
         m_uiCommGlobal=comm;
@@ -318,7 +318,7 @@ namespace ot {
             par::splitComm2way(m_uiIsActive,&m_uiCommActive,m_uiCommGlobal);
         }
 
-        shrinkOrExpandOctree(in,ld_tol,sf_k,m_uiIsActive,m_uiCommActive,m_uiCommGlobal);
+        shrinkOrExpandOctree(in,ld_tol,sf_k,m_uiIsActive,m_uiCommActive,m_uiCommGlobal,getWeight);
 
         m_uiMeshDomain_min=0;
         m_uiMeshDomain_max=(1u<<(m_uiMaxDepth));
@@ -9497,7 +9497,7 @@ namespace ot {
 
         }
 
-        ot::Mesh * pMesh = new ot::Mesh(balOct1,1,m_uiElementOrder,m_uiCommGlobal,m_uiIsBlockSetup,m_uiScatterMapType,grainSz,ld_tol,sfK);
+        ot::Mesh * pMesh = new ot::Mesh(balOct1,1,m_uiElementOrder,m_uiCommGlobal,m_uiIsBlockSetup,m_uiScatterMapType,grainSz,ld_tol,sfK,getWeight);
         return pMesh;
 
 
@@ -12150,5 +12150,33 @@ namespace ot {
         
 
     }
+
+    void Mesh::computeMinMaxLevel(unsigned int &lmin,unsigned int &lmax) const
+    {
+        if(!m_uiIsActive)
+        {
+            lmin =0;
+            lmax =0;
+            return;
+        }
+
+        unsigned int lmin_l = m_uiAllElements[m_uiElementLocalBegin].getLevel();
+        unsigned int lmax_l = m_uiAllElements[m_uiElementLocalBegin].getLevel();
+        for(unsigned int e = m_uiElementLocalBegin +1; e < m_uiElementLocalEnd; e++ )
+        {
+            if(m_uiAllElements[e].getLevel() < lmin_l)
+             lmin_l = m_uiAllElements[e].getLevel();
+
+            if(m_uiAllElements[e].getLevel() > lmax_l)
+             lmax_l = m_uiAllElements[e].getLevel();
+
+        }
+
+
+        par::Mpi_Allreduce(&lmin_l,&lmin,1,MPI_MIN,m_uiCommActive);
+        par::Mpi_Allreduce(&lmax_l,&lmax,1,MPI_MAX,m_uiCommActive);
+
+    }
+
 
 }
