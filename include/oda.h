@@ -268,7 +268,7 @@ namespace ot
         inline const std::vector<DendroIntL>& getNodalOffsets() const { return m_uiNodalOffset; }
         
         /**@brief: returns node local to node global map*/
-        inline const std::vector<DendroIntL> getNodeLocalToGlobalMap() const {return m_uiLocalToGlobalNodalMap;}
+        inline const std::vector<DendroIntL>& getNodeLocalToGlobalMap() const {return m_uiLocalToGlobalNodalMap;}
 
         /**@brief returns the mesh*/
         inline const ot::Mesh* getMesh() const {return m_uiMesh;}

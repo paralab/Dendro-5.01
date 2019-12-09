@@ -1719,6 +1719,14 @@ public:
      */
     int getBlkBdyParentCNums(unsigned int blkId, unsigned int eleId, unsigned int dir, unsigned int* child, unsigned int* fid, unsigned int* cid);
 
+    /**
+     * @brief computes the min and the maximum level of refinement. 
+     * 
+     * @param lmin : min refinement accross all procs. 
+     * @param lmax : max refinement acrross all procs. 
+     */
+    void computeMinMaxLevel(unsigned int &lmin,unsigned int &lmax) const;
+
 };
 
 template <>

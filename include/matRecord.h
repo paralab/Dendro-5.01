@@ -215,7 +215,7 @@ namespace ot
 
             friend std::ostream & operator<< (std::ostream & os, MatRecord const & re) 
             {
-                return (os << " row : "<<re.getRowID() << " col: "<<re.getColID()<<" rdim: "<<re.getRowDim()<<" cdim: "<<re.getColDim() );
+                return (os << " row : "<<re.getRowID() << " col: "<<re.getColID()<<" rdim: "<<re.getRowDim()<<" cdim: "<<re.getColDim()<< "val: "<<re.getMatVal() );
             }
 
             

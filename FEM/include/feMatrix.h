@@ -122,7 +122,12 @@ public:
     */
     virtual void getMatDiagonal(VECType*& diag, double scale = 1.0);
 
-
+    /**
+     * @brief Get the block jacobi preconditioner
+     * 
+     * @param blkDiag : list of mat records containing the block diagonal Jacobi preconditioner. 
+     * @param scale : scale value (default is 1.0). 
+     */
     virtual void getMatBlockDiagonal(std::vector<ot::MatRecord>& blkDiag, double scale = 1.0);
 
 
@@ -150,6 +155,19 @@ public:
      * when the function returns, J is set to assembled matrix
      **/
     virtual bool getAssembledMatrix(Mat *J, MatType mtype);
+
+    /**
+     * @brief Get the Mat Block Diagonal object
+     * @param m : block diagonal matrix. 
+     */
+    virtual PetscInt getMatBlockDiagonal(Mat m, PetscScalar scale=1.0);
+
+    /**
+     * @brief Get the Mat Diagonal object
+     * 
+     * @param vec diagonal of the matrix. 
+     */
+    virtual PetscInt getMatDiagonal(Vec& vec, PetscScalar scale=1.0);
 
 
 #endif
@@ -423,7 +441,7 @@ void feMatrix<T>::getMatBlockDiagonal(std::vector<ot::MatRecord>& blkDiag, doubl
     if (!(m_uiOctDA->isActive()))
         return;
     
-    const unsigned int activeNpes = m_uiOctDA->getRankActive();
+    const unsigned int activeNpes = m_uiOctDA->getNpesActive();
 
     const unsigned int eleOrder = m_uiOctDA->getElementOrder();
     const unsigned int npe_1d = eleOrder + 1;
@@ -490,32 +508,32 @@ void feMatrix<T>::getMatBlockDiagonal(std::vector<ot::MatRecord>& blkDiag, doubl
 
     std::vector<ot::MatRecord> sendBuf;
     sendBuf.resize(rSendOffset[activeNpes-1] + rSendCount[activeNpes-1]);
-    
+
     for(unsigned int i=0; i< activeNpes; i++)
         rSendCount[i] = 0;
 
-    std::vector<ot::MatRecord> records;
     
-    nCount = 0;
     for (m_uiOctDA->init<ot::DA_FLAGS::LOCAL_ELEMENTS>();m_uiOctDA->curr() < m_uiOctDA->end<ot::DA_FLAGS::LOCAL_ELEMENTS>(); m_uiOctDA->next<ot::DA_FLAGS::LOCAL_ELEMENTS>()) 
     {
+        std::vector<ot::MatRecord> records;
+        records.reserve(nPe*m_uiDof * nPe * m_uiDof);
         const unsigned int currentId = m_uiOctDA->curr();
         m_uiOctDA->getElementalCoords(currentId, coords);
         getElementalMatrix(m_uiOctDA->curr(), records, coords);
         const unsigned int cnum = allElements[currentId].getMortonIndex();
-        
+
         pMesh->getElementQMat(m_uiOctDA->curr(),p2cEleMat,true);
         //printArray_2D(p2cEleMat,nPe,nPe);
-        fem_eMatTogMat(records.data() + nCount , p2cEleMat, eleOrder,m_uiDof);
-        
-        for(unsigned int i = nCount; i < records.size(); i++)
+        fem_eMatTogMat(records.data() , p2cEleMat, eleOrder,m_uiDof);
+
+        for(unsigned int i = 0; i < records.size(); i++)
         {
             if(_n2p[ records[i].getRowID() ] == _n2p[ records[i].getColID()])
             {   
                 const unsigned int rid = records[i].getRowID();
                 const unsigned int cid = records[i].getColID();
-                const unsigned int rid_g = l2g[rid];
-                const unsigned int cid_g = l2g[cid];
+                const DendroIntL rid_g = l2g[rid];
+                const DendroIntL cid_g = l2g[cid];
                 const unsigned int proc_owner = _n2p[rid];
                 assert(rid_g >= nodalOffsets[proc_owner]);
                 const unsigned int rid_l = rid_g - nodalOffsets[proc_owner];
@@ -525,12 +543,15 @@ void feMatrix<T>::getMatBlockDiagonal(std::vector<ot::MatRecord>& blkDiag, doubl
                 records[i].setColID(cid_l);
                 
                 sendBuf[rSendCount[_n2p[rid]]] = records[i];
-                rSendCount[_n2p[ records[i].getRowID() ]] ++;
+                rSendCount[_n2p[ rid ] ] ++;
             }
                 
         }
 
     }
+
+    // for(unsigned int i=0; i< activeNpes; i++)
+    //     std::cout<<" i: "<<i<<" rSendCount: "<<rSendCount[i]<<std::endl;
 
     postMat();
     par::Mpi_Alltoall(rSendCount,rRecvCount,1,m_uiOctDA->getCommActive());
@@ -546,6 +567,9 @@ void feMatrix<T>::getMatBlockDiagonal(std::vector<ot::MatRecord>& blkDiag, doubl
     delete [] rRecvCount;
     delete [] rSendOffset;
     delete [] rRecvOffset;
+    delete [] _n2p;
+    delete [] coords;
+    delete [] p2cEleMat;
     
     std::sort(recvBuf.begin(),recvBuf.end());
     blkDiag.clear();
@@ -657,6 +681,35 @@ bool feMatrix<T>::getAssembledMatrix(Mat *J, MatType mtype) {
     
 }
 
+
+template<typename T>
+PetscInt feMatrix<T>::getMatDiagonal(Vec& vec, PetscScalar scale)
+{
+    m_uiOctDA->petscCreateVector(vec,false,false,m_uiDof);
+    VECType * diag =NULL;
+    VecGetArray(vec,&diag);
+    this->getMatDiagonal(diag,(double)scale);
+    VecRestoreArray(vec,&diag);
+    return 0; 
+}
+
+template<typename T>
+PetscInt feMatrix<T>::getMatBlockDiagonal(Mat m, PetscScalar scale)
+{
+    std::vector<ot::MatRecord> blkDiag;
+    this->getMatBlockDiagonal(blkDiag,(double)scale);
+
+    for(unsigned int i=0; i< blkDiag.size(); i++)
+    {
+        blkDiag[i].setRowID(blkDiag[i].getRowID() + m_uiOctDA->getPreNodalSz());
+        blkDiag[i].setColID(blkDiag[i].getColID() + m_uiOctDA->getPreNodalSz());
+    }
+
+    m_uiOctDA->petscSetValuesInMatrix(m,blkDiag,m_uiDof,ADD_VALUES);
+    
+    return 0;
+    
+}
 
 #endif
 
