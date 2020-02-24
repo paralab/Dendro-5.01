@@ -351,86 +351,61 @@ void feMatrix<T>::matVec(const VECType *in, VECType *out, double scale) {
 template<typename T>
 void feMatrix<T>::getMatDiagonal(VECType*& diag, double scale)
 {
-
     VECType *_diag = NULL;
-    diag = NULL;
-    
+    _diag = NULL;
     if (!(m_uiOctDA->isActive()))
         return;
-    
     m_uiOctDA->createVector(_diag, false, true, m_uiDof);
-
     VECType *val = new VECType[m_uiDof];
     for (unsigned int var = 0; var < m_uiDof; var++)
         val[var] = (VECType) 0;
-
     m_uiOctDA->setVectorByScalar(_diag, val, false, true, m_uiDof);
-
     delete[] val;
-
     const unsigned int eleOrder = m_uiOctDA->getElementOrder();
     const unsigned int npe_1d = eleOrder + 1;
     const unsigned int npe_2d = (eleOrder + 1) * (eleOrder + 1);
     const unsigned int nPe = (eleOrder + 1) * (eleOrder + 1) * (eleOrder + 1);
-    
     const ot::Mesh *pMesh = m_uiOctDA->getMesh();
     const ot::TreeNode *allElements = &(*(pMesh->getAllElements().begin()));
-    
     DendroScalar *p2cEleMat = new DendroScalar[nPe * nPe];
-    
     preMat();
-
     unsigned int nCount = 0;
-
     double *coords = new double[m_uiDim * nPe];
-    
     bool faceHang[NUM_FACES];
     bool edgeHang[NUM_EDGES];
     unsigned int cnumFace[NUM_FACES];
     unsigned int cnumEdge[NUM_EDGES];
-
     const unsigned int * e2n_cg = &(*(pMesh->getE2NMapping().begin()));
     const unsigned int * e2n_dg = &(*(pMesh->getE2NMapping_DG().begin()));
     const unsigned int * e2e = &(*(pMesh->getE2EMapping().begin()));
-
     const unsigned int eleLocalBegin = pMesh->getElementLocalBegin();
     const unsigned int eleLocalEnd = pMesh -> getElementLocalEnd();
     const unsigned int totalNodes = pMesh->getDegOfFreedom();
-
-    for (m_uiOctDA->init<ot::DA_FLAGS::LOCAL_ELEMENTS>();m_uiOctDA->curr() < m_uiOctDA->end<ot::DA_FLAGS::LOCAL_ELEMENTS>(); m_uiOctDA->next<ot::DA_FLAGS::LOCAL_ELEMENTS>()) 
+    for (m_uiOctDA->init<ot::DA_FLAGS::LOCAL_ELEMENTS>();m_uiOctDA->curr() < m_uiOctDA->end<ot::DA_FLAGS::LOCAL_ELEMENTS>(); m_uiOctDA->next<ot::DA_FLAGS::LOCAL_ELEMENTS>())
     {
         std::vector<ot::MatRecord> records;
         const unsigned int currentId = m_uiOctDA->curr();
         m_uiOctDA->getElementalCoords(currentId, coords);
         getElementalMatrix(m_uiOctDA->curr(), records, coords);
         const unsigned int cnum = allElements[currentId].getMortonIndex();
-        
         pMesh->getElementQMat(m_uiOctDA->curr(),p2cEleMat,true);
         //printArray_2D(p2cEleMat,nPe,nPe);
         fem_eMatTogMat(records.data() , p2cEleMat, eleOrder,m_uiDof);
-        
         for(unsigned int i = 0; i < records.size(); i++)
         {
-            if( (records[i].getRowID() == records[i].getColID()) && (records[i].getRowDim() == records[i].getColDim()))
-                _diag[ records[i].getRowDim() * totalNodes + records[i].getRowID() ] += (scale*records[i].getMatVal());
+            if( (records[i].getRowID() == records[i].getColID()) && (records[i].getRowDim() == records[i].getColDim())) {
+              _diag[records[i].getRowDim() * totalNodes + records[i].getRowID()] += (scale * records[i].getMatVal());
+            }
         }
-
-        
-
     }
-
     postMat();
-
     m_uiOctDA->writeToGhostsBegin(_diag,m_uiDof);
     m_uiOctDA->writeToGhostsEnd(_diag,ot::DA_FLAGS::WriteMode::ADD_VALUES,m_uiDof);
-    
     delete [] coords;
     delete [] p2cEleMat;
-
-    m_uiOctDA->ghostedNodalToNodalVec(_diag,diag,false,m_uiDof);
-
+    m_uiOctDA->ghostedNodalToNodalVec(_diag,diag,true,m_uiDof);
+    delete [] _diag;
     return;
-
 }
 
 
