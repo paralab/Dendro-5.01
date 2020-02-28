@@ -105,7 +105,7 @@ void ot::computeODAFlags(const ot::Mesh *pMesh, std::vector<unsigned int> &flagL
 }
 
 
-void ot::computeLocalToGlobalNodalMap(const ot::Mesh* pMesh,std::vector<DendroIntL>& map,DendroIntL& globalNodeSz)
+void ot::computeLocalToGlobalNodalMap(const ot::Mesh* pMesh,std::vector<DendroIntL>& map,DendroIntL& globalNodeSz,std::vector<DendroIntL>&nodalOffset)
 {
 
     map.clear();
@@ -123,6 +123,7 @@ void ot::computeLocalToGlobalNodalMap(const ot::Mesh* pMesh,std::vector<DendroIn
 
         const unsigned int nodePostGhostBegin=pMesh->getNodePostGhostBegin();
         const unsigned int nodePostGhostEnd=pMesh->getNodePostGhostEnd();
+        
 
         if(npesAll==1) {
 
@@ -130,6 +131,9 @@ void ot::computeLocalToGlobalNodalMap(const ot::Mesh* pMesh,std::vector<DendroIn
                 map[node]=node;
             
             globalNodeSz=pMesh->getNumLocalMeshNodes();
+
+            nodalOffset.resize(1);
+            nodalOffset[0]=0;
 
         }else{
 
@@ -142,20 +146,23 @@ void ot::computeLocalToGlobalNodalMap(const ot::Mesh* pMesh,std::vector<DendroIn
             const unsigned int activeNpes=pMesh->getMPICommSize();
             const unsigned int activeRank=pMesh->getMPIRank();
 
+            nodalOffset.resize(activeNpes);
+            nodalOffset[0]=0;
+
             MPI_Comm activeComm=pMesh->getMPICommunicator();
 
-            unsigned int localNodes=pMesh->getNumLocalMeshNodes();
-            unsigned int * nodalCount=new unsigned int [activeNpes];
-            unsigned int * nodalOffset=new unsigned int [activeNpes];
+            DendroIntL localNodes=pMesh->getNumLocalMeshNodes();
+            DendroIntL * nodalCount=new DendroIntL [activeNpes];
+            
 
             for(unsigned int p=0;p<activeNpes;p++)
                 nodalCount[p]=0;
 
             par::Mpi_Allgather(&localNodes,nodalCount,1,activeComm);
 
-            nodalOffset[0]=0;
-            omp_par::scan(nodalCount,nodalOffset,activeNpes);
-
+            
+            omp_par::scan(nodalCount,nodalOffset.data(),activeNpes);
+            
             globalNodeSz=nodalOffset[activeNpes-1] + nodalCount[activeNpes-1];
 
             for(unsigned int node=nodeLocalBegin;node<nodeLocalEnd;node++)
@@ -163,8 +170,7 @@ void ot::computeLocalToGlobalNodalMap(const ot::Mesh* pMesh,std::vector<DendroIn
 
 
             delete [] nodalCount;
-            delete [] nodalOffset;
-
+            
             const unsigned int * sendNodeOffset = &(*(pMesh->getNodalSendOffsets().begin()));
             const unsigned int * sendNodeCounts = &(*(pMesh->getNodalSendCounts().begin()));
 

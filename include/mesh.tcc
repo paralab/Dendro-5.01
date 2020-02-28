@@ -1281,8 +1281,8 @@ namespace ot
                         //       for(unsigned int i=0; i<4; i+=3)                                
                         //         waveletR[k*16 + j*4 + i] =0;
 
-                         //l_inf=normLInfty(waveletR,num_wr);
-                         l_inf = normL2(waveletR,num_wr)/num_wr;
+                         l_inf=normLInfty(waveletR,num_wr);
+                         //l_inf = normL2(waveletR,num_wr)/num_wr;
 
                             // for(unsigned int k=1; k<3; k+=1)
                             //   for(unsigned int j=1; j<3; j+=1)
@@ -1390,9 +1390,9 @@ namespace ot
                         {
                             coarsen_wavelets(&unzippedVec[varIds[var]][offset],m_uiElementOrder,eIndex,paddWidth,sz,waveletC,num_wc,(double**)ws);
                             //computeCoarsenWavelets(unzippedVec[varIds[var]],offset,m_uiElementOrder,eIndex,paddWidth,sz,waveletC);
-                            //l_inf=normLInfty(waveletC,NUM_COARSE_WAVELET_COEF);
+                            l_inf=normLInfty(waveletC,NUM_COARSE_WAVELET_COEF);
                             //l_inf=normLInfty(waveletC,num_wc);
-                            l_inf = normL2(waveletC,num_wc)/num_wc;
+                            //l_inf = normL2(waveletC,num_wc)/num_wc;
                             if(l_inf>amr_coarse_fac*tol)
                             {
                                 isCoarsen=false;

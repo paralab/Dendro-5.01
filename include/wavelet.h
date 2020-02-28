@@ -319,7 +319,7 @@ void refine_wavelets(const T* unzippedVec, const unsigned int eleOrder,const uns
        for(unsigned int j = 1; j < 2*pp+1; j+=2 )
         for(unsigned int i = 1; i < 2*pp+1; i+=2, m++)
         {
-            wavelets[m] = fabs(wIn[(k)*(eleOrder+1)*(eleOrder+1) + (j)*(eleOrder+1) + (i)] - wOut[(k)*(eleOrder+1)*(eleOrder+1) + (j)*(eleOrder+1) + (i)] );
+            wavelets[m] = fabs(wIn[(k)*(eleOrder+1)*(eleOrder+1) + (j)*(eleOrder+1) + (i)] - wOut[(k)*(eleOrder+1)*(eleOrder+1) + (j)*(eleOrder+1) + (i)] )/pow(2,pp+1);
             //std::cout<<" wIn: "<<wIn[(k)*(eleOrder+1)*(eleOrder+1) + (j)*(eleOrder+1) + (i)] <<" wOut: "<<wOut[(k)*(eleOrder+1)*(eleOrder+1) + (j)*(eleOrder+1) + (i)]//<<std::endl;  
         }
 

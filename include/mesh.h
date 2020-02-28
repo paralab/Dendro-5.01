@@ -1012,7 +1012,7 @@ public:
          * @param[in] ld_tol: load imbalance tolerance for comm expansion and shrinking
          * @param[in] sf_k: splitter fix _k value. (Needed by SFC_partitioinng for large p>=10,000)
          * */
-    Mesh(std::vector<ot::TreeNode> &in, unsigned int k_s, unsigned int pOrder, MPI_Comm comm, bool pBlockSetup = true, SM_TYPE smType = SM_TYPE::FDM, unsigned int grainSz = DENDRO_DEFAULT_GRAIN_SZ, double ld_tol = DENDRO_DEFAULT_LB_TOL, unsigned int sf_k = DENDRO_DEFAULT_SF_K);
+    Mesh(std::vector<ot::TreeNode> &in, unsigned int k_s, unsigned int pOrder, MPI_Comm comm, bool pBlockSetup = true, SM_TYPE smType = SM_TYPE::FDM, unsigned int grainSz = DENDRO_DEFAULT_GRAIN_SZ, double ld_tol = DENDRO_DEFAULT_LB_TOL, unsigned int sf_k = DENDRO_DEFAULT_SF_K, unsigned int (*getWeight)(const ot::TreeNode *)=NULL );
 
     /**@brief destructor for mesh (releases the allocated variables in the class. )*/
     ~Mesh();
@@ -1718,6 +1718,14 @@ public:
      * @param[out] cid: reference pointer to the child array for the coarser elements. (if it was refined. (cnumbers reference to the coarser elements))
      */
     int getBlkBdyParentCNums(unsigned int blkId, unsigned int eleId, unsigned int dir, unsigned int* child, unsigned int* fid, unsigned int* cid);
+
+    /**
+     * @brief computes the min and the maximum level of refinement. 
+     * 
+     * @param lmin : min refinement accross all procs. 
+     * @param lmax : max refinement acrross all procs. 
+     */
+    void computeMinMaxLevel(unsigned int &lmin,unsigned int &lmax) const;
 
 };
 

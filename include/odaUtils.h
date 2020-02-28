@@ -32,7 +32,7 @@ namespace ot
       * @param[in] pMesh: ot::Mesh generated form 2:1 balanced octree
       * @param[out] map: constructed local to global nodal map.
       * */
-    void computeLocalToGlobalNodalMap(const ot::Mesh* pMesh,std::vector<DendroIntL>& map, DendroIntL& globalNodeSz);
+    void computeLocalToGlobalNodalMap(const ot::Mesh* pMesh,std::vector<DendroIntL>& map, DendroIntL& globalNodeSz, std::vector<DendroIntL>& nodalOffset);
 
 
 } // end of namespace ot

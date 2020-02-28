@@ -213,7 +213,7 @@ void partitionBasedOnSplitters(std::vector<T>& pNodes, const T* splitters, unsig
  * @para[in] comm2: current communicator.
  * */
 template <typename T>
-void shrinkOrExpandOctree(std::vector<T> & in,const double ld_tol,const unsigned int sf_k,bool isActive,MPI_Comm activeComm, MPI_Comm globalComm);
+void shrinkOrExpandOctree(std::vector<T> & in,const double ld_tol,const unsigned int sf_k,bool isActive,MPI_Comm activeComm, MPI_Comm globalComm,unsigned int (*getWeight)(const ot::TreeNode *)=NULL);
 
 
 /**
@@ -587,7 +587,7 @@ bool linearSearch(const T * pNodes, const T& key,unsigned int n,unsigned int sWi
 
 
 template <typename T>
-void shrinkOrExpandOctree(std::vector<T> & in,const double ld_tol,const unsigned int sf_k,bool isActive,MPI_Comm activeComm, MPI_Comm globalComm)
+void shrinkOrExpandOctree(std::vector<T> & in,const double ld_tol,const unsigned int sf_k,bool isActive,MPI_Comm activeComm, MPI_Comm globalComm,unsigned int (*getWeight)(const ot::TreeNode *))
 {
 
     int rank_g,npes_g;
@@ -659,6 +659,8 @@ void shrinkOrExpandOctree(std::vector<T> & in,const double ld_tol,const unsigned
         SFC::parSort::SFC_treeSort(in,recvBuf,recvBuf,recvBuf,ld_tol,m_uiMaxDepth,rootTN,ROOT_ROTATION,1,TS_REMOVE_DUPLICATES,sf_k,activeComm);
         std::swap(in,recvBuf);
         recvBuf.clear();
+        if(getWeight!=NULL ) 
+            par::partitionW(in,getWeight,activeComm);
         assert(par::test::isUniqueAndSorted(in,activeComm));
     }
 
