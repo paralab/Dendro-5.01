@@ -108,14 +108,14 @@ if(MANUAL_BLAS_LAPACK)
 else ()
     find_package(BLAS REQUIRED)
     find_package(LAPACK REQUIRED)
-    set(LAPACK_LINKER_FLAGS -llapacke -llapack -lblas -lgfortran -lquadmath)
-    set(LAPACKE_DIR $ENV{LAPACK}/LAPACKE)
+    set(LAPACK_LINKER_FLAGS -llapack -lblas -lgfortran -lquadmath)
+    #set(LAPACKE_DIR $ENV{LAPACK}/LAPACKE)
     set(LINK_FLAGS "${LINK_FLAGS} ${LAPACK_LINKER_FLAGS}")
-    find_library(LAPACKE_LIB
-            NAMES lapacke lapackelib liblapacke
-            HINTS "/usr/lib/"
-            )
-    set(LAPACK_LIBRARIES ${LAPACK_LIBRARIES} ${LAPACKE_LIB})
+    #find_library(LAPACKE_LIB
+    #        NAMES lapacke lapackelib liblapacke
+    #        HINTS "/usr/lib/"
+    #        )
+    set(LAPACK_LIBRARIES ${LAPACK_LIBRARIES})
     message(STATUS ${LAPACK_LIBRARIES})
 endif()
 
@@ -193,7 +193,6 @@ endif()
 
 add_definitions(-DMATVEC_PROFILE)
 
-set(LAPACK_INC /home/milinda/Programs/lapack-3.7.0/LAPACKE/include/)
 
 set(DENDRO_INCLUDE_FILES
         include/point.h
@@ -375,10 +374,10 @@ endif()
 
 if(WITH_BLAS_LAPACK)
     if(MANUAL_BLAS_LAPACK)
-        target_include_directories(dendro5 PUBLIC ${LAPACKE_DIR}/include)
+        #target_include_directories(dendro5 PUBLIC ${LAPACKE_DIR}/include)
     else()
-        target_include_directories(dendro5 PUBLIC ${LAPACK_INCLUDE_DIR})
-        target_include_directories(dendro5 PUBLIC ${LAPACKE_DIR}/include)
+        #target_include_directories(dendro5 PUBLIC ${LAPACK_INCLUDE_DIR})
+        #target_include_directories(dendro5 PUBLIC ${LAPACKE_DIR}/include)
     endif()
 endif()
 
