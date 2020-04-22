@@ -22,7 +22,7 @@
 #include "parameters.h"
 #include "nlsm.h"
 #include "rhs.h"
-#include "test/meshTestUtils.h"
+#include "meshTestUtils.h"
 #include "mathMeshUtils.h"
 
 

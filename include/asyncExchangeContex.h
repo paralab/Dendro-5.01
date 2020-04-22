@@ -1,11 +1,13 @@
-//
-// Created by milinda on 11/19/18.
-//
-
 /**
- * @brief Simple class to manage async data transfer in the ODA class.
- * */
-
+ * @file asyncExchangeContex.h
+ * @author Milinda Fernando (milinda@cs.utah.edu)
+ * @brief Context information for asynchronous communication 
+ * @version 0.1
+ * @date 2018-11-19
+ * 
+ * @copyright Copyright (c) 2020
+ * 
+ */
 
 #ifndef DENDRO_5_0_UPDATECTX_H
 #define DENDRO_5_0_UPDATECTX_H
@@ -17,15 +19,15 @@ namespace ot {
 
     class AsyncExchangeContex {
 
-        private :
+        protected :
             /** pointer to the variable which perform the ghost exchange */
-            void* m_uiBuffer;
+            void* m_uiBuffer=NULL;
 
             /** pointer to the send buffer*/
-            void* m_uiSendBuf;
+            void* m_uiSendBuf=NULL;
 
             /** pointer to the send buffer*/
-            void* m_uiRecvBuf;
+            void* m_uiRecvBuf=NULL;
 
             std::vector<MPI_Request*>  m_uiRequests;
 
@@ -38,6 +40,9 @@ namespace ot {
                 m_uiRecvBuf=NULL;
                 m_uiRequests.clear();
             }
+
+            /**@brief : defaut destructor*/
+            ~AsyncExchangeContex() {};
 
             /**@brief allocates send buffer for ghost exchange*/
             inline void allocateSendBuffer(size_t bytes)
@@ -72,21 +77,10 @@ namespace ot {
 
             inline std::vector<MPI_Request*>& getRequestList(){ return m_uiRequests;}
 
-            bool operator== (AsyncExchangeContex other) const{
+            virtual bool operator== (AsyncExchangeContex other) const{
                 return( m_uiBuffer == other.m_uiBuffer );
             }
-
-            ~AsyncExchangeContex() {
-
-               /* for(unsigned int i=0;i<m_uiRequests.size();i++)
-                {
-                    delete m_uiRequests[i];
-                    m_uiRequests[i]=NULL;
-                }
-
-                m_uiRequests.clear();*/
-
-            }
+               
 
     };
 

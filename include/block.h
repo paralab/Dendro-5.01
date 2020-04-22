@@ -24,13 +24,11 @@ namespace ot
    /**
     * @brief Block type 
     * UNSPECIFIED : block flag type is not set
-    * INTRNL_INDEPENDENT: Block internal is independent from ghost nodes
-    * INTRNL_DEPENDENT: Block  internal is dependent from ghost nodes
-    * FULLY_INDEPENDENT : Denotes that the all the block element nodal including padding regions are independent from ghost nodes. 
-    * FULLY_DEPENDENT: Denotes that all the block element nodal including padding region is depend on the ghost nodes.  
+    * UNZIP_INDEPENDENT: unzip operation does not depend on ghost nodes
+    * UNZIP_DEPENDENT: unzip operation does depend on at least one ghost node
     * 
     */
-   enum BlockType{UNSPECIFIED=0, INTRNL_INDEPENDENT, INTRNL_DEPENDENT, FULLY_INDEPENDENT, FULLY_DEPENDENT};
+   enum BlockType{UNSPECIFIED=0, UNZIP_INDEPENDENT, UNZIP_DEPENDENT};
 
    class Block
    {
@@ -219,6 +217,12 @@ namespace ot
 
      /*** @brief initialize the block vertex neighbour map. */
      void initializeBlkVertexMap(const unsigned int value);
+
+     /**@brief compute the eijk for an element inside the block.  */
+     void computeEleIJK(ot::TreeNode pNode, unsigned int* eijk) const;
+
+     /**@brief: returns true if the pNode is inside the current block*/
+     bool isBlockInternalEle(ot::TreeNode pNode) const ; 
 
 
 

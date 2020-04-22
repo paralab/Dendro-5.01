@@ -280,13 +280,14 @@ namespace ot {
     }
 
 
-    Mesh::Mesh(std::vector<ot::TreeNode> &in, unsigned int k_s, unsigned int pOrder,MPI_Comm comm,bool pBlockSetup, SM_TYPE smType, unsigned int grainSz,double ld_tol,unsigned int sf_k,unsigned int (*getWeight)(const ot::TreeNode *))
+    Mesh::Mesh(std::vector<ot::TreeNode> &in, unsigned int k_s, unsigned int pOrder,MPI_Comm comm,bool pBlockSetup, SM_TYPE smType, unsigned int grainSz,double ld_tol,unsigned int sf_k,unsigned int (*getWeight)(const ot::TreeNode *), unsigned int coarsetBlkLev)
     {
 
         m_uiCommGlobal=comm;
         m_uiIsBlockSetup=pBlockSetup;
         m_uiScatterMapType= smType;
         m_uiIsF2ESetup=false;
+        m_uiCoarsetBlkLev = coarsetBlkLev;
         MPI_Comm_rank(m_uiCommGlobal,&m_uiGlobalRank);
         MPI_Comm_size(m_uiCommGlobal,&m_uiGlobalNpes);
 
@@ -2270,17 +2271,47 @@ namespace ot {
         // determine whether the each local element is hanging or not. If is it hanging it will be participated in the layer 2 ghost level exchange.
 
         m_uiScatterMapElementRound1.clear();
+
+        m_uiSendEleCount.resize(npes);
+        m_uiRecvEleCount.resize(npes);
+        m_uiSendEleOffset.resize(npes);
+        m_uiRecvEleOffset.resize(npes);
+
         for(unsigned int p=0;p<npes;p++)
         {
             std::sort(scatterMapSend_R1[p].begin(),scatterMapSend_R1[p].end());
             scatterMapSend_R1[p].erase(std::unique(scatterMapSend_R1[p].begin(),scatterMapSend_R1[p].end()),scatterMapSend_R1[p].end());
             m_uiScatterMapElementRound1.insert(m_uiScatterMapElementRound1.end(),scatterMapSend_R1[p].begin(),scatterMapSend_R1[p].end());
             m_uiSendOctCountRound1[p]=scatterMapSend_R1[p].size();
+            m_uiSendEleCount[p] = scatterMapSend_R1[p].size();
             scatterMapSend_R1[p].clear();
         }
 
-        m_uiSendOctOffsetRound1[0]=0;
-        omp_par::scan(m_uiSendOctCountRound1,m_uiSendOctOffsetRound1,npes);
+
+        // finalized round 1 ghost exchange elements including face, edge and vertex. 
+
+        par::Mpi_Alltoall(m_uiSendEleCount.data(),m_uiRecvEleCount.data(),1,m_uiCommActive);
+        m_uiSendEleOffset[0]=0;
+        m_uiRecvEleOffset[0]=0;
+
+        omp_par::scan(m_uiSendEleCount.data() , m_uiSendEleOffset.data() , npes);
+        omp_par::scan(m_uiRecvEleCount.data() , m_uiRecvEleOffset.data() , npes);
+
+
+        for(unsigned int p=0; p < npes ; p ++)
+            m_uiSendOctOffsetRound1[p] = m_uiSendEleOffset[p];
+        
+
+
+        // for(unsigned int p=0;p<npes;p++)
+        // {
+        // std::cout<<" proc: "<<m_uiActiveRank<<" to "<<p<<" sendOctR1 : "<<m_uiSendEleCount[p] <<" offset send : "<<m_uiSendEleOffset[p]<<std::endl;
+        // }
+
+        // for(unsigned int p=0;p<npes;p++)
+        // {
+        //     std::cout<<" proc: "<<m_uiActiveRank<<" from "<<p<<" recvOctR1 : "<<m_uiRecvEleCount[p]<<" offset recv : "<<m_uiRecvEleOffset[p]<<std::endl;
+        // }
 
         delete [] scatterMapSend_R1;
 
@@ -2294,6 +2325,8 @@ namespace ot {
         for(unsigned int e=m_uiElementPostGhostBegin;e<m_uiElementPostGhostEnd;e++)
             gKeys_R1.push_back(m_uiAllElements[e]);
 
+        
+        
 
 
         //8 R2 ghost exchange =====================================================================================================================================================================================================
@@ -2636,6 +2669,44 @@ namespace ot {
         for(unsigned int i=0;i<m_uiGhostElementRound1Index.size();i++)
             if(!m_uiIsNodalMapValid[m_uiGhostElementRound1Index[i]])
                 std::cout<<"invalid nodal elemental map"<<std::endl;
+
+        
+        // clear and compute the send & recv proc list for elemental ghost exchange
+
+        m_uiElementSendProcList.clear();
+        m_uiElementRecvProcList.clear();
+
+        for(unsigned int p=0; p < m_uiActiveNpes; p++ )
+        {
+            if(m_uiSendEleCount[p] > 0)
+                m_uiElementSendProcList.push_back(p);
+
+            if(m_uiRecvEleCount[p] > 0 )
+                m_uiElementRecvProcList.push_back(p);
+
+        }
+
+        // if(m_uiActiveRank==1)
+        // {
+        //     for(unsigned int i=0;  i < m_uiScatterMapElementRound1.size(); i++)
+        //         std::cout<<YLW<<" rank: "<<m_uiActiveRank<< " send ele : "<<m_uiAllElements[ m_uiElementLocalBegin + m_uiScatterMapElementRound1[i]]<<NRM<<"\n";
+
+        //     for(unsigned int i=0;  i < m_uiGhostElementRound1Index.size(); i++)
+        //         std::cout<<GRN<<" rank: "<<m_uiActiveRank<< " recv ele : "<<m_uiAllElements[m_uiGhostElementRound1Index[i]]<<NRM<<"\n";
+        // }
+
+        // MPI_Barrier(m_uiCommActive);
+
+        // if(m_uiActiveRank==0)
+        // {
+        //     for(unsigned int i=0;  i < m_uiScatterMapElementRound1.size(); i++)
+        //         std::cout<<YLW<<" rank: "<<m_uiActiveRank<< " send ele : "<<m_uiAllElements[ m_uiElementLocalBegin +  m_uiScatterMapElementRound1[i]]<<NRM<<"\n";
+
+        //     for(unsigned int i=0;  i < m_uiGhostElementRound1Index.size(); i++)
+        //         std::cout<<GRN<<" rank: "<<m_uiActiveRank<< " recv ele : "<<m_uiAllElements[m_uiGhostElementRound1Index[i]]<<NRM<<"\n";
+        // }
+            
+
 
         //std::cout<<" rank: "<<m_uiActiveRank<<" m_uiGR1 Size: "<<m_uiGhostElementRound1Index.size()<<std::endl;
 
@@ -4256,17 +4327,16 @@ namespace ot {
         m_uiRecvNodeOffset.resize(npes);
 
         for(unsigned int p=0;p<npes;p++)
-            m_uiSendNodeCount[p] = m_uiSendOctCountRound1[p];
+        {
+            m_uiSendNodeCount[p] = m_uiSendEleCount[p]*m_uiNpE;
+            m_uiRecvNodeCount[p] = m_uiRecvEleCount[p]*m_uiNpE;
 
-        par::Mpi_Alltoall(m_uiSendNodeCount.data(),m_uiRecvNodeCount.data(),1,comm);
+            m_uiSendNodeOffset[p] = m_uiSendEleOffset[p]*m_uiNpE;
+            m_uiRecvNodeOffset[p] = m_uiRecvNodeOffset[p]*m_uiNpE;
+
+        }
         
-        m_uiSendNodeOffset[0] = 0;
-        m_uiRecvNodeOffset[0] = 0;
-
-        omp_par::scan(m_uiSendNodeCount.data(),m_uiSendNodeOffset.data(),npes);
-        omp_par::scan(m_uiRecvNodeCount.data(),m_uiRecvNodeOffset.data(),npes);
-
-        if((m_uiRecvNodeOffset[npes-1] + m_uiRecvNodeCount[npes-1]) != m_uiGhostElementRound1Index.size() )
+        if((m_uiRecvNodeOffset[npes-1] + m_uiRecvNodeCount[npes-1]) != m_uiGhostElementRound1Index.size()*m_uiNpE )
         {
             std::cout<<"Error: "<<__func__ <<" line: "<<__LINE__<<" send and recv DG node mismatch "<<std::endl;
             MPI_Abort(comm,0);
@@ -4276,24 +4346,24 @@ namespace ot {
         m_uiScatterMapActualNodeSend.clear();
         m_uiScatterMapActualNodeRecv.clear();
 
-        m_uiScatterMapActualNodeSend.resize( (m_uiSendNodeOffset[npes-1] + m_uiSendNodeCount[npes-1]) * m_uiNpE );
-        m_uiScatterMapActualNodeRecv.resize( (m_uiRecvNodeOffset[npes-1] + m_uiRecvNodeCount[npes-1]) * m_uiNpE );
+        m_uiScatterMapActualNodeSend.resize( (m_uiSendNodeOffset[npes-1] + m_uiSendNodeCount[npes-1])  );
+        m_uiScatterMapActualNodeRecv.resize( (m_uiRecvNodeOffset[npes-1] + m_uiRecvNodeCount[npes-1])  );
 
         unsigned int nCount = 0; 
         // note that we don't need all the only surface points are enough. 
         for(unsigned int p=0; p < npes; p++)
         {
-            for(unsigned int k= m_uiSendNodeOffset[p]; k < (m_uiSendNodeOffset[p] + m_uiSendNodeCount[p]) ; k++)
+            for(unsigned int k= m_uiSendEleOffset[p]; k < (m_uiSendEleOffset[p] + m_uiSendEleCount[p]) ; k++)
             {
                 for(unsigned int n=0; n  < m_uiNpE; n++, nCount++)
-                    m_uiScatterMapActualNodeSend[nCount] = m_uiE2NMapping_CG[m_uiScatterMapElementRound1[k]*m_uiNpE + n];
+                    m_uiScatterMapActualNodeSend[nCount] = m_uiE2NMapping_CG[(m_uiScatterMapElementRound1[k] + m_uiElementLocalBegin )*m_uiNpE + n];
             }
         }
         
         nCount=0;
         for(unsigned int p=0; p < npes; p++)
         {
-            for(unsigned int k= m_uiRecvNodeOffset[p]; k < (m_uiRecvNodeOffset[p] + m_uiRecvNodeCount[p]) ; k++)
+            for(unsigned int k= m_uiRecvEleOffset[p]; k < (m_uiRecvEleOffset[p] + m_uiRecvEleCount[p]) ; k++)
             {
                 for(unsigned int n=0; n  < m_uiNpE; n++, nCount++)
                     m_uiScatterMapActualNodeRecv[nCount] = m_uiE2NMapping_CG[m_uiGhostElementRound1Index[k]*m_uiNpE + n];
@@ -4301,16 +4371,6 @@ namespace ot {
         }
 
 
-        for(unsigned int p=0;p<npes;p++)
-        {
-            m_uiSendNodeCount[p] *= m_uiNpE;
-            m_uiRecvNodeCount[p] *= m_uiNpE;
-
-            m_uiSendNodeOffset[p] *= m_uiNpE;
-            m_uiRecvNodeOffset[p] *= m_uiNpE;
-
-        }
-        
         return;
 
     }
@@ -8404,6 +8464,174 @@ namespace ot {
 
     }
 
+    void Mesh::flagBlockGhostDependancies()
+    {
+        if(m_uiIsActive)
+        {
+
+            const ot::TreeNode* const pNodes = m_uiAllElements.data();
+
+            for(unsigned int blk=0; blk<m_uiLocalBlockList.size(); blk++)
+            {
+                const ot::TreeNode blkNode = m_uiLocalBlockList[blk].getBlockNode();
+                const unsigned int regLev = m_uiLocalBlockList[blk].getRegularGridLev();
+                BlockType btype;
+                bool is_blk_internal_independent = true;
+                for(unsigned int elem=m_uiLocalBlockList[blk].getLocalElementBegin();elem<m_uiLocalBlockList[blk].getLocalElementEnd();elem++)
+                {
+                    const unsigned int ei=(pNodes[elem].getX()-blkNode.getX())>>(m_uiMaxDepth-regLev);
+                    const unsigned int ej=(pNodes[elem].getY()-blkNode.getY())>>(m_uiMaxDepth-regLev);
+                    const unsigned int ek=(pNodes[elem].getZ()-blkNode.getZ())>>(m_uiMaxDepth-regLev);
+
+                    const unsigned int emin = 0;
+                    const unsigned int emax = (1u<<(regLev-blkNode.getLevel()))-1;
+
+                    if( !((ei == emin) || (ej == emin) || (ek== emin) || (ei==emax) || (ej==emax) || (ek==emax)) )
+                    {
+                        // this should be true since internal elements should be independent. 
+                        assert(this->getElementType(elem) == EType::INDEPENDENT); 
+                        continue;
+                    }
+                    
+                    if(this->getElementType(elem) == EType::W_DEPENDENT)
+                    {
+                        is_blk_internal_independent = false;
+                        break;
+                    }
+
+                }
+
+                bool is_blk_independent;
+                unsigned int lookup;
+                if( is_blk_internal_independent )
+                {
+                    is_blk_independent = true;
+                    for(unsigned int elem=m_uiLocalBlockList[blk].getLocalElementBegin();elem<m_uiLocalBlockList[blk].getLocalElementEnd();elem++)
+                    {
+                        const unsigned int ei=(pNodes[elem].getX()-blkNode.getX())>>(m_uiMaxDepth-regLev);
+                        const unsigned int ej=(pNodes[elem].getY()-blkNode.getY())>>(m_uiMaxDepth-regLev);
+                        const unsigned int ek=(pNodes[elem].getZ()-blkNode.getZ())>>(m_uiMaxDepth-regLev);
+
+                        const unsigned int emin = 0;
+                        const unsigned int emax = (1u<<(regLev-blkNode.getLevel()))-1;
+
+                        if(ei==emin)
+                        { 
+                            // OCT_DIR_LEFT
+                            lookup = m_uiE2EMapping[elem*NUM_FACES + OCT_DIR_LEFT];
+                            if(lookup!=LOOK_UP_TABLE_DEFAULT && (this->getElementType(lookup) == EType::W_DEPENDENT))
+                                is_blk_independent = false;
+                        }
+
+                        if(ei==emax)
+                        { // OCT_DIR_RIGHT
+
+                            lookup = m_uiE2EMapping[elem*NUM_FACES + OCT_DIR_RIGHT];
+                            if(lookup!=LOOK_UP_TABLE_DEFAULT && (this->getElementType(lookup) == EType::W_DEPENDENT))
+                                is_blk_independent = false;
+                        }
+
+                        if(ej==emin)
+                        {   // OCT_DIR_DOWN
+                            lookup = m_uiE2EMapping[elem*NUM_FACES + OCT_DIR_DOWN];
+                            if(lookup!=LOOK_UP_TABLE_DEFAULT && (this->getElementType(lookup) == EType::W_DEPENDENT))
+                                is_blk_independent = false;
+                        }
+
+                        if(ej==emax)
+                        {   // OCT_DIR_UP
+                            lookup = m_uiE2EMapping[elem*NUM_FACES + OCT_DIR_UP];
+                            if(lookup!=LOOK_UP_TABLE_DEFAULT && (this->getElementType(lookup) == EType::W_DEPENDENT))
+                                is_blk_independent = false;
+                        }
+
+
+                        if(ek==emin)
+                        {   // OCT_DIR_BACK
+                            lookup = m_uiE2EMapping[elem*NUM_FACES + OCT_DIR_BACK];
+                            if(lookup!=LOOK_UP_TABLE_DEFAULT && (this->getElementType(lookup) == EType::W_DEPENDENT))
+                                is_blk_independent = false;
+                        }
+
+                        if(ek==emax)
+                        {  // OCT_DIR_FRONT
+                            lookup = m_uiE2EMapping[elem*NUM_FACES + OCT_DIR_FRONT];
+                            if(lookup!=LOOK_UP_TABLE_DEFAULT && (this->getElementType(lookup) == EType::W_DEPENDENT))
+                                is_blk_independent = false;
+                        }
+
+                        if(!is_blk_independent)
+                            break;
+
+
+                    }
+
+                    if(is_blk_independent)
+                    {
+                        // check diagonal edges. 
+                        const std::vector<unsigned int> blkDiagMap = m_uiLocalBlockList[blk].getBlk2DiagMap_vec();
+                        const std::vector<unsigned int> blkVertMap = m_uiLocalBlockList[blk].getBlk2VertexMap_vec();
+                        const unsigned int blk_ele_1d = m_uiLocalBlockList[blk].getElemSz1D();
+
+                        for(unsigned int dir =0; dir < NUM_EDGES; dir++)
+                        {
+                            for(unsigned int k=0; k< blk_ele_1d ; k++)
+                            {
+                                if(blkDiagMap[ dir*(2*blk_ele_1d) +  2*k + 0 ] != blkDiagMap[ dir*(2*blk_ele_1d) + 2*k + 1 ])
+                                {
+                                    if( (this->getElementType(blkDiagMap[ 2*k + 0 ]) == EType::W_DEPENDENT) || (this->getElementType(blkDiagMap[ 2*k + 1 ]) == EType::W_DEPENDENT) )
+                                        is_blk_independent = false;
+                                    
+                                }
+                                else if(blkDiagMap[ dir*(2*blk_ele_1d) +  2*k + 0 ] !=LOOK_UP_TABLE_DEFAULT )
+                                {
+                                    if( (this->getElementType(blkDiagMap[ 2*k + 0 ]) == EType::W_DEPENDENT))
+                                        is_blk_independent =false;
+
+                                }
+
+                            }
+
+                            if(!is_blk_independent)
+                                break;
+
+                        }
+
+                        if(is_blk_independent)
+                        {
+                            // check vertices. 
+                            for(unsigned int k = 0; k < blkVertMap.size() ; k++)
+                            {
+                                if( (blkVertMap[k]!=LOOK_UP_TABLE_DEFAULT)  && (this->getElementType(blkVertMap[k]) == EType::W_DEPENDENT))
+                                {
+                                    is_blk_independent = false;
+                                    break;
+                                }
+                            }
+
+                        }
+
+
+
+                    }
+
+
+                }else
+                    is_blk_independent =false;   
+
+                if(is_blk_independent)
+                    m_uiLocalBlockList[blk].setBlkType(BlockType::UNZIP_INDEPENDENT);
+                else
+                    m_uiLocalBlockList[blk].setBlkType(BlockType::UNZIP_DEPENDENT);
+
+
+                //std::cout<<" blk: "<<blk<<" node : "<<m_uiLocalBlockList[blk].getBlockNode()<<" independent : "<<is_blk_independent<<std::endl;
+
+            }
+        }
+
+    }
+
 
     void Mesh::performBlocksSetup()
     {
@@ -8413,7 +8641,7 @@ namespace ot {
 
         // assumes that E2E and E2N mapping is done and m_uiAllElements should be sorted otherwise this will chnage the order of elements in m_uiAllElements.
         assert(seq::test::isUniqueAndSorted(m_uiAllElements));
-        octree2BlockDecomposition(m_uiAllElements,m_uiLocalBlockList,m_uiMaxDepth,m_uiDmin,m_uiDmax,m_uiElementLocalBegin,m_uiElementLocalEnd,m_uiElementOrder);
+        octree2BlockDecomposition(m_uiAllElements,m_uiLocalBlockList,m_uiMaxDepth,m_uiDmin,m_uiDmax,m_uiElementLocalBegin,m_uiElementLocalEnd,m_uiElementOrder, m_uiCoarsetBlkLev);
         assert(ot::test::isBlockListValid(m_uiAllElements,m_uiLocalBlockList,m_uiDmin,m_uiDmax,m_uiElementLocalBegin,m_uiElementLocalEnd));
 
         std::vector<DendroIntL> blkSz;
@@ -8546,16 +8774,11 @@ namespace ot {
 
             }
 
-
-
         }
 
+        this->flagBlockGhostDependancies();
 
 
-
-        
-
-        
 
 
     }
@@ -9497,7 +9720,8 @@ namespace ot {
 
         }
 
-        ot::Mesh * pMesh = new ot::Mesh(balOct1,1,m_uiElementOrder,m_uiCommGlobal,m_uiIsBlockSetup,m_uiScatterMapType,grainSz,ld_tol,sfK,getWeight);
+        ot::Mesh * pMesh = new ot::Mesh(balOct1,1,m_uiElementOrder,m_uiCommGlobal,m_uiIsBlockSetup,m_uiScatterMapType,grainSz,ld_tol,sfK,getWeight,m_uiCoarsetBlkLev);
+        pMesh->setDomainBounds(m_uiDMinPt, m_uiDMaxPt);
         return pMesh;
 
 
@@ -11173,7 +11397,7 @@ namespace ot {
         bool isIndependent =true;
         bool isWritable = false;
         
-        if(eleID<m_uiAllElements.size())
+        if( eleID < m_uiAllElements.size() )
         {
             for(unsigned int node =0; node < nPe ; node ++)
             {
@@ -11186,13 +11410,12 @@ namespace ot {
 
             for(unsigned int node =0; node < nPe ; node ++)
             {
-                if( (m_uiE2NMapping_CG[eleID*nPe + node] < m_uiNodeLocalBegin) &&  (m_uiE2NMapping_CG[eleID*nPe + node] >= m_uiNodeLocalEnd) )
+                if( (m_uiE2NMapping_CG[eleID*nPe + node] < m_uiNodeLocalBegin) ||  (m_uiE2NMapping_CG[eleID*nPe + node] >= m_uiNodeLocalEnd) )
                 {
                     isIndependent = false;
                     break;
                 }   
             }
-
 
             if(isIndependent) 
                 return EType::INDEPENDENT;
@@ -11201,179 +11424,10 @@ namespace ot {
             else
                 return EType::UNKWON;
 
-
         }
 
         return EType::UNKWON;
         
-
-    }
-
-    void ot::Mesh::flagBlocks()
-    {
-        const ot::TreeNode * pNodes= &(*(m_uiAllElements.begin()));
-
-        for(unsigned int blk=0;blk<m_uiLocalBlockList.size();blk++)
-        {
-            
-            const ot::TreeNode blkNode = m_uiLocalBlockList[blk].getBlockNode();
-            const unsigned int regLev = m_uiLocalBlockList[blk].getRegularGridLev();
-            BlockType btype;
-
-            bool isInIndependent = true;
-            for(unsigned int elem=m_uiLocalBlockList[blk].getLocalElementBegin();elem<m_uiLocalBlockList[blk].getLocalElementEnd();elem++)
-            {
-
-                const unsigned int ei=(pNodes[elem].getX()-blkNode.getX())>>(m_uiMaxDepth-regLev);
-                const unsigned int ej=(pNodes[elem].getY()-blkNode.getY())>>(m_uiMaxDepth-regLev);
-                const unsigned int ek=(pNodes[elem].getZ()-blkNode.getZ())>>(m_uiMaxDepth-regLev);
-
-                const unsigned int emin = 0;
-                const unsigned int emax = (1u<<(regLev-blkNode.getLevel()))-1;
-
-                if( !((ei == emin) || (ej == emin) || (ek== emin) || (ei==emax) || (ej==emax) || (ek==emax)) )
-                {
-                    // this should be true since internal elements should be independent. 
-                    assert(this->getElementType(elem) == EType::INDEPENDENT); 
-                    continue;
-
-                }
-                 
-                if(this->getElementType(elem) == EType::W_DEPENDENT)
-                {
-                    isInIndependent = false;
-                    break;
-                }
-
-            }
-
-            bool isIndependent = true;
-            if(isInIndependent)
-            {   // look for face padding directions
-                unsigned int lookup;
-
-                for(unsigned int elem=m_uiLocalBlockList[blk].getLocalElementBegin();elem<m_uiLocalBlockList[blk].getLocalElementEnd();elem++)
-                {
-                    const unsigned int ei=(pNodes[elem].getX()-blkNode.getX())>>(m_uiMaxDepth-regLev);
-                    const unsigned int ej=(pNodes[elem].getY()-blkNode.getY())>>(m_uiMaxDepth-regLev);
-                    const unsigned int ek=(pNodes[elem].getZ()-blkNode.getZ())>>(m_uiMaxDepth-regLev);
-
-                    const unsigned int emin = 0;
-                    const unsigned int emax = (1u<<(regLev-blkNode.getLevel()))-1;
-
-                    if(ei==emin)
-                    { 
-                        // OCT_DIR_LEFT
-                        lookup = m_uiE2EMapping[elem*NUM_FACES + OCT_DIR_LEFT];
-                        if(lookup!=LOOK_UP_TABLE_DEFAULT && (this->getElementType(lookup) == EType::W_DEPENDENT))
-                            isIndependent = false;
-                    }
-
-                    if(ei==emax)
-                    { // OCT_DIR_RIGHT
-
-                        lookup = m_uiE2EMapping[elem*NUM_FACES + OCT_DIR_RIGHT];
-                        if(lookup!=LOOK_UP_TABLE_DEFAULT && (this->getElementType(lookup) == EType::W_DEPENDENT))
-                            isIndependent = false;
-                    }
-
-                    if(ej==emin)
-                    {   // OCT_DIR_DOWN
-                        lookup = m_uiE2EMapping[elem*NUM_FACES + OCT_DIR_DOWN];
-                        if(lookup!=LOOK_UP_TABLE_DEFAULT && (this->getElementType(lookup) == EType::W_DEPENDENT))
-                            isIndependent = false;
-                    }
-
-                    if(ej==emax)
-                    {   // OCT_DIR_UP
-                        lookup = m_uiE2EMapping[elem*NUM_FACES + OCT_DIR_UP];
-                        if(lookup!=LOOK_UP_TABLE_DEFAULT && (this->getElementType(lookup) == EType::W_DEPENDENT))
-                            isIndependent = false;
-                    }
-
-
-                    if(ek==emin)
-                    {   // OCT_DIR_BACK
-                        lookup = m_uiE2EMapping[elem*NUM_FACES + OCT_DIR_BACK];
-                        if(lookup!=LOOK_UP_TABLE_DEFAULT && (this->getElementType(lookup) == EType::W_DEPENDENT))
-                            isIndependent = false;
-                    }
-
-                    if(ek==emax)
-                    {  // OCT_DIR_FRONT
-                       lookup = m_uiE2EMapping[elem*NUM_FACES + OCT_DIR_FRONT];
-                       if(lookup!=LOOK_UP_TABLE_DEFAULT && (this->getElementType(lookup) == EType::W_DEPENDENT))
-                            isIndependent = false;
-                    }
-
-                }
-
-            }
-
-            if(isIndependent)
-            { // check for diagonal and vertex elements. 
-              
-              const std::vector<unsigned int> blkDiagMap = m_uiLocalBlockList[blk].getBlk2DiagMap_vec();
-              const std::vector<unsigned int> blkVertMap = m_uiLocalBlockList[blk].getBlk2VertexMap_vec();
-
-              const unsigned int blk_ele_1d = m_uiLocalBlockList[blk].getElemSz1D();
-
-              for(unsigned int dir =0; dir < NUM_EDGES; dir++)
-              {
-                for(unsigned int k=0; k< blk_ele_1d ; k++)
-                {
-                    if(blkDiagMap[ 2*k + 0 ] != blkDiagMap[ 2*k + 1 ])
-                    {
-                        if( (this->getElementType(blkDiagMap[ 2*k + 0 ]) == EType::W_DEPENDENT) || (this->getElementType(blkDiagMap[ 2*k + 1 ]) == EType::W_DEPENDENT) )
-                            isIndependent = false;
-                        
-                    }
-                    else
-                    {
-                        if( (this->getElementType(blkDiagMap[ 2*k + 0 ]) == EType::W_DEPENDENT))
-                            isIndependent =false;
-
-                    }
-
-                    
-                }
-
-                if(!isIndependent)
-                    break;
-
-              }
-
-              for(unsigned int k = 0; k < blkVertMap.size() ; k++)
-              {
-                  if(this->getElementType(blkVertMap[k]) == EType::W_DEPENDENT)
-                  {
-                      isIndependent = false;
-                      break;
-                  }
-              }
-
-
-                
-
-            }
-
-            if(isInIndependent)
-                m_uiLocalBlockList[blk].setBlkType(BlockType::INTRNL_INDEPENDENT);
-            else
-                m_uiLocalBlockList[blk].setBlkType(BlockType::INTRNL_DEPENDENT);
-            
-
-            if(isIndependent)
-                m_uiLocalBlockList[blk].setBlkType(BlockType::FULLY_INDEPENDENT);
-            else
-                m_uiLocalBlockList[blk].setBlkType(BlockType::FULLY_DEPENDENT);
-            
-
-        }
-
-
-        
-
 
     }
 
@@ -12175,6 +12229,142 @@ namespace ot {
 
         par::Mpi_Allreduce(&lmin_l,&lmin,1,MPI_MIN,m_uiCommActive);
         par::Mpi_Allreduce(&lmax_l,&lmax,1,MPI_MAX,m_uiCommActive);
+
+    }
+
+    void Mesh::getFinerFaceNeighbors(unsigned int ele, unsigned int dir, unsigned int* child) const
+    {
+
+        const unsigned int lookup = m_uiE2EMapping[ele* NUM_FACES + dir ];
+        
+        if(lookup == LOOK_UP_TABLE_DEFAULT)
+        {
+            child[0] = LOOK_UP_TABLE_DEFAULT;
+            child[1] = LOOK_UP_TABLE_DEFAULT;
+            child[2] = LOOK_UP_TABLE_DEFAULT;
+            child[3] = LOOK_UP_TABLE_DEFAULT;
+
+            return;
+        }
+
+        if(m_uiAllElements[lookup].getLevel() <= m_uiAllElements[ele].getLevel())
+        {
+            child[0]=lookup;
+            child[1]=lookup;
+            child[2]=lookup;
+            child[3]=lookup;
+            
+            return;
+        }
+
+        const unsigned int* e2e = m_uiE2EMapping.data();
+
+        switch (dir)
+        {
+            case OCT_DIR_LEFT:
+                child[0]=lookup;
+                child[1]=e2e[child[0]*NUM_FACES+OCT_DIR_UP];
+                assert(child[1]!=LOOK_UP_TABLE_DEFAULT);
+                child[2]=e2e[child[0]*NUM_FACES+OCT_DIR_FRONT];
+                assert(child[2]!=LOOK_UP_TABLE_DEFAULT);
+                child[3]=e2e[child[1]*NUM_FACES+OCT_DIR_FRONT];
+                assert(child[3]!=LOOK_UP_TABLE_DEFAULT);
+                
+                assert(ele == e2e[child[0]*NUM_FACES + OCT_DIR_RIGHT]);
+                assert(ele == e2e[child[1]*NUM_FACES + OCT_DIR_RIGHT]);
+                assert(ele == e2e[child[2]*NUM_FACES + OCT_DIR_RIGHT]);
+                assert(ele == e2e[child[3]*NUM_FACES + OCT_DIR_RIGHT]);
+
+                break;
+
+            case OCT_DIR_RIGHT:
+                child[0]=lookup;
+                child[1]=e2e[child[0]*NUM_FACES+OCT_DIR_UP];
+                assert(child[1]!=LOOK_UP_TABLE_DEFAULT);
+                child[2]=e2e[child[0]*NUM_FACES+OCT_DIR_FRONT];
+                assert(child[2]!=LOOK_UP_TABLE_DEFAULT);
+                child[3]=e2e[child[1]*NUM_FACES+OCT_DIR_FRONT];
+                assert(child[3]!=LOOK_UP_TABLE_DEFAULT);
+
+                assert(ele == e2e[child[0]*NUM_FACES + OCT_DIR_LEFT]);
+                assert(ele == e2e[child[1]*NUM_FACES + OCT_DIR_LEFT]);
+                assert(ele == e2e[child[2]*NUM_FACES + OCT_DIR_LEFT]);
+                assert(ele == e2e[child[3]*NUM_FACES + OCT_DIR_LEFT]);
+
+                break;
+
+            case OCT_DIR_DOWN:
+
+                child[0]=lookup;
+                child[1]=e2e[child[0]*NUM_FACES+OCT_DIR_RIGHT];
+                assert(child[1]!=LOOK_UP_TABLE_DEFAULT);
+                child[2]=e2e[child[0]*NUM_FACES+OCT_DIR_FRONT];
+                assert(child[2]!=LOOK_UP_TABLE_DEFAULT);
+                child[3]=e2e[child[1]*NUM_FACES+OCT_DIR_FRONT];
+                assert(child[3]!=LOOK_UP_TABLE_DEFAULT);
+
+                assert(ele == e2e[child[0]*NUM_FACES + OCT_DIR_UP]);
+                assert(ele == e2e[child[1]*NUM_FACES + OCT_DIR_UP]);
+                assert(ele == e2e[child[2]*NUM_FACES + OCT_DIR_UP]);
+                assert(ele == e2e[child[3]*NUM_FACES + OCT_DIR_UP]);
+
+                break;
+
+            case OCT_DIR_UP:
+                child[0]=lookup;
+                child[1]=e2e[child[0]*NUM_FACES+OCT_DIR_RIGHT];
+                assert(child[1]!=LOOK_UP_TABLE_DEFAULT);
+                child[2]=e2e[child[0]*NUM_FACES+OCT_DIR_FRONT];
+                assert(child[2]!=LOOK_UP_TABLE_DEFAULT);
+                child[3]=e2e[child[1]*NUM_FACES+OCT_DIR_FRONT];
+                assert(child[3]!=LOOK_UP_TABLE_DEFAULT);
+
+                assert(ele == e2e[child[0]*NUM_FACES + OCT_DIR_DOWN]);
+                assert(ele == e2e[child[1]*NUM_FACES + OCT_DIR_DOWN]);
+                assert(ele == e2e[child[2]*NUM_FACES + OCT_DIR_DOWN]);
+                assert(ele == e2e[child[3]*NUM_FACES + OCT_DIR_DOWN]);
+
+                break;
+
+            case OCT_DIR_BACK:
+                child[0]=lookup;
+                child[1]=e2e[child[0]*NUM_FACES+OCT_DIR_RIGHT];
+                assert(child[1]!=LOOK_UP_TABLE_DEFAULT);
+                child[2]=e2e[child[0]*NUM_FACES+OCT_DIR_UP];
+                assert(child[2]!=LOOK_UP_TABLE_DEFAULT);
+                child[3]=e2e[child[1]*NUM_FACES+OCT_DIR_UP];
+                assert(child[3]!=LOOK_UP_TABLE_DEFAULT);
+
+                assert(ele == e2e[child[0]*NUM_FACES + OCT_DIR_FRONT]);
+                assert(ele == e2e[child[1]*NUM_FACES + OCT_DIR_FRONT]);
+                assert(ele == e2e[child[2]*NUM_FACES + OCT_DIR_FRONT]);
+                assert(ele == e2e[child[3]*NUM_FACES + OCT_DIR_FRONT]);
+                
+                break;
+
+            case OCT_DIR_FRONT:
+                child[0]=lookup;
+                child[1]=e2e[child[0]*NUM_FACES+OCT_DIR_RIGHT];
+                assert(child[1]!=LOOK_UP_TABLE_DEFAULT);
+                child[2]=e2e[child[0]*NUM_FACES+OCT_DIR_UP];
+                assert(child[2]!=LOOK_UP_TABLE_DEFAULT);
+                child[3]=e2e[child[1]*NUM_FACES+OCT_DIR_UP];
+                assert(child[3]!=LOOK_UP_TABLE_DEFAULT);
+
+                assert(ele == e2e[child[0]*NUM_FACES + OCT_DIR_BACK]);
+                assert(ele == e2e[child[1]*NUM_FACES + OCT_DIR_BACK]);
+                assert(ele == e2e[child[2]*NUM_FACES + OCT_DIR_BACK]);
+                assert(ele == e2e[child[3]*NUM_FACES + OCT_DIR_BACK]);
+
+
+                break;
+        
+            default:
+                break;
+        }
+
+
+            
 
     }
 

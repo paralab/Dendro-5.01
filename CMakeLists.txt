@@ -221,9 +221,6 @@ set(DENDRO_INCLUDE_FILES
         include/dtypes.h
         include/sfcSort.h
         include/sfcSearch.h
-        include/test/testUtils.h
-        include/test/testUtils.tcc
-        include/test/meshTestUtils.h
         include/octUtils.h
         include/dendroIO.h
         include/mathMeshUtils.h
@@ -247,9 +244,15 @@ set(DENDRO_INCLUDE_FILES
         include/nufft.h
         include/sub_oda.h
         include/sub_oda.tcc
+        include/dvec.h
+        include/meshUtils.h
+        test/include/testUtils.h
+        test/include/testUtils.tcc
+        test/include/meshTestUtils.h
         )
 
 set(DENDRO_SOURCE_FILES
+        src/dendro.cpp
         src/point.cpp
         src/binUtils.cpp
         src/hcurvedata.cpp
@@ -267,7 +270,8 @@ set(DENDRO_SOURCE_FILES
         src/oda.cpp
         src/odaUtils.cpp
         src/sub_oda.cpp
-        src/dendro.cpp
+        src/meshUtils.cpp
+        test/src/meshTestUtils.cpp
         )
 
 
@@ -299,11 +303,21 @@ set(ODE_INC ODE/include/fdCoefficient.h
             ODE/include/rkMaxwell.h
             ODE/include/rkTransport.h
             ODE/include/rkTransportUtils.h
+            ODE/include/ts.h
+            ODE/include/blkAsync.h
+            ODE/include/ctx.h
+            ODE/include/ets.h
+            ODE/include/enuts.h
+            ODE/include/asyncCtxByLev.h
+            ODE/include/subSM.h
+            ODE/include/enutsOp.h
         )
 
 set(ODE_SRC ODE/src/rk.cpp
+            ODE/src/subSM.cpp
             ODE/src/rkMaxwell.cpp
             ODE/src/rkTransport.cpp
+            ODE/src/enutsOp.cpp
         )
 
 
@@ -358,7 +372,7 @@ endif()
 
 add_library(dendro5 ${DENDRO_INCLUDE_FILES} ${DENDRO_SOURCE_FILES} ${LINALG_INC} ${FEM_INC} ${FEM_SRC} ${ODE_INC} ${ODE_SRC} ${IO_INC} ${IO_SRC} ${ZLIB_INC} ${ZLIB_SRC} )
 target_include_directories(dendro5 PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_include_directories(dendro5 PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include/test)
+target_include_directories(dendro5 PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/test/include)
 target_include_directories(dendro5 PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/examples/include)
 target_include_directories(dendro5 PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/FEM/include)
 target_include_directories(dendro5 PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/FEM/examples/include)
@@ -375,10 +389,10 @@ endif()
 
 if(WITH_BLAS_LAPACK)
     if(MANUAL_BLAS_LAPACK)
-        target_include_directories(dendro5 PUBLIC ${LAPACKE_DIR}/include)
+        #target_include_directories(dendro5 PUBLIC ${LAPACKE_DIR}/include)
     else()
         target_include_directories(dendro5 PUBLIC ${LAPACK_INCLUDE_DIR})
-        target_include_directories(dendro5 PUBLIC ${LAPACKE_DIR}/include)
+        #target_include_directories(dendro5 PUBLIC ${LAPACKE_DIR}/include)
     endif()
 endif()
 
@@ -389,15 +403,22 @@ if(BUILD_WITH_PETSC)
 endif()
 
 
-#set(SOURCE_FILES Hilbert/src/genHTables.cpp)
-#add_executable(genHtables ${SOURCE_FILES})
-#target_include_directories(genHtables PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+set(SOURCE_FILES Hilbert/src/genHTables.cpp include/radix.h)
+add_executable(genHtables ${SOURCE_FILES})
+target_include_directories(genHtables PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
+
+
+
+set(SOURCE_FILES Hilbert/src/sfcMatvecTable.cpp include/dendro.h)
+add_executable(genSFCMatVecTables ${SOURCE_FILES})
+target_link_libraries(genSFCMatVecTables m)
+target_include_directories(genSFCMatVecTables PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 set(SOURCE_FILES examples/src/ptsSort.cpp)
 add_executable(ptsSort ${SOURCE_FILES})
 target_include_directories(ptsSort PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_include_directories(ptsSort PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include/test)
+target_include_directories(ptsSort PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test/include)
 target_include_directories(ptsSort PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/examples/include)
 target_include_directories(ptsSort PRIVATE ${MPI_INCLUDE_PATH})
 
@@ -411,7 +432,7 @@ set(SOURCE_FILES
 add_executable(testOctUtils ${SOURCE_FILES})
 target_link_libraries(testOctUtils dendro5 ${MPI_LIBRARIES} m)
 target_include_directories(testOctUtils PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_include_directories(testOctUtils PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include/test)
+target_include_directories(testOctUtils PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test/include)
 target_include_directories(testOctUtils PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/examples/include)
 target_include_directories(testOctUtils PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/FEM/include)
 target_include_directories(testOctUtils PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/ODE/include)
@@ -427,7 +448,7 @@ set(SOURCE_FILES examples/src/tstTreeSearch.cpp)
 add_executable(tstTreeSearch ${SOURCE_FILES})
 target_link_libraries(tstTreeSearch dendro5 ${MPI_LIBRARIES} m)
 target_include_directories(tstTreeSearch PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_include_directories(tstTreeSearch PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include/test)
+target_include_directories(tstTreeSearch PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test/include)
 target_include_directories(tstTreeSearch PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/examples/include)
 target_include_directories(tstTreeSearch PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/FEM/include)
 target_include_directories(tstTreeSearch PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/ODE/include)
@@ -451,7 +472,7 @@ set(SOURCE_FILES
 add_executable(octUtilBenchmark ${SOURCE_FILES})
 target_link_libraries(octUtilBenchmark dendro5 ${MPI_LIBRARIES} m)
 target_include_directories(octUtilBenchmark PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_include_directories(octUtilBenchmark PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include/test)
+target_include_directories(octUtilBenchmark PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test/include)
 target_include_directories(octUtilBenchmark PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/examples/include)
 target_include_directories(octUtilBenchmark PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/FEM/include)
 target_include_directories(octUtilBenchmark PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/ODE/include)
@@ -474,7 +495,7 @@ set(SOURCE_FILES
 add_executable(bucketBench ${SOURCE_FILES})
 target_link_libraries(bucketBench dendro5 ${MPI_LIBRARIES} m)
 target_include_directories(bucketBench PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_include_directories(bucketBench PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include/test)
+target_include_directories(bucketBench PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test/include)
 target_include_directories(bucketBench PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/examples/include)
 target_include_directories(bucketBench PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/FEM/include)
 target_include_directories(bucketBench PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/ODE/include)
@@ -492,7 +513,7 @@ set(SOURCE_FILES
 add_executable(mfreeBench ${SOURCE_FILES})
 target_link_libraries(mfreeBench dendro5 ${LAPACK_LIBRARIES} ${MPI_LIBRARIES} m)
 target_include_directories(mfreeBench PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_include_directories(mfreeBench PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include/test)
+target_include_directories(mfreeBench PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test/include)
 target_include_directories(mfreeBench PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/examples/include)
 target_include_directories(mfreeBench PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/FEM/include)
 target_include_directories(mfreeBench PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/ODE/include)
@@ -512,7 +533,7 @@ set(SOURCE_FILES
 add_executable(meshBench ${SOURCE_FILES})
 target_link_libraries(meshBench dendro5  ${LAPACK_LIBRARIES} ${MPI_LIBRARIES} m)
 target_include_directories(meshBench PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_include_directories(meshBench PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include/test)
+target_include_directories(meshBench PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test/include)
 target_include_directories(meshBench PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/examples/include)
 target_include_directories(meshBench PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/FEM/include)
 target_include_directories(meshBench PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/ODE/include)
@@ -526,7 +547,7 @@ set(SOURCE_FILES examples/src/meshE2NCheck.cpp)
 add_executable(meshE2NCheck ${SOURCE_FILES})
 target_link_libraries(meshE2NCheck dendro5  ${LAPACK_LIBRARIES} ${MPI_LIBRARIES} m)
 target_include_directories(meshE2NCheck PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_include_directories(meshE2NCheck PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include/test)
+target_include_directories(meshE2NCheck PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test/include)
 target_include_directories(meshE2NCheck PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/examples/include)
 target_include_directories(meshE2NCheck PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/FEM/include)
 target_include_directories(meshE2NCheck PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/ODE/include)
@@ -541,7 +562,7 @@ set(SOURCE_FILES FEM/examples/src/stencilExample.cpp)
 add_executable(stencilExample ${SOURCE_FILES})
 target_link_libraries(stencilExample dendro5  ${LAPACK_LIBRARIES} ${MPI_LIBRARIES} m)
 target_include_directories(stencilExample PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_include_directories(stencilExample PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include/test)
+target_include_directories(stencilExample PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test/include)
 target_include_directories(stencilExample PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/examples/include)
 target_include_directories(stencilExample PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/FEM/include)
 target_include_directories(stencilExample PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/ODE/include)
@@ -555,7 +576,7 @@ set(SOURCE_FILES FEM/examples/src/testInterp.cpp)
 add_executable(testInterp ${SOURCE_FILES})
 target_link_libraries(testInterp dendro5  ${LAPACK_LIBRARIES} ${MPI_LIBRARIES} m)
 target_include_directories(testInterp PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_include_directories(testInterp PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include/test)
+target_include_directories(testInterp PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test/include)
 target_include_directories(testInterp PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/examples/include)
 target_include_directories(testInterp PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/FEM/include)
 target_include_directories(testInterp PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/ODE/include)
@@ -572,7 +593,7 @@ set(SOURCE_FILES examples/src/meshLooping.cpp )
 add_executable(meshLoop ${SOURCE_FILES})
 target_link_libraries(meshLoop dendro5 ${LAPACK_LIBRARIES} ${MPI_LIBRARIES} m)
 target_include_directories(meshLoop PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_include_directories(meshLoop PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include/test)
+target_include_directories(meshLoop PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test/include)
 target_include_directories(meshLoop PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/examples/include)
 target_include_directories(meshLoop PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/FEM/include)
 target_include_directories(meshLoop PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/ODE/include)
@@ -587,7 +608,7 @@ set(SOURCE_FILES FEM/examples/src/refelExample.cpp)
 add_executable(refEl ${SOURCE_FILES})
 target_link_libraries(refEl dendro5 ${LAPACK_LIBRARIES} ${MPI_LIBRARIES} m)
 target_include_directories(refEl PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_include_directories(refEl PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include/test)
+target_include_directories(refEl PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test/include)
 target_include_directories(refEl PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/examples/include)
 target_include_directories(refEl PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/FEM/include)
 target_include_directories(refEl PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/ODE/include)
@@ -602,7 +623,7 @@ set(SOURCE_FILES FEM/examples/src/refelOctreeExample.cpp)
 add_executable(refElOctree ${SOURCE_FILES})
 target_link_libraries(refElOctree dendro5 ${LAPACK_LIBRARIES} ${MPI_LIBRARIES} m)
 target_include_directories(refElOctree PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_include_directories(refElOctree PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include/test)
+target_include_directories(refElOctree PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test/include)
 target_include_directories(refElOctree PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/examples/include)
 target_include_directories(refElOctree PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/FEM/include)
 target_include_directories(refElOctree PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/ODE/include)
@@ -617,7 +638,7 @@ set(SOURCE_FILES ODE/examples/transportEq.cpp)
 add_executable(transportEq ${SOURCE_FILES})
 target_link_libraries(transportEq dendro5 ${LAPACK_LIBRARIES} ${MPI_LIBRARIES} m)
 target_include_directories(transportEq PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_include_directories(transportEq PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include/test)
+target_include_directories(transportEq PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test/include)
 target_include_directories(transportEq PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/examples/include)
 target_include_directories(transportEq PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/FEM/include)
 target_include_directories(transportEq PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/ODE/include)
@@ -631,7 +652,7 @@ set(SOURCE_FILES FEM/examples/src/laplace.cpp)
 add_executable(laplaceEq ${SOURCE_FILES})
 target_link_libraries(laplaceEq dendro5 ${LAPACK_LIBRARIES} ${MPI_LIBRARIES} m)
 target_include_directories(laplaceEq PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_include_directories(laplaceEq PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include/test)
+target_include_directories(laplaceEq PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test/include)
 target_include_directories(laplaceEq PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/examples/include)
 target_include_directories(laplaceEq PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/FEM/include)
 target_include_directories(laplaceEq PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/ODE/include)
@@ -651,7 +672,7 @@ set(SOURCE_FILES FEM/examples/include/heatMat.h
 add_executable(heatEq ${SOURCE_FILES})
 target_link_libraries(heatEq dendro5 ${LAPACK_LIBRARIES} ${MPI_LIBRARIES} m)
 target_include_directories(heatEq PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_include_directories(heatEq PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include/test)
+target_include_directories(heatEq PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test/include)
 target_include_directories(heatEq PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/examples/include)
 target_include_directories(heatEq PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/FEM/include)
 target_include_directories(heatEq PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/FEM/examples/include)
@@ -668,7 +689,7 @@ set(SOURCE_FILES FEM/examples/src/sfcLaplace.cpp)
 add_executable(sfcLaplaceEq ${SOURCE_FILES})
 target_link_libraries(sfcLaplaceEq dendro5 ${LAPACK_LIBRARIES} ${MPI_LIBRARIES} m)
 target_include_directories(sfcLaplaceEq PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_include_directories(sfcLaplaceEq PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include/test)
+target_include_directories(sfcLaplaceEq PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test/include)
 target_include_directories(sfcLaplaceEq PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/examples/include)
 target_include_directories(sfcLaplaceEq PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/FEM/include)
 target_include_directories(sfcLaplaceEq PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/ODE/include)

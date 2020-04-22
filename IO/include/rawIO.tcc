@@ -82,3 +82,34 @@
 
 
     }
+
+
+    template<typename T>
+    void io::dump_array(const  T* const in, unsigned int sz, const char* fPrefix, MPI_Comm comm)
+    {
+
+        int rank, npes;
+        MPI_Comm_rank(comm, &rank);
+        MPI_Comm_size(comm, &npes);
+
+        std::ofstream mfile;
+        char fName[256];
+        sprintf(fName,"%s_%d_%d.dump",fPrefix,rank,npes);
+        mfile.open(fName,std::ios::app);
+
+        if(!mfile)
+        {
+            std::cout<<"line: "<<__LINE__<<" fopen failed"<<std::endl;
+            return ;
+
+        }
+
+        mfile<<"[i]\t val"<<std::endl;
+        for(unsigned int i=0; i< sz; i++)
+            mfile<<"["<<i<<"]\t val : "<<in[i]<<std::endl;
+
+        mfile.close();
+        return;
+
+
+    }

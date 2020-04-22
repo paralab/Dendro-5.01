@@ -20,6 +20,12 @@ namespace io
 {
     template <typename T>
     void varToRawData(const ot::Mesh* pMesh, const T** vars, unsigned int numVars,const char** varNames=NULL,const char* fPrefix="dendro_raw");
+
+    template<typename T>
+    void dump_array(const  T* const in, unsigned int sz, const char* fPrefix, MPI_Comm comm);
+
+
+
 }// end of namespace io
 
 

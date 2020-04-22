@@ -13,7 +13,7 @@
 #include <cstdlib>
 #include <algorithm>
 #include <assert.h>
-#include <test/testUtils.h>
+#include "testUtils.h"
 
 
 namespace seq {

@@ -264,3 +264,19 @@ void kron(const T* M1, const T* M2, T* out, unsigned int r1,unsigned int c1, uns
 	}
     
 }
+
+template<typename T>
+void min_mean_max(T* stat, T* stat_g, MPI_Comm comm)
+{
+    int rank,npes;
+    MPI_Comm_size(comm,&npes);
+    MPI_Comm_rank(comm,&rank);
+
+    par::Mpi_Reduce(stat,stat_g,1,MPI_MIN,0,comm);
+    par::Mpi_Reduce(stat,stat_g+1,1,MPI_SUM,0,comm);
+    par::Mpi_Reduce(stat,stat_g+2,1,MPI_MAX,0,comm);
+    stat_g[1]/=(npes);
+
+    return;
+
+}

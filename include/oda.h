@@ -162,7 +162,7 @@ namespace ot
         std::vector<ot::AsyncExchangeContex> m_uiMPIContexts;
 
         /**@brief mpi tags*/
-        unsigned int m_uiCommTag;
+        unsigned int m_uiCommTag=0;
 
         /**@brief local to global map (nodal)*/
         std::vector<DendroIntL> m_uiLocalToGlobalNodalMap;

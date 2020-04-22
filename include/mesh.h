@@ -43,6 +43,7 @@
 
 #include "wavelet.h"
 #include "dendroProfileParams.h" // only need to profile unzip_asyn for bssn. remove this header file later.
+#include "point.h"
 
 extern double t_e2e; // e2e map generation time
 extern double t_e2n; // e2n map generation time
@@ -124,6 +125,14 @@ enum EType
     INDEPENDENT, // all the elemental nodal values,  are local.
     W_DEPENDENT, // element is writable but has ghost nodal values as well. (note that the writable would be Independent U W_dependent)
     UNKWON
+};
+
+/**@brief ghost write modes. */
+enum GWMode
+{
+    OVERWRITE, // over write the ghost write, 
+    ACCUMILATE, // accumilate the ghost write
+
 };
 
 namespace WaveletDA
@@ -221,11 +230,11 @@ private:
     std::vector<ot::TreeNode> m_uiGhostOctants;
 
     /** store the indices of round 1 communication.
-         *
-         * Note: !! You cannot build a m_uiGhostElementRound2Index, because at the round 2 exchange of ghost elements we might
-         * need to send a round1 ghost element to another processor.
-         *
-         * */
+     *
+     * Note: !! You cannot build a m_uiGhostElementRound2Index, because at the round 2 exchange of ghost elements we might
+     * need to send a round1 ghost element to another processor.
+     *
+     * */
     std::vector<unsigned int> m_uiGhostElementRound1Index;
 
     /** stores all the pre + local + post ELEMENTS. */
@@ -380,12 +389,31 @@ private:
     /**Recv node count offset*/
     std::vector<unsigned int> m_uiRecvNodeOffset;
 
-    /**Send processor list for ghost exchange*/
+
+    /**@brief : number of elements that needed to be sent to each processor*/
+    std::vector<unsigned int> m_uiSendEleCount;
+    /**@brief : number of elements that recieved from each processor*/
+    std::vector<unsigned int> m_uiRecvEleCount;
+
+    /**@brief : Send element count offset*/
+    std::vector<unsigned int> m_uiSendEleOffset;
+    
+    /**@brief : Recv element count offset*/
+    std::vector<unsigned int> m_uiRecvEleOffset;
+    
+
+    /**Send processor list for ghost exchange (nodal ghost exchange)*/
     std::vector<unsigned int> m_uiSendProcList;
 
-    /**recv processor list for the ghost exchange*/
+    /**recv processor list for the ghost exchange (nodal ghost exchange)*/
     std::vector<unsigned int> m_uiRecvProcList;
 
+    /**@brief: Send proc list for elemental (cell) ghost sync*/
+    std::vector<unsigned int> m_uiElementSendProcList;
+    
+    /**@brief: Send proc list for elemental (cell) ghost sync*/
+    std::vector<unsigned int> m_uiElementRecvProcList;
+    
     /** local element ids that needs to be send for other processors. */
     std::vector<unsigned int> m_uiGhostElementIDsToBeSent;
     /** local element ids that recieved from other processors after ghost element exchange*/
@@ -406,9 +434,9 @@ private:
     std::vector<double> m_uiRecvBufferNodes;
 
     /**Scatter map for the elements. Keeps track of which local elements need to be sent to which processor. (This has to be derived with m_uiSendOctCount values)
-         * Element ID's that is been exchanged at round 1 of ghost exchange.
-         * Property: For a given processor rank p the scatter map elements that is set to processor p is sorted and unique.
-         * */
+     * Element ID's that is been exchanged at round 1 of ghost exchange.
+     * Property: For a given processor rank p the scatter map elements that is set to processor p is sorted and unique.
+     * */
     std::vector<unsigned int> m_uiScatterMapElementRound1;
 
     /**Scatter map for the actual nodes. Keeps track of which local node needs to be sent to which processor. */
@@ -497,6 +525,15 @@ private:
     /**@brief: element to block map */
     std::vector<unsigned int> m_uiE2BlkMap;
 
+    /**@brief: coarset block level allowed. (this is used in perform block set up) */
+    unsigned int m_uiCoarsetBlkLev=0;
+
+    /**@brief: domain min point*/
+    Point m_uiDMinPt=Point(0,0,0);
+
+    /**@brief: domain max point. */
+    Point m_uiDMaxPt=Point((1u<<m_uiMaxDepth), (1u<<m_uiMaxDepth), (1u<<m_uiMaxDepth));    
+
    
 
 private:
@@ -504,42 +541,42 @@ private:
     void buildFEM_E2N();
 
     /**
-         * @author Milinda Fernando
-         * @brief generates search key elements for local elements.
-         * */
+     * @author Milinda Fernando
+     * @brief generates search key elements for local elements.
+     * */
 
     void generateSearchKeys();
 
     /**
-         * @author Milinda Fernando
-         * @brief generates search keys for ghost elements, inorder to build the E2E mapping between ghost elements.
-         * */
+     * @author Milinda Fernando
+     * @brief generates search keys for ghost elements, inorder to build the E2E mapping between ghost elements.
+     * */
 
     void generateGhostElementSearchKeys();
 
     /**
-         * @brief generates diagonal keys for ghost if it is not already in the current processor.
-         * */
+     * @brief generates diagonal keys for ghost if it is not already in the current processor.
+     * */
 
     void generateBdyElementDiagonalSearchKeys();
 
     /**
-         * @author Milinda Fernando
-         * @brief Builds the E2E mapping, in the mesh
-         * @param [in] in: 2:1 balanced octree (assumes that the input is 2:1 balanced unique and sorted)
-         * @param [in] k_s : Stencil size, how many elements to search in each direction
-         * @param [in] comm: MPI Communicator.
-         * */
+     * @author Milinda Fernando
+     * @brief Builds the E2E mapping, in the mesh
+     * @param [in] in: 2:1 balanced octree (assumes that the input is 2:1 balanced unique and sorted)
+     * @param [in] k_s : Stencil size, how many elements to search in each direction
+     * @param [in] comm: MPI Communicator.
+     * */
     void buildE2EMap(std::vector<ot::TreeNode> &in, MPI_Comm comm);
 
     void computeElementOwnerRanks(std::vector<unsigned int> &elementOwner);
 
     /**
-         * @author Milinda Fernando
-         * @brief Builds the E2E mapping, in the mesh (sequential case. No ghost nodes. )
-         * @param [in] in: 2:1 balanced octree (assumes that the input is 2:1 balanced unique and sorted)
-         * @param [in] k_s : Stencil size, how many elements to search in each direction
-         * */
+     * @author Milinda Fernando
+     * @brief Builds the E2E mapping, in the mesh (sequential case. No ghost nodes. )
+     * @param [in] in: 2:1 balanced octree (assumes that the input is 2:1 balanced unique and sorted)
+     * @param [in] k_s : Stencil size, how many elements to search in each direction
+     * */
     void buildE2EMap(std::vector<ot::TreeNode> &in);
 
     /**
@@ -549,12 +586,12 @@ private:
     void buildE2NWithSM();
 
     /**
-         *
-         * @author Milinda Fernando
-         * @brief Builds the Element to Node (E2N) mapping to enforce the continuity of the solution. (Needed in continous Galerkin methods. )
-         * This function assumes that E2E mapping is already built.
-         *
-         * */
+     *
+     * @author Milinda Fernando
+     * @brief Builds the Element to Node (E2N) mapping to enforce the continuity of the solution. (Needed in continous Galerkin methods. )
+     * This function assumes that E2E mapping is already built.
+     *
+     * */
 
     void buildE2NMap();
 
@@ -565,398 +602,398 @@ private:
     void buildE2N_DG();
 
     /**
-         * @author Milinda Fernando
-         * @brief inorder to make the E2N consistent across all processors we have exchanged additional layer of ghost elements. This procedure remove
-         * those additional elements( layer 2 ghost) from global octant array and update E2E and E2N accordingly.
-         *
-         * */
+     * @author Milinda Fernando
+     * @brief inorder to make the E2N consistent across all processors we have exchanged additional layer of ghost elements. This procedure remove
+     * those additional elements( layer 2 ghost) from global octant array and update E2E and E2N accordingly.
+     *
+     * */
     void shrinkE2EAndE2N();
 
     /**
-         *
-         * @author: Milinda Fernando.
-         * @def Fake Elements(Local) are teh fake elements where all it's nodal lies in the nodal local and nodal L1 ghost layer.
-         * @brief: Generates local fake elements and update E2E and E2N mapping. (This is not used. )
-         * */
+     *
+     * @author: Milinda Fernando.
+     * @def Fake Elements(Local) are teh fake elements where all it's nodal lies in the nodal local and nodal L1 ghost layer.
+     * @brief: Generates local fake elements and update E2E and E2N mapping. (This is not used. )
+     * */
 
     void generateFakeElementsAndUpdateE2EAndE2N();
 
     /**
-         * @author  Milinda Fernando
-         * @brief Computes the overlapping nodes between given two elements. Note that idx ,idy, idz should be integer array size of (m_uiElementOrder + 1).
-         * @param [in] Parent : denotes the larger(ancestor) element of the two considering elements.
-         * @param [in] child : denotes the desendent from the parent element.
-         * @param [out] idx: mapping between x nodes indecies of parent element to x node indecies for the child element.
-         * @param [out] idy: mapping between y nodes indecies of parent element to y node indecies for the child element.
-         * @param [out] idz: mapping between z nodes indecies of parent element to z node indecies for the child element.
-         * @example idx[0]= 2 implies that the parent element x index 0 is given from the child x index 2.
-         *
-         * */
+     * @author  Milinda Fernando
+     * @brief Computes the overlapping nodes between given two elements. Note that idx ,idy, idz should be integer array size of (m_uiElementOrder + 1).
+     * @param [in] Parent : denotes the larger(ancestor) element of the two considering elements.
+     * @param [in] child : denotes the desendent from the parent element.
+     * @param [out] idx: mapping between x nodes indecies of parent element to x node indecies for the child element.
+     * @param [out] idy: mapping between y nodes indecies of parent element to y node indecies for the child element.
+     * @param [out] idz: mapping between z nodes indecies of parent element to z node indecies for the child element.
+     * @example idx[0]= 2 implies that the parent element x index 0 is given from the child x index 2.
+     *
+     * */
     inline bool computeOveralppingNodes(const ot::TreeNode &parent, const ot::TreeNode &child, int *idx, int *idy, int *idz);
 
     /**
-         *  @breif Computes the ScatterMap and the send node counts for ghost node exchage.
-         *  We do the scatter map exchange in two different steps. Hence we need to compute 2 different scatter maps.
-         *      1. Scatter map for actual nodes.
-         *      2. Scatter map for fake nodes.
-         *  @param[in] MPI_Communicator for scatter map node exchange.
-         *  @note: depreciated remove this method later.
-         *
-         */
+     *  @breif Computes the ScatterMap and the send node counts for ghost node exchage.
+     *  We do the scatter map exchange in two different steps. Hence we need to compute 2 different scatter maps.
+     *      1. Scatter map for actual nodes.
+     *      2. Scatter map for fake nodes.
+     *  @param[in] MPI_Communicator for scatter map node exchange.
+     *  @note: depreciated remove this method later.
+     *
+     */
     void computeNodeScatterMaps(MPI_Comm comm);
 
     /**
-         *  @breif Computes the ScatterMap and the send node counts for ghost node exchage.
-         *  @param[in] comm : MPI communicator.
-         * */
+     *  @breif Computes the ScatterMap and the send node counts for ghost node exchage.
+     *  @param[in] comm : MPI communicator.
+     * */
     void computeNodalScatterMap(MPI_Comm comm);
 
     /**
-               *  @breif Computes the ScatterMap and the send node counts for ghost node exchage. (uses the compression of the all to all data exchange to reduce the total number of nodes get exchanged. )
-               *  @param[in] comm : MPI communicator.
-               *
-        * */
+     *  @breif Computes the ScatterMap and the send node counts for ghost node exchage. (uses the compression of the all to all data exchange to reduce the total number of nodes get exchanged. )
+     *  @param[in] comm : MPI communicator.
+     *
+    * */
     void computeNodalScatterMap1(MPI_Comm comm);
 
     /**
-             *@breif Computes the ScatterMap and the send node counts for ghost node exchage. (uses the compression of the all to all data exchange to reduce the total number of nodes get exchanged. )
-            *@param[in] comm : MPI communicator.
-            *
-            **/
+    *@breif Computes the ScatterMap and the send node counts for ghost node exchage. (uses the compression of the all to all data exchange to reduce the total number of nodes get exchanged. )
+    *@param[in] comm : MPI communicator.
+    *
+    **/
     void computeNodalScatterMap2(MPI_Comm comm);
 
     /**
-          *@breif Computes the ScatterMap and the send node counts for ghost node exchage. (uses the compression of the all to all data exchange to reduce the total number of nodes get exchanged. )
-          *@param[in] comm : MPI communicator. scattermap2 with compression.
-          *
+    * @breif Computes the ScatterMap and the send node counts for ghost node exchage. (uses the compression of the all to all data exchange to reduce the total number of nodes get exchanged. )
+    * @param[in] comm : MPI communicator. scattermap2 with compression.
+    *
        **/
     void computeNodalScatterMap3(MPI_Comm comm);
 
     /**
-          *@breif Computes the ScatterMap and the send node counts for ghost node exchage. (uses the compression of the all to all data exchange to reduce the total number of nodes get exchanged. )
-          *@param[in] comm : MPI communicator. scattermap2 with compression.
-          *
-       **/
+     *@breif Computes the ScatterMap and the send node counts for ghost node exchage. (uses the compression of the all to all data exchange to reduce the total number of nodes get exchanged. )
+    *@param[in] comm : MPI communicator. scattermap2 with compression.
+    *
+    **/
     void computeNodalScatterMap4(MPI_Comm comm);
 
 
     void computeNodalScatterMapDG(MPI_Comm comm);
 
     /**
-         * childf1 and childf2 denotes the edge that happens ar the intersection of those two planes.
-         * */
+     * childf1 and childf2 denotes the edge that happens ar the intersection of those two planes.
+     * */
 
     /*
-         * NOTE: These private functions does not check for m_uiIsActive
-         * sicne they are called in buildE2E and buildE2N mappings.
-         *
-         * */
+    * NOTE: These private functions does not check for m_uiIsActive
+    * sicne they are called in buildE2E and buildE2N mappings.
+    *
+    * */
 
     /**
-         * @breif This function is to map internal edge nodes in the LEFT face.
-         * @param[in] child element in cordieration for mapping.
-         * @param[in] parent or the LEFT neighbour of child
-         * @param[in] parentChildLevEqual specifies whether the parent child levels are equal (true) if their equal.
-         * @param[in] edgeChildIndex std::vector (pre-allocated) for the size of the internal nodes of the edge.
-         * @param[in] edgeOwnerIndex std::vector (pre-allocated) for the size of the internal nodes of the edge.
-         * */
+     * @breif This function is to map internal edge nodes in the LEFT face.
+     * @param[in] child element in cordieration for mapping.
+     * @param[in] parent or the LEFT neighbour of child
+     * @param[in] parentChildLevEqual specifies whether the parent child levels are equal (true) if their equal.
+     * @param[in] edgeChildIndex std::vector (pre-allocated) for the size of the internal nodes of the edge.
+     * @param[in] edgeOwnerIndex std::vector (pre-allocated) for the size of the internal nodes of the edge.
+     * */
     inline void OCT_DIR_LEFT_INTERNAL_EDGE_MAP(unsigned int child, unsigned int parent, bool parentChildLevEqual, std::vector<unsigned int> &edgeChildIndex, std::vector<unsigned int> &edgeOwnerIndex);
     /**
-        * @breif This function is to map internal edge nodes in the RIGHT face.
-        * @param[in] child element in cordieration for mapping.
-        * @param[in] parent or the RIGHT neighbour of child
-        * @param[in] parentChildLevEqual specifies whether the parent child levels are equal (true) if their equal.
-        * @param[in] edgeChildIndex std::vector (pre-allocated) for the size of the internal nodes of the edge.
-        * @param[in] edgeOwnerIndex std::vector (pre-allocated) for the size of the internal nodes of the edge.
-        * */
+    * @breif This function is to map internal edge nodes in the RIGHT face.
+    * @param[in] child element in cordieration for mapping.
+    * @param[in] parent or the RIGHT neighbour of child
+    * @param[in] parentChildLevEqual specifies whether the parent child levels are equal (true) if their equal.
+    * @param[in] edgeChildIndex std::vector (pre-allocated) for the size of the internal nodes of the edge.
+    * @param[in] edgeOwnerIndex std::vector (pre-allocated) for the size of the internal nodes of the edge.
+    * */
     inline void OCT_DIR_RIGHT_INTERNAL_EDGE_MAP(unsigned int child, unsigned int parent, bool parentChildLevEqual, std::vector<unsigned int> &edgeChildIndex, std::vector<unsigned int> &edgeOwnerIndex);
     /**
-        * @breif This function is to map internal edge nodes in the DOWN face.
-        * @param[in] child element in cordieration for mapping.
-        * @param[in] parent or the DOWN neighbour of child
-        * @param[in] parentChildLevEqual specifies whether the parent child levels are equal (true) if their equal.
-        * @param[in] edgeChildIndex std::vector (pre-allocated) for the size of the internal nodes of the edge.
-        * @param[in] edgeOwnerIndex std::vector (pre-allocated) for the size of the internal nodes of the edge.
-        * */
+    * @breif This function is to map internal edge nodes in the DOWN face.
+    * @param[in] child element in cordieration for mapping.
+    * @param[in] parent or the DOWN neighbour of child
+    * @param[in] parentChildLevEqual specifies whether the parent child levels are equal (true) if their equal.
+    * @param[in] edgeChildIndex std::vector (pre-allocated) for the size of the internal nodes of the edge.
+    * @param[in] edgeOwnerIndex std::vector (pre-allocated) for the size of the internal nodes of the edge.
+    * */
     inline void OCT_DIR_DOWN_INTERNAL_EDGE_MAP(unsigned int child, unsigned int parent, bool parentChildLevEqual, std::vector<unsigned int> &edgeChildIndex, std::vector<unsigned int> &edgeOwnerIndex);
     /**
-        * @breif This function is to map internal edge nodes in the UP face.
-        * @param[in] child element in cordieration for mapping.
-        * @param[in] parent or the UP neighbour of child
-        * @param[in] parentChildLevEqual specifies whether the parent child levels are equal (true) if their equal.
-        * @param[in] edgeChildIndex std::vector (pre-allocated) for the size of the internal nodes of the edge.
-        * @param[in] edgeOwnerIndex std::vector (pre-allocated) for the size of the internal nodes of the edge.
-        * */
+    * @breif This function is to map internal edge nodes in the UP face.
+    * @param[in] child element in cordieration for mapping.
+    * @param[in] parent or the UP neighbour of child
+    * @param[in] parentChildLevEqual specifies whether the parent child levels are equal (true) if their equal.
+    * @param[in] edgeChildIndex std::vector (pre-allocated) for the size of the internal nodes of the edge.
+    * @param[in] edgeOwnerIndex std::vector (pre-allocated) for the size of the internal nodes of the edge.
+    * */
     inline void OCT_DIR_UP_INTERNAL_EDGE_MAP(unsigned int child, unsigned int parent, bool parentChildLevEqual, std::vector<unsigned int> &edgeChildIndex, std::vector<unsigned int> &edgeOwnerIndex);
     /**
-        * @breif This function is to map internal edge nodes in the FRONT face.
-        * @param[in] child element in cordieration for mapping.
-        * @param[in] parent or the FRONT neighbour of child
-        * @param[in] parentChildLevEqual specifies whether the parent child levels are equal (true) if their equal.
-        * @param[in] edgeChildIndex std::vector (pre-allocated) for the size of the internal nodes of the edge.
-        * @param[in] edgeOwnerIndex std::vector (pre-allocated) for the size of the internal nodes of the edge.
-        * */
+    * @breif This function is to map internal edge nodes in the FRONT face.
+    * @param[in] child element in cordieration for mapping.
+    * @param[in] parent or the FRONT neighbour of child
+    * @param[in] parentChildLevEqual specifies whether the parent child levels are equal (true) if their equal.
+    * @param[in] edgeChildIndex std::vector (pre-allocated) for the size of the internal nodes of the edge.
+    * @param[in] edgeOwnerIndex std::vector (pre-allocated) for the size of the internal nodes of the edge.
+    * */
     inline void OCT_DIR_FRONT_INTERNAL_EDGE_MAP(unsigned int child, unsigned int parent, bool parentChildLevEqual, std::vector<unsigned int> &edgeChildIndex, std::vector<unsigned int> &edgeOwnerIndex);
     /**
-         * @breif This function is to map internal edge nodes in the BACK face.
-         * @param[in] child element in cordieration for mapping.
-         * @param[in] parent or the BACK neighbour of child
-         * @param[in] parentChildLevEqual specifies whether the parent child levels are equal (true) if their equal.
-         * @param[in] edgeChildIndex std::vector (pre-allocated) for the size of the internal nodes of the edge.
-         * @param[in] edgeOwnerIndex std::vector (pre-allocated) for the size of the internal nodes of the edge.
-         * */
+     * @breif This function is to map internal edge nodes in the BACK face.
+     * @param[in] child element in cordieration for mapping.
+     * @param[in] parent or the BACK neighbour of child
+     * @param[in] parentChildLevEqual specifies whether the parent child levels are equal (true) if their equal.
+     * @param[in] edgeChildIndex std::vector (pre-allocated) for the size of the internal nodes of the edge.
+     * @param[in] edgeOwnerIndex std::vector (pre-allocated) for the size of the internal nodes of the edge.
+     * */
     inline void OCT_DIR_BACK_INTERNAL_EDGE_MAP(unsigned int child, unsigned int parent, bool parentChildLevEqual, std::vector<unsigned int> &edgeChildIndex, std::vector<unsigned int> &edgeOwnerIndex);
 
     /**
-         * @brief: Computes the FACE to element map for each face direction.
-         * @param[in] ele: element ID
-         * @param[in] dir: primary face direction
-         * @param[in] dirOp: opposite face direction for dir
-         * @param[in] dir1: direction 1 (dir 1 and dir2 used to )
-         * @param[in] dir2: direction 2
-         * */
+     * @brief: Computes the FACE to element map for each face direction.
+     * @param[in] ele: element ID
+     * @param[in] dir: primary face direction
+     * @param[in] dirOp: opposite face direction for dir
+     * @param[in] dir1: direction 1 (dir 1 and dir2 used to )
+     * @param[in] dir2: direction 2
+     * */
     void SET_FACE_TO_ELEMENT_MAP(unsigned int ele, unsigned int dir, unsigned int dirOp, unsigned int dir1, unsigned int dir2);
 
     /**
-         * @brief maps the corner nodes of an elements to a  corresponsing elements.
-         * @param[in] child element id in corsideration.
-         *  */
+     * @brief maps the corner nodes of an elements to a  corresponsing elements.
+     * @param[in] child element id in corsideration.
+     *  */
     inline void CORNER_NODE_MAP(unsigned int child);
 
     /**
-         * @brief Returns the diagonal element ID if considering two faces are simillar in size of elementID.
-         * */
+     * @brief Returns the diagonal element ID if considering two faces are simillar in size of elementID.
+     * */
     inline void OCT_DIR_DIAGONAL_E2E(unsigned int elementID, unsigned int face1, unsigned int face2, unsigned int &lookUp) const;
 
     /**
-             * @brief Search the given set of keys in given nodes and update the search result of the keys. The speciality of this method from SFC_TreeSearch() is that this won't change the ordering of the
-             * Keys. Hence this is expensive than the SFC_TreeSearch. So use it only when the ordering of the keys matters.
-             *
-             * @param [in] pKeys: Keys needed to be searched.
-             * @param [in] pNodes: Nodes (represents the space where keys being searched)
-             * */
+     * @brief Search the given set of keys in given nodes and update the search result of the keys. The speciality of this method from SFC_TreeSearch() is that this won't change the ordering of the
+     * Keys. Hence this is expensive than the SFC_TreeSearch. So use it only when the ordering of the keys matters.
+     *
+     * @param [in] pKeys: Keys needed to be searched.
+     * @param [in] pNodes: Nodes (represents the space where keys being searched)
+     * */
 
     template <typename pKey, typename pNode>
     void searchKeys(std::vector<pKey> &pKeys, std::vector<pNode> &pNodes);
 
     /**
-             * @brief Returns the direction of the node when i, j, k index of the node given.
-             * */
+     * @brief Returns the direction of the node when i, j, k index of the node given.
+     * */
     inline unsigned int getDIROfANode(unsigned int ii_x, unsigned int jj_y, unsigned int kk_z);
 
     /**
-          * @brief decompose the direction to it's ijk values.
-          * */
+     * @brief decompose the direction to it's ijk values.
+     * */
 
     inline void directionToIJK(unsigned int direction, std::vector<unsigned int> &ii_x, std::vector<unsigned int> &jj_y, std::vector<unsigned int> &kk_z);
 
     /**
-         * @brief: Specific to GR code. Interpolation function written to interpolate the 3rd points for 4th order element.
-         * @param [in] upWind: advection up wind stencil coefficients
-         * @param [in] element : unzip element ID
-         * @param [in] lookUp: face lookup ID
-         * @param [in] vecLookUp:  allocated vector to lookup Nodal values.
-         * @param [in] cnum: injection element cnum
-         * @param [in] parentInterpIn: parent values.
-         * @param [in] parentInterpOut: vector to perform parent to child interpolation
-         * @param [in] padDir : direction of the padding.
-         * @param [in] padWidth: width of the padding.
-         * @param [in] zippedVec: zipped vector
-         * @param [out] out : child to parent injection filled with the correct value.
-         * */
+     * @brief: Specific to GR code. Interpolation function written to interpolate the 3rd points for 4th order element.
+     * @param [in] upWind: advection up wind stencil coefficients
+     * @param [in] element : unzip element ID
+     * @param [in] lookUp: face lookup ID
+     * @param [in] vecLookUp:  allocated vector to lookup Nodal values.
+     * @param [in] cnum: injection element cnum
+     * @param [in] parentInterpIn: parent values.
+     * @param [in] parentInterpOut: vector to perform parent to child interpolation
+     * @param [in] padDir : direction of the padding.
+     * @param [in] padWidth: width of the padding.
+     * @param [in] zippedVec: zipped vector
+     * @param [out] out : child to parent injection filled with the correct value.
+     * */
     template <typename T>
     inline void interpUpWind(const double *upWind, const unsigned int element, const unsigned int lookup, T *vecLookUp, const unsigned int cnum, const T *parentInterpIn, T *parentInterpOut, const unsigned int padDir, const unsigned int padWidth, const T *zippedVec, T *out);
 
     /**
-         * @brief: Specific to GR code. Interpolation function written to interpolate the 3rd points for 4th order element.
-         * @param [in] upWind: advection up wind stencil coefficients
-         * @param [in] element : unzip element ID
-         * @param [in] lookUp: face lookup ID
-         * @param [in] vecLookUp:  allocated vector to lookup Nodal values.
-         * @param [in] cnum: injection element cnum
-         * @param [in] parentInterpIn: parent values.
-         * @param [in] parentInterpOut: vector to perform parent to child interpolation
-         * @param [in] padDir : direction of the padding.
-         * @param [in] padWidth: width of the padding.
-         * @param [in] zippedVec: zipped vector
-         * @param [out] out : child to parent injection filled with the correct value.
-         * */
+     * @brief: Specific to GR code. Interpolation function written to interpolate the 3rd points for 4th order element.
+     * @param [in] upWind: advection up wind stencil coefficients
+     * @param [in] element : unzip element ID
+     * @param [in] lookUp: face lookup ID
+     * @param [in] vecLookUp:  allocated vector to lookup Nodal values.
+     * @param [in] cnum: injection element cnum
+     * @param [in] parentInterpIn: parent values.
+     * @param [in] parentInterpOut: vector to perform parent to child interpolation
+     * @param [in] padDir : direction of the padding.
+     * @param [in] padWidth: width of the padding.
+     * @param [in] zippedVec: zipped vector
+     * @param [out] out : child to parent injection filled with the correct value.
+     * */
     template <typename T>
     inline void interpDownWind(const double *downWind, const unsigned int element, const unsigned int lookup, T *vecLookUp, const unsigned int cnum, const T *parentInterpIn, T *parentInterpOut, const unsigned int padDir, const unsigned int padWidth, const T *zippedVec, T *out);
 
     /**@brief: Performs block padding along the diagonal direction.
-         * @param[in] blk: block to perform diagonal direction padding.
-         * @param[in] zippedVec: zipped vector
-         * @param[out] unzippedVec: updated unzip vec.
-         * */
+     * @param[in] blk: block to perform diagonal direction padding.
+     * @param[in] zippedVec: zipped vector
+     * @param[out] unzippedVec: updated unzip vec.
+     * */
     template <typename T>
     void blockDiagonalUnZip(const ot::Block &blk, const T *zippedVec, T *unzippedVec);
 
     /**@brief: Performs block padding along the vertex direction.
-         * @param[in] blk: block to perform diagonal direction padding.
-         * @param[in] zippedVec: zipped vector
-         * @param[out] unzippedVec: updated unzip vec.
-         * */
+     * @param[in] blk: block to perform diagonal direction padding.
+     * @param[in] zippedVec: zipped vector
+     * @param[out] unzippedVec: updated unzip vec.
+     * */
     template <typename T>
     void blockVertexUnZip(const ot::Block &blk, const T *zippedVec, T *unzippedVec);
 
     /**@brief: Performs block padding along the OCT_DIR_LEFT_DOWN direction.
-         * @param[in] blk: block to perform diagonal direction padding.
-         * @param[in] zippedVec: zipped vector
-         * @param[out] unzippedVec: updated unzip vec.
-         * */
+     * @param[in] blk: block to perform diagonal direction padding.
+     * @param[in] zippedVec: zipped vector
+     * @param[out] unzippedVec: updated unzip vec.
+     * */
     template <typename T>
     void OCT_DIR_LEFT_DOWN_Unzip(const ot::Block &blk, const T *zippedVec, T *unzippedVec);
 
     /**@brief: Performs block padding along the OCT_DIR_LEFT_UP direction.
-         * @param[in] blk: block to perform diagonal direction padding.
-         * @param[in] zippedVec: zipped vector
-         * @param[out] unzippedVec: updated unzip vec.
-         * */
+     * @param[in] blk: block to perform diagonal direction padding.
+     * @param[in] zippedVec: zipped vector
+     * @param[out] unzippedVec: updated unzip vec.
+     * */
     template <typename T>
     void OCT_DIR_LEFT_UP_Unzip(const ot::Block &blk, const T *zippedVec, T *unzippedVec);
 
     /**@brief: Performs block padding along the OCT_DIR_LEFT_BACK direction.
-         * @param[in] blk: block to perform diagonal direction padding.
-         * @param[in] zippedVec: zipped vector
-         * @param[out] unzippedVec: updated unzip vec.
-         * */
+     * @param[in] blk: block to perform diagonal direction padding.
+     * @param[in] zippedVec: zipped vector
+     * @param[out] unzippedVec: updated unzip vec.
+     * */
     template <typename T>
     void OCT_DIR_LEFT_BACK_Unzip(const ot::Block &blk, const T *zippedVec, T *unzippedVec);
 
     /**@brief: Performs block padding along the OCT_DIR_LEFT_FRONT direction.
-          * @param[in] blk: block to perform diagonal direction padding.
-          * @param[in] zippedVec: zipped vector
-          * @param[out] unzippedVec: updated unzip vec.
-          * */
+     * @param[in] blk: block to perform diagonal direction padding.
+     * @param[in] zippedVec: zipped vector
+     * @param[out] unzippedVec: updated unzip vec.
+     * */
     template <typename T>
     void OCT_DIR_LEFT_FRONT_Unzip(const ot::Block &blk, const T *zippedVec, T *unzippedVec);
 
     /**@brief: Performs block padding along the OCT_DIR_RIGHT_DOWN direction.
-          * @param[in] blk: block to perform diagonal direction padding.
-          * @param[in] zippedVec: zipped vector
-          * @param[out] unzippedVec: updated unzip vec.
-          * */
+     * @param[in] blk: block to perform diagonal direction padding.
+     * @param[in] zippedVec: zipped vector
+     * @param[out] unzippedVec: updated unzip vec.
+     * */
     template <typename T>
     void OCT_DIR_RIGHT_DOWN_Unzip(const ot::Block &blk, const T *zippedVec, T *unzippedVec);
 
     /**@brief: Performs block padding along the OCT_DIR_RIGHT_UP direction.
-          * @param[in] blk: block to perform diagonal direction padding.
-          * @param[in] zippedVec: zipped vector
-          * @param[out] unzippedVec: updated unzip vec.
-          * */
+     * @param[in] blk: block to perform diagonal direction padding.
+     * @param[in] zippedVec: zipped vector
+     * @param[out] unzippedVec: updated unzip vec.
+     * */
     template <typename T>
     void OCT_DIR_RIGHT_UP_Unzip(const ot::Block &blk, const T *zippedVec, T *unzippedVec);
 
     /**@brief: Performs block padding along the OCT_DIR_RIGHT_BACK direction.
-          * @param[in] blk: block to perform diagonal direction padding.
-          * @param[in] zippedVec: zipped vector
-          * @param[out] unzippedVec: updated unzip vec.
-          * */
+     * @param[in] blk: block to perform diagonal direction padding.
+     * @param[in] zippedVec: zipped vector
+     * @param[out] unzippedVec: updated unzip vec.
+     * */
     template <typename T>
     void OCT_DIR_RIGHT_BACK_Unzip(const ot::Block &blk, const T *zippedVec, T *unzippedVec);
 
     /**@brief: Performs block padding along the OCT_DIR_RIGHT_FRONT direction.
-          * @param[in] blk: block to perform diagonal direction padding.
-          * @param[in] zippedVec: zipped vector
-          * @param[out] unzippedVec: updated unzip vec.
-          * */
+     * @param[in] blk: block to perform diagonal direction padding.
+     * @param[in] zippedVec: zipped vector
+     * @param[out] unzippedVec: updated unzip vec.
+     * */
     template <typename T>
     void OCT_DIR_RIGHT_FRONT_Unzip(const ot::Block &blk, const T *zippedVec, T *unzippedVec);
 
     /**@brief: Performs block padding along the OCT_DIR_UP_BACK direction.
-          * @param[in] blk: block to perform diagonal direction padding.
-          * @param[in] zippedVec: zipped vector
-          * @param[out] unzippedVec: updated unzip vec.
-          * */
+     * @param[in] blk: block to perform diagonal direction padding.
+     * @param[in] zippedVec: zipped vector
+     * @param[out] unzippedVec: updated unzip vec.
+     * */
     template <typename T>
     void OCT_DIR_UP_BACK_Unzip(const ot::Block &blk, const T *zippedVec, T *unzippedVec);
 
     /**@brief: Performs block padding along the OCT_DIR_UP_FRONT direction.
-          * @param[in] blk: block to perform diagonal direction padding.
-          * @param[in] zippedVec: zipped vector
-          * @param[out] unzippedVec: updated unzip vec.
-          * */
+     * @param[in] blk: block to perform diagonal direction padding.
+     * @param[in] zippedVec: zipped vector
+     * @param[out] unzippedVec: updated unzip vec.
+     * */
     template <typename T>
     void OCT_DIR_UP_FRONT_Unzip(const ot::Block &blk, const T *zippedVec, T *unzippedVec);
 
     /**@brief: Performs block padding along the OCT_DIR_DOWN_BACK direction.
-          * @param[in] blk: block to perform diagonal direction padding.
-          * @param[in] zippedVec: zipped vector
-          * @param[out] unzippedVec: updated unzip vec.
-          * */
+     * @param[in] blk: block to perform diagonal direction padding.
+     * @param[in] zippedVec: zipped vector
+     * @param[out] unzippedVec: updated unzip vec.
+     * */
     template <typename T>
     void OCT_DIR_DOWN_BACK_Unzip(const ot::Block &blk, const T *zippedVec, T *unzippedVec);
 
     /**@brief: Performs block padding along the OCT_DIR_DOWN_FRONT direction.
-          * @param[in] blk: block to perform diagonal direction padding.
-          * @param[in] zippedVec: zipped vector
-          * @param[out] unzippedVec: updated unzip vec.
-          * */
+     * @param[in] blk: block to perform diagonal direction padding.
+     * @param[in] zippedVec: zipped vector
+     * @param[out] unzippedVec: updated unzip vec.
+     * */
     template <typename T>
     void OCT_DIR_DOWN_FRONT_Unzip(const ot::Block &blk, const T *zippedVec, T *unzippedVec);
 
     /**@brief: Performs block padding along the OCT_DIR_LEFT_DOWN_BACK direction.
-              * @param[in] blk: block to perform diagonal direction padding.
-              * @param[in] zippedVec: zipped vector
-              * @param[out] unzippedVec: updated unzip vec.
-              * */
+     * @param[in] blk: block to perform diagonal direction padding.
+     * @param[in] zippedVec: zipped vector
+     * @param[out] unzippedVec: updated unzip vec.
+     * */
     template <typename T>
     void OCT_DIR_LEFT_DOWN_BACK_Unzip(const ot::Block &blk, const T *zippedVec, T *unzippedVec);
 
     /**@brief: Performs block padding along the OCT_DIR_RIGHT_DOWN_BACK direction.
-              * @param[in] blk: block to perform diagonal direction padding.
-              * @param[in] zippedVec: zipped vector
-              * @param[out] unzippedVec: updated unzip vec.
-              * */
+     * @param[in] blk: block to perform diagonal direction padding.
+     * @param[in] zippedVec: zipped vector
+     * @param[out] unzippedVec: updated unzip vec.
+     * */
     template <typename T>
     void OCT_DIR_RIGHT_DOWN_BACK_Unzip(const ot::Block &blk, const T *zippedVec, T *unzippedVec);
 
     /**@brief: Performs block padding along the OCT_DIR_LEFT_UP_BACK direction.
-                 * @param[in] blk: block to perform diagonal direction padding.
-                 * @param[in] zippedVec: zipped vector
-                 * @param[out] unzippedVec: updated unzip vec.
-                 * */
+     * @param[in] blk: block to perform diagonal direction padding.
+     * @param[in] zippedVec: zipped vector
+     * @param[out] unzippedVec: updated unzip vec.
+     * */
     template <typename T>
     void OCT_DIR_LEFT_UP_BACK_Unzip(const ot::Block &blk, const T *zippedVec, T *unzippedVec);
 
     /**@brief: Performs block padding along the OCT_DIR_RIGHT_UP_BACK direction.
-                 * @param[in] blk: block to perform diagonal direction padding.
-                 * @param[in] zippedVec: zipped vector
-                 * @param[out] unzippedVec: updated unzip vec.
-                 * */
+     * @param[in] blk: block to perform diagonal direction padding.
+     * @param[in] zippedVec: zipped vector
+     * @param[out] unzippedVec: updated unzip vec.
+     * */
     template <typename T>
     void OCT_DIR_RIGHT_UP_BACK_Unzip(const ot::Block &blk, const T *zippedVec, T *unzippedVec);
 
     /**@brief: Performs block padding along the OCT_DIR_LEFT_DOWN_FRONT direction.
-                  * @param[in] blk: block to perform diagonal direction padding.
-                  * @param[in] zippedVec: zipped vector
-                  * @param[out] unzippedVec: updated unzip vec.
-                  * */
+     * @param[in] blk: block to perform diagonal direction padding.
+     * @param[in] zippedVec: zipped vector
+     * @param[out] unzippedVec: updated unzip vec.
+     * */
     template <typename T>
     void OCT_DIR_LEFT_DOWN_FRONT_Unzip(const ot::Block &blk, const T *zippedVec, T *unzippedVec);
 
     /**@brief: Performs block padding along the OCT_DIR_RIGHT_DOWN_FRONT direction.
-              * @param[in] blk: block to perform diagonal direction padding.
-              * @param[in] zippedVec: zipped vector
-              * @param[out] unzippedVec: updated unzip vec.
-              * */
+     * @param[in] blk: block to perform diagonal direction padding.
+     * @param[in] zippedVec: zipped vector
+     * @param[out] unzippedVec: updated unzip vec.
+     * */
     template <typename T>
     void OCT_DIR_RIGHT_DOWN_FRONT_Unzip(const ot::Block &blk, const T *zippedVec, T *unzippedVec);
 
     /**@brief: Performs block padding along the OCT_DIR_LEFT_UP_FRONT direction.
-                 * @param[in] blk: block to perform diagonal direction padding.
-                 * @param[in] zippedVec: zipped vector
-                 * @param[out] unzippedVec: updated unzip vec.
-                 * */
+     * @param[in] blk: block to perform diagonal direction padding.
+     * @param[in] zippedVec: zipped vector
+     * @param[out] unzippedVec: updated unzip vec.
+     * */
     template <typename T>
     void OCT_DIR_LEFT_UP_FRONT_Unzip(const ot::Block &blk, const T *zippedVec, T *unzippedVec);
 
     /**@brief: Performs block padding along the OCT_DIR_RIGHT_UP_FRONT direction.
-                 * @param[in] blk: block to perform diagonal direction padding.
-                 * @param[in] zippedVec: zipped vector
-                 * @param[out] unzippedVec: updated unzip vec.
-                 * */
+     * @param[in] blk: block to perform diagonal direction padding.
+     * @param[in] zippedVec: zipped vector
+     * @param[out] unzippedVec: updated unzip vec.
+     * */
     template <typename T>
     void OCT_DIR_RIGHT_UP_FRONT_Unzip(const ot::Block &blk, const T *zippedVec, T *unzippedVec);
 
@@ -995,42 +1032,42 @@ private:
 
 public:
     /**@brief parallel mesh constructor
-          * @param[in] in: complete sorted 2:1 balanced octree to generate mesh
-          * @param[in] k_s: how many neighbours to check on each direction (used =1)
-          * @param[in] pOrder: order of an element.
-          * @param[in] commActive: MPI active communicator
-          * @param[in] comm: MPI communicator (global)
-          * */
+     * @param[in] in: complete sorted 2:1 balanced octree to generate mesh
+     * @param[in] k_s: how many neighbours to check on each direction (used =1)
+     * @param[in] pOrder: order of an element.
+     * @param[in] commActive: MPI active communicator
+     * @param[in] comm: MPI communicator (global)
+     * */
     Mesh(std::vector<ot::TreeNode> &in, unsigned int k_s, unsigned int pOrder, unsigned int activeNpes, MPI_Comm comm, bool pBlockSetup = true, SM_TYPE smType = SM_TYPE::FDM, unsigned int grainSz = DENDRO_DEFAULT_GRAIN_SZ, double ld_tol = DENDRO_DEFAULT_LB_TOL, unsigned int sf_k = DENDRO_DEFAULT_SF_K);
 
     /**@brief parallel mesh constructor
-         * @param[in] in: complete sorted 2:1 balanced octree to generate mesh
-         * @param[in] k_s: how many neighbours to check on each direction (used =1)
-         * @param[in] pOrder: order of an element.
-         * @param[in] comm: MPI communicator (global)
-         * @param[in] grainSz: prefered grain sz. (this parameter is used to perform automatic comm expansion and shrinking)
-         * @param[in] ld_tol: load imbalance tolerance for comm expansion and shrinking
-         * @param[in] sf_k: splitter fix _k value. (Needed by SFC_partitioinng for large p>=10,000)
-         * */
-    Mesh(std::vector<ot::TreeNode> &in, unsigned int k_s, unsigned int pOrder, MPI_Comm comm, bool pBlockSetup = true, SM_TYPE smType = SM_TYPE::FDM, unsigned int grainSz = DENDRO_DEFAULT_GRAIN_SZ, double ld_tol = DENDRO_DEFAULT_LB_TOL, unsigned int sf_k = DENDRO_DEFAULT_SF_K, unsigned int (*getWeight)(const ot::TreeNode *)=NULL );
+     * @param[in] in: complete sorted 2:1 balanced octree to generate mesh
+     * @param[in] k_s: how many neighbours to check on each direction (used =1)
+     * @param[in] pOrder: order of an element.
+     * @param[in] comm: MPI communicator (global)
+     * @param[in] grainSz: prefered grain sz. (this parameter is used to perform automatic comm expansion and shrinking)
+     * @param[in] ld_tol: load imbalance tolerance for comm expansion and shrinking
+     * @param[in] sf_k: splitter fix _k value. (Needed by SFC_partitioinng for large p>=10,000)
+     * */
+    Mesh(std::vector<ot::TreeNode> &in, unsigned int k_s, unsigned int pOrder, MPI_Comm comm, bool pBlockSetup = true, SM_TYPE smType = SM_TYPE::FDM, unsigned int grainSz = DENDRO_DEFAULT_GRAIN_SZ, double ld_tol = DENDRO_DEFAULT_LB_TOL, unsigned int sf_k = DENDRO_DEFAULT_SF_K, unsigned int (*getWeight)(const ot::TreeNode *)=NULL , unsigned int coarsetBLkLev = 0);
 
     /**@brief destructor for mesh (releases the allocated variables in the class. )*/
     ~Mesh();
 
     /**
-           * @brief Perform the blocks initialization so that we can apply the stencil for the grid as a sequnce of finite number of regular grids.
-           * note that this should be called after performing all E2N and E2N mapping.
-           * */
+     * @brief Perform the blocks initialization so that we can apply the stencil for the grid as a sequnce of finite number of regular grids.
+     * note that this should be called after performing all E2N and E2N mapping.
+     * */
     void performBlocksSetup();
 
     /**
-          * @brief computes the face to element map.
-          * needs to be called after e2e and e2n maps has built.
-         * */
+     * @brief computes the face to element map.
+     * needs to be called after e2e and e2n maps has built.
+     **/
     void buildF2EMap();
 
-    /*** @brief: perform block dependancy flags */
-    void flagBlocks();
+    /*** @brief: perform block dependancy flags flag block unzip depends on ghost nodes.  */
+    void flagBlockGhostDependancies();
 
     /**@brief: returns if the block setup has performed or not*/
     inline bool isBlockSetep() { return m_uiIsBlockSetup; }
@@ -1079,11 +1116,14 @@ public:
     /**@brief return the location of post node end*/
     inline unsigned int getNodePostGhostEnd() const { return m_uiNodePostGhostEnd; }
 
-    /**@brief returns the dof for a partition*/
+    /**@brief returns the dof for a partition (grid points) */
     inline unsigned int getDegOfFreedom() const { return m_uiNumActualNodes; }
 
-    /**@brief returns the dof for a partition*/
+    /**@brief returns the dof for a partition (grid points) */
     inline unsigned int getDegOfFreedomUnZip() const { return m_uiUnZippedVecSz; }
+
+    /**@brief returns the dof DG for a partition. (grid points) */
+    inline unsigned int getDegOfFreedomDG() const { return m_uiNumTotalElements*m_uiNpE; }
 
     /**@brief returns the pointer to All elements array. */
     inline const std::vector<ot::TreeNode> &getAllElements() const { return m_uiAllElements; }
@@ -1174,6 +1214,39 @@ public:
     /**@brief return Scatter map for node send*/
     inline const std::vector<unsigned int> &getRecvNodeSM() const { return m_uiScatterMapActualNodeRecv; }
 
+    /**@brief returns the cell/element send counts*/
+    inline const std::vector<unsigned int>& getElementSendCounts() const {return m_uiSendEleCount;}
+
+    /**@brief returns the cell/element send offsets*/
+    inline const std::vector<unsigned int>& getElementSendOffsets() const {return m_uiSendEleOffset;}
+    
+    /**@brief returns the cell/element recv counts*/
+    inline const std::vector<unsigned int>& getElementRecvCounts() const {return m_uiRecvEleCount;}
+    
+    /**@brief returns the cell/element recv offsets*/
+    inline const std::vector<unsigned int>& getElementRecvOffsets() const {return m_uiRecvEleOffset;}
+
+    /**@brief returns the cell/element send proc list*/
+    inline const std::vector<unsigned int>& getSendEleProcList() const {return m_uiElementSendProcList;}
+
+    /**@brief returns the cell/element recv proc list*/
+    inline const std::vector<unsigned int>& getRecvEleProcList() const {return m_uiElementRecvProcList;}
+
+    /**@brief: returns the scatter map for send element cell/ DG computations, note that this is offset by m_uiElementLocalBegin. */
+    inline const std::vector<unsigned int>& getSendElementSM() const { return m_uiScatterMapElementRound1;}
+
+    /**@breif: returns the scatter map for the recv element */
+    inline const std::vector<unsigned int>& getRecvElementSM() const {return m_uiGhostElementRound1Index;}
+
+    /**@brief: set the min and max bounds to the domain. */
+    void setDomainBounds(Point dmin, Point dmax) { m_uiDMinPt = Point(dmin.x(),dmin.y(),dmin.z()); m_uiDMaxPt = Point(dmax.x(),dmax.y(),dmax.z()); }
+
+    /**@brief: get the domain min point. */
+    inline Point getDomainMinPt() const {return m_uiDMinPt;}
+
+    /**@brief: get the domain max point. */
+    inline Point getDoaminMaxPt() const {return m_uiDMaxPt;}
+
     /** @brief: Decompose the DG index to element id and it's i,j,k values.*/
     inline void dg2eijk(unsigned int dg_index, unsigned int &e, unsigned int &i, unsigned int &j, unsigned int &k) const
     {
@@ -1205,6 +1278,9 @@ public:
 
     /**@brief waiting for all the mesh instances both active and inactive. This should not be called if not needed. this is a BARRIER. */
     inline void waitAll() const { MPI_Barrier(m_uiCommGlobal); }
+
+    /**@brief waiting for all the mesh instances both active. This should not be called if not needed. this is a BARRIER. */
+    inline void waitActive() const {MPI_Barrier(m_uiCommActive);}
 
     /**@brief set refinement flags for the octree.
      * This is non const function
@@ -1419,13 +1495,47 @@ public:
             return 0;
     }
 
+    /**@brief : returns the coarset block level allowed. */
+    inline unsigned int getCoarsetBlockLevAllowed() const { return m_uiCoarsetBlkLev;}
+
     /**@brief get plitter nodes for each processor. */
     inline const ot::TreeNode *getNodalSplitterNodes() const { return m_uiSplitterNodes; }
 
     // Methods needed for PDE & ODE and other solvers.
     /**@brief allocate memory for variable array based on the adaptive mesh*/
     template <typename T>
-    T *createVector() const;
+    T* createVector() const;
+
+    /**
+     * @brief create CG nodal vector
+     * 
+     * @tparam T : vector data type
+     * @param initVal: inital value
+     * @param dof : degrees of freedoms. 
+     * @return T* 
+     */
+    template<typename T>
+    T* createCGVector(T initVal=0, unsigned int dof =1) const;
+
+    /**
+     * @brief Create a Element Vector 
+     * 
+     * @tparam T vector data type. 
+     * @param initVal initialize value
+     * @return T* 
+     */
+    template <typename T>
+    T* createElementVector(T initVal=0, unsigned int dof=1) const;
+
+    /**
+     * @brief Create a Element DG Vector object (each element will have it's own node)
+     * 
+     * @tparam T vector type
+     * @param initVal : initial value for the vector
+     * @return T* 
+     */
+    template <typename T>
+    T* createDGVector(T initVal=0, unsigned int dof=1) const;
 
     /**@brief allocate memory for variable array based on the adaptive mesh.*/
     template <typename T>
@@ -1488,64 +1598,133 @@ public:
     template <typename T>
     T *createUnZippedVector(const T initValue) const;
 
+
     /**
-         *
-         * @brief Performs all parent to child interpolations for the m_uiEl_i element in order to apply the stencil.
-         * @param[in] parent: function values
-         * @param[in] cnum: child number to interpolate.
-         * @param[in] dim: dim of the interpolation. (dim=1 for edge interpolation , dim=2 for face interpolation, dim=3 for octant to child interpolation.)
-         * @param[out] out: interpolated values.
-         *
-         * */
+     * @brief converts a cg vector to element local DG vector.
+     * @tparam T type of the vector. 
+     * @param cg_vec : Input cg vector
+     * @param dg_vec : input dg vector
+     * @param isAllocated : true if dg_vector is allocated
+     * @param gsynced: true if ghost is synced. 
+     * @param dof : degrees of freedom. 
+     * @return T* 
+     */
+    template <typename T>
+    void CG2DGVec(T* cg_vec, T*& dg_vec, bool isAllocated, bool gsynced, unsigned int dof=1);
+
+
+    /**
+     * @brief converts a cg vector to element local DG vector.
+     * note : dg to cg is well defined if and only if the element boundary nodes are on agree with each other. 
+     * @tparam T type of the vector. 
+     * @param cg_vec : Input cg vector
+     * @param dg_vec : input dg vector
+     * @param isAllocated : true if dg_vector is allocated
+     * @param gsynced: true if ghost is synced. 
+     * @param dof : degrees of freedom. 
+     * @return T* 
+     */
+    template <typename T>
+    void DG2CGVec(const T* dg_vec, T*& cg_vec, bool isAllocated, unsigned int dof=1) const;
+
+    /**
+     * @brief performs partial DG to CG vec conversion. 
+     * 
+     * @tparam T 
+     * @param dg_vec 
+     * @param cg_vec 
+     * @param isAllocated 
+     * @param int 
+     * @param nEle 
+     * @param dof 
+     */
+    template <typename T>
+    void DG2CGVec(const T* dg_vec, T*& cg_vec, bool isAllocated, const unsigned int* eleIDs, unsigned int nEle, unsigned int dof=1) const;
+
+    
+    /**
+     *
+     * @brief Performs all parent to child interpolations for the m_uiEl_i element in order to apply the stencil.
+     * @param[in] parent: function values
+     * @param[in] cnum: child number to interpolate.
+     * @param[in] dim: dim of the interpolation. (dim=1 for edge interpolation , dim=2 for face interpolation, dim=3 for octant to child interpolation.)
+     * @param[out] out: interpolated values.
+     *
+     * */
     inline void parent2ChildInterpolation(const double *in, double *out, unsigned int cnum, unsigned int dim = 3) const;
 
     /**
-         * @brief performs the child to parent contribution (only from a single child).
-         * @param[in] in: child function values
-         * @param[in] cnum: morton ID of the current child.
-         * @param[in] dim: dim of the interpolation. (dim=1 for edge interpolation , dim=2 for face interpolation, dim=3 for octant to child interpolation.)
-         * @param[out] out: interpolated values. (child to parent contribution)
-         *
-         * */
+     * @brief performs the child to parent contribution (only from a single child).
+     * @param[in] in: child function values
+     * @param[in] cnum: morton ID of the current child.
+     * @param[in] dim: dim of the interpolation. (dim=1 for edge interpolation , dim=2 for face interpolation, dim=3 for octant to child interpolation.)
+     * @param[out] out: interpolated values. (child to parent contribution)
+     *
+     * */
 
     inline void child2ParentInterpolation(const double *in, double *out, unsigned int cnum, unsigned int dim = 3) const;
 
     /**
-         * @brief Performs child to parent injection.
-         * @param [in] in : input vector. 
-         * @param [out] out : injected vector
-         * @param [in] child : element IDs of the children should be at the same level.
-         * @param [in] lev: level of the children, all the children should be in the same level otherwise they will be skipped.   
-         * */
+     * @brief Performs child to parent injection.
+     * @param [in] in : input vector. 
+     * @param [out] out : injected vector
+     * @param [in] child : element IDs of the children should be at the same level.
+     * @param [in] lev: level of the children, all the children should be in the same level otherwise they will be skipped.   
+     * */
     template<typename T>
     void child2ParentInjection(const T *in, T *out, unsigned int* child, unsigned int lev) const;
 
     /**
-           * @author Milinda Fernando
-           * @brief Creates the decomposition of adaptive octree variables into blocklist variables that we computed.
-           * @param [in] zippedVec adaptive representation of the variable array. (created by createVec function)
-           * @param [out] unzippedVec decomposed representation of the adaptive array.
-           * @note this routine assumes that for both arrays memory has been allocated. Routine is responsible only to fill up the unzipped entries.
-           * */
+     * @author Milinda Fernando
+     * @brief Creates the decomposition of adaptive octree variables into blocklist variables that we computed.
+     * @param [in] in : adaptive representation of the variable array. (created by createVec function)
+     * @param [out] out: decomposed representation of the adaptive array.
+     * @note this routine assumes that for both arrays memory has been allocated. Routine is responsible only to fill up the unzipped entries.
+     * */
     template <typename T>
-    void unzip(const T *zippedVec, T *unzippedVec);
+    void unzip(const T *in, T *out, unsigned int dof=1);
+
+    /**
+     * @brief performs unzip operation for a given block id. 
+     * 
+     * @tparam T type of the vector. 
+     * @param in : zipped vector
+     * @param out : unzipped vector. 
+     * @param blk :pointer to list of block ids, for the unzip. 
+     * @param numblks: number of block ids specified. 
+     */
+    template<typename T>
+    void unzip(const T* in, T* out, const unsigned int *blkIDs, unsigned int numblks,unsigned int dof=1);
+    
 
     /**@author Milinda Fernando
-          * @brief Performs the compression frrom regular block grid varable list to adaptive representation.
-          * @param [in] unzippedVec decomposed version of the adaptive array
-          * @param [out] compressed version of the unzippedVec.
-          * */
+     * @brief Performs the compression frrom regular block grid varable list to adaptive representation.
+     * @param [in] unzippedVec decomposed version of the adaptive array
+     * @param [out] compressed version of the unzippedVec.
+     * */
     template <typename T>
     void zip(const T *unzippedVec, T *zippedVec);
 
+
     /**
-         * @brief Apply a given stencil to for provided variable array.
-         * @param [in] in : vector that we need to apply the stencil on.
-         * @param [in] centered: Stencil that we need to apply on vector in, this is the centered stencil.
-         * @param [in] backward: backward version of the centered stencil.(This is used for boundary elements. )
-         * @param [in] forward: foward version of the centered stencil. (This is used for boundary elements. )
-         * @param [out] out: output vector that after applying the stencil.
-         */
+     * @brief perform block wise zip operation. 
+     * 
+     * @tparam T type of the vector
+     * @param unzippedVec : unzip vector
+     * @param zippedVec : zipped vector
+     * @param local_blkID : local block id. 
+     */
+    template<typename T>
+    void zip(const T *unzippedVec, T *zippedVec, const unsigned int *blkIDs, unsigned int numblks, unsigned int ll);
+
+    /**
+     * @brief Apply a given stencil to for provided variable array.
+     * @param [in] in : vector that we need to apply the stencil on.
+     * @param [in] centered: Stencil that we need to apply on vector in, this is the centered stencil.
+     * @param [in] backward: backward version of the centered stencil.(This is used for boundary elements. )
+     * @param [in] forward: foward version of the centered stencil. (This is used for boundary elements. )
+     * @param [out] out: output vector that after applying the stencil.
+     */
 
     template <typename T, unsigned int length, unsigned int offsetCentered, unsigned int offsetBackward, unsigned int offsetForward>
     void applyStencil(const std::vector<T> &in, std::vector<T> &out,
@@ -1554,16 +1733,16 @@ public:
                       const Stencil<T, length, offsetForward> &forward);
 
     /**
-         * @brief Perform the ghost exchange for the vector vec.
-         * @param [in] vec: adaptive mesh vector contaiting the values.
-         * */
+     * @brief Perform the ghost exchange for the vector vec.
+     * @param [in] vec: adaptive mesh vector contaiting the values.
+     * */
     template <typename T>
     void performGhostExchange(std::vector<T> &vec);
 
     /**
-         * @brief Perform the ghost exchange for the vector vec.
-         * @param [in] vec: adaptive mesh vector contaiting the values.
-         * */
+     * @brief Perform the ghost exchange for the vector vec.
+     * @param [in] vec: adaptive mesh vector contaiting the values.
+     * */
     template <typename T>
     void performGhostExchange(T *vec);
 
@@ -1583,6 +1762,113 @@ public:
      * */
     template <typename T>
     void ghostExchangeRecvSync(T *vec, T *recvNodeBuffer, MPI_Request *recv_reqs, MPI_Status *recv_sts);
+
+    /**
+     * @brief : ghost read begin. 
+     * 
+     * @tparam T 
+     * @param vec : vector to perform ghost syncronization. (begin)
+     * @param dof : degrees of freedoms 
+     */
+    template<typename T>
+    void readFromGhostBegin(T* vec, unsigned int dof =1);
+
+    /**
+     * @brief:  ghost read end
+     * 
+     * @tparam T 
+     * @param vec : vector to perform ghost syncronization. (begin)
+     * @param dof : degrees of freedoms 
+     */
+    template<typename T>
+    void readFromGhostEnd(T* vec, unsigned int dof =1);    
+
+    /**
+     * @brief : ghost read begin. 
+     * 
+     * @tparam T 
+     * @param vec : vector to perform ghost syncronization. (begin) for elemental vector (cell vector)
+     * @param dof : degrees of freedoms 
+     */
+    template<typename T>
+    void readFromGhostBeginElementVec(T* vec, unsigned int dof =1);
+
+    /**
+     * @brief:  ghost read end
+     * 
+     * @tparam T 
+     * @param vec : vector to perform ghost syncronization. (begin) for elemental vector (cell vector)
+     * @param dof : degrees of freedoms 
+     */
+    template<typename T>
+    void readFromGhostEndElementVec(T* vec, unsigned int dof =1); 
+
+
+
+
+    /**
+     * @brief : ghost read begin for a DG vector space with CG vector, but communication occurs in the element DG format. 
+     * 
+     * @tparam T 
+     * @param vec : vector to perform ghost syncronization. (begin) for elemental vector (element local vector)
+     * @param dof : degrees of freedoms 
+     */
+    template<typename T>
+    void readFromGhostBeginEleDGVec(T* vec, unsigned int dof =1);
+
+    /**
+     * @brief : ghost read end for a DG vector space with CG vector, but communication occurs in the element DG format. 
+     * 
+     * @tparam T 
+     * @param vec : vector to perform ghost syncronization. (begin) for elemental vector (element local vector)
+     * @param dof : degrees of freedoms 
+     */
+    template<typename T>
+    void readFromGhostEndEleDGVec(T* vec, unsigned int dof =1); 
+
+
+
+     /**
+     * @brief : begin of the write from ghost. 
+     * 
+     * @tparam T 
+     * @param vec : vector to perform ghost syncronization. (begin)
+     * @param dof : degrees of freedoms 
+     */
+    template<typename T>
+    void writeFromGhostBegin(T* vec, unsigned int dof =1);
+
+    /**
+     * @brief:  end of write from ghost. 
+     * 
+     * @tparam T 
+     * @param vec : vector to perform write from ghost. (begin)
+     * @param mode: write mode. 
+     * @param dof : degrees of freedoms 
+     */
+    template<typename T>
+    void writeFromGhostEnd(T* vec, ot::GWMode mode , unsigned int dof =1);
+
+    /**
+     * @brief 
+     * @tparam T 
+     * @param vec 
+     * @param dof 
+     */
+    template<typename T>
+    void gatherFromGhostBegin(T* vec, unsigned int dof=1);
+
+    /**
+     * @brief 
+     * 
+     * @tparam T 
+     * @param vec 
+     * @param gatherV 
+     * @param dof 
+     */
+    template<typename T>
+    void gatherFromGhostEnd(T* vec, std::vector<std::vector<T>>& gatherV ,unsigned int dof=1);
+    
 
     /**
      * @brief Perform the wait on the recv requests
@@ -1644,6 +1930,18 @@ public:
      * */
     template <typename T>
     void interGridTransfer(T *&vec, const ot::Mesh *pMesh);
+    
+    /**
+     * @brief Performs intergrid transfer without deallocating the existing vector. 
+     * 
+     * @tparam T : data type of the vector. 
+     * @param vec : input vector (vector corresponding to the old mesh)
+     * @param vecOut : output vector (new vector consresponding to the new vector)
+     * @param pMesh : pointer to the new mesh object. 
+     * @param isAlloc : True if out vector is allocated with ghost, false otherwise. 
+     */
+    template <typename T>
+    void interGridTransfer(T* vec, T* vecOut, const ot::Mesh* pMesh ,bool isAlloc=false);
 
     /**
      * @brief performs the intergrid transfer operation using the unzip representation. Compared to elemental 
@@ -1660,11 +1958,12 @@ public:
     *@brief : Returns the nodal values of a given element for a given variable vector.
     *@param[in] vec: variable vector that we want to get the nodal values.
     *@param[in] elementID: element ID that we need to get the nodal values.
+    *@param[in] isDGVec: true if the vec is elemental dg vec. 
     *@param[out] nodalValues: nodal values of the specified element ID
     *
     * */
     template <typename T>
-    void getElementNodalValues(const T *vec, T *nodalValues, unsigned int elementID) const;
+    void getElementNodalValues(const T *vec, T *nodalValues, unsigned int elementID, bool isDGVec=false) const;
 
     /**
      * @assumption: input is the elemental nodal values.
@@ -1726,6 +2025,15 @@ public:
      * @param lmax : max refinement acrross all procs. 
      */
     void computeMinMaxLevel(unsigned int &lmin,unsigned int &lmax) const;
+
+    /**
+     * @brief Get the Finer Face Neighbors of the current element. 
+     * 
+     * @param ele : element ID
+     * @param dir : face direction
+     * @param child : neighbor ids (array of size 4). 
+     */
+    void getFinerFaceNeighbors(unsigned int ele, unsigned int dir, unsigned int* child) const;
 
 };
 

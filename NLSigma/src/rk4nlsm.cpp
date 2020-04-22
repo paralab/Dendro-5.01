@@ -663,6 +663,8 @@ namespace ode
                             dy=blkList[blk].computeDy(pt_min,pt_max);
                             dz=blkList[blk].computeDz(pt_min,pt_max);
 
+                            //std::cout<<" dx: "<<dx<<" ele x : "<<(1u<<(m_uiMaxDepth-m_uiMesh->getAllElements()[blkList[blk].getLocalElementBegin()].getLevel()))/(double)nlsm::NLSM_ELE_ORDER<<" computed blk: "<<blkList[blk].computeGridDx()<<std::endl;
+
                             ptmin[0]=GRIDX_TO_X(blkList[blk].getBlockNode().minX())-3*dx;
                             ptmin[1]=GRIDY_TO_Y(blkList[blk].getBlockNode().minY())-3*dy;
                             ptmin[2]=GRIDZ_TO_Z(blkList[blk].getBlockNode().minZ())-3*dz;
@@ -670,7 +672,6 @@ namespace ode
                             ptmax[0]=GRIDX_TO_X(blkList[blk].getBlockNode().maxX())+3*dx;
                             ptmax[1]=GRIDY_TO_Y(blkList[blk].getBlockNode().maxY())+3*dy;
                             ptmax[2]=GRIDZ_TO_Z(blkList[blk].getBlockNode().maxZ())+3*dz;
-
 
                             nlsmRhs(m_uiUnzipVarRHS, (const double **)m_uiUnzipVar, offset, ptmin, ptmax, sz, bflag);
 
@@ -1027,6 +1028,10 @@ namespace ode
 
                         if(m_uiCurrentStep==0)
                          applyInitialConditions(m_uiPrevVar);
+
+                        unsigned int lmin,lmax;
+                        m_uiMesh->computeMinMaxLevel(lmin,lmax);
+                        nlsm::NLSM_RK45_TIME_STEP_SIZE=nlsm::NLSM_CFL_FACTOR*((nlsm::NLSM_COMPD_MAX[0]-nlsm::NLSM_COMPD_MIN[0])*((1u<<(m_uiMaxDepth-lmax))/((double) nlsm::NLSM_ELE_ORDER))/((double)(1u<<(m_uiMaxDepth))));
 
                         #ifdef RK_SOLVER_OVERLAP_COMM_AND_COMP
                             // reallocates mpi resources for the the new mesh. (this will deallocate the old resources)

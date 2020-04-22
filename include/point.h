@@ -28,6 +28,7 @@
 
 #include  <cmath>
 #include "mpi.h"
+#include <ostream>
 
 /**
   @brief A point class
@@ -161,6 +162,9 @@ namespace par {
     };
 
 }//end namespace par
+
+/**@brief: ostreem operator overload for the point class. */
+std::ostream& operator<<(std::ostream& os, Point const& other);
 
 
 #endif // POINT_H

@@ -24,6 +24,7 @@ extern unsigned int m_uiMaxDepth;
 #include "point.h"
 #include <algorithm>
 #include "dendro.h"
+#include <ostream>
 
 
 namespace ot {

@@ -518,17 +518,39 @@ namespace nlsm
         xRange_b=pt_g_min[0];//(rank*(pt_g_max[0]-pt_g_min[0]))/npes + pt_g_min[0];
         xRange_e=pt_g_max[0];//((rank+1)*(pt_g_max[0]-pt_g_min[0]))/npes + pt_g_min[0];
 
+        // xRange_b=(rank*(pt_g_max[0]-pt_g_min[0]))/npes + pt_g_min[0];
+        // xRange_e=((rank+1)*(pt_g_max[0]-pt_g_min[0]))/npes + pt_g_min[0];
+
         unsigned int stepSz=1u<<(maxDepth-regLev);
 
        /* std::cout<<" x min: "<<xRange_b<<" x_max: "<<xRange_e<<std::endl;
         std::cout<<" y min: "<<yRange_b<<" y_max: "<<yRange_e<<std::endl;
         std::cout<<" z min: "<<zRange_b<<" z_max: "<<zRange_e<<std::endl;*/
 
-
+        // note that other wise this will create lot of duplicates. 
+        if(!rank)
         for(unsigned int x=xRange_b;x<xRange_e;x+=stepSz)
             for(unsigned int y=yRange_b;y<yRange_e;y+=stepSz)
               for(unsigned int z=zRange_b;z<zRange_e;z+=stepSz)
-                  tmpNodes.push_back(ot::TreeNode(x,y,z,regLev,m_uiDim,maxDepth));
+              {
+                if(x>=(1u<<maxDepth)) x=x-1;	
+		        if(y>=(1u<<maxDepth)) y=y-1;	
+		        if(z>=(1u<<maxDepth)) z=z-1;	
+
+                tmpNodes.push_back(ot::TreeNode(x,y,z,regLev,m_uiDim,maxDepth));
+              }
+        
+        // now scatter the elements.
+        DendroIntL totalNumOcts = tmpNodes.size(), numOcts;
+        par::Mpi_Bcast<DendroIntL>(&totalNumOcts, 1, 0, comm);
+
+        const unsigned int size = npes;
+        std::vector<ot::TreeNode> nodes_new;
+        // TODO do proper load balancing.
+        numOcts = totalNumOcts/size + (rank < totalNumOcts%size);
+        par::scatterValues<ot::TreeNode>(tmpNodes, nodes_new, numOcts, comm);
+        std::swap(tmpNodes, nodes_new);
+        nodes_new.clear();
 
 
         return ;

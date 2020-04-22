@@ -128,7 +128,7 @@ int main (int argc, char** argv)
         exit(0);
     }
 
-    nlsm::NLSM_RK45_TIME_STEP_SIZE=nlsm::NLSM_CFL_FACTOR*(nlsm::NLSM_COMPD_MAX[0]-nlsm::NLSM_COMPD_MIN[0])*(1.0/(double)(1u<<nlsm::NLSM_MAXDEPTH));
+    
 
     //2. generate the initial grid.
     std::vector<ot::TreeNode> tmpNodes;
@@ -281,7 +281,8 @@ int main (int argc, char** argv)
     nlsm::timer::t_mesh.start();
 
     ot::Mesh * mesh=new ot::Mesh(balOct,1,nlsm::NLSM_ELE_ORDER,comm,true,ot::SM_TYPE::FDM,nlsm::NLSM_DENDRO_GRAIN_SZ,nlsm::NLSM_LOAD_IMB_TOL,nlsm::NLSM_SPLIT_FIX);
-
+    //ot::Mesh * mesh = ot::createSplitMesh(nlsm::NLSM_ELE_ORDER,1,1,comm);
+    mesh->setDomainBounds(Point(nlsm::NLSM_GRID_MIN_X,nlsm::NLSM_GRID_MIN_Y,nlsm::NLSM_GRID_MIN_Z), Point(nlsm::NLSM_GRID_MAX_X, nlsm::NLSM_GRID_MAX_Y,nlsm::NLSM_GRID_MAX_Z));
     nlsm::timer::t_mesh.stop();
 
     t_stat=nlsm::timer::t_mesh.seconds;
@@ -302,6 +303,12 @@ int main (int argc, char** argv)
         std::cout<<"\t"<<GRN<<" blk (min,mean,max): "<<"( "<<t_blk_g[0]<<"\t"<<t_blk_g[1]<<"\t"<<t_blk_g[2]<<" )"<<NRM<<std::endl;
     }
 
+    unsigned int lmin,lmax;
+    mesh->computeMinMaxLevel(lmin,lmax);
+    nlsm::NLSM_RK45_TIME_STEP_SIZE=nlsm::NLSM_CFL_FACTOR*((nlsm::NLSM_COMPD_MAX[0]-nlsm::NLSM_COMPD_MIN[0])*((1u<<(m_uiMaxDepth-lmax))/((double) nlsm::NLSM_ELE_ORDER))/((double)(1u<<(m_uiMaxDepth))));
+    par::Mpi_Bcast(&nlsm::NLSM_RK45_TIME_STEP_SIZE,1,0,comm);
+    //std::cout<<" lmin: "<<lmin<<" lmax: "<<lmax<<std::endl;
+    
 
     ode::solver::RK4_NLSM rk_nlsm(mesh,nlsm::NLSM_RK45_TIME_BEGIN,nlsm::NLSM_RK45_TIME_END,nlsm::NLSM_RK45_TIME_STEP_SIZE);
     //ode::solver::RK3_NLSM rk_nlsm(mesh,nlsm::NLSM_RK45_TIME_BEGIN,nlsm::NLSM_RK45_TIME_END,nlsm::NLSM_RK45_TIME_STEP_SIZE);

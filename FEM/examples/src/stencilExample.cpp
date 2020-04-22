@@ -38,7 +38,7 @@ int main (int argc, char** argv) {
     if(argc<4)
     {
         if(!rank) std::cout<<"Usage: "<<argv[0]<<" maxDepth wavelet_tol partition_tol eleOrder"<<std::endl;
-        return 0;
+        MPI_Abort(comm,0);
     }
 
     m_uiMaxDepth=atoi(argv[1]);
@@ -258,7 +258,7 @@ int main (int argc, char** argv) {
     }
 
     mesh->unzip(&(*(funcVal.begin())),&(*(funcValUnZip.begin())));
-    std::cout<<"unzip ended "<<std::endl;
+    //std::cout<<"unzip ended "<<std::endl;
     //assert(ot::test::isUnzipValid(&mesh,&(*(funcValUnZip.begin())),func,1e-3));
     ot::test::isUnzipValid(mesh,&(*(funcValUnZip.begin())),func,1e-3);
 
@@ -291,7 +291,130 @@ int main (int argc, char** argv) {
 
     }
 
+    // test elemental ghost exchange
 
+    if(!rank)
+    {
+        std::cout<<YLW<<"================================================================================================"<<NRM<<std::endl;
+        std::cout<<"        elemental ghost sync test begin    "<<std::endl;
+        std::cout<<YLW<<"================================================================================================"<<NRM<<std::endl;
+
+    }
+
+    unsigned int * cellVec = mesh->createElementVector(0u);
+    const ot::TreeNode* const pNodes = mesh->getAllElements().data();
+
+    for (unsigned int ele = mesh->getElementLocalBegin(); ele < mesh->getElementLocalEnd(); ele++)
+        cellVec[ele] = pNodes[ele].getLevel();
+
+    mesh->readFromGhostBeginElementVec(cellVec,1);
+    mesh->readFromGhostEndElementVec(cellVec,1);
+
+        for (unsigned int ele = mesh->getElementPreGhostBegin(); ele < mesh->getElementPreGhostEnd(); ele++)
+        {
+            if( !(cellVec[ele] ==0 || cellVec[ele] == pNodes[ele].getLevel()))
+                std::cout<<"rank: "<<mesh->getMPIRank()<<" elemental ghost sync error in pre ghost "<<std::endl;
+        }
+
+        for (unsigned int ele = mesh->getElementLocalBegin(); ele < mesh->getElementLocalEnd(); ele++)
+        {
+            if( !(cellVec[ele] == pNodes[ele].getLevel()))
+                std::cout<<"rank: "<<mesh->getMPIRank()<<" elemental ghost sync currupts local values "<<std::endl;
+        }
+
+        for (unsigned int ele = mesh->getElementPostGhostBegin(); ele < mesh->getElementPostGhostEnd(); ele++)
+        {
+            if( !(cellVec[ele] ==0 || cellVec[ele] == pNodes[ele].getLevel()))
+                std::cout<<"rank: "<<mesh->getMPIRank()<<" elemental ghost sync error in post ghost cell val "<<cellVec[ele]<<" nodel lev: "<<pNodes[ele].getLevel()<<std::endl;
+        }
+
+    
+    if(!rank)
+    {
+        std::cout<<YLW<<"================================================================================================"<<NRM<<std::endl;
+        std::cout<<"        elemental ghost sync test end    "<<std::endl;
+        std::cout<<YLW<<"================================================================================================"<<NRM<<std::endl;
+
+    }
+
+
+    if(!rank)
+    {
+        std::cout<<YLW<<"================================================================================================"<<NRM<<std::endl;
+        std::cout<<"        DG ghost sync test begin    "<<std::endl;
+        std::cout<<YLW<<"================================================================================================"<<NRM<<std::endl;
+
+    }
+
+
+    double * dg_vec = mesh->createDGVector<double>(0,2);
+    unsigned int dg_sz = mesh->getDegOfFreedomDG();
+
+    const unsigned int nPe = mesh->getNumNodesPerElement();
+    for(unsigned int v=0; v < 2; v++)
+    {
+        for(unsigned int ele=mesh->getElementLocalBegin(); ele < mesh->getElementLocalEnd(); ele++)
+        {
+            for(unsigned int k=0; k < eOrder+1 ; k++)
+             for(unsigned int j=0; j < eOrder+1; j++)
+              for(unsigned int i=0; i < eOrder+1; i++)
+              {
+                  double x = pNodes[ele].minX() + i*((1u<<m_uiMaxDepth - pNodes[ele].getLevel())/eOrder);
+                  double y = pNodes[ele].minY() + j*((1u<<m_uiMaxDepth - pNodes[ele].getLevel())/eOrder);
+                  double z = pNodes[ele].minZ() + k*((1u<<m_uiMaxDepth - pNodes[ele].getLevel())/eOrder);
+                
+                  (dg_vec + v*dg_sz)[ele*nPe + k*(eOrder+1)*(eOrder+1) + j*(eOrder+1) + i ] = func(x,y,z);  
+
+              }
+
+            
+        }
+
+    }
+
+    mesh->readFromGhostBeginEleDGVec(dg_vec,2);
+    mesh->readFromGhostEndEleDGVec(dg_vec,2);
+
+    const std::vector<unsigned int> recvEleOffset = mesh->getElementRecvOffsets();
+    const std::vector<unsigned int> recvEleCounts = mesh->getElementRecvCounts();
+    const std::vector<unsigned int> recvESM       = mesh->getRecvElementSM(); 
+
+    for(unsigned int v=0; v < 2; v++)
+    {
+
+        for(unsigned int p=0; p < npes; p++)
+        {
+            for(unsigned int ee=recvEleOffset[p]; ee < (recvEleOffset[p]+ recvEleCounts[p]); ee++)
+            {   
+                
+                const unsigned int ele = recvESM[ee];
+                for(unsigned int k=0; k < eOrder+1 ; k++)
+                for(unsigned int j=0; j < eOrder+1; j++)
+                for(unsigned int i=0; i < eOrder+1; i++)
+                {
+                    double x = pNodes[ele].minX() + i*((1u<<m_uiMaxDepth - pNodes[ele].getLevel())/eOrder);
+                    double y = pNodes[ele].minY() + j*((1u<<m_uiMaxDepth - pNodes[ele].getLevel())/eOrder);
+                    double z = pNodes[ele].minZ() + k*((1u<<m_uiMaxDepth - pNodes[ele].getLevel())/eOrder);
+
+                    double diff = std::fabs((dg_vec + v*dg_sz)[ele*nPe + k*(eOrder+1)*(eOrder+1) + j*(eOrder+1) + i ] - func(x,y,z));
+                    
+                    if(diff > 1e-3)
+                        std::cout<<"rank: "<<rank<<" ele: "<<ele<<" DG vec:"<<(dg_vec + v*dg_sz)[ele*nPe + k*(eOrder+1)*(eOrder+1) + j*(eOrder+1) + i ]<<" func: "<<func(x,y,z)<<" diff : "<<diff<<std::endl;
+                
+                }
+            }
+        }
+    }
+
+    delete [] dg_vec;
+
+    if(!rank)
+    {
+        std::cout<<YLW<<"================================================================================================"<<NRM<<std::endl;
+        std::cout<<"        DG ghost sync test end    "<<std::endl;
+        std::cout<<YLW<<"================================================================================================"<<NRM<<std::endl;
+
+    }
 
     mesh->createVector(dx_funcVal1,dx_func);
     mesh->createVector(dy_funcVal1,dy_func);
@@ -329,6 +452,7 @@ int main (int argc, char** argv) {
     mesh->performGhostExchange(funcVal);
 
 
+    
 
 #if 0
 
@@ -387,8 +511,11 @@ int main (int argc, char** argv) {
     const char *fVarNames []={"Time","Cycle"};
     double fVarVal []={0.1,1};
 
+    unsigned int s_val[] ={1u<<(m_uiMaxDepth-1), 1u<<(m_uiMaxDepth-1), 1u<<(m_uiMaxDepth-1)};
+    unsigned int s_normal[]={0,0,1};
+    mesh->setDomainBounds(pt_min,pt_max);
+    io::vtk::mesh2vtu_slice(mesh, s_val,s_normal, "f_val_slice",2,(const char **)fVarNames,(const double *)fVarVal,numPVars,(const char** )pVarNames,(const double **)pVarVal);
     io::vtk::mesh2vtuFine(mesh, "f_val",2,(const char **)fVarNames,(const double *)fVarVal,numPVars,(const char** )pVarNames,(const double **)pVarVal);
-
 
 
     /*mesh.vectorToVTK(funcVal,"f");

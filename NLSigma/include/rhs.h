@@ -45,4 +45,6 @@ void nlsm_bcs(double *f_rhs, const double *f,
 
 void fake_initial_data(double x, double y, double z, double *u);
 
+//void nlsmRhs_blkwise();
+
 #endif

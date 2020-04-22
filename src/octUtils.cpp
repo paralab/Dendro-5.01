@@ -140,8 +140,6 @@ int createRegularOctree(std::vector<ot::TreeNode>& out, unsigned int lev,
 }
 
 
-
-
 int function2Octree(std::function<double(double,double,double)> fx, std::vector<ot::TreeNode> & nodes,unsigned int maxDepth, const double & tol ,unsigned int elementOrder, MPI_Comm comm )
 {
 
@@ -329,8 +327,6 @@ int function2Octree(std::function<double(double,double,double)> fx, std::vector<
 
 
 }
-
-
 
 int function2Octree(std::function<void(double,double,double,double*)> fx,const unsigned int numVars,const unsigned int* varIndex,const unsigned int numInterpVars, std::vector<ot::TreeNode> & nodes,unsigned int maxDepth, const double & tol ,unsigned int elementOrder,MPI_Comm comm )
 {
@@ -553,7 +549,6 @@ int function2Octree(std::function<void(double,double,double,double*)> fx,const u
 
 }
 
-
 void octree2BlockDecomposition(std::vector<ot::TreeNode>& pNodes, std::vector<ot::Block>& blockList,unsigned int maxDepth,unsigned int & d_min, unsigned int & d_max,DendroIntL localBegin, DendroIntL localEnd,unsigned int eleOrder,unsigned int coarsetLev)
 {
 
@@ -561,11 +556,11 @@ void octree2BlockDecomposition(std::vector<ot::TreeNode>& pNodes, std::vector<ot
     assert(seq::test::isUniqueAndSorted(pNodes));
 
     // Note: Commented out code is for debugging purposes.
-#ifdef OCT2BLK_DEBUG
+    #ifdef OCT2BLK_DEBUG
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD,&rank);
     treeNodesTovtk(pNodes,rank,"balOct");
-#endif
+    #endif
 
     unsigned int x,y,z,hindex,hindexN,index;
     unsigned int rot_id=ROOT_ROTATION;
@@ -726,7 +721,7 @@ void octree2BlockDecomposition(std::vector<ot::TreeNode>& pNodes, std::vector<ot
 
    std::reverse(blockList.begin(),blockList.end());
 
-#ifdef OCT2BLK_DEBUG
+    #ifdef OCT2BLK_DEBUG
     std::vector<ot::TreeNode> blockNodes;
     blockNodes.resize(blockList.size());
     for(unsigned int k=0;k<blockList.size();k++)
@@ -735,9 +730,9 @@ void octree2BlockDecomposition(std::vector<ot::TreeNode>& pNodes, std::vector<ot
     }
 
     treeNodesTovtk(blockNodes,rank,"blockNodes");
-#endif
+    #endif
 
-#ifdef OCT2BLK_DEBUG
+    #ifdef OCT2BLK_DEBUG
     unsigned int numIdealRegOcts=0;
     unsigned int numActualRegOcts=0;
     unsigned int singleOctBlockCount=0;
@@ -762,7 +757,7 @@ void octree2BlockDecomposition(std::vector<ot::TreeNode>& pNodes, std::vector<ot
 
     }
     std::cout<<"rank: "<<rank<<" singleOctBlocks: "<<singleOctBlockCount<<" pNodes size: "<<pNodes.size()<<" ratio: "<<(double(singleOctBlockCount)/pNodes.size())<<std::endl;
-#endif
+    #endif
 
 
 
@@ -1181,9 +1176,9 @@ unsigned int rankSelectRule(unsigned int size_global,unsigned int rank_global, u
     if(size_local>size_global){std::cout<<"[Error] : "<<__func__<<" rank: "<<rank_global<<" size_local > size_global "<<std::endl; exit(0);}
     
     // Rule 1 [enable this code to choose consecative ranks (deafult) works with any size_global and size_local]
-#ifdef BSSN_CONSEC_COMM_SELECT
-    return rank_i;
-#else
+    #ifdef BSSN_CONSEC_COMM_SELECT
+        return rank_i;
+    #else
     // Rule 2 [select ranks which is equivalent to complete binary tree fashion (size_global) & (rank_global) needs to be power of two.]
     if((!binOp::isPowerOfTwo(size_global)) || (!binOp::isPowerOfTwo(size_local)))
         return rank_i;
@@ -1197,7 +1192,7 @@ unsigned int rankSelectRule(unsigned int size_global,unsigned int rank_global, u
         
         
     }
-#endif   
+    #endif   
     
     
 }

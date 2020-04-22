@@ -287,11 +287,12 @@ int Mpi_Alltoallv_sparse(T *sendbuf, int *sendcnts, int *sdispls,
 #endif
   PROF_PAR_ALL2ALLV_SPARSE_BEGIN
 
-  /*#ifndef ALLTOALLV_FIX
+  #ifndef ALLTOALLV_FIX
     Mpi_Alltoallv
         (sendbuf, sendcnts, sdispls,
          recvbuf, recvcnts, rdispls, comm);
-#else*/
+   return 0;
+  #else
 
   int npes, rank;
   MPI_Comm_size(comm, &npes);
@@ -396,7 +397,7 @@ int Mpi_Alltoallv_sparse(T *sendbuf, int *sendcnts, int *sdispls,
 
   delete[] requests;
   delete[] statuses;
-  //#endif
+  #endif
 
   PROF_PAR_ALL2ALLV_SPARSE_END
 }
