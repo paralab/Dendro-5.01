@@ -1,0 +1,311 @@
+I_MPI_STARTUP_MODE=pmi_shm_netmod
+LMOD_FAMILY_COMPILER_VERSION=19.0.5
+MKLROOT=/opt/intel/compilers_and_libraries_2019.5.281/linux/mkl
+TACC_GIT_BIN=/opt/apps/git/2.24.1/bin
+MANPATH=/usr/local/man:/usr/share/man:/usr/X11R6/man:/usr/kerberos/man:/usr/man:/opt/apps/pmix/3.1.4/share/man:/opt/apps/ucx/1.6.1/share/man:/opt/apps/intel19/python3/3.7.0/share/man:/opt/apps/intel19/python3/3.7.0/man:/opt/apps/git/2.24.1/share/man:/opt/intel/compilers_and_libraries_2019.5.281/linux/mpi/man:/opt/intel/documentation_2019/en/man/common:/opt/intel/documentation_2019/en/debugger/gdb-ia/man:/usr/local/share/man:/opt/ibutils/share/man:/opt/ddn/ime/share/man
+TACC_CMAKE_BIN=/opt/apps/cmake/3.16.1/bin
+TACC_IMPI_DIR=/opt/intel/compilers_and_libraries_2019.5.281/linux/mpi
+XDG_SESSION_ID=42215
+TACC_PYTHON_BIN=/opt/apps/intel19/python3/3.7.0/bin
+HOSTNAME=login1.frontera.tacc.utexas.edu
+TACC_INTEL_INC=/opt/intel/compilers_and_libraries_2019.5.281/linux/compiler/include/intel64
+TACC_XALT_DIR=/opt/apps/xalt/xalt/
+_ModuleTable003_=LHByb3BUPXt9LFsic3RhY2tEZXB0aCJdPTEsWyJzdGF0dXMiXT0iYWN0aXZlIixbInVzZXJOYW1lIl09ImdpdCIsfSxod2xvYz17WyJmbiJdPSIvb3B0L2FwcHMvbW9kdWxlZmlsZXMvaHdsb2MvMS4xMS4xMi5sdWEiLFsiZnVsbE5hbWUiXT0iaHdsb2MvMS4xMS4xMiIsWyJsb2FkT3JkZXIiXT05LHByb3BUPXt9LFsic3RhY2tEZXB0aCJdPTEsWyJzdGF0dXMiXT0iYWN0aXZlIixbInVzZXJOYW1lIl09Imh3bG9jLzEuMTEuMTIiLH0saW1waT17WyJmbiJdPSIvb3B0L2FwcHMvaW50ZWwxOS9tb2R1bGVmaWxlcy9pbXBpLzE5LjAuNS5sdWEiLFsiZnVsbE5hbWUiXT0iaW1waS8xOS4wLjUiLFsibG9hZE9yZGVyIl09Mixwcm9wVD17fSxbInN0YWNrRGVwdGgiXT0xLFsic3RhdHVz
+TACC_PYTHON_DIR=/opt/apps/intel19/python3/3.7.0
+INTEL_LICENSE_FILE=/home1/03727/USER/intel/licenses:/opt/intel/licenses:/opt/intel/compilers_and_libraries_2019.5.281/linux/licenses
+IPPROOT=/opt/intel/compilers_and_libraries_2019.5.281/linux/ipp
+I_MPI_F77=ifort
+MPICH_HOME=/opt/intel/compilers_and_libraries_2019.5.281/linux/mpi
+TACC_FAMILY_LIBFABRIC=impi
+SHELL=/bin/bash
+TERM=xterm-256color
+__LMOD_REF_COUNT_MODULEPATH=/opt/apps/intel19/impi19_0/python3_7/modulefiles:1;/opt/apps/intel19/python3_7/modulefiles:1;/opt/apps/intel19/impi19_0/modulefiles:1;/opt/apps/intel19/modulefiles:1;/opt/apps/modulefiles:1;/opt/modulefiles:1
+TACC_INTEL_DIR=/opt/intel/compilers_and_libraries_2019.5.281/linux
+TACC_PMIX_BIN=/opt/apps/pmix/3.1.4/bin
+HISTSIZE=1000
+LMOD_ROOT=/opt/apps/lmod
+TACC_IMPI_BIN=/opt/intel/compilers_and_libraries_2019.5.281/linux/mpi/intel64/bin
+SSH_CLIENT=155.97.232.171 33216 22
+LMOD_SYSTEM_DEFAULT_MODULES=TACC
+TACC_PMIX_DIR=/opt/apps/pmix/3.1.4
+XALT_EXECUTABLE_TRACKING=yes
+LIBRARY_PATH=/opt/intel/debugger_2019/libipt/intel64/lib:/opt/intel/compilers_and_libraries_2019.5.281/linux/daal/lib/intel64_lin:/opt/intel/compilers_and_libraries_2019.5.281/linux/tbb/lib/intel64/gcc4.7:/opt/intel/compilers_and_libraries_2019.5.281/linux/mkl/lib/intel64_lin:/opt/intel/compilers_and_libraries_2019.5.281/linux/ipp/lib/intel64:/opt/intel/compilers_and_libraries_2019.5.281/linux/compiler/lib/intel64_lin
+TACC_HWLOC_LIB=/opt/apps/hwloc/1.11.12/lib
+TACC_PMIX_INC=/opt/apps/pmix/3.1.4/include
+__LMOD_REF_COUNT_COMPILER_PATH=/opt/apps/xalt/xalt/bin:1
+LD_PRELOAD=/opt/apps/xalt/xalt/lib64/libxalt_init.so
+LMOD_PKG=/opt/apps/lmod/lmod
+TACC_FAMILY_COMPILER_VERSION=19.0.5
+QTDIR=/usr/lib64/qt-3.3
+QTINC=/usr/lib64/qt-3.3/include
+LMOD_VERSION=8.3
+PSXE_2019=1
+SSH_TTY=/dev/pts/75
+__LMOD_REF_COUNT_LOADEDMODULES=intel/19.0.5:1;impi/19.0.5:1;git/2.24.1:1;autotools/1.2:1;python3/3.7.0:1;cmake/3.16.1:1;ucx/1.6.1:1;pmix/3.1.4:1;hwloc/1.11.12:1;xalt/2.7.28:1;TACC:1
+_ModuleTable007_=aWxlcyIsIi9vcHQvYXBwcy9pbnRlbDE5L21vZHVsZWZpbGVzIiwiL29wdC9hcHBzL21vZHVsZWZpbGVzIiwiL29wdC9tb2R1bGVmaWxlcyIsfSxbInN5c3RlbUJhc2VNUEFUSCJdPSIvb3B0L2FwcHMvbW9kdWxlZmlsZXM6L29wdC9tb2R1bGVmaWxlcyIsfQ==
+QT_GRAPHICSSYSTEM_CHECKED=1
+TACC_IMPI_INC=/opt/intel/compilers_and_libraries_2019.5.281/linux/mpi/intel64/include
+TACC_INTEL_BIN=/opt/intel/compilers_and_libraries_2019.5.281/linux/bin/intel64
+USER=USER
+LS_COLORS=rs=0:di=38;5;27:ln=38;5;51:mh=44;38;5;15:pi=40;38;5;11:so=38;5;13:do=38;5;5:bd=48;5;232;38;5;11:cd=48;5;232;38;5;3:or=48;5;232;38;5;9:mi=05;48;5;232;38;5;15:su=48;5;196;38;5;15:sg=48;5;11;38;5;16:ca=48;5;196;38;5;226:tw=48;5;10;38;5;16:ow=48;5;10;38;5;21:st=48;5;21;38;5;15:ex=38;5;34:*.tar=38;5;9:*.tgz=38;5;9:*.arc=38;5;9:*.arj=38;5;9:*.taz=38;5;9:*.lha=38;5;9:*.lz4=38;5;9:*.lzh=38;5;9:*.lzma=38;5;9:*.tlz=38;5;9:*.txz=38;5;9:*.tzo=38;5;9:*.t7z=38;5;9:*.zip=38;5;9:*.z=38;5;9:*.Z=38;5;9:*.dz=38;5;9:*.gz=38;5;9:*.lrz=38;5;9:*.lz=38;5;9:*.lzo=38;5;9:*.xz=38;5;9:*.bz2=38;5;9:*.bz=38;5;9:*.tbz=38;5;9:*.tbz2=38;5;9:*.tz=38;5;9:*.deb=38;5;9:*.rpm=38;5;9:*.jar=38;5;9:*.war=38;5;9:*.ear=38;5;9:*.sar=38;5;9:*.rar=38;5;9:*.alz=38;5;9:*.ace=38;5;9:*.zoo=38;5;9:*.cpio=38;5;9:*.7z=38;5;9:*.rz=38;5;9:*.cab=38;5;9:*.jpg=38;5;13:*.jpeg=38;5;13:*.gif=38;5;13:*.bmp=38;5;13:*.pbm=38;5;13:*.pgm=38;5;13:*.ppm=38;5;13:*.tga=38;5;13:*.xbm=38;5;13:*.xpm=38;5;13:*.tif=38;5;13:*.tiff=38;5;13:*.png=38;5;13:*.svg=38;5;13:*.svgz=38;5;13:*.mng=38;5;13:*.pcx=38;5;13:*.mov=38;5;13:*.mpg=38;5;13:*.mpeg=38;5;13:*.m2v=38;5;13:*.mkv=38;5;13:*.webm=38;5;13:*.ogm=38;5;13:*.mp4=38;5;13:*.m4v=38;5;13:*.mp4v=38;5;13:*.vob=38;5;13:*.qt=38;5;13:*.nuv=38;5;13:*.wmv=38;5;13:*.asf=38;5;13:*.rm=38;5;13:*.rmvb=38;5;13:*.flc=38;5;13:*.avi=38;5;13:*.fli=38;5;13:*.flv=38;5;13:*.gl=38;5;13:*.dl=38;5;13:*.xcf=38;5;13:*.xwd=38;5;13:*.yuv=38;5;13:*.cgm=38;5;13:*.emf=38;5;13:*.axv=38;5;13:*.anx=38;5;13:*.ogv=38;5;13:*.ogx=38;5;13:*.aac=38;5;45:*.au=38;5;45:*.flac=38;5;45:*.mid=38;5;45:*.midi=38;5;45:*.mka=38;5;45:*.mp3=38;5;45:*.mpc=38;5;45:*.ogg=38;5;45:*.ra=38;5;45:*.wav=38;5;45:*.axa=38;5;45:*.oga=38;5;45:*.spx=38;5;45:*.xspf=38;5;45:
+LD_LIBRARY_PATH=/opt/apps/hwloc/1.11.12/lib:/opt/apps/pmix/3.1.4/lib:/opt/apps/ucx/1.6.1/lib:/opt/apps/intel19/python3/3.7.0/lib:/opt/intel/compilers_and_libraries_2019.5.281/linux/mpi/intel64/libfabric/lib:/opt/intel/compilers_and_libraries_2019.5.281/linux/mpi/intel64/lib/release:/opt/intel/compilers_and_libraries_2019.5.281/linux/mpi/intel64/lib:/opt/intel/debugger_2019/libipt/intel64/lib:/opt/intel/compilers_and_libraries_2019.5.281/linux/daal/lib/intel64_lin:/opt/intel/compilers_and_libraries_2019.5.281/linux/tbb/lib/intel64_lin/gcc4.7:/opt/intel/compilers_and_libraries_2019.5.281/linux/mkl/lib/intel64_lin:/opt/intel/compilers_and_libraries_2019.5.281/linux/ipp/lib/intel64:/opt/intel/compilers_and_libraries_2019.5.281/linux/compiler/lib/intel64_lin:/opt/apps/gcc/8.3.0/lib64:/opt/apps/gcc/8.3.0/lib
+TACC_UCX_DIR=/opt/apps/ucx/1.6.1
+PSTLROOT=/opt/intel/compilers_and_libraries_2019.5.281/linux/pstl
+__TRACKER__=1
+FI_PROVIDER_PATH=/opt/intel/compilers_and_libraries_2019.5.281/linux/mpi/intel64/libfabric/lib/prov
+TACC_XALT_BIN=/opt/apps/xalt/xalt/bin
+CPATH=/opt/intel/compilers_and_libraries_2019.5.281/linux/pstl/include:/opt/intel/compilers_and_libraries_2019.5.281/linux/daal/include:/opt/intel/compilers_and_libraries_2019.5.281/linux/tbb/include:/opt/intel/compilers_and_libraries_2019.5.281/linux/mkl/include:/opt/intel/compilers_and_libraries_2019.5.281/linux/ipp/include
+IFC_BIN=/opt/intel/compilers_and_libraries_2019.5.281/linux/bin/intel64
+TACC_GIT_DIR=/opt/apps/git/2.24.1
+TACC_MKL_LIB=/opt/intel/compilers_and_libraries_2019.5.281/linux/mkl/lib/intel64
+_ModuleTable004_=Il09ImFjdGl2ZSIsWyJ1c2VyTmFtZSJdPSJpbXBpIix9LGludGVsPXtbImZuIl09Ii9vcHQvYXBwcy9tb2R1bGVmaWxlcy9pbnRlbC8xOS4wLjUubHVhIixbImZ1bGxOYW1lIl09ImludGVsLzE5LjAuNSIsWyJsb2FkT3JkZXIiXT0xLHByb3BUPXt9LFsic3RhY2tEZXB0aCJdPTEsWyJzdGF0dXMiXT0iYWN0aXZlIixbInVzZXJOYW1lIl09ImludGVsIix9LHBtaXg9e1siZm4iXT0iL29wdC9hcHBzL21vZHVsZWZpbGVzL3BtaXgvMy4xLjQubHVhIixbImZ1bGxOYW1lIl09InBtaXgvMy4xLjQiLFsibG9hZE9yZGVyIl09OCxwcm9wVD17fSxbInN0YWNrRGVwdGgiXT0xLFsic3RhdHVzIl09ImFjdGl2ZSIsWyJ1c2VyTmFtZSJdPSJwbWl4Iix9LHB5dGhvbjM9e1siZm4iXT0iL29w
+__PERSONAL_PATH__=1
+TACC_HWLOC_BIN=/opt/apps/hwloc/1.11.12/bin
+__LMOD_REF_COUNT__LMFILES_=/opt/apps/modulefiles/intel/19.0.5.lua:1;/opt/apps/intel19/modulefiles/impi/19.0.5.lua:1;/opt/apps/modulefiles/git/2.24.1.lua:1;/opt/apps/modulefiles/autotools/1.2.lua:1;/opt/apps/intel19/impi19_0/modulefiles/python3/3.7.0.lua:1;/opt/apps/modulefiles/cmake/3.16.1.lua:1;/opt/apps/modulefiles/ucx/1.6.1.lua:1;/opt/apps/modulefiles/pmix/3.1.4.lua:1;/opt/apps/modulefiles/hwloc/1.11.12.lua:1;/opt/apps/modulefiles/xalt/2.7.28.lua:1;/opt/apps/modulefiles/TACC.lua:1
+LMOD_FAMILY_MPI_VERSION=19.0.5
+TACC_FAMILY_PYTHON=python3
+ARCHIVER=ranch.tacc.utexas.edu
+__LMOD_REF_COUNT_I_MPI_ROOT=/opt/intel/compilers_and_libraries_2019.5.281/linux/mpi:1
+NLSPATH=/opt/intel/debugger_2019/gdb/intel64/share/locale/%l_%t/%N:/opt/intel/compilers_and_libraries_2019.5.281/linux/mkl/lib/intel64_lin/locale/%l_%t/%N:/opt/intel/compilers_and_libraries_2019.5.281/linux/compiler/lib/intel64/locale/%l_%t/%N
+TACC_UCX_BIN=/opt/apps/ucx/1.6.1/bin
+PATH=/opt/apps/xalt/xalt/bin:/opt/apps/hwloc/1.11.12/bin:/opt/apps/pmix/3.1.4/bin:/opt/apps/ucx/1.6.1/bin:/opt/apps/cmake/3.16.1/bin:/opt/apps/intel19/python3/3.7.0/bin:/opt/apps/autotools/1.2/bin:/opt/apps/git/2.24.1/bin:/tmprpm/intel19/impi/19.0.5/bin:/opt/intel/compilers_and_libraries_2019.5.281/linux/mpi/intel64/bin:/opt/intel/compilers_and_libraries_2019.5.281/linux/bin/intel64:/opt/apps/gcc/8.3.0/bin:/usr/lib64/qt-3.3/bin:/usr/local/bin:/bin:/usr/bin:/opt/ibutils/bin:/opt/ddn/ime/bin:/opt/dell/srvadmin/bin:.
+MAIL=/var/spool/mail/USER
+TACC_SYSTEM=frontera
+ICC_BIN=/opt/intel/compilers_and_libraries_2019.5.281/linux/bin/intel64
+__LMOD_REF_COUNT_NLSPATH=/opt/intel/debugger_2019/gdb/intel64/share/locale/%l_%t/%N:1;/opt/intel/compilers_and_libraries_2019.5.281/linux/mkl/lib/intel64_lin/locale/%l_%t/%N:1;/opt/intel/compilers_and_libraries_2019.5.281/linux/compiler/lib/intel64/locale/%l_%t/%N:1
+_ModuleTable001_=X01vZHVsZVRhYmxlXz17WyJNVHZlcnNpb24iXT0zLFsiY19yZWJ1aWxkVGltZSJdPWZhbHNlLFsiY19zaG9ydFRpbWUiXT1mYWxzZSxkZXB0aFQ9e30sZmFtaWx5PXtbIk1QSSJdPSJpbXBpIixbImNvbXBpbGVyIl09ImludGVsIixbImxpYmZhYnJpYyJdPSJpbXBpIixbInB5dGhvbiJdPSJweXRob24zIix9LG1UPXtUQUNDPXtbImZuIl09Ii9vcHQvYXBwcy9tb2R1bGVmaWxlcy9UQUNDLmx1YSIsWyJmdWxsTmFtZSJdPSJUQUNDIixbImxvYWRPcmRlciJdPTExLHByb3BUPXt9LFsic3RhY2tEZXB0aCJdPTAsWyJzdGF0dXMiXT0iYWN0aXZlIixbInVzZXJOYW1lIl09IlRBQ0MiLH0sYXV0b3Rvb2xzPXtbImZuIl09Ii9vcHQvYXBwcy9tb2R1bGVmaWxlcy9hdXRvdG9vbHMvMS4y
+STOCKYARD=/work/03727/USER
+TACC_GIT_LIB=/opt/apps/git/2.24.1/lib
+_=/bin/env
+WORK=/work/03727/USER/frontera
+TACC_HWLOC_INC=/opt/apps/hwloc/1.11.12/include
+TACC_PMIX_LIB=/opt/apps/pmix/3.1.4/lib
+TBBROOT=/opt/intel/compilers_and_libraries_2019.5.281/linux/tbb
+PWD=/home1/03727/USER/Author-Kit
+INPUTRC=/etc/inputrc
+TACC_FAMILY_PYTHON_VERSION=3.7.0
+_LMFILES_=/opt/apps/modulefiles/intel/19.0.5.lua:/opt/apps/intel19/modulefiles/impi/19.0.5.lua:/opt/apps/modulefiles/git/2.24.1.lua:/opt/apps/modulefiles/autotools/1.2.lua:/opt/apps/intel19/impi19_0/modulefiles/python3/3.7.0.lua:/opt/apps/modulefiles/cmake/3.16.1.lua:/opt/apps/modulefiles/ucx/1.6.1.lua:/opt/apps/modulefiles/pmix/3.1.4.lua:/opt/apps/modulefiles/hwloc/1.11.12.lua:/opt/apps/modulefiles/xalt/2.7.28.lua:/opt/apps/modulefiles/TACC.lua
+LANG=en_US.UTF-8
+__LMOD_REF_COUNT_PYTHONPATH=/opt/apps/intel19/impi19_0/python3/3.7.0/lib/python3.7/site-packages:1
+TACC_FAMILY_LIBFABRIC_VERSION=19.0.5
+MODULEPATH=/opt/apps/intel19/impi19_0/python3_7/modulefiles:/opt/apps/intel19/python3_7/modulefiles:/opt/apps/intel19/impi19_0/modulefiles:/opt/apps/intel19/modulefiles:/opt/apps/modulefiles:/opt/modulefiles
+LOADEDMODULES=intel/19.0.5:impi/19.0.5:git/2.24.1:autotools/1.2:python3/3.7.0:cmake/3.16.1:ucx/1.6.1:pmix/3.1.4:hwloc/1.11.12:xalt/2.7.28:TACC
+_ModuleTable_Sz_=7
+__BASHRC_SOURCED__=1
+I_MPI_F90=ifort
+TACC_VEC_FLAGS=-xCORE-AVX2 -axCORE-AVX512,MIC-AVX512
+LMOD_CMD=/opt/apps/lmod/lmod/libexec/lmod
+GIT_TEMPLATE_DIR=/opt/apps/git/2.24.1/share/git-core/templates
+I_MPI_CC=icc
+LMOD_FAMILY_PYTHON_VERSION=3.7.0
+_ModuleTable005_=dC9hcHBzL2ludGVsMTkvaW1waTE5XzAvbW9kdWxlZmlsZXMvcHl0aG9uMy8zLjcuMC5sdWEiLFsiZnVsbE5hbWUiXT0icHl0aG9uMy8zLjcuMCIsWyJsb2FkT3JkZXIiXT01LG1uYW1lQT17e1siZm4iXT0iL29wdC9hcHBzL2ludGVsMTkvbW9kdWxlZmlsZXMvcHl0aG9uMy8zLjcuMC5sdWEiLFsic24iXT0icHl0aG9uMyIsWyJ1c2VyTmFtZSJdPSJweXRob24zLzMuNy4wIixbInZlcnNpb24iXT0iMy43LjAiLH0sfSxwcm9wVD17fSxbInN0YWNrRGVwdGgiXT0xLFsic3RhdHVzIl09ImFjdGl2ZSIsWyJ1c2VyTmFtZSJdPSJweXRob24zIix9LHVjeD17WyJmbiJdPSIvb3B0L2FwcHMvbW9kdWxlZmlsZXMvdWN4LzEuNi4xLmx1YSIsWyJmdWxsTmFtZSJdPSJ1Y3gvMS42LjEiLFsi
+DAALROOT=/opt/intel/compilers_and_libraries_2019.5.281/linux/daal
+SSH_ASKPASS=/usr/libexec/openssh/gnome-ssh-askpass
+TACC_MKL_INC=/opt/intel/compilers_and_libraries_2019.5.281/linux/mkl/include
+LMOD_FAMILY_PYTHON=python3
+TACC_AUTOTOOLS_DIR=/opt/apps/autotools/1.2
+HOME=/home1/03727/USER
+SHLVL=2
+FI_PROVIDER=mlx
+TACC_PYTHON_MAN=/opt/apps/intel19/python3/3.7.0/share/man:/opt/apps/intel19/python3/3.7.0/man
+TACC_DOMAIN=frontera
+I_MPI_CXX=icpc
+__LMOD_REF_COUNT_PATH=/opt/apps/xalt/xalt/bin:1;/opt/apps/hwloc/1.11.12/bin:1;/opt/apps/pmix/3.1.4/bin:1;/opt/apps/ucx/1.6.1/bin:1;/opt/apps/cmake/3.16.1/bin:1;/opt/apps/intel19/python3/3.7.0/bin:2;/opt/apps/autotools/1.2/bin:1;/opt/apps/git/2.24.1/bin:1;/tmprpm/intel19/impi/19.0.5/bin:1;/opt/intel/compilers_and_libraries_2019.5.281/linux/mpi/intel64/bin:1;/opt/intel/compilers_and_libraries_2019.5.281/linux/bin/intel64:1;/opt/apps/gcc/8.3.0/bin:1;/usr/lib64/qt-3.3/bin:1;/usr/local/bin:1;/bin:1;/usr/bin:1;/opt/ibutils/bin:1;/opt/ddn/ime/bin:1;/opt/dell/srvadmin/bin:1;.:1
+TACC_FAMILY_COMPILER=intel
+TACC_INTEL_LIB=/opt/intel/compilers_and_libraries_2019.5.281/linux/compiler/lib/intel64
+TACC_PYTHON_VER=3.7
+__LMOD_REF_COUNT_CPATH=/opt/intel/compilers_and_libraries_2019.5.281/linux/pstl/include:1;/opt/intel/compilers_and_libraries_2019.5.281/linux/daal/include:1;/opt/intel/compilers_and_libraries_2019.5.281/linux/tbb/include:1;/opt/intel/compilers_and_libraries_2019.5.281/linux/mkl/include:1;/opt/intel/compilers_and_libraries_2019.5.281/linux/ipp/include:1
+IFC_LIB=/opt/intel/compilers_and_libraries_2019.5.281/linux/compiler/lib/intel64
+LMOD_FAMILY_LIBFABRIC=impi
+XALT_SCALAR_SAMPLING=yes
+_ModuleTable002_=Lmx1YSIsWyJmdWxsTmFtZSJdPSJhdXRvdG9vbHMvMS4yIixbImxvYWRPcmRlciJdPTQscHJvcFQ9e30sWyJzdGFja0RlcHRoIl09MSxbInN0YXR1cyJdPSJhY3RpdmUiLFsidXNlck5hbWUiXT0iYXV0b3Rvb2xzIix9LGNtYWtlPXtbImZuIl09Ii9vcHQvYXBwcy9tb2R1bGVmaWxlcy9jbWFrZS8zLjE2LjEubHVhIixbImZ1bGxOYW1lIl09ImNtYWtlLzMuMTYuMSIsWyJsb2FkT3JkZXIiXT02LHByb3BUPXt9LFsic3RhY2tEZXB0aCJdPTEsWyJzdGF0dXMiXT0iYWN0aXZlIixbInVzZXJOYW1lIl09ImNtYWtlIix9LGdpdD17WyJmbiJdPSIvb3B0L2FwcHMvbW9kdWxlZmlsZXMvZ2l0LzIuMjQuMS5sdWEiLFsiZnVsbE5hbWUiXT0iZ2l0LzIuMjQuMSIsWyJsb2FkT3JkZXIiXT0z
+TACC_HWLOC_DIR=/opt/apps/hwloc/1.11.12
+BASH_ENV=/etc/tacc/tacc_functions
+I_MPI_FC=ifort
+LOGNAME=USER
+ICC_LIB=/opt/intel/compilers_and_libraries_2019.5.281/linux/compiler/lib/intel64
+PYTHONPATH=/opt/apps/intel19/impi19_0/python3/3.7.0/lib/python3.7/site-packages
+TACC_FAMILY_MPI=impi
+CVS_RSH=ssh
+QTLIB=/usr/lib64/qt-3.3/lib
+LMOD_SETTARG_TITLE_BAR=yes
+SSH_CONNECTION=155.97.232.171 33216 129.114.63.98 22
+XDG_DATA_DIRS=/home1/03727/USER/.local/share/flatpak/exports/share:/var/lib/flatpak/exports/share:/usr/local/share:/usr/share
+LMOD_FAMILY_LIBFABRIC_VERSION=19.0.5
+TACC_PYTHON_INC=/opt/apps/intel19/python3/3.7.0/include
+MODULESHOME=/opt/apps/lmod/lmod
+__LMOD_REF_COUNT_LIBRARY_PATH=/opt/intel/debugger_2019/libipt/intel64/lib:1;/opt/intel/compilers_and_libraries_2019.5.281/linux/daal/lib/intel64_lin:1;/opt/intel/compilers_and_libraries_2019.5.281/linux/tbb/lib/intel64/gcc4.7:1;/opt/intel/compilers_and_libraries_2019.5.281/linux/mkl/lib/intel64_lin:1;/opt/intel/compilers_and_libraries_2019.5.281/linux/ipp/lib/intel64:1;/opt/intel/compilers_and_libraries_2019.5.281/linux/compiler/lib/intel64_lin:1
+LESSOPEN=||/usr/bin/lesspipe.sh %s
+LMOD_SETTARG_FULL_SUPPORT=full
+COMPILER_PATH=/opt/apps/xalt/xalt/bin
+__LMOD_REF_COUNT_LD_LIBRARY_PATH=/opt/apps/hwloc/1.11.12/lib:1;/opt/apps/pmix/3.1.4/lib:1;/opt/apps/ucx/1.6.1/lib:1;/opt/apps/intel19/python3/3.7.0/lib:1;/opt/intel/compilers_and_libraries_2019.5.281/linux/mpi/intel64/libfabric/lib:1;/opt/intel/compilers_and_libraries_2019.5.281/linux/mpi/intel64/lib/release:1;/opt/intel/compilers_and_libraries_2019.5.281/linux/mpi/intel64/lib:1;/opt/intel/debugger_2019/libipt/intel64/lib:1;/opt/intel/compilers_and_libraries_2019.5.281/linux/daal/lib/intel64_lin:1;/opt/intel/compilers_and_libraries_2019.5.281/linux/tbb/lib/intel64_lin/gcc4.7:1;/opt/intel/compilers_and_libraries_2019.5.281/linux/mkl/lib/intel64_lin:1;/opt/intel/compilers_and_libraries_2019.5.281/linux/ipp/lib/intel64:1;/opt/intel/compilers_and_libraries_2019.5.281/linux/compiler/lib/intel64_lin:1;/opt/apps/gcc/8.3.0/lib64:1;/opt/apps/gcc/8.3.0/lib:1
+OMP_NUM_THREADS=1
+PKG_CONFIG_PATH=/opt/intel/compilers_and_libraries_2019.5.281/linux/mkl/bin/pkgconfig
+__Init_Default_Modules=1
+PROMPT_COMMAND=${X_SET_TITLE_BAR:-:} "$USER@${SHOST}:${PWD/#$HOME/~}"
+__LMOD_REF_COUNT_LD_PRELOAD=/opt/apps/xalt/xalt/lib64/libxalt_init.so:1
+LMOD_FAMILY_COMPILER=intel
+TACC_IMPI_LIB=/opt/intel/compilers_and_libraries_2019.5.281/linux/mpi/intel64/lib
+DISPLAY=localhost:24.0
+XDG_RUNTIME_DIR=/run/user/830270
+ARCHIVE=/home/03727/USER
+__LMOD_REF_COUNT_INTEL_LICENSE_FILE=/home1/03727/USER/intel/licenses:1;/opt/intel/licenses:1;/opt/intel/compilers_and_libraries_2019.5.281/linux/licenses:1
+TACC_AUTOTOOLS_BIN=/opt/apps/autotools/1.2/bin
+TACC_FAMILY_MPI_VERSION=19.0.5
+TACC_UCX_LIB=/opt/apps/ucx/1.6.1/lib
+LMOD_DIR=/opt/apps/lmod/lmod/libexec
+__LMOD_REF_COUNT_MANPATH=/usr/local/man:1;/usr/share/man:2;/usr/X11R6/man:1;/usr/kerberos/man:1;/usr/man:1;/opt/apps/pmix/3.1.4/share/man:1;/opt/apps/ucx/1.6.1/share/man:1;/opt/apps/intel19/python3/3.7.0/share/man:1;/opt/apps/intel19/python3/3.7.0/man:1;/opt/apps/git/2.24.1/share/man:1;/opt/intel/compilers_and_libraries_2019.5.281/linux/mpi/man:1;/opt/intel/documentation_2019/en/man/common:1;/opt/intel/documentation_2019/en/debugger/gdb-ia/man:1;/usr/local/share/man:1;/opt/ibutils/share/man:1;/opt/ddn/ime/share/man:2
+TACC_PYTHON_LIB=/opt/apps/intel19/python3/3.7.0/lib
+_ModuleTable006_=bG9hZE9yZGVyIl09Nyxwcm9wVD17fSxbInN0YWNrRGVwdGgiXT0xLFsic3RhdHVzIl09ImFjdGl2ZSIsWyJ1c2VyTmFtZSJdPSJ1Y3giLH0seGFsdD17WyJmbiJdPSIvb3B0L2FwcHMvbW9kdWxlZmlsZXMveGFsdC8yLjcuMjgubHVhIixbImZ1bGxOYW1lIl09InhhbHQvMi43LjI4IixbImxvYWRPcmRlciJdPTEwLHByb3BUPXt9LFsic3RhY2tEZXB0aCJdPTEsWyJzdGF0dXMiXT0iYWN0aXZlIixbInVzZXJOYW1lIl09InhhbHQiLH0sfSxtcGF0aEE9eyIvb3B0L2FwcHMvaW50ZWwxOS9pbXBpMTlfMC9weXRob24zXzcvbW9kdWxlZmlsZXMiLCIvb3B0L2FwcHMvaW50ZWwxOS9weXRob24zXzcvbW9kdWxlZmlsZXMiLCIvb3B0L2FwcHMvaW50ZWwxOS9pbXBpMTlfMC9tb2R1bGVm
+__LMOD_Priority_PATH=/opt/apps/xalt/xalt/bin:-100
+SCRATCH=/scratch1/03727/USER
+GIT_EXEC_PATH=/opt/apps/git/2.24.1/libexec/git-core
+LMOD_FAMILY_MPI=impi
+TACC_MKL_DIR=/opt/intel/compilers_and_libraries_2019.5.281/linux/mkl
+TACC_MPI_GETMODE=impi_hydra
+I_MPI_ROOT=/opt/intel/compilers_and_libraries_2019.5.281/linux/mpi
+TACC_CMAKE_DIR=/opt/apps/cmake/3.16.1
+TACC_UCX_INC=/opt/apps/ucx/1.6.1/include
+BASH_FUNC_module()=() {  if [ -z "${LMOD_SH_DBG_ON+x}" ]; then
+ case "$-" in 
+ *v*x*)
+ __lmod_sh_dbg='vx'
+ ;;
+ *v*)
+ __lmod_sh_dbg='v'
+ ;;
+ *x*)
+ __lmod_sh_dbg='x'
+ ;;
+ esac;
+ fi;
+ if [ -n "${__lmod_sh_dbg:-}" ]; then
+ set +$__lmod_sh_dbg;
+ echo "Shell debugging temporarily silenced: export LMOD_SH_DBG_ON=1 for Lmod's output" 1>&2;
+ fi;
+ eval $($LMOD_CMD bash "$@") && eval $(${LMOD_SETTARG_CMD:-:} -s sh);
+ local _lmod_my_status=$?;
+ if [ -n "${__lmod_sh_dbg:-}" ]; then
+ echo "Shell debugging restarted";
+ set -$__lmod_sh_dbg;
+ unset __lmod_sh_dbg;
+ fi;
+ return $_lmod_my_status
+}
+BASH_FUNC_ml()=() {  eval $($LMOD_DIR/ml_cmd "$@")
+}
++ lsb_release -a
+LSB Version:	:core-4.1-amd64:core-4.1-noarch:cxx-4.1-amd64:cxx-4.1-noarch:desktop-4.1-amd64:desktop-4.1-noarch:languages-4.1-amd64:languages-4.1-noarch:printing-4.1-amd64:printing-4.1-noarch
+Distributor ID:	CentOS
+Description:	CentOS Linux release 7.6.1810 (Core) 
+Release:	7.6.1810
+Codename:	Core
++ uname -a
+Linux login1.frontera.tacc.utexas.edu 3.10.0-957.27.2.el7.x86_64 #1 SMP Mon Jul 29 17:46:05 UTC 2019 x86_64 x86_64 x86_64 GNU/Linux
++ lscpu
+Architecture:          x86_64
+CPU op-mode(s):        32-bit, 64-bit
+Byte Order:            Little Endian
+CPU(s):                112
+On-line CPU(s) list:   0-111
+Thread(s) per core:    2
+Core(s) per socket:    28
+Socket(s):             2
+NUMA node(s):          2
+Vendor ID:             GenuineIntel
+CPU family:            6
+Model:                 85
+Model name:            Intel(R) Xeon(R) Platinum 8280 CPU @ 2.70GHz
+Stepping:              7
+CPU MHz:               2700.000
+BogoMIPS:              5400.00
+Virtualization:        VT-x
+L1d cache:             32K
+L1i cache:             32K
+L2 cache:              1024K
+L3 cache:              39424K
+NUMA node0 CPU(s):     0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,42,44,46,48,50,52,54,56,58,60,62,64,66,68,70,72,74,76,78,80,82,84,86,88,90,92,94,96,98,100,102,104,106,108,110
+NUMA node1 CPU(s):     1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,45,47,49,51,53,55,57,59,61,63,65,67,69,71,73,75,77,79,81,83,85,87,89,91,93,95,97,99,101,103,105,107,109,111
+Flags:                 fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc art arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc aperfmperf eagerfpu pni pclmulqdq dtes64 monitor ds_cpl vmx smx est tm2 ssse3 sdbg fma cx16 xtpr pdcm pcid dca sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand lahf_lm abm 3dnowprefetch epb cat_l3 cdp_l3 intel_pt ssbd mba ibrs ibpb stibp ibrs_enhanced tpr_shadow vnmi flexpriority ept vpid fsgsbase tsc_adjust bmi1 hle avx2 smep bmi2 erms invpcid rtm cqm mpx rdt_a avx512f avx512dq rdseed adx smap clflushopt clwb avx512cd avx512bw avx512vl xsaveopt xsavec xgetbv1 cqm_llc cqm_occup_llc cqm_mbm_total cqm_mbm_local dtherm ida arat pln pts pku ospke avx512_vnni md_clear spec_ctrl intel_stibp flush_l1d arch_capabilities
++ cat /proc/meminfo
+MemTotal:       196288844 kB
+MemFree:        105867856 kB
+MemAvailable:   151811380 kB
+Buffers:               0 kB
+Cached:         46509456 kB
+SwapCached:            0 kB
+Active:         25152252 kB
+Inactive:       22730272 kB
+Active(anon):    3035244 kB
+Inactive(anon):   756824 kB
+Active(file):   22117008 kB
+Inactive(file): 21973448 kB
+Unevictable:           0 kB
+Mlocked:               0 kB
+SwapTotal:             0 kB
+SwapFree:              0 kB
+Dirty:             98920 kB
+Writeback:             0 kB
+AnonPages:       1372712 kB
+Mapped:           134064 kB
+Shmem:           2417736 kB
+Slab:           38473088 kB
+SReclaimable:    2604096 kB
+SUnreclaim:     35868992 kB
+KernelStack:       37424 kB
+PageTables:        49272 kB
+NFS_Unstable:          0 kB
+Bounce:                0 kB
+WritebackTmp:          0 kB
+CommitLimit:    98144420 kB
+Committed_AS:    6019676 kB
+VmallocTotal:   34359738367 kB
+VmallocUsed:     1175452 kB
+VmallocChunk:   34257733632 kB
+HardwareCorrupted:     0 kB
+AnonHugePages:    280576 kB
+CmaTotal:              0 kB
+CmaFree:               0 kB
+HugePages_Total:       0
+HugePages_Free:        0
+HugePages_Rsvd:        0
+HugePages_Surp:        0
+Hugepagesize:       2048 kB
+DirectMap4k:     1095680 kB
+DirectMap2M:    25628672 kB
+DirectMap1G:    175112192 kB
++ inxi -F -c0
+./collect_environment.sh: line 14: inxi: command not found
++ lsblk -a
+NAME   MAJ:MIN RM  SIZE RO TYPE MOUNTPOINT
+sda      8:0    0  223G  0 disk 
+├─sda1   8:1    0    1M  0 part 
+├─sda2   8:2    0    1G  0 part /boot
+├─sda3   8:3    0  130G  0 part /
+├─sda4   8:4    0   25G  0 part /var
+└─sda5   8:5    0   67G  0 part /tmp
++ lsscsi -s
+[0:2:0:0]    disk    DELL     PERC H330 Mini   4.29  /dev/sda    239GB
++ module list
++ '[' -z '' ']'
++ case "$-" in
++ __lmod_sh_dbg=x
++ '[' -n x ']'
++ set +x
+Shell debugging temporarily silenced: export LMOD_SH_DBG_ON=1 for Lmod's output
+
+Currently Loaded Modules:
+  1) intel/19.0.5   2) impi/19.0.5   3) git/2.24.1   4) autotools/1.2   5) python3/3.7.0   6) cmake/3.16.1   7) ucx/1.6.1   8) pmix/3.1.4   9) hwloc/1.11.12  10) xalt/2.7.28  11) TACC
+
+ 
+
+Shell debugging restarted
++ unset __lmod_sh_dbg
++ return 0
++ nvidia-smi
+./collect_environment.sh: line 18: nvidia-smi: command not found
++ lshw -short -quiet -sanitize
++ cat
+./collect_environment.sh: line 19: lshw: command not found
++ lspci
+./collect_environment.sh: line 19: lspci: command not found
