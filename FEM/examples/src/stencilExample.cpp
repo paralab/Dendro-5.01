@@ -22,6 +22,7 @@
 #include "rkTransportUtils.h"
 #include "meshTestUtils.h"
 #include "rawIO.h"
+#include "oda.h"
 
 
 
@@ -279,9 +280,7 @@ int main (int argc, char** argv) {
     }
     
     //ot::test::isInterpToSphereValid(mesh,&(*(funcVal.begin())),func,0.1,dMin,dMax,1e-3);
-    ot::test::isSphereInterpValid(mesh,&(*(funcVal.begin())),func,0.1,1e-3,pt_min,pt_max);
-
-    //bool isSphereInterpValid(ot::Mesh* pMesh, T* vec, std::function< double(double,double,double) > func, double r, double tol, Point d_min, Point d_max)
+    ot::test::isSphereInterpValid(mesh,&(*(funcVal.begin())),func,0.1,1e-2,pt_min,pt_max);
 
     if(!rank)
     {
@@ -292,7 +291,7 @@ int main (int argc, char** argv) {
     }
 
     // test elemental ghost exchange
-
+    
     if(!rank)
     {
         std::cout<<YLW<<"================================================================================================"<<NRM<<std::endl;
@@ -301,6 +300,7 @@ int main (int argc, char** argv) {
 
     }
 
+    
     unsigned int * cellVec = mesh->createElementVector(0u);
     const ot::TreeNode* const pNodes = mesh->getAllElements().data();
 
@@ -310,23 +310,23 @@ int main (int argc, char** argv) {
     mesh->readFromGhostBeginElementVec(cellVec,1);
     mesh->readFromGhostEndElementVec(cellVec,1);
 
-        for (unsigned int ele = mesh->getElementPreGhostBegin(); ele < mesh->getElementPreGhostEnd(); ele++)
-        {
-            if( !(cellVec[ele] ==0 || cellVec[ele] == pNodes[ele].getLevel()))
-                std::cout<<"rank: "<<mesh->getMPIRank()<<" elemental ghost sync error in pre ghost "<<std::endl;
-        }
+    for (unsigned int ele = mesh->getElementPreGhostBegin(); ele < mesh->getElementPreGhostEnd(); ele++)
+    {
+        if( !(cellVec[ele] ==0 || cellVec[ele] == pNodes[ele].getLevel()))
+            std::cout<<"rank: "<<mesh->getMPIRank()<<" elemental ghost sync error in pre ghost "<<std::endl;
+    }
 
-        for (unsigned int ele = mesh->getElementLocalBegin(); ele < mesh->getElementLocalEnd(); ele++)
-        {
-            if( !(cellVec[ele] == pNodes[ele].getLevel()))
-                std::cout<<"rank: "<<mesh->getMPIRank()<<" elemental ghost sync currupts local values "<<std::endl;
-        }
+    for (unsigned int ele = mesh->getElementLocalBegin(); ele < mesh->getElementLocalEnd(); ele++)
+    {
+        if( !(cellVec[ele] == pNodes[ele].getLevel()))
+            std::cout<<"rank: "<<mesh->getMPIRank()<<" elemental ghost sync currupts local values "<<std::endl;
+    }
 
-        for (unsigned int ele = mesh->getElementPostGhostBegin(); ele < mesh->getElementPostGhostEnd(); ele++)
-        {
-            if( !(cellVec[ele] ==0 || cellVec[ele] == pNodes[ele].getLevel()))
-                std::cout<<"rank: "<<mesh->getMPIRank()<<" elemental ghost sync error in post ghost cell val "<<cellVec[ele]<<" nodel lev: "<<pNodes[ele].getLevel()<<std::endl;
-        }
+    for (unsigned int ele = mesh->getElementPostGhostBegin(); ele < mesh->getElementPostGhostEnd(); ele++)
+    {
+        if( !(cellVec[ele] ==0 || cellVec[ele] == pNodes[ele].getLevel()))
+            std::cout<<"rank: "<<mesh->getMPIRank()<<" elemental ghost sync error in post ghost cell val "<<cellVec[ele]<<" nodel lev: "<<pNodes[ele].getLevel()<<std::endl;
+    }
 
     
     if(!rank)
@@ -337,7 +337,8 @@ int main (int argc, char** argv) {
 
     }
 
-
+    
+    
     if(!rank)
     {
         std::cout<<YLW<<"================================================================================================"<<NRM<<std::endl;
@@ -375,36 +376,42 @@ int main (int argc, char** argv) {
     mesh->readFromGhostBeginEleDGVec(dg_vec,2);
     mesh->readFromGhostEndEleDGVec(dg_vec,2);
 
-    const std::vector<unsigned int> recvEleOffset = mesh->getElementRecvOffsets();
-    const std::vector<unsigned int> recvEleCounts = mesh->getElementRecvCounts();
-    const std::vector<unsigned int> recvESM       = mesh->getRecvElementSM(); 
-
-    for(unsigned int v=0; v < 2; v++)
+    
+    if(npes >1 && mesh->isActive())
     {
+        const std::vector<unsigned int> recvEleOffset = mesh->getElementRecvOffsets();
+        const std::vector<unsigned int> recvEleCounts = mesh->getElementRecvCounts();
+        const std::vector<unsigned int> recvESM       = mesh->getRecvElementSM(); 
 
-        for(unsigned int p=0; p < npes; p++)
+        for(unsigned int v=0; v < 2; v++)
         {
-            for(unsigned int ee=recvEleOffset[p]; ee < (recvEleOffset[p]+ recvEleCounts[p]); ee++)
-            {   
-                
-                const unsigned int ele = recvESM[ee];
-                for(unsigned int k=0; k < eOrder+1 ; k++)
-                for(unsigned int j=0; j < eOrder+1; j++)
-                for(unsigned int i=0; i < eOrder+1; i++)
-                {
-                    double x = pNodes[ele].minX() + i*((1u<<m_uiMaxDepth - pNodes[ele].getLevel())/eOrder);
-                    double y = pNodes[ele].minY() + j*((1u<<m_uiMaxDepth - pNodes[ele].getLevel())/eOrder);
-                    double z = pNodes[ele].minZ() + k*((1u<<m_uiMaxDepth - pNodes[ele].getLevel())/eOrder);
 
-                    double diff = std::fabs((dg_vec + v*dg_sz)[ele*nPe + k*(eOrder+1)*(eOrder+1) + j*(eOrder+1) + i ] - func(x,y,z));
+            for(unsigned int p=0; p < mesh->getMPICommSize(); p++)
+            {
+                for(unsigned int ee=recvEleOffset[p]; ee < (recvEleOffset[p]+ recvEleCounts[p]); ee++)
+                {   
                     
-                    if(diff > 1e-3)
-                        std::cout<<"rank: "<<rank<<" ele: "<<ele<<" DG vec:"<<(dg_vec + v*dg_sz)[ele*nPe + k*(eOrder+1)*(eOrder+1) + j*(eOrder+1) + i ]<<" func: "<<func(x,y,z)<<" diff : "<<diff<<std::endl;
-                
+                    const unsigned int ele = recvESM[ee];
+                    for(unsigned int k=0; k < eOrder+1 ; k++)
+                    for(unsigned int j=0; j < eOrder+1; j++)
+                    for(unsigned int i=0; i < eOrder+1; i++)
+                    {
+                        double x = pNodes[ele].minX() + i*((1u<<m_uiMaxDepth - pNodes[ele].getLevel())/eOrder);
+                        double y = pNodes[ele].minY() + j*((1u<<m_uiMaxDepth - pNodes[ele].getLevel())/eOrder);
+                        double z = pNodes[ele].minZ() + k*((1u<<m_uiMaxDepth - pNodes[ele].getLevel())/eOrder);
+
+                        double diff = std::fabs((dg_vec + v*dg_sz)[ele*nPe + k*(eOrder+1)*(eOrder+1) + j*(eOrder+1) + i ] - func(x,y,z));
+                        
+                        if(diff > 1e-3)
+                            std::cout<<"rank: "<<rank<<" ele: "<<ele<<" DG vec:"<<(dg_vec + v*dg_sz)[ele*nPe + k*(eOrder+1)*(eOrder+1) + j*(eOrder+1) + i ]<<" func: "<<func(x,y,z)<<" diff : "<<diff<<std::endl;
+                    
+                    }
                 }
             }
         }
+
     }
+    
 
     delete [] dg_vec;
 
@@ -416,6 +423,7 @@ int main (int argc, char** argv) {
 
     }
 
+    
     mesh->createVector(dx_funcVal1,dx_func);
     mesh->createVector(dy_funcVal1,dy_func);
     mesh->createVector(dz_funcVal1,dz_func);
@@ -454,18 +462,18 @@ int main (int argc, char** argv) {
 
     
 
-#if 0
+    #if 0
+        double* vars[3];
+        vars[0]=&(*(funcVal.begin()));
+        vars[1]=&(*(dy_funcVal1.begin()));
+        vars[2]=&(*(dz_funcVal1.begin()));
 
-    double* vars[3];
-    vars[0]=&(*(funcVal.begin()));
-    vars[1]=&(*(dy_funcVal1.begin()));
-    vars[2]=&(*(dz_funcVal1.begin()));
-
-    std::cout<<"write begin: "<<std::endl;
-    io::varToRawData((const ot::Mesh*)mesh,(const double **)vars,3,NULL,"dendro_raw");
-    std::cout<<"write end: "<<std::endl;
-#endif
-   /* std::vector<double> unZipIn;
+        std::cout<<"write begin: "<<std::endl;
+        io::varToRawData((const ot::Mesh*)mesh,(const double **)vars,3,NULL,"dendro_raw");
+        std::cout<<"write end: "<<std::endl;
+    #endif
+    
+    /*std::vector<double> unZipIn;
     std::vector<double> unZipOut;
     //@milinda : If you are using grad functions defined in rkTransport utills, make sure to use the correct domain paramerters when computing the h.
     mesh.createUnZippedVector(unZipIn,0.0);
@@ -493,7 +501,7 @@ int main (int argc, char** argv) {
     for(unsigned int e=0;e<blockList.size();e++)
         localBlocks.push_back(blockList[e].getBlockNode());
 
-    treeNodesTovtk(localBlocks,rank,"blocks");
+    //treeNodesTovtk(localBlocks,rank,"blocks");
 
     mesh->applyStencil(funcVal, dx_funcVal, D1_Order4StencilCentered_x, D1_Order4StencilBackward_x, D1_Order4StencilForward_x);
     mesh->applyStencil(funcVal, dy_funcVal, D1_Order4StencilCentered_y, D1_Order4StencilBackward_y, D1_Order4StencilForward_y);
@@ -568,11 +576,82 @@ int main (int argc, char** argv) {
         for(unsigned int k=nLocalBegin;k<nLocalEnd;k++)
             std::cout<<" k: "<<k<<" f(k): "<<funcVal[k]<<" dxf(k): "<<dx_funcVal1[k]<<" Sf(k): "<<dx_funcVal[k]<<std::endl;*/
 
+
+    const double* vars[] = {funcValUnZip.data()};
+    const unsigned int vIDs[]={0};
+    std::function<double(double,double,double)>w_tol_coarsen=[wavelet_tol](double x,double y, double z) {return wavelet_tol*1e8;};
+    std::function<double(double,double,double)>w_tol_refine=[wavelet_tol](double x,double y, double z) {return wavelet_tol;};
+    
+    bool isRefine = mesh->isReMeshUnzip((const double **)vars ,(const unsigned int *)vIDs,1,w_tol_coarsen);
+    if(!rank)
+        std::cout<<"is refine triggered for coarsening tolerance : "<<isRefine<<std::endl;
+
+    if(isRefine)
+    {
+
+        ot::Mesh* newMesh = mesh->ReMesh();
+
+        DendroIntL localSz = mesh->getAllElements().size();
+        DendroIntL gSz_new, gSz_old;
+
+        par::Mpi_Reduce(&localSz,&gSz_old,1,MPI_SUM,0,comm);
+        localSz = newMesh->getAllElements().size();
+        par::Mpi_Reduce(&localSz,&gSz_new,1,MPI_SUM,0,comm);
+
+        if(!rank)
+            std::cout<<"old mesh size: "<<gSz_old<<" new mesh size: "<<gSz_new<<std::endl;
+
+        
+        funcValUnZip.clear();
+        newMesh->createUnZippedVector(funcValUnZip);
+
+        mesh->interGridTransfer(funcVal,newMesh,ot::INTERGRID_TRANSFER_MODE::INJECTION);
+        
+        std::swap(newMesh,mesh);
+        delete newMesh;
+
+    }
+
+    mesh->performGhostExchange(funcVal);
+    mesh->unzip(funcVal.data(),funcValUnZip.data(),1);
+
+    if(isRefine)
+    {
+
+
+        if(!rank)
+        {
+            std::cout<<YLW<<"================================================================================================"<<NRM<<std::endl;
+            std::cout<<"        UnZip Test Check (after coarsent tol remesh) Begin     "<<std::endl;
+            std::cout<<YLW<<"================================================================================================"<<NRM<<std::endl;
+
+        }
+
+            ot::test::isUnzipValid(mesh,&(*(funcValUnZip.begin())),func,1e-3);
+
+        if(!rank)
+        {
+            std::cout<<YLW<<"================================================================================================"<<NRM<<std::endl;
+            std::cout<<"        UnZip Test Check (after coarsent tol remesh) End     "<<std::endl;
+            std::cout<<YLW<<"================================================================================================"<<NRM<<std::endl;
+
+        }
+
+
+    }
+
+    unsigned int numPVars1=1;
+    const char * pVarNames1 [] ={"F(x)"};
+    double * pVarVal1 []={&(*(funcVal.begin()))};
+
+    //unsigned int s_val[] ={1u<<(m_uiMaxDepth-1), 1u<<(m_uiMaxDepth-1), 1u<<(m_uiMaxDepth-1)};
+    //unsigned int s_normal[]={0,0,1};
+    mesh->setDomainBounds(pt_min,pt_max);
+    //io::vtk::mesh2vtu_slice(mesh, s_val,s_normal, "f_val_slice",2,(const char **)fVarNames,(const double *)fVarVal,numPVars,(const char** )pVarNames,(const double **)pVarVal);
+    io::vtk::mesh2vtuFine(mesh, "f_val_rmesh",0,NULL,NULL,numPVars1,(const char** )pVarNames1,(const double **)pVarVal1);
+
     delete mesh;
-
-    MPI_Barrier(MPI_COMM_WORLD);
     if(!rank) std::cout<<"stencil applied "<<std::endl;
-
     MPI_Finalize();
 
     return 0;

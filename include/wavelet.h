@@ -14,20 +14,20 @@
 #include "refel.h"
 
 /**@brief : Reference element for order 3*/
-static const RefElement RE_OR3 = RefElement(1,3);
+//static const RefElement RE_OR3 = RefElement(1,3);
 
 /**@brief : Reference element for order 4*/
-static const RefElement RE_OR4 = RefElement(1,4);
+//static const RefElement RE_OR4 = RefElement(1,4);
 
-static const RefElement RE_OR5 = RefElement(1,5);
+//static const RefElement RE_OR5 = RefElement(1,5);
 
-static const RefElement RE_OR6 = RefElement(1,6);
+//static const RefElement RE_OR6 = RefElement(1,6);
 
 /**@brief : Reference element for order 7*/
-static const RefElement RE_OR7 = RefElement(1,7);
+//static const RefElement RE_OR7 = RefElement(1,7);
 
 /**@brief : Reference element for order 8*/
-static const RefElement RE_OR8 = RefElement(1,8);
+//static const RefElement RE_OR8 = RefElement(1,8);
 
 
 

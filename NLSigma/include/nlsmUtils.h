@@ -87,6 +87,8 @@ namespace nlsm
    */
   bool isRemeshForce(const ot::Mesh* pMesh, const double ** unzipVec, unsigned int vIndex, double refine_th, double coarsen_th, bool isOverwrite);
 
+  unsigned int getEleWeight(const ot::TreeNode* pNode);
+
 }// end of namespace nlsm
 
 

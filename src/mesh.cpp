@@ -194,7 +194,7 @@ namespace ot {
             if(m_uiIsBlockSetup)
             {
                 performBlocksSetup();
-                computeSMSpecialPts();
+                //computeSMSpecialPts();
             }
                 
             double t_blk_end = MPI_Wtime();
@@ -456,7 +456,7 @@ namespace ot {
             if(m_uiIsBlockSetup)
             {
                 performBlocksSetup();
-                computeSMSpecialPts();
+                //computeSMSpecialPts();
             }
                 
 
@@ -11431,7 +11431,7 @@ namespace ot {
 
     }
 
-
+    #if 0
     void Mesh::computeSMSpecialPts()
     {
          // Note: this function is specifically written to find the last point for 4th order elements in finite differencing. 
@@ -12072,7 +12072,7 @@ namespace ot {
                      
                      
     } 
-
+    #endif
 
     int Mesh::getBlkBdyParentCNums(unsigned int blkId, unsigned int eleId, unsigned int dir, unsigned int* child, unsigned int* fid, unsigned int* cid)
     {

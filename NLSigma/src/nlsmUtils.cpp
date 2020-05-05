@@ -720,6 +720,11 @@ namespace nlsm
         return isOctChanged_g;
     }
 
+    unsigned int getEleWeight(const ot::TreeNode* pNode) 
+    {
+        return (1u<<(3*pNode->getLevel()))*6;
+    }
+
 }// end of namespace nlsm
 
 

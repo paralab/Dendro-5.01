@@ -169,10 +169,40 @@ int main (int argc, char** argv)
         
     }
 
-    ot::Mesh * mesh = ot::createMesh(tmpNodes.data(),tmpNodes.size(),nlsm::NLSM_ELE_ORDER,comm,1,ot::SM_TYPE::FDM,nlsm::NLSM_DENDRO_GRAIN_SZ,nlsm::NLSM_LOAD_IMB_TOL,nlsm::NLSM_SPLIT_FIX, NULL, 0);
+    unsigned int lmin=1,lmax=5;
+    // std::vector<ot::TreeNode> tmpOct;
+    // createRegularOctree(tmpOct,lmin,m_uiDim,m_uiMaxDepth,comm);
+
+    // //std::cout<<"tmpOct: "<<tmpOct.size()<<std::endl;
+
+    // const unsigned int mid_x = (1u<<(m_uiMaxDepth-1));
+    // std::vector<ot::TreeNode> rfTmpOct;
+    
+    // for(unsigned int l = lmin; l < lmax ; l++)
+    // {
+        
+    //     for(unsigned int ele =0; ele < tmpOct.size(); ele++)
+    //     {
+    //         if(tmpOct[ele].minX() < mid_x /*&& tmpOct[ele].minY() < mid_x && tmpOct[ele].minZ() < mid_x*/ )
+    //             tmpOct[ele].addChildren(rfTmpOct);
+    //         else
+    //             rfTmpOct.push_back(tmpOct[ele]);
+            
+    //     }
+
+    //     std::swap(rfTmpOct,tmpOct);
+    //     rfTmpOct.clear();
+
+    //     std::cout<<"tmpOct: at lev "<<l<<" size : "<<tmpOct.size()<<std::endl;
+
+    // }
+    // std::swap(tmpNodes,tmpOct);
+
+    ot::Mesh * mesh = ot::createMesh(tmpNodes.data(),tmpNodes.size(),nlsm::NLSM_ELE_ORDER,comm,1,ot::SM_TYPE::FDM,nlsm::NLSM_DENDRO_GRAIN_SZ,nlsm::NLSM_LOAD_IMB_TOL,nlsm::NLSM_SPLIT_FIX, nlsm::getEleWeight, 0);
+    //ot::Mesh * mesh = ot::createMesh(tmpNodes.data(),tmpNodes.size(),nlsm::NLSM_ELE_ORDER,comm,1,ot::SM_TYPE::FDM,nlsm::NLSM_DENDRO_GRAIN_SZ,nlsm::NLSM_LOAD_IMB_TOL,nlsm::NLSM_SPLIT_FIX, NULL, 0);
     //ot::Mesh * mesh = ot::createSplitMesh(nlsm::NLSM_ELE_ORDER,1,2,comm);
-    mesh->setDomainBounds(Point(nlsm::NLSM_GRID_MIN_X,nlsm::NLSM_GRID_MIN_Y,nlsm::NLSM_GRID_MIN_Z), Point(nlsm::NLSM_GRID_MAX_X, nlsm::NLSM_GRID_MAX_Y,nlsm::NLSM_GRID_MAX_Z));
-    unsigned int lmin,lmax;
+    //mesh->setDomainBounds(Point(nlsm::NLSM_GRID_MIN_X,nlsm::NLSM_GRID_MIN_Y,nlsm::NLSM_GRID_MIN_Z), Point(nlsm::NLSM_GRID_MAX_X, nlsm::NLSM_GRID_MAX_Y,nlsm::NLSM_GRID_MAX_Z));
+    
     mesh->computeMinMaxLevel(lmin,lmax);
     nlsm::NLSM_RK45_TIME_STEP_SIZE=nlsm::NLSM_CFL_FACTOR*((nlsm::NLSM_COMPD_MAX[0]-nlsm::NLSM_COMPD_MIN[0])*((1u<<(m_uiMaxDepth-lmax))/((double) nlsm::NLSM_ELE_ORDER))/((double)(1u<<(m_uiMaxDepth))));
     par::Mpi_Bcast(&nlsm::NLSM_RK45_TIME_STEP_SIZE,1,0,comm);
@@ -226,8 +256,8 @@ int main (int argc, char** argv)
             appCtx->terminal_output();  
 
             bool isRemesh = false;    
-            if( (step % nlsm::NLSM_REMESH_TEST_FREQ) == 0 )
-                isRemesh = appCtx->is_remesh();
+            // if( (step % nlsm::NLSM_REMESH_TEST_FREQ) == 0 )
+            //     isRemesh = appCtx->is_remesh();
             
             if(isRemesh)
             {

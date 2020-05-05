@@ -111,39 +111,50 @@ enum NeighbourLevel
 namespace ot
 {
 
-/**@brief type of the scatter map, based on numerical computation method*/
-enum SM_TYPE
-{
-    FDM = 0, // Finite Difference Method
-    FEM_CG,  // Continous Galerkin  methods
-    FEM_DG,   // Discontinous Galerkin methods
-    E2E_ONLY // only builds the e2e maps. 
-};
+    /**@brief type of the scatter map, based on numerical computation method*/
+    enum SM_TYPE
+    {
+        FDM = 0, // Finite Difference Method
+        FEM_CG,  // Continous Galerkin  methods
+        FEM_DG,   // Discontinous Galerkin methods
+        E2E_ONLY // only builds the e2e maps. 
+    };
 
-enum EType
-{
-    INDEPENDENT, // all the elemental nodal values,  are local.
-    W_DEPENDENT, // element is writable but has ghost nodal values as well. (note that the writable would be Independent U W_dependent)
-    UNKWON
-};
+    enum EType
+    {
+        INDEPENDENT, // all the elemental nodal values,  are local.
+        W_DEPENDENT, // element is writable but has ghost nodal values as well. (note that the writable would be Independent U W_dependent)
+        UNKWON
+    };
 
-/**@brief ghost write modes. */
-enum GWMode
-{
-    OVERWRITE, // over write the ghost write, 
-    ACCUMILATE, // accumilate the ghost write
+    /**@brief ghost write modes. */
+    enum GWMode
+    {
+        OVERWRITE, // over write the ghost write, 
+        ACCUMILATE, // accumilate the ghost write
 
-};
+    };
 
-namespace WaveletDA
-{
-enum LoopType
-{
-    ALL,
-    INDEPENDENT,
-    DEPENDENT
-};
-}
+    namespace WaveletDA
+    {
+        enum LoopType
+        {
+            ALL,
+            INDEPENDENT,
+            DEPENDENT
+        };
+    }
+
+    /**
+     * @brief intergrid transfer mode. 
+     * We assume we have refinement and coarsen or no change during the intergird transfer.
+     * 
+     * INJECTION : when coarsening finer grid point injected to the coarser grids.  (this does not guranteed to preserve integrals across paren and child)
+     * P2CT : when coarsening, use parent to child transpose (child nodes computed contributed back to the parent node. ) This will preserve integrals iff, the child node value coarser to the 
+     * value interpolated from the parent. 
+     */
+    enum INTERGRID_TRANSFER_MODE{INJECTION=0, P2CT};
+
 
 } // namespace ot
 
@@ -1009,6 +1020,7 @@ private:
     template<typename T>
     void getBlkBoundaryParentNodes(const T* zipVec, T* out, T* w1, T* w2, unsigned int lookUp, const unsigned int * fid, const unsigned int* cid,const unsigned int * child);
 
+    #if 0
     //---Note: These functions are specifically written for find missing 3rd block unzip points for the GR application
 
     /**
@@ -1027,6 +1039,7 @@ private:
 
     template <typename T>
     void readSpecialPtsEnd(const T *in, T* out);
+    #endif
 
     // --- 3rd point exchange function end.
 
@@ -1920,7 +1933,7 @@ public:
      * @param[in] pMesh: Mesh that we need to transfer the old varaible.
      * */
     template <typename T>
-    void interGridTransfer(std::vector<T> &vec, const ot::Mesh *pMesh);
+    void interGridTransfer(std::vector<T> &vec, const ot::Mesh *pMesh, INTERGRID_TRANSFER_MODE mode = INTERGRID_TRANSFER_MODE::INJECTION);
 
     /**
      * @brief transfer a variable vector form old grid to new grid.
@@ -1929,7 +1942,7 @@ public:
      * @param[in] pMesh: Mesh that we need to transfer the old varaible.
      * */
     template <typename T>
-    void interGridTransfer(T *&vec, const ot::Mesh *pMesh);
+    void interGridTransfer(T *&vec, const ot::Mesh *pMesh, INTERGRID_TRANSFER_MODE mode = INTERGRID_TRANSFER_MODE::INJECTION);
     
     /**
      * @brief Performs intergrid transfer without deallocating the existing vector. 
@@ -1939,9 +1952,10 @@ public:
      * @param vecOut : output vector (new vector consresponding to the new vector)
      * @param pMesh : pointer to the new mesh object. 
      * @param isAlloc : True if out vector is allocated with ghost, false otherwise. 
+     * @param mode: mode of intergrid transfer defined by INTERGRID_TRANSFER_MODE
      */
     template <typename T>
-    void interGridTransfer(T* vec, T* vecOut, const ot::Mesh* pMesh ,bool isAlloc=false);
+    void interGridTransfer(T* vec, T* vecOut, const ot::Mesh* pMesh ,bool isAlloc=false, INTERGRID_TRANSFER_MODE mode = INTERGRID_TRANSFER_MODE::INJECTION);
 
     /**
      * @brief performs the intergrid transfer operation using the unzip representation. Compared to elemental 

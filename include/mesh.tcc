@@ -3121,416 +3121,26 @@ namespace ot
     }
 
     template<typename T>
-    void Mesh::interGridTransfer(std::vector<T> & vec,const ot::Mesh* pMesh)
+    void Mesh::interGridTransfer(std::vector<T> & vec,const ot::Mesh* pMesh, INTERGRID_TRANSFER_MODE mode)
     {
 
-
-        MPI_Comm comm=m_uiCommGlobal;
-        int rank,npes;
-
-        MPI_Comm_rank(comm,&rank);
-        MPI_Comm_size(comm,&npes);
-
-        int * sendNodeCount= new int[npes];
-        int * recvNodeCount= new int[npes];
-        int * sendNodeOffset = new int [npes];
-        int * recvNodeOffset = new int [npes];
-        std::vector<T> wVec; // dg of m2prime;
-
-
-        for(unsigned int p=0;p<npes;p++)
-            sendNodeCount[p]=0;
-
-        if(m_uiIsActive)
-        {
-            MPI_Comm comm1=m_uiCommActive;
-            const int rank1=m_uiActiveRank;
-            const int npes1=m_uiActiveNpes;
-
-            //1. compute the number of m2 octants (based of m1 splitters)
-            unsigned int m2primeCount=0;
-            for(unsigned int ele=m_uiElementLocalBegin;ele<m_uiElementLocalEnd;ele++)
-            {
-                if((m_uiAllElements[ele].getFlag()>>NUM_LEVEL_BITS)==OCT_SPLIT)
-                    m2primeCount+=NUM_CHILDREN;
-                else if((m_uiAllElements[ele].getFlag()>>NUM_LEVEL_BITS)==OCT_COARSE)
-                {
-                    assert(m_uiAllElements[ele].getParent()==m_uiAllElements[ele+NUM_CHILDREN-1].getParent());
-                    m2primeCount+=1;
-                    ele+=(NUM_CHILDREN-1);
-                }else
-                {
-                    assert((m_uiAllElements[ele].getFlag()>>NUM_LEVEL_BITS)==OCT_NO_CHANGE);
-                    m2primeCount+=1;
-                }
-
-            }
-
-            const unsigned int numM2PrimeElems=m2primeCount;
-
-            std::vector<T> nodalVals;
-            nodalVals.resize(m_uiNpE);
-
-            std::vector<T> interp_out;
-            interp_out.resize(m_uiNpE);
-
-            wVec.resize(numM2PrimeElems*m_uiNpE);
-
-            std::vector<ot::TreeNode> m2prime; // m2 partiioned with m1 splitters.
-
-            m2primeCount=0;
-            unsigned int cnum;
-            bool isHanging;
-            for(unsigned int ele=m_uiElementLocalBegin;ele<m_uiElementLocalEnd;ele++)
-            {
-                if((m_uiAllElements[ele].getFlag()>>NUM_LEVEL_BITS)==OCT_SPLIT)
-                {
-                    m_uiAllElements[ele].addChildren(m2prime);
-
-
-                    this->getElementNodalValues(&(*(vec.begin())),&(*(nodalVals.begin())),ele);
-                    for(unsigned int child=0;child<NUM_CHILDREN;child++)
-                    {
-                        cnum=m2prime[m2primeCount+child].getMortonIndex();
-                        this->parent2ChildInterpolation(&(*(nodalVals.begin())),&(*(wVec.begin()+(m2primeCount+child)*m_uiNpE)),cnum,3);
-                    }
-
-                    m2primeCount+=NUM_CHILDREN;
-
-                }
-                else if((m_uiAllElements[ele].getFlag()>>NUM_LEVEL_BITS)==OCT_COARSE)
-                {
-                    assert(m_uiAllElements[ele].getParent()==m_uiAllElements[ele+NUM_CHILDREN-1].getParent());
-                    m2prime.push_back(m_uiAllElements[ele].getParent());
-
-                    if(m_uiElementOrder==1)
-                    {
-
-                        for(unsigned int child=0;child<NUM_CHILDREN;child++)
-                        {
-                            for(unsigned int k=0;k<m_uiElementOrder+1;k++)
-                                for(unsigned int j=0;j<m_uiElementOrder+1;j++)
-                                    for(unsigned int i=0;i<m_uiElementOrder+1;i++)
-                                    {
-
-                                        isHanging=this->isNodeHanging((ele+child),i,j,k);
-                                        if(isHanging)
-                                        {
-                                            wVec[m2primeCount*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]=vec[m_uiE2NMapping_CG[(ele+child)*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]];
-
-                                        }else{
-                                            
-                                            cnum=m_uiAllElements[(ele+child)].getMortonIndex();
-                                            const unsigned int iix = m_uiElementOrder * (int) (cnum & 1u)  +  i;
-                                            const unsigned int jjy = m_uiElementOrder * (int) ((cnum & 2u)>>1u)  +  j;
-                                            const unsigned int kkz = m_uiElementOrder * (int) ((cnum & 4u)>>2u)  +  k;
-                                            //std::cout<<" iix: "<<iix<<" jjy: "<<jjy<<" kkz: "<<kkz<<std::endl;
-
-                                            if( (iix %2 ==0) && (jjy%2 ==0) && (kkz%2==0))
-                                            {
-                                                wVec[ m2primeCount*m_uiNpE +  (kkz>>1u) * (m_uiElementOrder+1)*(m_uiElementOrder+1) + (jjy>>1u) * (m_uiElementOrder+1)+(iix>>1u)] = vec[m_uiE2NMapping_CG[(ele+child)*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]];
-                                                
-                                            }
-
-                                        }
-
-                                    }
-
-                        }
-
-                    }else
-                    {
-                        
-                        for(unsigned int child=0;child<NUM_CHILDREN;child++)
-                        {
-                            for(unsigned int k=0;k<m_uiElementOrder+1;k++)
-                                for(unsigned int j=0;j<m_uiElementOrder+1;j++)
-                                    for(unsigned int i=0;i<m_uiElementOrder+1;i++)
-                                    {
-
-                                        isHanging=this->isNodeHanging((ele+child),i,j,k);
-                                        if(isHanging)
-                                        {
-                                            wVec[m2primeCount*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]=vec[m_uiE2NMapping_CG[(ele+child)*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]];
-
-                                        }else{
-                                            
-                                            cnum=m_uiAllElements[(ele+child)].getMortonIndex();
-                                            const unsigned int iix = m_uiElementOrder * (int) (cnum & 1u)  +  i;
-                                            const unsigned int jjy = m_uiElementOrder * (int) ((cnum & 2u)>>1u)  +  j;
-                                            const unsigned int kkz = m_uiElementOrder * (int) ((cnum & 4u)>>2u)  +  k;
-                                            //std::cout<<" iix: "<<iix<<" jjy: "<<jjy<<" kkz: "<<kkz<<std::endl;
-
-                                            if( (iix %2 ==0) && (jjy%2 ==0) && (kkz%2==0))
-                                            {
-                                                wVec[ m2primeCount*m_uiNpE +  (kkz>>1u) * (m_uiElementOrder+1)*(m_uiElementOrder+1) + (jjy>>1u) * (m_uiElementOrder+1)+(iix>>1u)] = vec[m_uiE2NMapping_CG[(ele+child)*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]];
-                                                
-                                            }
-
-                                        }
-
-                                    }
-
-                        }
-
-                    }
-
-
-                    ele+=(NUM_CHILDREN-1);
-                    m2primeCount+=1;
-
-                }else
-                {
-                    assert((m_uiAllElements[ele].getFlag()>>NUM_LEVEL_BITS)==OCT_NO_CHANGE);
-                    m2prime.push_back(m_uiAllElements[ele]);
-
-                    this->getElementNodalValues(&(*(vec.begin())),&(*(wVec.begin()+(m2primeCount*m_uiNpE))),ele);
-                    m2primeCount+=1;
-
-
-                }
-
-            }
-
-
-            assert(seq::test::isUniqueAndSorted(m2prime));
-
-            if(npes1==1 && pMesh->isActive() && pMesh->getMPICommSize()==1)
-            {
-
-                // sequential case.
-
-                if((wVec.size()/m_uiNpE)!=pMesh->getNumLocalMeshElements())
-                    std::cout<<"rank1: "<<rank1<<" seq::[Inter-grid Transfer error ]: Recvn DG elements: "<<(wVec.size()/m_uiNpE)<<" m2 num local elements "<<pMesh->getNumLocalMeshElements()<<std::endl;
-
-                assert((wVec.size()/m_uiNpE)==pMesh->getNumLocalMeshElements());
-
-                std::vector<T>tVec;
-                pMesh->createVector<T>(tVec,0);
-                const unsigned int * e2n=&(*(pMesh->getE2NMapping().begin()));
-
-                const unsigned int m2LocalElemBegin=pMesh->getElementLocalBegin();
-                const unsigned int m2LocalElemEnd=pMesh->getElementLocalEnd();
-
-                const unsigned int m2LocalNodeBegin=pMesh->getNodeLocalBegin();
-                const unsigned int m2LocalNodeEnd=pMesh->getNodeLocalEnd();
-
-                unsigned int lookUp;
-                const unsigned int eleOrder=pMesh->getElementOrder();
-
-                for(unsigned int ele=m2LocalElemBegin;ele<m2LocalElemEnd;ele++)
-                {
-                    for(unsigned int k=0;k<eleOrder+1;k++)
-                        for(unsigned int j=0;j<eleOrder+1;j++)
-                            for(unsigned int i=0;i<eleOrder+1;i++)
-                            {
-                                if(!(pMesh->isNodeHanging(ele,i,j,k)))
-                                {
-                                    lookUp=e2n[ele*m_uiNpE+k*(eleOrder+1)*(eleOrder+1)+j*(eleOrder+1)+i];
-                                    if((lookUp>=m2LocalNodeBegin && lookUp<m2LocalNodeEnd) )
-                                        tVec[lookUp]=wVec[(ele-m2LocalElemBegin)*m_uiNpE+k*(eleOrder+1)*(eleOrder+1)+j*(eleOrder+1)+i];
-                                }
-
-
-
-                            }
-
-                }
-
-
-                std::swap(vec,tVec);
-                tVec.clear();
-                return ;
-            }
-
-            int npes2=0;
-            int rank2=0;
-            std::vector<ot::TreeNode> m2_splitters;
-            //note : assumes that global rank 0 is going to be active always. 
-            if(pMesh->isActive())
-            {
-                npes2=pMesh->getMPICommSize();
-                rank2=pMesh->getMPIRank();
-                const std::vector<ot::TreeNode> m2_splitters_root=pMesh->getSplitterElements();
-                m2_splitters.resize(2*npes2);
-                for(unsigned int w=0;w<m2_splitters_root.size();w++)
-                    m2_splitters[w]=m2_splitters_root[w];
-            } 
-            
-            par::Mpi_Bcast(&npes2,1,0,comm1);
-            par::Mpi_Bcast(&rank2,1,0,comm1);
-            m2_splitters.resize(2*npes2);
-            par::Mpi_Bcast(&(*(m2_splitters.begin())),2*npes2,0,comm1);
-            assert(seq::test::isUniqueAndSorted(m2_splitters));
-
-
-
-                std::vector<ot::SearchKey> m2primeSK;
-                m2primeSK.resize(m2prime.size());
-
-                for(unsigned int e=0;e<m2prime.size();e++)
-                {
-                    m2primeSK[e]=ot::SearchKey(m2prime[e]);
-                    m2primeSK[e].addOwner(rank1); // note that this is the rank in comm1. 
-                }
-
-
-                std::vector<ot::Key> m2_splitterKeys;
-                m2_splitterKeys.resize(2*npes2);
-
-                for(unsigned int p=0;p<npes2;p++)
-                {
-                    m2_splitterKeys[2*p]=ot::Key(m2_splitters[2*p]);
-                    m2_splitterKeys[2*p].addOwner(p);
-
-                    m2_splitterKeys[2*p+1]=ot::Key(m2_splitters[2*p+1]);
-                    m2_splitterKeys[2*p+1].addOwner(p);
-
-                    m2primeSK.push_back(ot::SearchKey(m2_splitters[2*p]));
-                    m2primeSK.push_back(ot::SearchKey(m2_splitters[2*p+1]));
-                }
-
-                ot::SearchKey rootSK(m_uiDim,m_uiMaxDepth);
-                std::vector<ot::SearchKey> tmpNodes;
-
-                SFC::seqSort::SFC_treeSort(&(*(m2primeSK.begin())),m2primeSK.size(),tmpNodes,tmpNodes,tmpNodes,m_uiMaxDepth,m_uiMaxDepth,rootSK,ROOT_ROTATION,1,TS_SORT_ONLY);
-
-                unsigned int skip=0;
-                ot::SearchKey tmpSK;
-                std::vector<ot::SearchKey> tmpSKVec;
-
-                for(unsigned int e=0;e<(m2primeSK.size());e++)
-                {
-                    tmpSK=m2primeSK[e];
-                    skip=1;
-                    while(((e+skip)<m2primeSK.size()) && (m2primeSK[e]==m2primeSK[e+skip]))
-                    {
-                        if(m2primeSK[e+skip].getOwner()>=0){
-                            tmpSK.addOwner(m2primeSK[e+skip].getOwner());
-                        }
-                        skip++;
-                    }
-
-                    tmpSKVec.push_back(tmpSK);
-                    e+=(skip-1);
-
-                }
-
-                std::swap(m2primeSK,tmpSKVec);
-                tmpSKVec.clear();
-
-                assert(seq::test::isUniqueAndSorted(m2primeSK));
-                assert(seq::test::isUniqueAndSorted(m2_splitterKeys));
-
-                ot::Key rootKey(0,0,0,0,m_uiDim,m_uiMaxDepth);
-                SFC::seqSearch::SFC_treeSearch(&(*(m2_splitterKeys.begin())),&(*(m2primeSK.begin())),0,m2_splitterKeys.size(),0,m2primeSK.size(),m_uiMaxDepth,m_uiMaxDepth,ROOT_ROTATION);
-
-
-
-                unsigned int sBegin,sEnd,selectedRank;
-                for(unsigned int p=0;p<npes2;p++)
-                {
-                    assert(m2_splitterKeys[2*p].getFlag() & OCT_FOUND);
-                    assert(m2_splitterKeys[2*p+1].getFlag() & OCT_FOUND);
-
-                    sBegin=m2_splitterKeys[2*p].getSearchResult();
-                    sEnd=m2_splitterKeys[2*p+1].getSearchResult();
-                    assert(sBegin<sEnd);
-                    selectedRank=rankSelectRule(m_uiGlobalNpes,m_uiGlobalRank,npes2,p);
-                    sendNodeCount[selectedRank]=sEnd-sBegin-1;
-
-                    if(m2primeSK[sBegin].getOwner()>=0) sendNodeCount[selectedRank]++;
-                    if(m2primeSK[sEnd].getOwner()>=0) sendNodeCount[selectedRank]++;
-
-                    sendNodeCount[selectedRank]*=m_uiNpE;
-
-                }
-
-                // we don't need below for intergrid transfer, but these can be help full for debugging.
-                m2prime.clear();
-                m2primeSK.clear();
-
-
-
-
-        }
-
-
-        par::Mpi_Alltoall(sendNodeCount,recvNodeCount,1,comm);
-
-        sendNodeOffset[0]=0;
-        recvNodeOffset[0]=0;
-
-        omp_par::scan(sendNodeCount,sendNodeOffset,npes);
-        omp_par::scan(recvNodeCount,recvNodeOffset,npes);
-
-
-        std::vector<T> wVec_m2;
-        wVec_m2.resize(recvNodeOffset[npes-1]+recvNodeCount[npes-1]);
-
-        if((wVec_m2.size()/m_uiNpE)!=pMesh->getNumLocalMeshElements())
-            std::cout<<"rank: "<<rank<<" [Inter-grid Transfer error ]: Recvn DG elements: "<<(wVec_m2.size()/m_uiNpE)<<" m2 num local elements "<<pMesh->getNumLocalMeshElements()<<std::endl;
-
-        par::Mpi_Alltoallv_sparse(&(*(wVec.begin())),sendNodeCount,sendNodeOffset,&(*(wVec_m2.begin())),recvNodeCount,recvNodeOffset,comm);
-
-        delete [] sendNodeCount;
-        delete [] recvNodeCount;
-        delete [] sendNodeOffset;
-        delete [] recvNodeOffset;
-
-        std::vector<T> tVec;
-        if(pMesh->isActive())
-        {
-            pMesh->createVector<T>(tVec,0);
-            const unsigned int * e2n=&(*(pMesh->getE2NMapping().begin()));
-
-            const unsigned int m2LocalElemBegin=pMesh->getElementLocalBegin();
-            const unsigned int m2LocalElemEnd=pMesh->getElementLocalEnd();
-
-            const unsigned int m2LocalNodeBegin=pMesh->getNodeLocalBegin();
-            const unsigned int m2LocalNodeEnd=pMesh->getNodeLocalEnd();
-
-            unsigned int lookUp;
-            const unsigned int eleOrder=pMesh->getElementOrder();
-
-            for(unsigned int ele=m2LocalElemBegin;ele<m2LocalElemEnd;ele++)
-            {
-                for(unsigned int k=0;k<eleOrder+1;k++)
-                    for(unsigned int j=0;j<eleOrder+1;j++)
-                        for(unsigned int i=0;i<eleOrder+1;i++)
-                        {
-                            if(!(pMesh->isNodeHanging(ele,i,j,k)))
-                            {
-                                lookUp=e2n[ele*m_uiNpE+k*(eleOrder+1)*(eleOrder+1)+j*(eleOrder+1)+i];
-                                if((lookUp>=m2LocalNodeBegin && lookUp<m2LocalNodeEnd) )
-                                    tVec[lookUp]=wVec_m2[(ele-m2LocalElemBegin)*m_uiNpE+k*(eleOrder+1)*(eleOrder+1)+j*(eleOrder+1)+i];
-                            }
-
-
-
-                        }
-
-            }
-
-
-            std::swap(vec,tVec);
-
-        }
-
-        tVec.clear();
-        return ;
-
-
-
+        std::vector<T> tvec;
+        pMesh->createVector<T>(tvec,0);
+        this->interGridTransfer(vec.data(),tvec.data(),pMesh,true,mode);
+
+        std::swap(vec,tvec);
+        tvec.clear();
+        return;
+       
     }
 
 
     template<typename T>
-    void Mesh::interGridTransfer(T*& vec,const ot::Mesh* pMesh)
+    void Mesh::interGridTransfer(T*& vec,const ot::Mesh* pMesh, INTERGRID_TRANSFER_MODE mode)
     {
 
         T* tVec = pMesh->createVector<T>(0);
-        this->interGridTransfer(vec,tVec,pMesh,true);
+        this->interGridTransfer(vec,tVec,pMesh,true,mode);
 
         std::swap(vec,tVec);
         delete [] tVec;
@@ -3538,7 +3148,7 @@ namespace ot
     }
 
     template<typename T>
-    void Mesh::interGridTransfer(T* vec, T* vecOut, const ot::Mesh* pMesh ,bool isAlloc)
+    void Mesh::interGridTransfer(T* vec, T* vecOut, const ot::Mesh* pMesh ,bool isAlloc, INTERGRID_TRANSFER_MODE mode)
     {
 
         MPI_Comm comm=m_uiCommGlobal;
@@ -3601,6 +3211,12 @@ namespace ot
             m2primeCount=0;
             unsigned int cnum;
             bool isHanging;
+
+            std::vector<double> vallchildren;
+            vallchildren.resize((2*m_uiElementOrder + 1)*(2*m_uiElementOrder + 1)*(2*m_uiElementOrder + 1));
+
+
+            
             for(unsigned int ele=m_uiElementLocalBegin;ele<m_uiElementLocalEnd;ele++)
             {
                 if((m_uiAllElements[ele].getFlag()>>NUM_LEVEL_BITS)==OCT_SPLIT)
@@ -3623,80 +3239,69 @@ namespace ot
                     assert(m_uiAllElements[ele].getParent()==m_uiAllElements[ele+NUM_CHILDREN-1].getParent());
                     m2prime.push_back(m_uiAllElements[ele].getParent());
 
-
-                    if(m_uiElementOrder==1)
+                    if(mode == INTERGRID_TRANSFER_MODE::P2CT)
                     {
 
+                        const unsigned int p1d = 2*m_uiElementOrder+1;
                         for(unsigned int child=0;child<NUM_CHILDREN;child++)
                         {
+                            
+                            this->getElementNodalValues(vec,nodalVals.data(),ele+child);
                             for(unsigned int k=0;k<m_uiElementOrder+1;k++)
-                                for(unsigned int j=0;j<m_uiElementOrder+1;j++)
-                                    for(unsigned int i=0;i<m_uiElementOrder+1;i++)
-                                    {
+                            for(unsigned int j=0;j<m_uiElementOrder+1;j++)
+                                for(unsigned int i=0;i<m_uiElementOrder+1;i++)
+                                {
+                                    cnum=m_uiAllElements[(ele+child)].getMortonIndex();
+                                    const unsigned int iix = m_uiElementOrder * (int) (cnum & 1u)  +  i;
+                                    const unsigned int jjy = m_uiElementOrder * (int) ((cnum & 2u)>>1u)  +  j;
+                                    const unsigned int kkz = m_uiElementOrder * (int) ((cnum & 4u)>>2u)  +  k;
 
-                                        isHanging=this->isNodeHanging((ele+child),i,j,k);
-                                        if(isHanging)
-                                        {
-                                            wVec[m2primeCount*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]=vec[m_uiE2NMapping_CG[(ele+child)*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]];
+                                    vallchildren[kkz*p1d*p1d  + jjy*p1d + iix] = nodalVals[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]; //vec[m_uiE2NMapping_CG[(ele+child)*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]];
 
-                                        }else{
-                                            
-                                            cnum=m_uiAllElements[(ele+child)].getMortonIndex();
-                                            const unsigned int iix = m_uiElementOrder * (int) (cnum & 1u)  +  i;
-                                            const unsigned int jjy = m_uiElementOrder * (int) ((cnum & 2u)>>1u)  +  j;
-                                            const unsigned int kkz = m_uiElementOrder * (int) ((cnum & 4u)>>2u)  +  k;
-                                            //std::cout<<" iix: "<<iix<<" jjy: "<<jjy<<" kkz: "<<kkz<<std::endl;
-
-                                            if( (iix %2 ==0) && (jjy%2 ==0) && (kkz%2==0))
-                                            {
-                                                wVec[ m2primeCount*m_uiNpE +  (kkz>>1u) * (m_uiElementOrder+1)*(m_uiElementOrder+1) + (jjy>>1u) * (m_uiElementOrder+1)+(iix>>1u)] = vec[m_uiE2NMapping_CG[(ele+child)*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]];
-                                                
-                                            }
-
-                                        }
-
-                                    }
+                                }
 
                         }
 
+                        m_uiRefEl.I3D_Children2Parent(vallchildren.data(),&wVec[m2primeCount*m_uiNpE]);
+
+
                     }else
                     {
+                        assert(mode == INTERGRID_TRANSFER_MODE::INJECTION);
                         for(unsigned int child=0;child<NUM_CHILDREN;child++)
                         {
                             for(unsigned int k=0;k<m_uiElementOrder+1;k++)
-                                for(unsigned int j=0;j<m_uiElementOrder+1;j++)
-                                    for(unsigned int i=0;i<m_uiElementOrder+1;i++)
+                            for(unsigned int j=0;j<m_uiElementOrder+1;j++)
+                                for(unsigned int i=0;i<m_uiElementOrder+1;i++)
+                                {
+
+                                    isHanging=this->isNodeHanging((ele+child),i,j,k);
+                                    if(isHanging)
                                     {
+                                        wVec[m2primeCount*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]=vec[m_uiE2NMapping_CG[(ele+child)*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]];
 
-                                        isHanging=this->isNodeHanging((ele+child),i,j,k);
-                                        if(isHanging)
+                                    }else
+                                    {
+                                        
+                                        cnum=m_uiAllElements[(ele+child)].getMortonIndex();
+                                        const unsigned int iix = m_uiElementOrder * (int) (cnum & 1u)  +  i;
+                                        const unsigned int jjy = m_uiElementOrder * (int) ((cnum & 2u)>>1u)  +  j;
+                                        const unsigned int kkz = m_uiElementOrder * (int) ((cnum & 4u)>>2u)  +  k;
+                                        //std::cout<<" iix: "<<iix<<" jjy: "<<jjy<<" kkz: "<<kkz<<std::endl;
+
+                                        if( (iix %2 ==0) && (jjy%2 ==0) && (kkz%2==0))
                                         {
-                                            wVec[m2primeCount*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]=vec[m_uiE2NMapping_CG[(ele+child)*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]];
-
-                                        }else{
+                                            wVec[ m2primeCount*m_uiNpE +  (kkz>>1u) * (m_uiElementOrder+1)*(m_uiElementOrder+1) + (jjy>>1u) * (m_uiElementOrder+1)+(iix>>1u)] = vec[m_uiE2NMapping_CG[(ele+child)*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]];
                                             
-                                            cnum=m_uiAllElements[(ele+child)].getMortonIndex();
-                                            const unsigned int iix = m_uiElementOrder * (int) (cnum & 1u)  +  i;
-                                            const unsigned int jjy = m_uiElementOrder * (int) ((cnum & 2u)>>1u)  +  j;
-                                            const unsigned int kkz = m_uiElementOrder * (int) ((cnum & 4u)>>2u)  +  k;
-                                            //std::cout<<" iix: "<<iix<<" jjy: "<<jjy<<" kkz: "<<kkz<<std::endl;
-
-                                            if( (iix %2 ==0) && (jjy%2 ==0) && (kkz%2==0))
-                                            {
-                                                wVec[ m2primeCount*m_uiNpE +  (kkz>>1u) * (m_uiElementOrder+1)*(m_uiElementOrder+1) + (jjy>>1u) * (m_uiElementOrder+1)+(iix>>1u)] = vec[m_uiE2NMapping_CG[(ele+child)*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]];
-                                                
-                                            }
-
                                         }
 
                                     }
+
+                                }
 
                         }
 
                     }
-
-                    
-
 
                     ele+=(NUM_CHILDREN-1);
                     m2primeCount+=1;
@@ -3709,8 +3314,8 @@ namespace ot
                     this->getElementNodalValues(vec,&(*(wVec.begin()+(m2primeCount*m_uiNpE))),ele);
                     m2primeCount+=1;
 
-
                 }
+
 
             }
 
@@ -8117,6 +7722,12 @@ namespace ot
         // NOTE: Be careful when you access ghost elements for padding. (You should only access the level 1 ghost elements. You should not access the level 2 ghost elements at any time. )
         paddWidth = m_uiLocalBlockList[0].get1DPadWidth();
 
+        if((m_uiElementOrder+1)/2 < paddWidth)
+        {
+            std::cout<<"rank: "<<m_uiActiveRank<<" paddiging with size : "<<paddWidth<<" is too large for element order : "<<m_uiElementOrder<<std::endl;
+            MPI_Abort(m_uiCommGlobal,0);
+        }
+
        
         assert(numblks<=m_uiLocalBlockList.size());
 
@@ -8125,8 +7736,8 @@ namespace ot
             const T* zippedVec = in  + v * m_uiNumActualNodes;
             T* unzippedVec = out + v* m_uiUnZippedVecSz; 
 
-            if(m_uiElementOrder ==4 && paddWidth==3)
-                readSpecialPtsBegin(zippedVec);
+            //if(m_uiElementOrder ==4 && paddWidth==3)
+                //readSpecialPtsBegin(zippedVec);
         
             for(unsigned int b = 0; b < numblks; b++ )
             {
@@ -9302,7 +8913,7 @@ namespace ot
             }
 
 
-            if(m_uiElementOrder ==4 && paddWidth==3)
+            /*if(m_uiElementOrder ==4 && paddWidth==3)
             {
                 //std::cout<<"read spt points : "<<m_uiElementOrder<<" pwidth : "<<paddWidth<<std::endl;
                 std::vector<T> recv_buf;
@@ -9334,7 +8945,7 @@ namespace ot
                         
                 }
 
-            }
+            }*/
 
         
         }
@@ -9367,6 +8978,7 @@ namespace ot
 
     }
 
+    #if 0
     template<typename T>
     void Mesh::readSpecialPtsBegin(const T* in)
     {
@@ -9538,6 +9150,7 @@ namespace ot
 
         return;
     }
+    #endif
 
     template<typename T>
     int Mesh::getFaceNeighborValues(unsigned int eleID, const T* in, T* out, T* coords, unsigned int * neighID, unsigned int face, NeighbourLevel & level) const

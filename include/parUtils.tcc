@@ -34,68 +34,51 @@ namespace par
 {
 
 template <typename T>
-inline int Mpi_Isend(T *buf, int count, int dest, int tag,
-                     MPI_Comm comm, MPI_Request *request)
+inline int Mpi_Isend(T *buf, int count, int dest, int tag, MPI_Comm comm, MPI_Request *request)
 {
-
-  MPI_Isend(buf, count, par::Mpi_datatype<T>::value(),
-            dest, tag, comm, request);
-
+  MPI_Isend(buf, count, par::Mpi_datatype<T>::value(), dest, tag, comm, request);
   return 1;
 }
 
 template <typename T>
-inline int Mpi_Issend(T *buf, int count, int dest, int tag,
-                      MPI_Comm comm, MPI_Request *request)
+inline int Mpi_Issend(T *buf, int count, int dest, int tag, MPI_Comm comm, MPI_Request *request)
 {
 
-  MPI_Issend(buf, count, par::Mpi_datatype<T>::value(),
-             dest, tag, comm, request);
+  MPI_Issend(buf, count, par::Mpi_datatype<T>::value(),dest, tag, comm, request);
+  return 1;
 
+}
+
+template <typename T>
+inline int Mpi_Recv(T *buf, int count, int source, int tag, MPI_Comm comm, MPI_Status *status)
+{
+
+  MPI_Recv(buf, count, par::Mpi_datatype<T>::value(),source, tag, comm, status);
   return 1;
 }
 
 template <typename T>
-inline int Mpi_Recv(T *buf, int count, int source, int tag,
-                    MPI_Comm comm, MPI_Status *status)
+inline int Mpi_Irecv(T *buf, int count, int source, int tag, MPI_Comm comm, MPI_Request *request)
 {
 
-  MPI_Recv(buf, count, par::Mpi_datatype<T>::value(),
-           source, tag, comm, status);
-
-  return 1;
-}
-
-template <typename T>
-inline int Mpi_Irecv(T *buf, int count, int source, int tag,
-                     MPI_Comm comm, MPI_Request *request)
-{
-
-  MPI_Irecv(buf, count, par::Mpi_datatype<T>::value(),
-            source, tag, comm, request);
-
+  MPI_Irecv(buf, count, par::Mpi_datatype<T>::value(),source, tag, comm, request);
   return 1;
 }
 
 template <typename T, typename S>
-inline int Mpi_Sendrecv(T *sendBuf, int sendCount, int dest, int sendTag,
-                        S *recvBuf, int recvCount, int source, int recvTag,
-                        MPI_Comm comm, MPI_Status *status)
+inline int Mpi_Sendrecv(T *sendBuf, int sendCount, int dest, int sendTag, S *recvBuf, int recvCount, int source, int recvTag, MPI_Comm comm, MPI_Status *status)
 {
   PROF_PAR_SENDRECV_BEGIN
-
-  MPI_Sendrecv(sendBuf, sendCount, par::Mpi_datatype<T>::value(), dest, sendTag,
-               recvBuf, recvCount, par::Mpi_datatype<S>::value(), source, recvTag, comm, status);
-
+  MPI_Sendrecv(sendBuf, sendCount, par::Mpi_datatype<T>::value(), dest, sendTag,recvBuf, recvCount, par::Mpi_datatype<S>::value(), source, recvTag, comm, status);
   PROF_PAR_SENDRECV_END
 }
 
 template <typename T>
 inline int Mpi_Scan(T *sendbuf, T *recvbuf, int count, MPI_Op op, MPI_Comm comm)
 {
-#ifdef __PROFILE_WITH_BARRIER__
-  MPI_Barrier(comm);
-#endif
+  #ifdef __PROFILE_WITH_BARRIER__
+    MPI_Barrier(comm);
+  #endif
   PROF_PAR_SCAN_BEGIN
 
   MPI_Scan(sendbuf, recvbuf, count, par::Mpi_datatype<T>::value(), op, comm);
@@ -106,9 +89,9 @@ inline int Mpi_Scan(T *sendbuf, T *recvbuf, int count, MPI_Op op, MPI_Comm comm)
 template <typename T>
 inline int Mpi_Allreduce(T *sendbuf, T *recvbuf, int count, MPI_Op op, MPI_Comm comm)
 {
-#ifdef __PROFILE_WITH_BARRIER__
-  MPI_Barrier(comm);
-#endif
+  #ifdef __PROFILE_WITH_BARRIER__
+    MPI_Barrier(comm);
+  #endif
   PROF_PAR_ALLREDUCE_BEGIN
 
   MPI_Allreduce(sendbuf, recvbuf, count, par::Mpi_datatype<T>::value(), op, comm);
@@ -119,27 +102,24 @@ inline int Mpi_Allreduce(T *sendbuf, T *recvbuf, int count, MPI_Op op, MPI_Comm 
 template <typename T>
 inline int Mpi_Alltoall(T *sendbuf, T *recvbuf, int count, MPI_Comm comm)
 {
-#ifdef __PROFILE_WITH_BARRIER__
-  MPI_Barrier(comm);
-#endif
+  #ifdef __PROFILE_WITH_BARRIER__
+    MPI_Barrier(comm);
+  #endif
   PROF_PAR_ALL2ALL_BEGIN
 
-  MPI_Alltoall(sendbuf, count, par::Mpi_datatype<T>::value(),
-               recvbuf, count, par::Mpi_datatype<T>::value(), comm);
+  MPI_Alltoall(sendbuf, count, par::Mpi_datatype<T>::value(),recvbuf, count, par::Mpi_datatype<T>::value(), comm);
 
   PROF_PAR_ALL2ALL_END
 }
 
 template <typename T>
-inline int Mpi_Alltoallv(T *sendbuf, int *sendcnts, int *sdispls,
-                         T *recvbuf, int *recvcnts, int *rdispls, MPI_Comm comm)
+inline int Mpi_Alltoallv(T *sendbuf, int *sendcnts, int *sdispls, T *recvbuf, int *recvcnts, int *rdispls, MPI_Comm comm)
 {
-#ifdef __PROFILE_WITH_BARRIER__
-  MPI_Barrier(comm);
-#endif
+  #ifdef __PROFILE_WITH_BARRIER__
+    MPI_Barrier(comm);
+  #endif
 
-  MPI_Alltoallv(
-      sendbuf, sendcnts, sdispls, par::Mpi_datatype<T>::value(),
+  MPI_Alltoallv(sendbuf, sendcnts, sdispls, par::Mpi_datatype<T>::value(),
       recvbuf, recvcnts, rdispls, par::Mpi_datatype<T>::value(),
       comm);
   return 0;
@@ -148,13 +128,12 @@ inline int Mpi_Alltoallv(T *sendbuf, int *sendcnts, int *sdispls,
 template <typename T>
 inline int Mpi_Gather(T *sendBuffer, T *recvBuffer, int count, int root, MPI_Comm comm)
 {
-#ifdef __PROFILE_WITH_BARRIER__
-  MPI_Barrier(comm);
-#endif
+  #ifdef __PROFILE_WITH_BARRIER__
+    MPI_Barrier(comm);
+  #endif
   PROF_PAR_GATHER_BEGIN
 
-  MPI_Gather(sendBuffer, count, par::Mpi_datatype<T>::value(),
-             recvBuffer, count, par::Mpi_datatype<T>::value(), root, comm);
+  MPI_Gather(sendBuffer, count, par::Mpi_datatype<T>::value(), recvBuffer, count, par::Mpi_datatype<T>::value(), root, comm);
 
   PROF_PAR_GATHER_END
 }
@@ -162,9 +141,9 @@ inline int Mpi_Gather(T *sendBuffer, T *recvBuffer, int count, int root, MPI_Com
 template <typename T>
 inline int Mpi_Bcast(T *buffer, int count, int root, MPI_Comm comm)
 {
-#ifdef __PROFILE_WITH_BARRIER__
-  MPI_Barrier(comm);
-#endif
+  #ifdef __PROFILE_WITH_BARRIER__
+    MPI_Barrier(comm);
+  #endif
   PROF_PAR_BCAST_BEGIN
 
   MPI_Bcast(buffer, count, par::Mpi_datatype<T>::value(), root, comm);
@@ -175,9 +154,9 @@ inline int Mpi_Bcast(T *buffer, int count, int root, MPI_Comm comm)
 template <typename T>
 inline int Mpi_Reduce(T *sendbuf, T *recvbuf, int count, MPI_Op op, int root, MPI_Comm comm)
 {
-#ifdef __PROFILE_WITH_BARRIER__
-  MPI_Barrier(comm);
-#endif
+  #ifdef __PROFILE_WITH_BARRIER__
+    MPI_Barrier(comm);
+  #endif
   PROF_PAR_REDUCE_BEGIN
 
   MPI_Reduce(sendbuf, recvbuf, count, par::Mpi_datatype<T>::value(), op, root, comm);
@@ -186,15 +165,14 @@ inline int Mpi_Reduce(T *sendbuf, T *recvbuf, int count, MPI_Op op, int root, MP
 }
 
 template <typename T>
-int Mpi_Allgatherv(T *sendBuf, int sendCount, T *recvBuf,
-                   int *recvCounts, int *displs, MPI_Comm comm)
+int Mpi_Allgatherv(T *sendBuf, int sendCount, T *recvBuf, int *recvCounts, int *displs, MPI_Comm comm)
 {
-#ifdef __PROFILE_WITH_BARRIER__
-  MPI_Barrier(comm);
-#endif
+  #ifdef __PROFILE_WITH_BARRIER__
+    MPI_Barrier(comm);
+  #endif
   PROF_PAR_ALLGATHERV_BEGIN
 
-#ifdef __USE_A2A_FOR_MPI_ALLGATHER__
+  #ifdef __USE_A2A_FOR_MPI_ALLGATHER__
 
   int maxSendCount;
   int npes, rank;
@@ -207,7 +185,7 @@ int Mpi_Allgatherv(T *sendBuf, int sendCount, T *recvBuf,
   T *dummySendBuf = new T[maxSendCount * npes];
   assert(dummySendBuf);
 
-#pragma omp parallel for
+  #pragma omp parallel for
   for (int i = 0; i < npes; i++)
   {
     for (int j = 0; j < sendCount; j++)
@@ -221,7 +199,7 @@ int Mpi_Allgatherv(T *sendBuf, int sendCount, T *recvBuf,
 
   par::Mpi_Alltoall<T>(dummySendBuf, dummyRecvBuf, maxSendCount, comm);
 
-#pragma omp parallel for
+  #pragma omp parallel for
   for (int i = 0; i < npes; i++)
   {
     for (int j = 0; j < recvCounts[i]; j++)
@@ -233,31 +211,30 @@ int Mpi_Allgatherv(T *sendBuf, int sendCount, T *recvBuf,
   delete[] dummySendBuf;
   delete[] dummyRecvBuf;
 
-#else
+  #else
 
-  MPI_Allgatherv(sendBuf, sendCount, par::Mpi_datatype<T>::value(),
-                 recvBuf, recvCounts, displs, par::Mpi_datatype<T>::value(), comm);
+  MPI_Allgatherv(sendBuf, sendCount, par::Mpi_datatype<T>::value(),recvBuf, recvCounts, displs, par::Mpi_datatype<T>::value(), comm);
 
-#endif
-
+  #endif
   PROF_PAR_ALLGATHERV_END
+
 }
 
 template <typename T>
 int Mpi_Allgather(T *sendBuf, T *recvBuf, int count, MPI_Comm comm)
 {
-#ifdef __PROFILE_WITH_BARRIER__
-  MPI_Barrier(comm);
-#endif
+  #ifdef __PROFILE_WITH_BARRIER__
+    MPI_Barrier(comm);
+  #endif
   PROF_PAR_ALLGATHER_BEGIN
 
-#ifdef __USE_A2A_FOR_MPI_ALLGATHER__
+  #ifdef __USE_A2A_FOR_MPI_ALLGATHER__
 
   int npes;
   MPI_Comm_size(comm, &npes);
   T *dummySendBuf = new T[count * npes];
   assert(dummySendBuf);
-#pragma omp parallel for
+  #pragma omp parallel for
   for (int i = 0; i < npes; i++)
   {
     for (int j = 0; j < count; j++)
@@ -268,30 +245,27 @@ int Mpi_Allgather(T *sendBuf, T *recvBuf, int count, MPI_Comm comm)
   par::Mpi_Alltoall<T>(dummySendBuf, recvBuf, count, comm);
   delete[] dummySendBuf;
 
-#else
+  #else
 
-  MPI_Allgather(sendBuf, count, par::Mpi_datatype<T>::value(),
-                recvBuf, count, par::Mpi_datatype<T>::value(), comm);
+  MPI_Allgather(sendBuf, count, par::Mpi_datatype<T>::value(), recvBuf, count, par::Mpi_datatype<T>::value(), comm);
 
-#endif
+  #endif
 
   PROF_PAR_ALLGATHER_END
 }
 
 template <typename T>
-int Mpi_Alltoallv_sparse(T *sendbuf, int *sendcnts, int *sdispls,
-                         T *recvbuf, int *recvcnts, int *rdispls, MPI_Comm comm)
+int Mpi_Alltoallv_sparse(T *sendbuf, int *sendcnts, int *sdispls, T *recvbuf, int *recvcnts, int *rdispls, MPI_Comm comm)
 {
-#ifdef __PROFILE_WITH_BARRIER__
-  MPI_Barrier(comm);
-#endif
+  #ifdef __PROFILE_WITH_BARRIER__
+    MPI_Barrier(comm);
+  #endif
   PROF_PAR_ALL2ALLV_SPARSE_BEGIN
 
   #ifndef ALLTOALLV_FIX
-    Mpi_Alltoallv
-        (sendbuf, sendcnts, sdispls,
-         recvbuf, recvcnts, rdispls, comm);
-   return 0;
+    Mpi_Alltoallv(sendbuf, sendcnts, sdispls, recvbuf, recvcnts, rdispls, comm);
+    return 0;
+  
   #else
 
   int npes, rank;
@@ -300,121 +274,119 @@ int Mpi_Alltoallv_sparse(T *sendbuf, int *sendcnts, int *sdispls,
 
   int commCnt = 0;
 
-#pragma omp parallel for reduction(+ \
-                                   : commCnt)
-  for (int i = 0; i < rank; i++)
-  {
-    if (sendcnts[i] > 0)
+  #pragma omp parallel for reduction(+ \
+                                    : commCnt)
+    for (int i = 0; i < rank; i++)
     {
-      commCnt++;
+      if (sendcnts[i] > 0)
+      {
+        commCnt++;
+      }
+      if (recvcnts[i] > 0)
+      {
+        commCnt++;
+      }
     }
-    if (recvcnts[i] > 0)
+
+  #pragma omp parallel for reduction(+ \
+                                    : commCnt)
+    for (int i = (rank + 1); i < npes; i++)
     {
-      commCnt++;
+      if (sendcnts[i] > 0)
+      {
+        commCnt++;
+      }
+      if (recvcnts[i] > 0)
+      {
+        commCnt++;
+      }
     }
-  }
 
-#pragma omp parallel for reduction(+ \
-                                   : commCnt)
-  for (int i = (rank + 1); i < npes; i++)
-  {
-    if (sendcnts[i] > 0)
+    MPI_Request *requests = new MPI_Request[commCnt];
+    assert(requests);
+
+    MPI_Status *statuses = new MPI_Status[commCnt];
+    assert(statuses);
+
+    commCnt = 0;
+
+    //First place all recv requests. Do not recv from self.
+    for (int i = 0; i < rank; i++)
     {
-      commCnt++;
+      if (recvcnts[i] > 0)
+      {
+        par::Mpi_Irecv<T>(&(recvbuf[rdispls[i]]), recvcnts[i], i, 1,
+                          comm, &(requests[commCnt]));
+        commCnt++;
+      }
     }
-    if (recvcnts[i] > 0)
+
+    for (int i = (rank + 1); i < npes; i++)
     {
-      commCnt++;
+      if (recvcnts[i] > 0)
+      {
+        par::Mpi_Irecv<T>(&(recvbuf[rdispls[i]]), recvcnts[i], i, 1,
+                          comm, &(requests[commCnt]));
+        commCnt++;
+      }
     }
-  }
 
-  MPI_Request *requests = new MPI_Request[commCnt];
-  assert(requests);
-
-  MPI_Status *statuses = new MPI_Status[commCnt];
-  assert(statuses);
-
-  commCnt = 0;
-
-  //First place all recv requests. Do not recv from self.
-  for (int i = 0; i < rank; i++)
-  {
-    if (recvcnts[i] > 0)
+    //Next send the messages. Do not send to self.
+    for (int i = 0; i < rank; i++)
     {
-      par::Mpi_Irecv<T>(&(recvbuf[rdispls[i]]), recvcnts[i], i, 1,
-                        comm, &(requests[commCnt]));
-      commCnt++;
+      if (sendcnts[i] > 0)
+      {
+        par::Mpi_Issend<T>(&(sendbuf[sdispls[i]]), sendcnts[i], i, 1,
+                          comm, &(requests[commCnt]));
+        commCnt++;
+      }
     }
-  }
 
-  for (int i = (rank + 1); i < npes; i++)
-  {
-    if (recvcnts[i] > 0)
+    for (int i = (rank + 1); i < npes; i++)
     {
-      par::Mpi_Irecv<T>(&(recvbuf[rdispls[i]]), recvcnts[i], i, 1,
-                        comm, &(requests[commCnt]));
-      commCnt++;
+      if (sendcnts[i] > 0)
+      {
+        par::Mpi_Issend<T>(&(sendbuf[sdispls[i]]), sendcnts[i],
+                          i, 1, comm, &(requests[commCnt]));
+        commCnt++;
+      }
     }
-  }
 
-  //Next send the messages. Do not send to self.
-  for (int i = 0; i < rank; i++)
-  {
-    if (sendcnts[i] > 0)
-    {
-      par::Mpi_Issend<T>(&(sendbuf[sdispls[i]]), sendcnts[i], i, 1,
-                         comm, &(requests[commCnt]));
-      commCnt++;
-    }
-  }
-
-  for (int i = (rank + 1); i < npes; i++)
-  {
-    if (sendcnts[i] > 0)
-    {
-      par::Mpi_Issend<T>(&(sendbuf[sdispls[i]]), sendcnts[i],
-                         i, 1, comm, &(requests[commCnt]));
-      commCnt++;
-    }
-  }
-
-  //Now copy local portion.
-#ifdef __DEBUG_PAR__
-  assert(sendcnts[rank] == recvcnts[rank]);
-#endif
-
-#pragma omp parallel for
-  for (int i = 0; i < sendcnts[rank]; i++)
-  {
-    recvbuf[rdispls[rank] + i] = sendbuf[sdispls[rank] + i];
-  }
-
-  PROF_A2AV_WAIT_BEGIN
-
-  MPI_Waitall(commCnt, requests, statuses);
-
-  PROF_A2AV_WAIT_END
-
-  delete[] requests;
-  delete[] statuses;
+    //Now copy local portion.
+  #ifdef __DEBUG_PAR__
+    assert(sendcnts[rank] == recvcnts[rank]);
   #endif
 
+  #pragma omp parallel for
+    for (int i = 0; i < sendcnts[rank]; i++)
+    {
+      recvbuf[rdispls[rank] + i] = sendbuf[sdispls[rank] + i];
+    }
+
+    PROF_A2AV_WAIT_BEGIN
+
+    MPI_Waitall(commCnt, requests, statuses);
+
+    PROF_A2AV_WAIT_END
+
+    delete[] requests;
+    delete[] statuses;
+  #endif
   PROF_PAR_ALL2ALLV_SPARSE_END
+
 }
 
 template <typename T>
-int Mpi_Alltoallv_dense(T *sendbuf, int *sendcnts, int *sdispls,
-                        T *recvbuf, int *recvcnts, int *rdispls, MPI_Comm comm)
+int Mpi_Alltoallv_dense(T *sendbuf, int *sendcnts, int *sdispls, T *recvbuf, int *recvcnts, int *rdispls, MPI_Comm comm)
 {
-#ifdef __PROFILE_WITH_BARRIER__
-  MPI_Barrier(comm);
-#endif
+  #ifdef __PROFILE_WITH_BARRIER__
+    MPI_Barrier(comm);
+  #endif
   PROF_PAR_ALL2ALLV_DENSE_BEGIN
 
-#ifndef ALLTOALLV_FIX
-  Mpi_Alltoallv(sendbuf, sendcnts, sdispls,
-                recvbuf, recvcnts, rdispls, comm);
-#else
+  #ifndef ALLTOALLV_FIX
+    Mpi_Alltoallv(sendbuf, sendcnts, sdispls, recvbuf, recvcnts, rdispls, comm);
+  #else
   int npes, rank;
   MPI_Comm_size(comm, &npes);
   MPI_Comm_rank(comm, &rank);
@@ -475,9 +447,9 @@ int Mpi_Alltoallv_dense(T *sendbuf, int *sendcnts, int *sdispls,
   }
 
   //Now copy local portion.
-#ifdef __DEBUG_PAR__
+  #ifdef __DEBUG_PAR__
   assert(sendcnts[rank] == recvcnts[rank]);
-#endif
+  #endif
 
   for (int j = 0; j < recvcnts[rank]; j++)
   {
@@ -494,28 +466,24 @@ int Mpi_Alltoallv_dense(T *sendbuf, int *sendcnts, int *sdispls,
 
   delete[] tmpSendBuf;
   delete[] tmpRecvBuf;
-#endif
+  
+  #endif
 
   PROF_PAR_ALL2ALLV_DENSE_END
 }
 
 template <typename T>
-int Mpi_Alltoallv_Kway(T *sbuff_, int *s_cnt_, int *sdisp_,
-                       T *rbuff_, int *r_cnt_, int *rdisp_, MPI_Comm c)
+int Mpi_Alltoallv_Kway(T *sbuff_, int *s_cnt_, int *sdisp_, T *rbuff_, int *r_cnt_, int *rdisp_, MPI_Comm c)
 {
 
-  //std::vector<double> tt(4096*200,0);
-  //std::vector<double> tt_wait(4096*200,0);
-
-#ifdef __PROFILE_WITH_BARRIER__
-  MPI_Barrier(comm);
-#endif
+  #ifdef __PROFILE_WITH_BARRIER__
+    MPI_Barrier(comm);
+  #endif
   PROF_PAR_ALL2ALLV_DENSE_BEGIN
 
-#ifndef ALLTOALLV_FIX
-  Mpi_Alltoallv(sbuff_, s_cnt_, sdisp_,
-                rbuff_, r_cnt_, rdisp_, c);
-#else
+  #ifndef ALLTOALLV_FIX 
+    Mpi_Alltoallv(sbuff_, s_cnt_, sdisp_, rbuff_, r_cnt_, rdisp_, c);
+  #else
 
   int kway = KWAY;
   int np, pid;
@@ -526,7 +494,7 @@ int Mpi_Alltoallv_Kway(T *sbuff_, int *s_cnt_, int *sdisp_,
   int split_id, partner;
 
   std::vector<int> s_cnt(np);
-#pragma omp parallel for
+  #pragma omp parallel for
   for (int i = 0; i < np; i++)
   {
     s_cnt[i] = s_cnt_[i] * sizeof(T) + 2 * sizeof(int);
@@ -536,7 +504,7 @@ int Mpi_Alltoallv_Kway(T *sbuff_, int *s_cnt_, int *sdisp_,
   omp_par::scan(&s_cnt[0], &sdisp[0], np);
 
   char *sbuff = new char[sdisp[np - 1] + s_cnt[np - 1]];
-#pragma omp parallel for
+  #pragma omp parallel for
   for (int i = 0; i < np; i++)
   {
     ((int *)&sbuff[sdisp[i]])[0] = s_cnt[i];
@@ -619,17 +587,10 @@ int Mpi_Alltoallv_Kway(T *sbuff_, int *s_cnt_, int *sdisp_,
           int send_dsp_last = sdisp[new_range[i + 1] - new_range[0] - 1];
           int send_cnt = s_cnt[new_range[i + 1] - new_range[0] - 1] + send_dsp_last - send_dsp;
 
-          //          double ttt=omp_get_wtime();
-          //          MPI_Sendrecv(&sbuff[send_dsp], send_cnt>0?1:0, MPI_BYTE, partner, 0,
-          //                       &rbuff[rdisp[new_np  * i ]], (r_cnt[new_np  *(i+1)-1]+rdisp[new_np  *(i+1)-1]-rdisp[new_np  * i ])>0?1:0, MPI_BYTE, partner, 0, c, &status);
-          //          tt_wait[200*pid+t_indx]=omp_get_wtime()-ttt;
-          //
-          //          ttt=omp_get_wtime();
+          
           MPI_Sendrecv(&sbuff[send_dsp], send_cnt, MPI_BYTE, partner, 0,
                        &rbuff[rdisp[new_np * i]], r_cnt[new_np * (i + 1) - 1] + rdisp[new_np * (i + 1) - 1] - rdisp[new_np * i], MPI_BYTE, partner, 0, c, &status);
-          //          tt[200*pid+t_indx]=omp_get_wtime()-ttt;
-          //          t_indx++;
-
+          
           //Handle extra communication.
           if (pid == new_np - 1 && cmp_np > new_np)
           {
@@ -640,38 +601,7 @@ int Mpi_Alltoallv_Kway(T *sbuff_, int *s_cnt_, int *sdisp_,
           }
         }
       }
-      /*/
-      {
-        MPI_Request* requests = new MPI_Request[4*kway];
-        MPI_Status * statuses = new MPI_Status[4*kway];
-        int commCnt=0;
-        for(int i=0;i<kway;i++){
-          MPI_Status status;
-          int cmp_np=new_range[i+1]-new_range[i];
-          int partner=              new_range[i]+new_pid;
-          if(partner<new_range[i+1]){
-            MPI_Irecv(&rbuff    [rdisp    [new_np*i]], r_cnt    [new_np*(i+1)-1]+rdisp    [new_np*(i+1)-1]-rdisp    [new_np*i ], MPI_BYTE, partner, 0, c, &requests[commCnt]); commCnt++;
-          }
-
-          //Handle extra recv.
-          if(new_pid==new_np-1 && cmp_np>new_np){
-            int partner=new_range[i+1]-1;
-            MPI_Irecv(&rbuff_ext[rdisp_ext[new_np*i]], r_cnt_ext[new_np*(i+1)-1]+rdisp_ext[new_np*(i+1)-1]-rdisp_ext[new_np*i ], MPI_BYTE, partner, 0, c, &requests[commCnt]); commCnt++;
-          }
-        }
-        for(int i=0;i<kway;i++){
-          MPI_Status status;
-          int cmp_np=new_range[i+1]-new_range[i];
-          int partner=(new_pid<cmp_np?  new_range[i]+new_pid: new_range[i+1]-1);
-          int send_dsp     =sdisp[new_range[i  ]-new_range[0]  ];
-          int send_dsp_last=sdisp[new_range[i+1]-new_range[0]-1];
-          int send_cnt     =s_cnt[new_range[i+1]-new_range[0]-1]+send_dsp_last-send_dsp;
-          MPI_Issend (&sbuff[send_dsp], send_cnt, MPI_BYTE, partner, 0, c, &requests[commCnt]); commCnt++;
-        }
-        MPI_Waitall(commCnt, requests, statuses);
-        delete[] requests;
-        delete[] statuses;
-      }// */
+      
 
       /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -691,7 +621,7 @@ int Mpi_Alltoallv_Kway(T *sbuff_, int *s_cnt_, int *sdisp_,
           }
         omp_par::scan(&cnt_new[0], &disp_new[0], 2 * new_np * kway);
 
-#pragma omp parallel for
+        #pragma omp parallel for
         for (int i = 0; i < new_np; i++)
           for (int j = 0; j < kway; j++)
           {
@@ -716,43 +646,12 @@ int Mpi_Alltoallv_Kway(T *sbuff_, int *s_cnt_, int *sdisp_,
         }
       }
 
-      /*
-      //Rearrange received data.
-      {
-        int * s_cnt_old=&s_cnt[new_range[0]-range[0]];
-        int * sdisp_old=&sdisp[new_range[0]-range[0]];
-
-        std::vector<int> s_cnt_new(&s_cnt_old[0],&s_cnt_old[new_np]);
-        std::vector<int> sdisp_new(new_np       ,0                 );
-        #pragma omp parallel for
-        for(int i=0;i<new_np;i++){
-          s_cnt_new[i]+=r_cnt[i];
-        }
-        omp_par::scan(&s_cnt_new[0],&sdisp_new[0],new_np);
-
-        //Copy data to sbuff_new.
-        char* sbuff_new=new char[sdisp_new[new_np-1]+s_cnt_new[new_np-1]];
-        #pragma omp parallel for
-        for(int i=0;i<new_np;i++){
-          memcpy(&sbuff_new[sdisp_new[i]                      ],&sbuff   [sdisp_old[i]],s_cnt_old[i]);
-          memcpy(&sbuff_new[sdisp_new[i]+s_cnt_old[i]         ],&rbuff   [rdisp    [i]],r_cnt    [i]);
-        }
-
-        //Free memory.
-        if(sbuff   !=NULL) delete[] sbuff   ;
-        if(rbuff   !=NULL) delete[] rbuff   ;
-
-        //Substitute data for next iteration.
-        s_cnt=s_cnt_new;
-        sdisp=sdisp_new;
-        sbuff=sbuff_new;
-      }*/
+      
     }
 
     range[0] = new_range[p_class];
     range[1] = new_range[p_class + 1];
-    //range[0]=new_range[0];
-    //range[1]=new_range[1];
+   
   }
 
   //Copy data to rbuff_.
@@ -764,7 +663,8 @@ int Mpi_Alltoallv_Kway(T *sbuff_, int *s_cnt_, int *sdisp_,
     buff_ptr[i] = tmp_ptr;
     tmp_ptr += blk_size;
   }
-#pragma omp parallel for
+  
+  #pragma omp parallel for
   for (int i = 0; i < np; i++)
   {
     int &blk_size = ((int *)buff_ptr[i])[0];
@@ -772,44 +672,12 @@ int Mpi_Alltoallv_Kway(T *sbuff_, int *s_cnt_, int *sdisp_,
     assert(blk_size - 2 * sizeof(int) <= r_cnt_[src_pid] * sizeof(T));
     memcpy(&rbuff_[rdisp_[src_pid]], buff_ptr[i] + 2 * sizeof(int), blk_size - 2 * sizeof(int));
   }
-  /*
-  std::vector<double> tt_sum(4096*200,0);
-  std::vector<double> tt_wait_sum(4096*200,0);
-  MPI_Reduce(&tt[0], &tt_sum[0], 4096*200, MPI_DOUBLE, MPI_SUM, 0, c);
-  MPI_Reduce(&tt_wait[0], &tt_wait_sum[0], 4096*200, MPI_DOUBLE, MPI_SUM, 0, c);
-
-#define MAX_PROCS 4096
-
-  if(np==MAX_PROCS){
-    if(!pid) std::cout<<"Tw=[";
-    size_t j=0;
-    for(size_t i=0;i<200;i++){
-      for(j=0;j<MAX_PROCS;j++)
-        if(!pid) std::cout<<tt_wait_sum[j*200+i]<<' ';
-      if(!pid) std::cout<<";\n";
-      MPI_Barrier(c);
-    }
-    if(!pid) std::cout<<"];\n\n\n";
-  }
-
-  MPI_Barrier(c);
-
-  if(np==MAX_PROCS){
-    if(!pid) std::cout<<"Tc=[";
-    size_t j=0;
-    for(size_t i=0;i<200;i++){
-      for(j=0;j<MAX_PROCS;j++)
-        if(!pid) std::cout<<tt_sum[j*200+i]<<' ';
-      if(!pid) std::cout<<";\n";
-      MPI_Barrier(c);
-    }
-    if(!pid) std::cout<<"];\n\n\n";
-  }
-  // */
+  
+  
   //Free memory.
   if (sbuff != NULL)
     delete[] sbuff;
-#endif
+  #endif
 
   PROF_PAR_ALL2ALLV_DENSE_END
 }
@@ -821,12 +689,11 @@ unsigned int defaultWeight(const T *a)
 }
 
 template <typename T>
-int scatterValues(std::vector<T> &in, std::vector<T> &out,
-                  DendroIntL outSz, MPI_Comm comm)
+int scatterValues(std::vector<T> &in, std::vector<T> &out, DendroIntL outSz, MPI_Comm comm)
 {
-#ifdef __PROFILE_WITH_BARRIER__
-  MPI_Barrier(comm);
-#endif
+  #ifdef __PROFILE_WITH_BARRIER__
+    MPI_Barrier(comm);
+  #endif
   PROF_PAR_SCATTER_BEGIN
 
   int rank, npes;
@@ -1003,12 +870,11 @@ int scatterValues(std::vector<T> &in, std::vector<T> &out,
 }
 
 template <typename T>
-int concatenate(std::vector<T> &listA, std::vector<T> &listB,
-                MPI_Comm comm)
+int concatenate(std::vector<T> &listA, std::vector<T> &listB, MPI_Comm comm)
 {
-#ifdef __PROFILE_WITH_BARRIER__
-  MPI_Barrier(comm);
-#endif
+  #ifdef __PROFILE_WITH_BARRIER__
+    MPI_Barrier(comm);
+  #endif
   PROF_PAR_CONCAT_BEGIN
 
   int rank;
@@ -1260,8 +1126,7 @@ int concatenate(std::vector<T> &listA, std::vector<T> &listB,
 }
 
 template <typename T>
-int maxLowerBound(const std::vector<T> &keys, const std::vector<T> &searchList,
-                  std::vector<T> &results, MPI_Comm comm)
+int maxLowerBound(const std::vector<T> &keys, const std::vector<T> &searchList, std::vector<T> &results, MPI_Comm comm)
 {
   PROF_SEARCH_BEGIN
 
@@ -1465,9 +1330,9 @@ int maxLowerBound(const std::vector<T> &keys, const std::vector<T> &searchList,
 template <typename T>
 int partitionW(std::vector<T> &nodeList, unsigned int (*getWeight)(const T *), MPI_Comm comm)
 {
-#ifdef __PROFILE_WITH_BARRIER__
-  MPI_Barrier(comm);
-#endif
+  #ifdef __PROFILE_WITH_BARRIER__
+    MPI_Barrier(comm);
+  #endif
   PROF_PARTW_BEGIN
 
   int npes;
@@ -1507,408 +1372,279 @@ int partitionW(std::vector<T> &nodeList, unsigned int (*getWeight)(const T *), M
   }
 
   // First construct arrays of id and wts.
-#pragma omp parallel for reduction(+ \
-                                   : localWt)
-  for (DendroIntL i = 0; i < nlSize; i++)
-  {
-    wts[i] = (*getWeight)(&(nodeList[i]));
-    localWt += wts[i];
-  }
-
-#ifdef __DEBUG_PAR__
-  MPI_Barrier(comm);
-  if (!rank)
-  {
-    std::cout << "Partition: Stage-1 passed." << std::endl;
-  }
-  MPI_Barrier(comm);
-#endif
-
-  // compute the total weight of the problem ...
-  par::Mpi_Allreduce<DendroIntL>(&localWt, &totalWt, 1, MPI_SUM, comm);
-
-  // perform a local scan on the weights first ...
-  DendroIntL zero = 0;
-  if (!nEmpty)
-  {
-    lscn[0] = wts[0];
-    //        for (DendroIntL i = 1; i < nlSize; i++) {
-    //          lscn[i] = wts[i] + lscn[i-1];
-    //        }//end for
-    omp_par::scan(&wts[1], lscn, nlSize);
-    // now scan with the final members of
-    par::Mpi_Scan<DendroIntL>(lscn + nlSize - 1, &off1, 1, MPI_SUM, comm);
-  }
-  else
-  {
-    par::Mpi_Scan<DendroIntL>(&zero, &off1, 1, MPI_SUM, comm);
-  }
-
-  // communicate the offsets ...
-  if (rank < (npes - 1))
-  {
-    par::Mpi_Issend<DendroIntL>(&off1, 1, rank + 1, 0, comm, &request);
-  }
-  if (rank)
-  {
-    par::Mpi_Recv<DendroIntL>(&off2, 1, rank - 1, 0, comm, &status);
-  }
-  else
-  {
-    off2 = 0;
-  }
-
-  // add offset to local array
-#pragma omp parallel for
-  for (DendroIntL i = 0; i < nlSize; i++)
-  {
-    lscn[i] = lscn[i] + off2; // This has the global scan results now ...
-  }                           //end for
-
-#ifdef __DEBUG_PAR__
-  MPI_Barrier(comm);
-  if (!rank)
-  {
-    std::cout << "Partition: Stage-2 passed." << std::endl;
-  }
-  MPI_Barrier(comm);
-#endif
-
-  int *sendSz = new int[npes];
-  assert(sendSz);
-
-  int *recvSz = new int[npes];
-  assert(recvSz);
-
-  int *sendOff = new int[npes];
-  assert(sendOff);
-  sendOff[0] = 0;
-
-  int *recvOff = new int[npes];
-  assert(recvOff);
-  recvOff[0] = 0;
-
-  // compute the partition offsets and sizes so that All2Allv can be performed.
-  // initialize ...
-
-#pragma omp parallel for
-  for (int i = 0; i < npes; i++)
-  {
-    sendSz[i] = 0;
-  }
-
-  // Now determine the average load ...
-  DendroIntL npesLong = npes;
-  DendroIntL avgLoad = (totalWt / npesLong);
-
-  DendroIntL extra = (totalWt % npesLong);
-
-  //The Heart of the algorithm....
-  if (avgLoad > 0)
-  {
+  #pragma omp parallel for reduction(+ \
+                                    : localWt)
     for (DendroIntL i = 0; i < nlSize; i++)
     {
-      if (lscn[i] == 0)
+      wts[i] = (*getWeight)(&(nodeList[i]));
+      localWt += wts[i];
+    }
+
+  #ifdef __DEBUG_PAR__
+    MPI_Barrier(comm);
+    if (!rank)
+    {
+      std::cout << "Partition: Stage-1 passed." << std::endl;
+    }
+    MPI_Barrier(comm);
+  #endif
+
+    // compute the total weight of the problem ...
+    par::Mpi_Allreduce<DendroIntL>(&localWt, &totalWt, 1, MPI_SUM, comm);
+
+    // perform a local scan on the weights first ...
+    DendroIntL zero = 0;
+    if (!nEmpty)
+    {
+      lscn[0] = wts[0];
+      //        for (DendroIntL i = 1; i < nlSize; i++) {
+      //          lscn[i] = wts[i] + lscn[i-1];
+      //        }//end for
+      omp_par::scan(&wts[1], lscn, nlSize);
+      // now scan with the final members of
+      par::Mpi_Scan<DendroIntL>(lscn + nlSize - 1, &off1, 1, MPI_SUM, comm);
+    }
+    else
+    {
+      par::Mpi_Scan<DendroIntL>(&zero, &off1, 1, MPI_SUM, comm);
+    }
+
+    // communicate the offsets ...
+    if (rank < (npes - 1))
+    {
+      par::Mpi_Issend<DendroIntL>(&off1, 1, rank + 1, 0, comm, &request);
+    }
+    if (rank)
+    {
+      par::Mpi_Recv<DendroIntL>(&off2, 1, rank - 1, 0, comm, &status);
+    }
+    else
+    {
+      off2 = 0;
+    }
+
+    // add offset to local array
+  #pragma omp parallel for
+    for (DendroIntL i = 0; i < nlSize; i++)
+    {
+      lscn[i] = lscn[i] + off2; // This has the global scan results now ...
+    }                           //end for
+
+  #ifdef __DEBUG_PAR__
+    MPI_Barrier(comm);
+    if (!rank)
+    {
+      std::cout << "Partition: Stage-2 passed." << std::endl;
+    }
+    MPI_Barrier(comm);
+  #endif
+
+    int *sendSz = new int[npes];
+    assert(sendSz);
+
+    int *recvSz = new int[npes];
+    assert(recvSz);
+
+    int *sendOff = new int[npes];
+    assert(sendOff);
+    sendOff[0] = 0;
+
+    int *recvOff = new int[npes];
+    assert(recvOff);
+    recvOff[0] = 0;
+
+    // compute the partition offsets and sizes so that All2Allv can be performed.
+    // initialize ...
+
+  #pragma omp parallel for
+    for (int i = 0; i < npes; i++)
+    {
+      sendSz[i] = 0;
+    }
+
+    // Now determine the average load ...
+    DendroIntL npesLong = npes;
+    DendroIntL avgLoad = (totalWt / npesLong);
+
+    DendroIntL extra = (totalWt % npesLong);
+
+    //The Heart of the algorithm....
+    if (avgLoad > 0)
+    {
+      for (DendroIntL i = 0; i < nlSize; i++)
       {
-        sendSz[0]++;
-      }
-      else
-      {
-        int ind = 0;
-        if (lscn[i] <= (extra * (avgLoad + 1)))
+        if (lscn[i] == 0)
         {
-          ind = ((lscn[i] - 1) / (avgLoad + 1));
+          sendSz[0]++;
         }
         else
         {
-          ind = ((lscn[i] - (1 + extra)) / avgLoad);
-        }
-        assert(ind < npes);
-        sendSz[ind]++;
-      } //end if-else
-    }   //end for */
-    /*
-        //This is more effecient and parallelizable than the above.
-	//This has a bug trying a simpler approach below.
-        int ind_min,ind_max;
-        ind_min=(lscn[0]*npesLong)/totalWt-1;
-        ind_max=(lscn[nlSize-1]*npesLong)/totalWt+2;
-        if(ind_min< 0       )ind_min=0;
-        if(ind_max>=npesLong)ind_max=npesLong;
-        #pragma omp parallel for
-        for(int i=ind_min;i<ind_max;i++){
-          DendroIntL wt1=(totalWt*i)/npesLong;
-          DendroIntL wt2=(totalWt*(i+1))/npesLong;
-          int end = std::upper_bound(&lscn[0], &lscn[nlSize], wt2, std::less<DendroIntL>())-&lscn[0];
-          int start = std::upper_bound(&lscn[0], &lscn[nlSize], wt1, std::less<DendroIntL>())-&lscn[0];
-          if(i==npesLong-1)end  =nlSize;
-          if(i==         0)start=0     ;
-          sendSz[i]=end-start;
-        }// */
+          int ind = 0;
+          if (lscn[i] <= (extra * (avgLoad + 1)))
+          {
+            ind = ((lscn[i] - 1) / (avgLoad + 1));
+          }
+          else
+          {
+            ind = ((lscn[i] - (1 + extra)) / avgLoad);
+          }
+          assert(ind < npes);
+          sendSz[ind]++;
+        } //end if-else
+      }   //end for */
 
-#ifdef __DEBUG_PAR__
-    int tmp_sum = 0;
-    for (int i = 0; i < npes; i++)
-      tmp_sum += sendSz[i];
-    assert(tmp_sum == nlSize);
-#endif
-  }
-  else
-  {
-    sendSz[0] += nlSize;
-  } //end if-else
 
-#ifdef __DEBUG_PAR__
-  MPI_Barrier(comm);
-  if (!rank)
-  {
-    std::cout << "Partition: Stage-3 passed." << std::endl;
-  }
-  MPI_Barrier(comm);
-#endif
-
-  if (rank < (npes - 1))
-  {
-    MPI_Status statusWait;
-    MPI_Wait(&request, &statusWait);
-  }
-
-  // communicate with other procs how many you shall be sending and get how
-  // many to recieve from whom.
-  par::Mpi_Alltoall<int>(sendSz, recvSz, 1, comm);
-
-#ifdef __DEBUG_PAR__
-  DendroIntL totSendToOthers = 0;
-  DendroIntL totRecvFromOthers = 0;
-  for (int i = 0; i < npes; i++)
-  {
-    if (rank != i)
-    {
-      totSendToOthers += sendSz[i];
-      totRecvFromOthers += recvSz[i];
+    #ifdef __DEBUG_PAR__
+      int tmp_sum = 0;
+      for (int i = 0; i < npes; i++)
+        tmp_sum += sendSz[i];
+      assert(tmp_sum == nlSize);
+    #endif
     }
-  }
-#endif
+    else
+    {
+      sendSz[0] += nlSize;
+    } //end if-else
 
-  DendroIntL nn = 0; // new value of nlSize, ie the local nodes.
-#pragma omp parallel for reduction(+ \
-                                   : nn)
-  for (int i = 0; i < npes; i++)
-  {
-    nn += recvSz[i];
-  }
+    #ifdef __DEBUG_PAR__
+    MPI_Barrier(comm);
+    if (!rank)
+    {
+      std::cout << "Partition: Stage-3 passed." << std::endl;
+    }
+    MPI_Barrier(comm);
+    #endif
 
-  // compute offsets ...
-  //      for (int i = 1; i < npes; i++) {
-  //        sendOff[i] = sendOff[i-1] + sendSz[i-1];
-  //        recvOff[i] = recvOff[i-1] + recvSz[i-1];
-  //      }
-  omp_par::scan(sendSz, sendOff, npes);
-  omp_par::scan(recvSz, recvOff, npes);
+    if (rank < (npes - 1))
+    {
+      MPI_Status statusWait;
+      MPI_Wait(&request, &statusWait);
+    }
 
-#ifdef __DEBUG_PAR__
-  MPI_Barrier(comm);
-  if (!rank)
-  {
-    std::cout << "Partition: Stage-4 passed." << std::endl;
-  }
-  MPI_Barrier(comm);
-  /*
-       std::cout<<rank<<": newSize: "<<nn<<" oldSize: "<<(nodeList.size())
-       <<" send: "<<totSendToOthers<<" recv: "<<totRecvFromOthers<<std::endl;
-     */
-  MPI_Barrier(comm);
-#endif
+    // communicate with other procs how many you shall be sending and get how
+    // many to recieve from whom.
+    par::Mpi_Alltoall<int>(sendSz, recvSz, 1, comm);
 
-  // allocate memory for the new arrays ...
-  std::vector<T> newNodes(nn);
+    #ifdef __DEBUG_PAR__
+    DendroIntL totSendToOthers = 0;
+    DendroIntL totRecvFromOthers = 0;
+    for (int i = 0; i < npes; i++)
+    {
+      if (rank != i)
+      {
+        totSendToOthers += sendSz[i];
+        totRecvFromOthers += recvSz[i];
+      }
+    }
+    #endif
 
-#ifdef __DEBUG_PAR__
-  MPI_Barrier(comm);
-  if (!rank)
-  {
-    std::cout << "Partition: Final alloc successful." << std::endl;
-  }
-  MPI_Barrier(comm);
-#endif
+    DendroIntL nn = 0; // new value of nlSize, ie the local nodes.
+    #pragma omp parallel for reduction(+ \
+                                      : nn)
+    for (int i = 0; i < npes; i++)
+    {
+      nn += recvSz[i];
+    }
 
-  // perform All2All  ...
-  T *nodeListPtr = NULL;
-  T *newNodesPtr = NULL;
-  if (!nodeList.empty())
-  {
-    nodeListPtr = &(*(nodeList.begin()));
-  }
-  if (!newNodes.empty())
-  {
-    newNodesPtr = &(*(newNodes.begin()));
-  }
-  par::Mpi_Alltoallv_sparse<T>(nodeListPtr, sendSz, sendOff,
-                               newNodesPtr, recvSz, recvOff, comm);
+    // compute offsets ...
+    //      for (int i = 1; i < npes; i++) {
+    //        sendOff[i] = sendOff[i-1] + sendSz[i-1];
+    //        recvOff[i] = recvOff[i-1] + recvSz[i-1];
+    //      }
+    omp_par::scan(sendSz, sendOff, npes);
+    omp_par::scan(recvSz, recvOff, npes);
 
-#ifdef __DEBUG_PAR__
-  MPI_Barrier(comm);
-  if (!rank)
-  {
-    std::cout << "Partition: Stage-5 passed." << std::endl;
-  }
-  MPI_Barrier(comm);
-#endif
+    #ifdef __DEBUG_PAR__
+    MPI_Barrier(comm);
+    if (!rank)
+    {
+      std::cout << "Partition: Stage-4 passed." << std::endl;
+    }
+    MPI_Barrier(comm);
+    /*
+          std::cout<<rank<<": newSize: "<<nn<<" oldSize: "<<(nodeList.size())
+          <<" send: "<<totSendToOthers<<" recv: "<<totRecvFromOthers<<std::endl;
+        */
+    MPI_Barrier(comm);
+    #endif
 
-  // reset the pointer ...
-  swap(nodeList, newNodes);
-  newNodes.clear();
+    // allocate memory for the new arrays ...
+    std::vector<T> newNodes(nn);
 
-  // clean up...
-  if (!nEmpty)
-  {
-    delete[] lscn;
-    delete[] wts;
-  }
-  delete[] sendSz;
-  sendSz = NULL;
+    #ifdef __DEBUG_PAR__
+    MPI_Barrier(comm);
+    if (!rank)
+    {
+      std::cout << "Partition: Final alloc successful." << std::endl;
+    }
+    MPI_Barrier(comm);
+    #endif
 
-  delete[] sendOff;
-  sendOff = NULL;
+    // perform All2All  ...
+    T *nodeListPtr = NULL;
+    T *newNodesPtr = NULL;
+    if (!nodeList.empty())
+    {
+      nodeListPtr = &(*(nodeList.begin()));
+    }
+    if (!newNodes.empty())
+    {
+      newNodesPtr = &(*(newNodes.begin()));
+    }
+    par::Mpi_Alltoallv_sparse<T>(nodeListPtr, sendSz, sendOff,
+                                  newNodesPtr, recvSz, recvOff, comm);
 
-  delete[] recvSz;
-  recvSz = NULL;
+    #ifdef __DEBUG_PAR__
+    MPI_Barrier(comm);
+    if (!rank)
+    {
+      std::cout << "Partition: Stage-5 passed." << std::endl;
+    }
+    MPI_Barrier(comm);
+    #endif
 
-  delete[] recvOff;
-  recvOff = NULL;
+    // reset the pointer ...
+    swap(nodeList, newNodes);
+    newNodes.clear();
 
-#ifdef __DEBUG_PAR__
-  MPI_Barrier(comm);
-  if (!rank)
-  {
-    std::cout << "Partition: Stage-6 passed." << std::endl;
-  }
-  MPI_Barrier(comm);
-#endif
+    // clean up...
+    if (!nEmpty)
+    {
+      delete[] lscn;
+      delete[] wts;
+    }
+    delete[] sendSz;
+    sendSz = NULL;
 
-  PROF_PARTW_END
+    delete[] sendOff;
+    sendOff = NULL;
+
+    delete[] recvSz;
+    recvSz = NULL;
+
+    delete[] recvOff;
+    recvOff = NULL;
+
+    #ifdef __DEBUG_PAR__
+    MPI_Barrier(comm);
+    if (!rank)
+    {
+      std::cout << "Partition: Stage-6 passed." << std::endl;
+    }
+    MPI_Barrier(comm);
+    #endif
+
+    PROF_PARTW_END
 } //end function
 
-/*template<typename T>
-  int removeDuplicates(std::vector<T> &vecT, bool isSorted, MPI_Comm comm) {
-#ifdef __PROFILE_WITH_BARRIER__
-    MPI_Barrier(comm);
-#endif
-    PROF_REMDUP_BEGIN
-
-    int size, rank;
-    MPI_Comm_size(comm, &size);
-    MPI_Comm_rank(comm, &rank);
-
-    std::vector<T> tmpVec;
-    if (!isSorted) {
-      //Sort partitions vecT and tmpVec internally.
-      //std::cout << "  rank: " << rank << " before samplesort, size: " << vecT.size() << std::endl;
-      par::sampleSort<T>(vecT, tmpVec, comm);
-      //std::cout << "  rank: " << rank << " after samplesort, size: " << tmpVec.size() << std::endl;
-    } else {
-      swap(tmpVec, vecT);
-    }
-
-#ifdef __DEBUG_PAR__
-    MPI_Barrier(comm);
-    if(!rank) {
-      std::cout<<"RemDup: Stage-1 passed."<<std::endl;
-    }
-    MPI_Barrier(comm);
-#endif
-
-    vecT.clear();
-    par::partitionW<T>(tmpVec, NULL, comm);
-
-#ifdef __DEBUG_PAR__
-    MPI_Barrier(comm);
-    if(!rank) {
-      std::cout<<"RemDup: Stage-2 passed."<<std::endl;
-    }
-    MPI_Barrier(comm);
-#endif
-
-    //Remove duplicates locally
-    seq::makeVectorUnique<T>(tmpVec, true);
-
-#ifdef __DEBUG_PAR__
-    MPI_Barrier(comm);
-    if(!rank) {
-      std::cout<<"RemDup: Stage-3 passed."<<std::endl;
-    }
-    MPI_Barrier(comm);
-#endif
-
-    //Creating groups
-
-    int new_rank, new_size;
-    MPI_Comm new_comm;
-    // very quick and dirty solution -- assert that tmpVec is non-emply at every processor (repetetive calls to splitComm2way exhaust MPI resources)
-    // par::splitComm2way(tmpVec.empty(), &new_comm, comm);
-    new_comm = comm;
-    assert(!tmpVec.empty());
-    MPI_Comm_rank(new_comm, &new_rank);
-    MPI_Comm_size(new_comm, &new_size);
-
-#ifdef __DEBUG_PAR__
-    MPI_Barrier(comm);
-    if(!rank) {
-      std::cout<<"RemDup: Stage-4 passed."<<std::endl;
-    }
-    MPI_Barrier(comm);
-#endif
-
-    //Checking boundaries...
-    if (!tmpVec.empty()) {
-      T end = tmpVec[tmpVec.size() - 1];
-      T endRecv;
-
-      //communicate end to the next processor.
-      MPI_Status status;
-
-      par::Mpi_Sendrecv<T, T>(&end, 1, ((new_rank < (new_size - 1)) ? (new_rank + 1) : 0), 1, &endRecv,
-                              1, ((new_rank > 0) ? (new_rank - 1) : (new_size - 1)), 1, new_comm, &status);
-
-      //Remove endRecv if it exists (There can be no more than one copy of this)
-      if (new_rank) {
-        typename std::vector<T>::iterator Iter = find(tmpVec.begin(), tmpVec.end(), endRecv);
-        if (Iter != tmpVec.end()) {
-          tmpVec.erase(Iter);
-        }//end if found
-      }//end if p not 0
-    }//end if not empty
-
-#ifdef __DEBUG_PAR__
-    MPI_Barrier(comm);
-    if(!rank) {
-      std::cout<<"RemDup: Stage-5 passed."<<std::endl;
-    }
-    MPI_Barrier(comm);
-#endif
-
-    swap(vecT, tmpVec);
-    tmpVec.clear();
-    par::partitionW<T>(vecT, NULL, comm);
-
-#ifdef __DEBUG_PAR__
-    MPI_Barrier(comm);
-    if(!rank) {
-      std::cout<<"RemDup: Stage-6 passed."<<std::endl;
-    }
-    MPI_Barrier(comm);
-#endif
-
-    PROF_REMDUP_END
-  }//end function*/
 
 template <typename T>
 int sampleSort(std::vector<T> &arr, std::vector<T> &SortedElem, std::vector<double> &stats, MPI_Comm comm)
 {
   // std::cout<<"Sample Sort Execution Begin"<<std::endl;
-#ifdef __PROFILE_WITH_BARRIER__
-  MPI_Barrier(comm);
-#endif
+  #ifdef __PROFILE_WITH_BARRIER__
+    MPI_Barrier(comm);
+  #endif
   PROF_SORT_BEGIN
 
   auto ss_start = std::chrono::system_clock::now();
@@ -1958,14 +1694,14 @@ int sampleSort(std::vector<T> &arr, std::vector<T> &SortedElem, std::vector<doub
                 << totSize << " npes: " << npes << std::endl;
     }
 
-#ifdef __DEBUG_PAR__
+  #ifdef __DEBUG_PAR__
     MPI_Barrier(comm);
     if (!myrank)
     {
       std::cout << "SampleSort (small n): Stage-1 passed." << std::endl;
     }
     MPI_Barrier(comm);
-#endif
+  #endif
 
     SortedElem = arr;
     MPI_Comm new_comm;
@@ -1983,14 +1719,14 @@ int sampleSort(std::vector<T> &arr, std::vector<T> &SortedElem, std::vector<doub
       new_comm = comm;
     }
 
-#ifdef __DEBUG_PAR__
+  #ifdef __DEBUG_PAR__
     MPI_Barrier(comm);
     if (!myrank)
     {
       std::cout << "SampleSort (small n): Stage-2 passed." << std::endl;
     }
     MPI_Barrier(comm);
-#endif
+  #endif
 
     if (!SortedElem.empty())
     {
@@ -1998,26 +1734,26 @@ int sampleSort(std::vector<T> &arr, std::vector<T> &SortedElem, std::vector<doub
       //std::cout<<"Rank:"<<rank<<" bitonic search complete"<<std::endl;
     }
 
-#ifdef __DEBUG_PAR__
+  #ifdef __DEBUG_PAR__
     MPI_Barrier(comm);
     if (!myrank)
     {
       std::cout << "SampleSort (small n): Stage-3 passed." << std::endl;
     }
     MPI_Barrier(comm);
-#endif
+  #endif
 
     PROF_SORT_END
   } // end if
 
   // if(!rank)
 
-#ifdef __DEBUG_PAR__
+  #ifdef __DEBUG_PAR__
   if (!myrank)
   {
     std::cout << "Using sample sort to sort nodes. n/p^2 is fine." << std::endl;
   }
-#endif
+  #endif
 
   //Re-part arr so that each proc. has atleast p elements.
 
@@ -2037,7 +1773,7 @@ int sampleSort(std::vector<T> &arr, std::vector<T> &SortedElem, std::vector<doub
   splitters.resize(npes);
   std::vector<ot::TreeNode> treenode_split;
   ot::TreeNode temp;
-#pragma omp parallel for
+  #pragma omp parallel for
   for (int i = 1; i < npes; i++)
   {
 
@@ -2110,7 +1846,7 @@ int sampleSort(std::vector<T> &arr, std::vector<T> &SortedElem, std::vector<doub
   int *rdispls = new int[npes];
   assert(rdispls);
 
-#pragma omp parallel for
+  #pragma omp parallel for
   for (int k = 0; k < npes; k++)
   {
     sendcnts[k] = 0;
@@ -2134,7 +1870,7 @@ int sampleSort(std::vector<T> &arr, std::vector<T> &SortedElem, std::vector<doub
           }
         }//end if-else
       }//end for j
-*/
+  */
 
   auto splitterCalculation_end = std::chrono::system_clock::now();
   auto all2all_start = std::chrono::system_clock::now();
@@ -2146,7 +1882,7 @@ int sampleSort(std::vector<T> &arr, std::vector<T> &SortedElem, std::vector<doub
     proc_split[0] = 0;
     lst_split_indx[0] = 0;
     lst_split_indx[omp_p] = nelem;
-#pragma omp parallel for
+  #pragma omp parallel for
     for (int i = 1; i < omp_p; i++)
     {
       //proc_split[i] = seq::BinSearch(&splittersPtr[0],&splittersPtr[npes-1],arr[i*nelem/omp_p],std::less<T>());
@@ -2169,7 +1905,7 @@ int sampleSort(std::vector<T> &arr, std::vector<T> &SortedElem, std::vector<doub
     splitterCalculation_end = std::chrono::system_clock::now();
     all2all_start = std::chrono::system_clock::now();
 
-#pragma omp parallel for
+  #pragma omp parallel for
     for (int i = 0; i < omp_p; i++)
     {
       int sendcnts_ = 0;
@@ -2235,8 +1971,7 @@ int sampleSort(std::vector<T> &arr, std::vector<T> &SortedElem, std::vector<doub
     SortedElemPtr = &(*(SortedElem.begin()));
   }
 
-  par::Mpi_Alltoallv_Kway<T>(arrPtr, sendcnts, sdispls,
-                             SortedElemPtr, recvcnts, rdispls, comm);
+  par::Mpi_Alltoallv_Kway<T>(arrPtr, sendcnts, sdispls, SortedElemPtr, recvcnts, rdispls, comm);
 
   arr.clear();
 
@@ -2371,12 +2106,12 @@ int sampleSort(std::vector<T> &arr, std::vector<T> &SortedElem, std::vector<doub
 
 } //end function
 
-/********************************************************************/
-/*
-   * which_keys is one of KEEP_HIGH or KEEP_LOW
-   * partner    is the processor with which to Merge and Split.
-   *
-   */
+ /********************************************************************/
+ /*
+  * which_keys is one of KEEP_HIGH or KEEP_LOW
+  * partner    is the processor with which to Merge and Split.
+  *
+  */
 template <typename T>
 void MergeSplit(std::vector<T> &local_list, int which_keys, int partner, MPI_Comm comm)
 {
@@ -2522,11 +2257,11 @@ void bitonicSort_binary(std::vector<T> &in, MPI_Comm comm)
 
   MPI_Comm_size(comm, &npes);
 
-#ifdef __DEBUG_PAR__
+  #ifdef __DEBUG_PAR__
   assert(npes > 1);
   assert(!(npes & (npes - 1)));
   assert(!(in.empty()));
-#endif
+  #endif
 
   MPI_Comm_rank(comm, &rank);
 
@@ -2611,8 +2346,7 @@ void bitonicSort(std::vector<T> &in, MPI_Comm comm)
 } //end function
 
 template <typename T>
-void MergeLists(std::vector<T> &listA, std::vector<T> &listB,
-                int KEEP_WHAT)
+void MergeLists(std::vector<T> &listA, std::vector<T> &listB, int KEEP_WHAT)
 {
 
   T _low, _high;
@@ -2686,119 +2420,100 @@ void MergeLists(std::vector<T> &listA, std::vector<T> &listB,
   scratch_list.clear();
 } //end function
 
-
 template <typename T>
-void parallel_rank(const T* in, unsigned int sz , DendroIntL* out, MPI_Comm comm)
+void parallel_rank(const T *in, unsigned int sz, DendroIntL *out, MPI_Comm comm)
 {
-  
 
   int rank, npes;
-  
+
   MPI_Comm_rank(comm, &rank);
   MPI_Comm_size(comm, &npes);
 
-  std::vector< _T<T> > key;
-  std::vector< _T<T> > key_sorted;
+  std::vector<_T<T>> key;
+  std::vector<_T<T>> key_sorted;
   key.resize(sz);
-  
-  for(unsigned int i=0; i < sz; i++)
+
+  for (unsigned int i = 0; i < sz; i++)
   {
-    
+
     key[i].p = rank;
     key[i].idx = i;
     key[i].val = in[i];
-
   }
-  
+
   std::vector<double> stats;
-  
+
   par::bitonicSort(key, comm);
-  std::swap(key,key_sorted);
+  std::swap(key, key_sorted);
   key.clear();
 
   unsigned int localSz = sz;
 
-  unsigned int*  sorted_couts = new unsigned int [npes];
-  unsigned int*  sorted_offset = new unsigned int [npes];
-  
-  par::Mpi_Allgather(&localSz,sorted_couts,1,comm);
+  unsigned int *sorted_couts = new unsigned int[npes];
+  unsigned int *sorted_offset = new unsigned int[npes];
+
+  par::Mpi_Allgather(&localSz, sorted_couts, 1, comm);
   sorted_offset[0] = 0;
-  omp_par::scan(sorted_couts,sorted_offset,npes);
+  omp_par::scan(sorted_couts, sorted_offset, npes);
 
-  
-  for(unsigned int i=0; i < key_sorted.size(); i++)
+  for (unsigned int i = 0; i < key_sorted.size(); i++)
     key_sorted[i].rank = sorted_offset[rank] + i;
-
 
   // for(unsigned int i=0;i<key_sorted.size();i++)
   // {
   //   std::cout<<"val: "<<key_sorted[i].val<<" p: "<<key_sorted[i].p<<" rank: "<<key_sorted[i].rank<<" idx : "<<key_sorted[i].idx<<std::endl;
   // }
-  
 
-  int * sCounts = new int [npes];
-  int * rCounts = new int [npes];
-  int * sOffset = new int [npes];
-  int * rOffset = new int [npes];
-  int * ccount  = new int[npes];
+  int *sCounts = new int[npes];
+  int *rCounts = new int[npes];
+  int *sOffset = new int[npes];
+  int *rOffset = new int[npes];
+  int *ccount = new int[npes];
 
-  for(unsigned int i=0; i < npes; i++)
+  for (unsigned int i = 0; i < npes; i++)
   {
     sCounts[i] = 0;
     ccount[i] = 0;
   }
-    
 
-  for(unsigned int i=0; i < key_sorted.size(); i++)
-     sCounts[key_sorted[i].p]++;
+  for (unsigned int i = 0; i < key_sorted.size(); i++)
+    sCounts[key_sorted[i].p]++;
 
+  for (unsigned int i = 0; i < npes; i++)
+    sCounts[i] = sizeof(_T<T>) * sCounts[i];
 
+  par::Mpi_Alltoall(sCounts, rCounts, 1, comm);
 
-  for(unsigned int i=0; i < npes; i++)
-    sCounts[i] = sizeof(_T<T>)*sCounts[i];
-  
-  par::Mpi_Alltoall(sCounts,rCounts,1,comm);
-  
   sOffset[0] = 0;
   rOffset[0] = 0;
 
-  omp_par::scan(sCounts,sOffset,npes);
-  omp_par::scan(rCounts,rOffset,npes);
-
+  omp_par::scan(sCounts, sOffset, npes);
+  omp_par::scan(rCounts, rOffset, npes);
 
   std::vector<_T<T>> sBuf;
-  sBuf.resize( (sOffset[npes-1] + sCounts[npes-1])/sizeof(_T<T>) );
+  sBuf.resize((sOffset[npes - 1] + sCounts[npes - 1]) / sizeof(_T<T>));
 
-
-  
-  for(unsigned int i=0; i < key_sorted.size(); i++){
-     sBuf[sOffset[key_sorted[i].p] + ccount[key_sorted[i].p]] = key_sorted[i];
-     ccount[key_sorted[i].p]++;
+  for (unsigned int i = 0; i < key_sorted.size(); i++)
+  {
+    sBuf[sOffset[key_sorted[i].p] + ccount[key_sorted[i].p]] = key_sorted[i];
+    ccount[key_sorted[i].p]++;
   }
 
-  key.resize( (rOffset[npes-1] + rCounts[npes-1]) / sizeof(_T<T>) );
+  key.resize((rOffset[npes - 1] + rCounts[npes - 1]) / sizeof(_T<T>));
 
+  MPI_Alltoallv(&(*(sBuf.begin())), sCounts, sOffset, MPI_BYTE, &(*(key.begin())), rCounts, rOffset, MPI_BYTE, comm);
 
-  
-  MPI_Alltoallv(&(*(sBuf.begin())),sCounts,sOffset,MPI_BYTE,&(*(key.begin())),rCounts,rOffset,MPI_BYTE,comm);
-
-
-  for(unsigned int i = 0; i < key.size() ; i++ )
+  for (unsigned int i = 0; i < key.size(); i++)
     out[key[i].idx] = key[i].rank;
-  
-  
-  delete [] sCounts;
-  delete [] rCounts;
-  delete [] sOffset;
-  delete [] rOffset;
-  delete [] ccount;
 
+  delete[] sCounts;
+  delete[] rCounts;
+  delete[] sOffset;
+  delete[] rOffset;
+  delete[] ccount;
 
-  delete [] sorted_couts;
-  delete [] sorted_offset;
-
-
+  delete[] sorted_couts;
+  delete[] sorted_offset;
 }
-
 
 } // namespace par

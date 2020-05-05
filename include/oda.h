@@ -642,7 +642,7 @@ namespace ot
          * @param[in] dof: degrees of freedoms.
          * */
         template<typename T>
-        void intergridTransfer(const T* varIn, T* & varOut, const ot::DA* newDA, bool isElemental=false, bool isGhosted=false, unsigned int dof=1);
+        void intergridTransfer(const T* varIn, T* & varOut, const ot::DA* newDA, bool isElemental=false, bool isGhosted=false, unsigned int dof=1,INTERGRID_TRANSFER_MODE mode = INTERGRID_TRANSFER_MODE::INJECTION);
 
 
 
@@ -811,7 +811,7 @@ namespace ot
          * @param[in] dof: degrees of freedoms.
         */
         template<typename T>
-        void petscIntergridTransfer(const Vec &varIn, Vec &varOut, const ot::DA *newDA, bool isElemental = false,bool isGhosted = false, unsigned int dof = 1);
+        void petscIntergridTransfer(const Vec &varIn, Vec &varOut, const ot::DA *newDA, bool isElemental = false,bool isGhosted = false, unsigned int dof = 1,INTERGRID_TRANSFER_MODE mode = INTERGRID_TRANSFER_MODE::INJECTION);
 
         /**
          * @brief: Destroy petsc vector

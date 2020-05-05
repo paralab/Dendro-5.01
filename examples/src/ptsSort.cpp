@@ -9,7 +9,7 @@
 #include "binUtils.h"
 #include <algorithm>
 #include <assert.h>
-#include "testUtils.h"
+#include <testUtils.h>
 #include "hcurvedata.h"
 #include "testUtils.h"
 

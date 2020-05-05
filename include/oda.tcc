@@ -1260,7 +1260,7 @@ namespace ot
 
 
     template<typename T>
-    void DA::intergridTransfer(const T* varIn, T*& varOut,const ot::DA* newDA, bool isElemental, bool isGhosted, unsigned int dof) 
+    void DA::intergridTransfer(const T* varIn, T*& varOut,const ot::DA* newDA, bool isElemental, bool isGhosted, unsigned int dof,INTERGRID_TRANSFER_MODE mode) 
     {
         T** vIn =new T*[dof];
         const ot::Mesh* newMesh=newDA->getMesh();
@@ -1299,7 +1299,7 @@ namespace ot
         {
             // wait till current var ghost exchange completes
             this->readFromGhostEnd(vIn[var],1);
-            m_uiMesh->interGridTransfer(vIn[var],newMesh);
+            m_uiMesh->interGridTransfer(vIn[var],newMesh,mode);
         }
            
 
@@ -1380,7 +1380,7 @@ namespace ot
     }
 
     template <typename T>
-void DA::petscIntergridTransfer(const Vec & varIn, Vec & varOut, const ot::DA* newDA, bool isElemental, bool isGhosted, unsigned int dof) {
+void DA::petscIntergridTransfer(const Vec & varIn, Vec & varOut, const ot::DA* newDA, bool isElemental, bool isGhosted, unsigned int dof,INTERGRID_TRANSFER_MODE mode) {
 
         T** vIn =new T*[dof];
         const ot::Mesh* newMesh=newDA->getMesh();
@@ -1424,7 +1424,7 @@ void DA::petscIntergridTransfer(const Vec & varIn, Vec & varOut, const ot::DA* n
             this->readFromGhostEnd(vIn[var],1);
 
         for(unsigned int var=0;var<dof;var++)
-            m_uiMesh->interGridTransfer(vIn[var],newMesh);
+            m_uiMesh->interGridTransfer(vIn[var],newMesh,mode);
 
         if(newDA->isActive()) {
           if (!isGhosted) {

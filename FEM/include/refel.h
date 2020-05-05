@@ -26,6 +26,7 @@
 #include <assert.h>
 #include "interpMatrices.h"
 #include "binUtils.h"
+#include "mathUtils.h"
 
 template<typename T>
 void dump_binary(const T* in, unsigned int n, const char* fPrefix)
@@ -111,6 +112,19 @@ private :
 
     /** 1D interpolation matrix for child 1*/
     std::vector<double> ip_1D_1;
+
+    /** parent to all children interpolation*/
+    std::vector<double> p2c;
+
+    /** p2c transpose */
+    std::vector<double> c2p;
+
+    //Todo: remove this once the all the children to parent computations are finalized.(i.e. write this in the tensor form. )
+    /** p2c transpose */
+    std::vector<double> c2p_2d;
+
+    /** p2c transpose */
+    std::vector<double> c2p_3d;
 
 
     /** 1D interpolation matrix for child 0 (transpose) */
@@ -654,11 +668,25 @@ public:
 
     }
 
-
+    /**@brief: generate header file with operators hard coded. */
     void generateHeaderFile(char * fName);
 
+    /**@brief: compute filter operation for FD computations (GR). */
     void computeFilterOp(unsigned int nc, unsigned int s);
 
+    /**
+     * @brief computes parent values from all children values. 
+     * @param in : input vector (children values, (2N+1)^3) where N is the element order. 
+     * @param out : computed children to parent contributions. 
+     */
+    void I3D_Children2Parent(const double * in, double* out) const;
+
+    /**
+     * @brief computes parent values from all children values by injection 
+     * @param in : input vector (children values, (2N+1)^3) where N is the element order. 
+     * @param out : computed children to parent contributions. 
+    */
+    void I3D_Children2ParentInjection(const double * in, double* out) const;
 };
 
 #endif //SFCSORTBENCH_REFERENCEELEMENT_H
