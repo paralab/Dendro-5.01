@@ -514,6 +514,31 @@ namespace ot
         return newDA;
     }
 
+    ot::DA* DA::repartition(unsigned int grainSz,double ld_bal, unsigned int sfK,unsigned int (*getWeight)(const ot::TreeNode *)) const 
+    {
+
+        if(m_uiMesh->getMPICommSizeGlobal()==1)
+        {
+            return NULL;
+        }
+
+        MPI_Comm commGlobal = m_uiMesh->getMPIGlobalCommunicator();
+
+        const ot::TreeNode* meshNodes = m_uiMesh->getAllElements().data();
+        std::vector<ot::TreeNode> pNodes;
+        pNodes.resize(m_uiMesh->getNumLocalMeshElements());
+
+        for(unsigned int ele=m_uiMesh->getElementLocalBegin(); ele < m_uiMesh->getElementLocalEnd(); ele++)
+            pNodes[ele] = meshNodes[ele];
+        
+        ot::Mesh* pMesh = new ot::Mesh(pNodes,1,m_uiMesh->getElementOrder(),commGlobal,false,ot::SM_TYPE::FEM_CG,grainSz,ld_bal,sfK,getWeight);
+        ot::DA* newDA= new ot::DA(pMesh);
+
+        return newDA;
+
+    }
+
+
     void DA::computeTreeNodeOwnerProc(const ot::TreeNode * pNodes, unsigned int n, int* ownerranks)
     {
         
