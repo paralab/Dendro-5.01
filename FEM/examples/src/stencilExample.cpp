@@ -59,13 +59,13 @@ int main (int argc, char** argv) {
     _InitializeHcurve(m_uiDim);
 
     // function that we need to interpolate.
-    double d_min=-0.5;
-    double d_max=0.5;
-    double dMin[]={-0.5,-0.5,-0.5};
-    double dMax[]={0.5,0.5,0.5};
+    const double d_min=-0.5;
+    const double d_max=0.5;
+    double dMin[]={d_min,d_min,d_min};
+    double dMax[]={d_max,d_max,d_max};
 
-    Point pt_min(-0.5,-0.5,-0.5);
-    Point pt_max(0.5,0.5,0.5);
+    Point pt_min(d_min,d_min,d_min);
+    Point pt_max(d_max,d_max,d_max);
     //@note that based on how the functions are defined (f(x), dxf(x), etc) the compuatational domain is equivalent to the grid domain.
     std::function<double(double,double,double)> func =[d_min,d_max](const double x,const double y,const double z){ return (sin(2*M_PI*((x/(1u<<m_uiMaxDepth))*(d_max-d_min)+d_min))*sin(2*M_PI*((y/(1u<<m_uiMaxDepth))*(d_max-d_min)+d_min))*sin(2*M_PI*((z/(1u<<m_uiMaxDepth))*(d_max-d_min)+d_min)));};
     std::function<double(double,double,double)> dx_func=[d_min,d_max](const double x,const double y,const double z){ return (2*M_PI*(1.0/(1u<<m_uiMaxDepth)*(d_max-d_min)))*(cos(2*M_PI*((x/(1u<<m_uiMaxDepth))*(d_max-d_min)+d_min))*sin(2*M_PI*((y/(1u<<m_uiMaxDepth))*(d_max-d_min)+d_min))*sin(2*M_PI*((z/(1u<<m_uiMaxDepth))*(d_max-d_min)+d_min)));};
@@ -187,6 +187,65 @@ int main (int argc, char** argv) {
     MPI_Barrier(MPI_COMM_WORLD);
     if(!rank) std::cout<<"mesh generation ended "<<std::endl;
     //io::vtk::mesh2vtu(&mesh, "balOct",0,NULL,NULL,0,NULL,NULL);
+
+
+    // refine some elements to make it adaptive, 
+    // this is explicit refinement , for the given function above it sometimes generate regular grid by wavelets, this below code is to 
+    // enforce artificial refinement, so that, the unzip and other routines can be tested on adaptive grid. 
+    {
+        bool isRefine = true;
+        //mesh->isReMeshUnzip((const double **)vars ,(const unsigned int *)vIDs,1,w_tol_coarsen);
+        // if(!rank)
+        //     std::cout<<"is refine triggered for coarsening tolerance : "<<isRefine<<std::endl;
+
+        const ot::TreeNode * pNodes = mesh->getAllElements().data();
+    
+        std::vector<unsigned int> refine_flag;
+        refine_flag.reserve(mesh->getNumLocalMeshElements());
+        for(unsigned int ele = mesh->getElementLocalBegin(); ele < mesh->getElementLocalEnd(); ele++)
+        {
+            // if( ((ele + NUM_CHILDREN-1) < mesh->getElementLocalEnd()) && (pNodes[ele].getParent() == pNodes[ele + NUM_CHILDREN-1].getParent()) )
+            // {
+            //     for(unsigned int c=0; c < NUM_CHILDREN; c++)
+            //         refine_flag.push_back(OCT_COARSE);
+                
+            //     ele += (NUM_CHILDREN-1);
+            // }else
+            if( (ele % 10) == 0 )
+                refine_flag.push_back(OCT_SPLIT);
+            else
+                refine_flag.push_back(OCT_NO_CHANGE);
+            
+        }
+        mesh->setMeshRefinementFlags(refine_flag);
+
+        if(isRefine)
+        {
+
+            ot::Mesh* newMesh = mesh->ReMesh();
+
+            DendroIntL localSz = mesh->getNumLocalMeshElements();
+            DendroIntL gSz_new, gSz_old;
+
+            par::Mpi_Reduce(&localSz,&gSz_old,1,MPI_SUM,0,comm);
+            localSz = newMesh->getNumLocalMeshElements();
+            par::Mpi_Reduce(&localSz,&gSz_new,1,MPI_SUM,0,comm);
+
+            if(!rank)
+                std::cout<<"old mesh size: "<<gSz_old<<" new mesh size: "<<gSz_new<<std::endl;
+
+            std::swap(newMesh,mesh);
+            delete newMesh;
+
+        }
+
+
+    }
+
+
+
+
+
 
     //if(!rank) std::cout<<"fabs test: "<<fabs(1-2)<<std::endl;
     unsigned int nLocalBegin=mesh->getNodeLocalBegin();
@@ -582,20 +641,47 @@ int main (int argc, char** argv) {
     std::function<double(double,double,double)>w_tol_coarsen=[wavelet_tol](double x,double y, double z) {return wavelet_tol*1e8;};
     std::function<double(double,double,double)>w_tol_refine=[wavelet_tol](double x,double y, double z) {return wavelet_tol;};
     
-    bool isRefine = mesh->isReMeshUnzip((const double **)vars ,(const unsigned int *)vIDs,1,w_tol_coarsen);
-    if(!rank)
-        std::cout<<"is refine triggered for coarsening tolerance : "<<isRefine<<std::endl;
+    bool isRefine = true;
+    //mesh->isReMeshUnzip((const double **)vars ,(const unsigned int *)vIDs,1,w_tol_coarsen);
+    // if(!rank)
+    //     std::cout<<"is refine triggered for coarsening tolerance : "<<isRefine<<std::endl;
+    
+    std::vector<unsigned int> refine_flag;
+    refine_flag.reserve(mesh->getNumLocalMeshElements());
+    for(unsigned int ele = mesh->getElementLocalBegin(); ele < mesh->getElementLocalEnd(); ele++)
+    {
+        if( ((ele + NUM_CHILDREN-1) < mesh->getElementLocalEnd()) && (pNodes[ele].getParent() == pNodes[ele + NUM_CHILDREN-1].getParent()) )
+        {
+            for(unsigned int c=0; c < NUM_CHILDREN; c++)
+                refine_flag.push_back(OCT_COARSE);
+            
+            ele += (NUM_CHILDREN-1);
+        }else if( (ele % 10) == 0 )
+            refine_flag.push_back(OCT_SPLIT);
+        else
+            refine_flag.push_back(OCT_NO_CHANGE);
+        
+    }
+
+    mesh->setMeshRefinementFlags(refine_flag);
+
+    // dof 2 function value.
+    unsigned int dof=2;
+    double * fv2 = mesh->createCGVector<double>(0.0,dof);
+
+    for(unsigned int v=0; v < dof; v++)
+        std::memcpy(fv2 + v*mesh->getDegOfFreedom(), funcVal.data(), sizeof(double)*mesh->getDegOfFreedom());
 
     if(isRefine)
     {
 
         ot::Mesh* newMesh = mesh->ReMesh();
 
-        DendroIntL localSz = mesh->getAllElements().size();
+        DendroIntL localSz = mesh->getNumLocalMeshElements();
         DendroIntL gSz_new, gSz_old;
 
         par::Mpi_Reduce(&localSz,&gSz_old,1,MPI_SUM,0,comm);
-        localSz = newMesh->getAllElements().size();
+        localSz = newMesh->getNumLocalMeshElements();
         par::Mpi_Reduce(&localSz,&gSz_new,1,MPI_SUM,0,comm);
 
         if(!rank)
@@ -607,13 +693,22 @@ int main (int argc, char** argv) {
 
         mesh->interGridTransfer(funcVal,newMesh,ot::INTERGRID_TRANSFER_MODE::INJECTION);
         
+        // igt for dof=2
+        mesh->interGridTransfer(fv2,newMesh,ot::INTERGRID_TRANSFER_MODE::INJECTION,dof);
+        
         std::swap(newMesh,mesh);
         delete newMesh;
 
     }
 
+    // copy the 1st dof to the funcVal to test the multiple dof is working. 
+    std::memcpy(funcVal.data(), fv2 + 1*(mesh->getDegOfFreedom()) , sizeof(double)*mesh->getDegOfFreedom());
+
+
     mesh->performGhostExchange(funcVal);
     mesh->unzip(funcVal.data(),funcValUnZip.data(),1);
+
+    delete [] fv2;
 
     if(isRefine)
     {
@@ -622,7 +717,7 @@ int main (int argc, char** argv) {
         if(!rank)
         {
             std::cout<<YLW<<"================================================================================================"<<NRM<<std::endl;
-            std::cout<<"        UnZip Test Check (after coarsent tol remesh) Begin     "<<std::endl;
+            std::cout<<"        UnZip Test Check (after remesh) Begin     "<<std::endl;
             std::cout<<YLW<<"================================================================================================"<<NRM<<std::endl;
 
         }
@@ -632,7 +727,7 @@ int main (int argc, char** argv) {
         if(!rank)
         {
             std::cout<<YLW<<"================================================================================================"<<NRM<<std::endl;
-            std::cout<<"        UnZip Test Check (after coarsent tol remesh) End     "<<std::endl;
+            std::cout<<"        UnZip Test Check (after remesh) End     "<<std::endl;
             std::cout<<YLW<<"================================================================================================"<<NRM<<std::endl;
 
         }

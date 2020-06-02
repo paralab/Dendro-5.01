@@ -286,6 +286,9 @@ namespace nlsm
         DendroScalar ** consVar = NULL;
         DendroScalar ** evolVar = NULL;
 
+        m_uiMesh->readFromGhostBegin(m_uiEVar.GetVecArray(),m_uiEVar.GetDof());
+        m_uiMesh->readFromGhostEnd(m_uiEVar.GetVecArray(),m_uiEVar.GetDof());
+
         m_uiEVar.Get2DArray(evolVar,false);
 
         std::vector<std::string> pDataNames;

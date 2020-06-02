@@ -2357,12 +2357,16 @@ namespace ot {
                     if((elementLookup!=LOOK_UP_TABLE_DEFAULT) && (m_uiAllElements[elementLookup].getLevel()<=m_uiAllElements[(m_uiScatterMapElementRound1[ele]+m_uiElementLocalBegin)].getLevel())) {
                         setHintUint = tmpSendEleIdR2[p].emplace(elementLookup);
                         // this part of the ghost elements added to make the Scatter map consitant for FEM computations. (these are not used for FDM computations) 03/27/2019 -milinda. 
-                        for(unsigned int dir2=0;dir2<m_uiNumDirections;dir2++)
+                        /*for(unsigned int dir2=0;dir2<m_uiNumDirections;dir2++)
                         {
                             lookUp=m_uiE2EMapping[elementLookup*m_uiNumDirections+dir2];
                             if((lookUp!=LOOK_UP_TABLE_DEFAULT) && (m_uiAllElements[lookUp].getLevel()<=m_uiAllElements[(m_uiScatterMapElementRound1[ele]+m_uiElementLocalBegin)].getLevel()))
                                 setHintUint = tmpSendEleIdR2[p].emplace(lookUp);
-                        }
+                        }*/
+                        //(Milinda)27/05/20: I realized this was a wrong fix to the correct the SM in FEM computations, this descrease the mesh generation performance a lot since we increase the pre and post ghost
+                        // elements an inactive ghost nodes, I realized this running perfromace for mesh generations in Frontera, the fix made for this was write to ghost nodes and accumilate from ghost but I think I forgot to remove
+                        // above code portion after FEM SM fix. 
+
                     }
 
                 }
@@ -12368,5 +12372,313 @@ namespace ot {
 
     }
 
+
+    void Mesh::interGridTransferSendRecvCompute(const ot::Mesh *pMesh)
+    {
+
+        if(m_uiIsIGTSetup)
+            return;
+
+        MPI_Comm comm=m_uiCommGlobal;
+        int rank,npes;
+
+        MPI_Comm_rank(comm,&rank);
+        MPI_Comm_size(comm,&npes);
+
+        m_uiIGTSendC.clear();
+        m_uiIGTRecvC.clear();
+        m_uiIGTSendOfst.clear();
+        m_uiIGTRecvOfst.clear();
+        m_uiM2Prime.clear();
+
+        m_uiIGTSendC.resize(npes,0);
+        m_uiIGTRecvC.resize(npes,0);
+        m_uiIGTSendOfst.resize(npes,0);
+        m_uiIGTRecvOfst.resize(npes,0);
+
+
+        
+
+        if(m_uiIsActive)
+        {
+            MPI_Comm comm1=m_uiCommActive;
+            const int rank1=m_uiActiveRank;
+            const int npes1=m_uiActiveNpes;
+
+            //1. compute the number of m2 octants (based of m1 splitters)
+            unsigned int m2primeCount=0;
+            for(unsigned int ele=m_uiElementLocalBegin;ele<m_uiElementLocalEnd;ele++)
+            {
+                if((m_uiAllElements[ele].getFlag()>>NUM_LEVEL_BITS)==OCT_SPLIT)
+                    m2primeCount+=NUM_CHILDREN;
+                else if((m_uiAllElements[ele].getFlag()>>NUM_LEVEL_BITS)==OCT_COARSE)
+                {
+                    assert(m_uiAllElements[ele].getParent()==m_uiAllElements[ele+NUM_CHILDREN-1].getParent());
+                    m2primeCount+=1;
+                    ele+=(NUM_CHILDREN-1);
+                }else
+                {
+                    assert((m_uiAllElements[ele].getFlag()>>NUM_LEVEL_BITS)==OCT_NO_CHANGE);
+                    m2primeCount+=1;
+                }
+
+            }
+
+            const unsigned int numM2PrimeElems=m2primeCount;
+            m_uiM2Prime.clear();
+            m_uiM2Prime.reserve(numM2PrimeElems);
+
+            m2primeCount=0;
+            for(unsigned int ele=m_uiElementLocalBegin;ele<m_uiElementLocalEnd;ele++)
+            {
+                if((m_uiAllElements[ele].getFlag()>>NUM_LEVEL_BITS)==OCT_SPLIT)
+                {
+                    m_uiAllElements[ele].addChildren(m_uiM2Prime);
+                    m2primeCount+=NUM_CHILDREN;
+
+                }else if((m_uiAllElements[ele].getFlag()>>NUM_LEVEL_BITS)==OCT_COARSE)
+                {
+                    assert(m_uiAllElements[ele].getParent()==m_uiAllElements[ele+NUM_CHILDREN-1].getParent());
+                    m_uiM2Prime.push_back(m_uiAllElements[ele].getParent());
+                    
+                    ele+=(NUM_CHILDREN-1);
+                    m2primeCount+=1;
+                }else
+                {
+                    assert((m_uiAllElements[ele].getFlag()>>NUM_LEVEL_BITS)==OCT_NO_CHANGE);
+                    m_uiM2Prime.push_back(m_uiAllElements[ele]);
+                    m2primeCount+=1;
+
+                }
+            
+            }
+
+            assert(seq::test::isUniqueAndSorted(m_uiM2Prime));
+
+            if(npes==1) // m2_prime is equivalent to m2, hence no need to compute the send/ recv counts. 
+            {   
+                for(unsigned int p=0;p<npes;p++)
+                {
+                    m_uiIGTSendC[p]=0;
+                    m_uiIGTRecvC[p]=0;
+                    m_uiIGTSendOfst[p]=0;
+                    m_uiIGTRecvOfst[p]=0;
+                }
+                m_uiIsIGTSetup = true;
+                return;
+
+            }   
+
+
+            int npes2=0;
+            int rank2=0;
+            std::vector<ot::TreeNode> m2_splitters;
+            //note : assumes that global rank 0 is going to be active always. 
+            if(pMesh->isActive())
+            {
+                npes2=pMesh->getMPICommSize();
+                rank2=pMesh->getMPIRank();
+                const std::vector<ot::TreeNode> m2_splitters_root=pMesh->getSplitterElements();
+                m2_splitters.resize(2*npes2);
+                for(unsigned int w=0;w<m2_splitters_root.size();w++)
+                    m2_splitters[w]=m2_splitters_root[w];
+            } 
+            
+            par::Mpi_Bcast(&npes2,1,0,comm1);
+            par::Mpi_Bcast(&rank2,1,0,comm1);
+            m2_splitters.resize(2*npes2);
+            par::Mpi_Bcast(&(*(m2_splitters.begin())),2*npes2,0,comm1);
+            assert(seq::test::isUniqueAndSorted(m2_splitters));
+           
+           
+            std::vector<ot::SearchKey> m2primeSK;
+            m2primeSK.resize(m_uiM2Prime.size());
+
+            for(unsigned int e=0;e<m_uiM2Prime.size();e++)
+            {
+                m2primeSK[e]=ot::SearchKey(m_uiM2Prime[e]);
+                m2primeSK[e].addOwner(rank1); // note that this is the rank in comm1. 
+            }
+
+
+            std::vector<ot::Key> m2_splitterKeys;
+            m2_splitterKeys.resize(2*npes2);
+
+            for(unsigned int p=0;p<npes2;p++)
+            {
+                m2_splitterKeys[2*p]=ot::Key(m2_splitters[2*p]);
+                m2_splitterKeys[2*p].addOwner(p);
+
+                m2_splitterKeys[2*p+1]=ot::Key(m2_splitters[2*p+1]);
+                m2_splitterKeys[2*p+1].addOwner(p);
+
+                m2primeSK.push_back(ot::SearchKey(m2_splitters[2*p]));
+                m2primeSK.push_back(ot::SearchKey(m2_splitters[2*p+1]));
+            }
+
+            ot::SearchKey rootSK(m_uiDim,m_uiMaxDepth);
+            std::vector<ot::SearchKey> tmpNodes;
+
+            SFC::seqSort::SFC_treeSort(&(*(m2primeSK.begin())),m2primeSK.size(),tmpNodes,tmpNodes,tmpNodes,m_uiMaxDepth,m_uiMaxDepth,rootSK,ROOT_ROTATION,1,TS_SORT_ONLY);
+
+            unsigned int skip=0;
+            ot::SearchKey tmpSK;
+            std::vector<ot::SearchKey> tmpSKVec;
+
+            for(unsigned int e=0;e<(m2primeSK.size());e++)
+            {
+                tmpSK=m2primeSK[e];
+                skip=1;
+                while(((e+skip)<m2primeSK.size()) && (m2primeSK[e]==m2primeSK[e+skip]))
+                {
+                    if(m2primeSK[e+skip].getOwner()>=0){
+                        tmpSK.addOwner(m2primeSK[e+skip].getOwner());
+                    }
+                    skip++;
+                }
+
+                tmpSKVec.push_back(tmpSK);
+                e+=(skip-1);
+
+            }
+
+            std::swap(m2primeSK,tmpSKVec);
+            tmpSKVec.clear();
+
+            assert(seq::test::isUniqueAndSorted(m2primeSK));
+            assert(seq::test::isUniqueAndSorted(m2_splitterKeys));
+
+            ot::Key rootKey(0,0,0,0,m_uiDim,m_uiMaxDepth);
+            SFC::seqSearch::SFC_treeSearch(&(*(m2_splitterKeys.begin())),&(*(m2primeSK.begin())),0,m2_splitterKeys.size(),0,m2primeSK.size(),m_uiMaxDepth,m_uiMaxDepth,ROOT_ROTATION);
+
+
+
+            unsigned int sBegin,sEnd,selectedRank;
+            for(unsigned int p=0;p<npes2;p++)
+            {
+                assert(m2_splitterKeys[2*p].getFlag() & OCT_FOUND);
+                assert(m2_splitterKeys[2*p+1].getFlag() & OCT_FOUND);
+
+                sBegin=m2_splitterKeys[2*p].getSearchResult();
+                sEnd=m2_splitterKeys[2*p+1].getSearchResult();
+                assert(sBegin<sEnd);
+                selectedRank=rankSelectRule(m_uiGlobalNpes,m_uiGlobalRank,npes2,p);
+                m_uiIGTSendC[selectedRank]=sEnd-sBegin-1;
+
+                if(m2primeSK[sBegin].getOwner()>=0) m_uiIGTSendC[selectedRank]++;
+                if(m2primeSK[sEnd].getOwner()>=0) m_uiIGTSendC[selectedRank]++;
+
+            }
+
+            // we don't need below for intergrid transfer, but these can be help full for debugging.
+            m2primeSK.clear();
+
+            
+        }
+
+
+        par::Mpi_Alltoall(m_uiIGTSendC.data(),m_uiIGTRecvC.data(),1,comm);
+
+        m_uiIGTSendOfst[0]=0;
+        m_uiIGTRecvOfst[0]=0;
+
+        omp_par::scan(m_uiIGTSendC.data(), m_uiIGTSendOfst.data(),npes);
+        omp_par::scan(m_uiIGTRecvC.data(), m_uiIGTRecvOfst.data(),npes);
+
+        const unsigned int total_recv_elements = m_uiIGTRecvOfst[npes-1] + m_uiIGTRecvC[npes-1];
+
+        if(total_recv_elements != pMesh->getNumLocalMeshElements())
+        {
+            std::cout<<"rank: "<<rank<<" [Inter-grid Transfer error ]: Recvn M2' elements: "<<total_recv_elements<<" m2 num local elements "<<pMesh->getNumLocalMeshElements()<<std::endl;
+            MPI_Abort(comm,0);
+        }
+
+
+        m_uiIsIGTSetup = true;
+        return;
+
+    }
+
+    void Mesh::setMeshRefinementFlags(const std::vector<unsigned int>& refine_flags)
+    {
+
+        // explicitly set the refinement flags, 
+        assert(refine_flags.size() == m_uiNumLocalElements);
+
+        // set all the elements to no change. 
+        for(unsigned int ele=m_uiElementLocalBegin; ele < m_uiElementLocalEnd; ele++)
+            m_uiAllElements[ele].setFlag(((OCT_NO_CHANGE<<NUM_LEVEL_BITS)|m_uiAllElements[ele].getLevel()));
+
+
+        for(unsigned int ele = m_uiElementLocalBegin; ele < m_uiElementLocalEnd; ele++)
+        {
+            const unsigned int rid = ele - m_uiElementLocalBegin;
+            
+            if(refine_flags[rid] == OCT_COARSE)
+            {
+                bool isCoarse = true;
+                if( ((ele + NUM_CHILDREN-1) < m_uiElementLocalEnd) && m_uiAllElements[ele+NUM_CHILDREN-1].getParent()==m_uiAllElements[ele].getParent() )
+                { // all the 8 children are in the same level, 
+
+
+                    if(m_uiAllElements[ele].getLevel()==0) // current element is the root cannnot coarsen anymore. 
+                        isCoarse =false;
+
+                    for(unsigned int child=0; child < NUM_CHILDREN; child++)
+                    {   // to check if all the children agrees to coarsen. 
+
+                        if(refine_flags[rid+child] != OCT_COARSE)
+                        {
+                            isCoarse = false;
+                            break;
+                        }
+
+                    }
+
+                }else
+                {   // all the 8 children are not in the same level. 
+                    isCoarse=false;
+                }
+
+                if(isCoarse)
+                {
+                    assert(((ele + NUM_CHILDREN-1) < m_uiElementLocalEnd) && m_uiAllElements[ele+NUM_CHILDREN-1].getParent()==m_uiAllElements[ele].getParent());
+                    
+                    for(unsigned int child=0; child < NUM_CHILDREN; child++)
+                        m_uiAllElements[ele+child].setFlag(((OCT_COARSE<<NUM_LEVEL_BITS)|m_uiAllElements[ele+child].getLevel()));
+
+                    ele+= (NUM_CHILDREN-1);
+
+                }else
+                {
+                    m_uiAllElements[ele].setFlag(((OCT_NO_CHANGE<<NUM_LEVEL_BITS)|m_uiAllElements[ele].getLevel()));
+                }
+                
+
+                
+            }else if(refine_flags[rid] ==OCT_SPLIT)
+            {
+
+                if( (m_uiAllElements[ele].getLevel()+MAXDEAPTH_LEVEL_DIFF+1) < m_uiMaxDepth )
+                    m_uiAllElements[ele].setFlag(((OCT_SPLIT<<NUM_LEVEL_BITS)|m_uiAllElements[ele].getLevel()));
+                else
+                    m_uiAllElements[ele].setFlag(((OCT_NO_CHANGE<<NUM_LEVEL_BITS)|m_uiAllElements[ele].getLevel()));
+                
+
+            }else
+            {
+                assert(refine_flags[rid]==OCT_NO_CHANGE);
+                m_uiAllElements[ele].setFlag(((OCT_NO_CHANGE<<NUM_LEVEL_BITS)|m_uiAllElements[ele].getLevel()));
+
+            }
+
+
+        }
+
+        return;
+
+
+
+    }
 
 }

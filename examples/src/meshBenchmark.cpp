@@ -36,6 +36,7 @@ void meshBenchMark(char * ptsFile,bool genPts,unsigned int numPts,unsigned int d
     DendroIntL numBalOct;
     DendroIntL localSz;
     DendroIntL globalSz;
+    DendroIntL cg_sz;
 
 
 
@@ -170,7 +171,7 @@ void meshBenchMark(char * ptsFile,bool genPts,unsigned int numPts,unsigned int d
 
         if (!rank) std::cout << RED << "mesh generation begin" << NRM << std::endl;
         t1 = MPI_Wtime();//std::chrono::high_resolution_clock::now();
-        ot::Mesh mesh(pNodesBalanced, stencilSz, eleOrder,comm);
+        ot::Mesh mesh(pNodesBalanced, stencilSz, eleOrder,comm,false,ot::FEM_CG);
         t2 = MPI_Wtime();//std::chrono::high_resolution_clock::now();
         t_mesh = t2-t1;//std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count();
         if (!rank) std::cout << RED << "mesh generation end" << NRM << std::endl;
@@ -188,6 +189,8 @@ void meshBenchMark(char * ptsFile,bool genPts,unsigned int numPts,unsigned int d
                 std::cout<<"\t"<<YLW<<" blk (min,mean,max): "<<"( "<<t_blk_g[0]<<"\t"<<t_blk_g[1]<<"\t"<<t_blk_g[2]<<" )"<<NRM<<std::endl;
         }
 
+        localSz = mesh.getDegOfFreedom();
+        par::Mpi_Reduce(&localSz,&cg_sz,1,MPI_SUM,0,comm);
 
 
     }else
@@ -255,7 +258,6 @@ void meshBenchMark(char * ptsFile,bool genPts,unsigned int numPts,unsigned int d
         par::Mpi_Reduce(&localSz,&globalSz,1,MPI_SUM,0,comm);
         numBalOct=globalSz;
 
-
         if(!rank) {
             std::cout << YLW<<"Number of balanced octants: " << numBalOct <<NRM<< std::endl;
             std::cout<< YLW<<" Tree balancing time (max): "<<t_bal_g[2]<<NRM<<std::endl;
@@ -271,7 +273,8 @@ void meshBenchMark(char * ptsFile,bool genPts,unsigned int numPts,unsigned int d
         if (!rank) std::cout << RED << "mesh generation begin" << NRM << std::endl;
         t1 = MPI_Wtime();//std::chrono::high_resolution_clock::now();
         {
-            ot::Mesh mesh(pNodesBalanced,stencilSz,eleOrder,comm);
+            ot::Mesh mesh(pNodesBalanced,stencilSz,eleOrder,comm,false,ot::FEM_CG);
+            cg_sz = mesh.getDegOfFreedom();
         }
         t2 = MPI_Wtime();//std::chrono::high_resolution_clock::now();
         t_mesh = t2-t1;//std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count();
@@ -294,6 +297,7 @@ void meshBenchMark(char * ptsFile,bool genPts,unsigned int numPts,unsigned int d
 
         dollar::text(std::cout);
 
+        
 
 
     }
@@ -307,10 +311,10 @@ void meshBenchMark(char * ptsFile,bool genPts,unsigned int numPts,unsigned int d
 
         if(npes==2)
         {
-            statFile<<"npes\tgrainSz\tdim\tmaxDepth\ttolerance\tsf_k\tstencilSz\teleOrder\tt_rm_min\tt_rm_mean\tt_rm_max\tt_cons_min\tt_cons_mean\tt_cons_max\tt_bal_min\tt_bal_mean\tt_bal_max\tt_mesh_min\tt_mesh_mean\tt_mesh_max\tnum_oct\tnum_oct_cons\tnum_oct_bal"<<std::endl;
+            statFile<<"npes\tgrainSz\tdim\tmaxDepth\ttolerance\tsf_k\tstencilSz\teleOrder\tt_rm_min\tt_rm_mean\tt_rm_max\tt_cons_min\tt_cons_mean\tt_cons_max\tt_bal_min\tt_bal_mean\tt_bal_max\tt_mesh_min\tt_mesh_mean\tt_mesh_max\tnum_oct\tnum_oct_cons\tnum_oct_bal\tcg_nodes"<<std::endl;
         }
 
-        statFile<<npes<<"\t"<<numPts<<"\t"<<dim<<"\t"<<maxDepth<<"\t"<<tol<<"\t"<<sf_k<<"\t"<<stencilSz<<"\t"<<eleOrder<<"\t"<<t_rd_g[0]<<"\t"<<t_rd_g[1]<<"\t"<<t_rd_g[2]<<"\t"<<t_cons_g[0]<<"\t"<<t_cons_g[1]<<"\t"<<t_cons_g[2]<<"\t"<<t_bal_g[0]<<"\t"<<t_bal_g[1]<<"\t"<<t_bal_g[2]<<"\t"<<t_mesh_g[0]<<"\t"<<t_mesh_g[1]<<"\t"<<t_mesh_g[2]<<"\t"<<numUniqueOct<<"\t"<<numConsOct<<"\t"<<numBalOct<<std::endl;
+        statFile<<npes<<"\t"<<numPts<<"\t"<<dim<<"\t"<<maxDepth<<"\t"<<tol<<"\t"<<sf_k<<"\t"<<stencilSz<<"\t"<<eleOrder<<"\t"<<t_rd_g[0]<<"\t"<<t_rd_g[1]<<"\t"<<t_rd_g[2]<<"\t"<<t_cons_g[0]<<"\t"<<t_cons_g[1]<<"\t"<<t_cons_g[2]<<"\t"<<t_bal_g[0]<<"\t"<<t_bal_g[1]<<"\t"<<t_bal_g[2]<<"\t"<<t_mesh_g[0]<<"\t"<<t_mesh_g[1]<<"\t"<<t_mesh_g[2]<<"\t"<<numUniqueOct<<"\t"<<numConsOct<<"\t"<<numBalOct<<"\t"<<cg_sz<<std::endl;
         statFile.close();
     }
 
@@ -328,7 +332,7 @@ void weakScalingDriver(char * ptsFile,bool genPts,DendroIntL numPts,unsigned int
     if(!rank) std::cout<<"     Warm Up run  (par) begin                               "<<std::endl;
     if(!rank) std::cout<<"======================================================================"<<std::endl;
 
-    //meshBenchMark(ptsFile,genPts,numPts,dim,maxDepth,distribution,tolerance,sf_k,options,prefix,comm);
+    meshBenchMark(ptsFile,genPts,numPts,dim,maxDepth,distribution,tolerance,sf_k,options,prefix,comm);
 
     if(!rank) std::cout<<"======================================================================"<<std::endl;
     if(!rank) std::cout<<"     Warm Up run  (par) end                               "<<std::endl;

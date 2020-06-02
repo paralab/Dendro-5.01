@@ -152,8 +152,9 @@ namespace ot
      * INJECTION : when coarsening finer grid point injected to the coarser grids.  (this does not guranteed to preserve integrals across paren and child)
      * P2CT : when coarsening, use parent to child transpose (child nodes computed contributed back to the parent node. ) This will preserve integrals iff, the child node value coarser to the 
      * value interpolated from the parent. 
+     * CELLVEC_CPY : cell vec copy without any interpolation. 
      */
-    enum INTERGRID_TRANSFER_MODE{INJECTION=0, P2CT};
+    enum INTERGRID_TRANSFER_MODE{INJECTION=0, P2CT, CELLVEC_CPY};
 
 
 } // namespace ot
@@ -543,9 +544,27 @@ private:
     Point m_uiDMinPt=Point(0,0,0);
 
     /**@brief: domain max point. */
-    Point m_uiDMaxPt=Point((1u<<m_uiMaxDepth), (1u<<m_uiMaxDepth), (1u<<m_uiMaxDepth));    
+    Point m_uiDMaxPt=Point((1u<<m_uiMaxDepth), (1u<<m_uiMaxDepth), (1u<<m_uiMaxDepth));
 
-   
+    /**@brief: send counts in elements, for inter-grid transfer*/
+    std::vector<unsigned int> m_uiIGTSendC;
+
+    /**@brief: recv counts in elements, for inter-grid transfer*/
+    std::vector<unsigned int> m_uiIGTRecvC;
+
+    /**@brief: send offsets in elements, for inter-grid transfer*/
+    std::vector<unsigned int> m_uiIGTSendOfst;
+
+    /**@brief: recv offsets in elements, for inter-grid transfer*/
+    std::vector<unsigned int> m_uiIGTRecvOfst;
+    
+    /**@brief: Mesh 2 partitioned with M1 splitters (Needed for IGT)*/
+    std::vector<ot::TreeNode> m_uiM2Prime; 
+
+    /**@brief: true if IGT data strucutures are setup. false otherwise*/
+    bool m_uiIsIGTSetup = false;
+
+
 
 private:
     /**@brief build E2N map for FEM computation*/
@@ -1926,8 +1945,17 @@ public:
      * */
     ot::Mesh *ReMesh(unsigned int grainSz = DENDRO_DEFAULT_GRAIN_SZ, double ld_tol = DENDRO_DEFAULT_LB_TOL, unsigned int sfK = DENDRO_DEFAULT_SF_K,unsigned int (*getWeight)(const ot::TreeNode *)=NULL);
 
+
     /**
-     * @brief transfer a variable vector form old grid to new grid.
+     * @brief: Computes the all to all v communication parameters interms of element counts. Let M1 be the current mesh, M2 be the new mesh (pMesh), then we compute
+     * M2' auxiliary mesh, where, M2' is partitioned w.r.t splitters, of the M1. Computed communication parameters, tells us how to perform data transfers from, 
+     * M2' to M2. Also note that the allocated send/recv counts parameters should be in global counts. 
+     * @param pMesh : new mesh M2. 
+     */
+    void interGridTransferSendRecvCompute(const ot::Mesh *pMesh);
+
+    /**
+     * @brief transfer a variable vector form old grid to new grid. Assumes the ghost is synchronized in the old vector
      * @param[in] vec: variable vector needs to be transfered.
      * @param[out] vec: transfered varaible vector
      * @param[in] pMesh: Mesh that we need to transfer the old varaible.
@@ -1936,26 +1964,64 @@ public:
     void interGridTransfer(std::vector<T> &vec, const ot::Mesh *pMesh, INTERGRID_TRANSFER_MODE mode = INTERGRID_TRANSFER_MODE::INJECTION);
 
     /**
-     * @brief transfer a variable vector form old grid to new grid.
+     * @brief transfer a variable vector form old grid to new grid. Assumes the ghost is synchronized in the old vector
      * @param[in] vec: variable vector needs to be transfered.
      * @param[out] vec: transfered varaible vector
      * @param[in] pMesh: Mesh that we need to transfer the old varaible.
+     * @param mode : intergrid transfer mode. 
+     * @param dof : number of dof. 
      * */
     template <typename T>
-    void interGridTransfer(T *&vec, const ot::Mesh *pMesh, INTERGRID_TRANSFER_MODE mode = INTERGRID_TRANSFER_MODE::INJECTION);
+    void interGridTransfer(T *&vec, const ot::Mesh *pMesh, INTERGRID_TRANSFER_MODE mode = INTERGRID_TRANSFER_MODE::INJECTION,unsigned int dof=1);
     
     /**
-     * @brief Performs intergrid transfer without deallocating the existing vector. 
-     * 
+     * @brief Performs intergrid transfer without deallocating the existing vector. Assumes the ghost is synchronized in the old vector
      * @tparam T : data type of the vector. 
      * @param vec : input vector (vector corresponding to the old mesh)
      * @param vecOut : output vector (new vector consresponding to the new vector)
      * @param pMesh : pointer to the new mesh object. 
      * @param isAlloc : True if out vector is allocated with ghost, false otherwise. 
      * @param mode: mode of intergrid transfer defined by INTERGRID_TRANSFER_MODE
+     * @param dof : number of dof. 
      */
     template <typename T>
-    void interGridTransfer(T* vec, T* vecOut, const ot::Mesh* pMesh ,bool isAlloc=false, INTERGRID_TRANSFER_MODE mode = INTERGRID_TRANSFER_MODE::INJECTION);
+    void interGridTransfer(T* vecIn, T* vecOut, const ot::Mesh* pMesh , INTERGRID_TRANSFER_MODE mode = INTERGRID_TRANSFER_MODE::INJECTION, unsigned int dof=1);
+
+    /**
+     * @brief Intergrid transfer for the 2D vector. 
+     * @tparam T 
+     * @param vec : input vector (allocated in the current mesh)
+     * @param vecOut : output vector (allocated in the new mesh)
+     * @param dof : size of different variables. 
+     * @param pMesh : new mesh
+     * @param mode : intergrid transfer mode. 
+     */
+    template<typename T>
+    void intergridTransfer(T** vecIn, T** vecOut, unsigned int dof, const ot::Mesh* pMesh, INTERGRID_TRANSFER_MODE mode = INTERGRID_TRANSFER_MODE::INJECTION);
+
+
+    /**
+     * @brief: intre-grid transfer for DG vector. 
+     * currently only inmplemented for the strong form, intergrid transfers, (i.e. child to parent happens with injection, not p2c^T)
+     * @tparam T vector type. 
+     * @param vec : Input vector. 
+     * @param vecOut : Output vector
+     * @param pMesh : pointer to the new mesh object
+     * @param isAlloc : True if out vector is allocated with ghost, false otherwise. 
+     */
+    template <typename T>
+    void interGridTransfer_DG(T* vecIn, T* vecOut, const ot::Mesh* pMesh, unsigned int dof=1);
+
+    /**
+     * @brief performs intergrid transfer for a cell vector. 
+     * @tparam T type of the vector. 
+     * @param vec : input cell vector. 
+     * @param vecOut : allocated new cell vector. 
+     * @param pMesh : new mesh. 
+     */
+    template<typename T>
+    void interGridTransferCellVec(const T* vecIn, T* vecOut, const ot::Mesh* pMesh,unsigned int dof=1, INTERGRID_TRANSFER_MODE mode=INTERGRID_TRANSFER_MODE::CELLVEC_CPY);
+    
 
     /**
      * @brief performs the intergrid transfer operation using the unzip representation. Compared to elemental 
@@ -2048,6 +2114,19 @@ public:
      * @param child : neighbor ids (array of size 4). 
      */
     void getFinerFaceNeighbors(unsigned int ele, unsigned int dir, unsigned int* child) const;
+
+    /**
+     * @brief Set the Mesh Refinement flags, for the local portion of the mesh. Note that coarsening happens if all the children are 
+     * have the same parent and all the children should be in the same processor as local elements.   
+     * In this method, mesh class ignore the wavelet refinement, and trust the user, and select the user specified refinement flags. 
+     * To perform Intergrid-transfers and other operations it is important to decide, refine and coarsening based on some proper,
+     * basis error capture crieteria, (look at the RefEl Class, to see how Dendro uses the basis representation)
+     
+     * @param refine_flags : refinement flags, OCT_SPLIT, OCT_COARSE, OCT_NO_CHANGE
+     * 
+     */
+    void setMeshRefinementFlags(const std::vector<unsigned int>& refine_flags);
+
 
 };
 

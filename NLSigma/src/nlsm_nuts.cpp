@@ -201,7 +201,7 @@ int main (int argc, char** argv)
     ot::Mesh * mesh = ot::createMesh(tmpNodes.data(),tmpNodes.size(),nlsm::NLSM_ELE_ORDER,comm,1,ot::SM_TYPE::FDM,nlsm::NLSM_DENDRO_GRAIN_SZ,nlsm::NLSM_LOAD_IMB_TOL,nlsm::NLSM_SPLIT_FIX, nlsm::getEleWeight, 0);
     //ot::Mesh * mesh = ot::createMesh(tmpNodes.data(),tmpNodes.size(),nlsm::NLSM_ELE_ORDER,comm,1,ot::SM_TYPE::FDM,nlsm::NLSM_DENDRO_GRAIN_SZ,nlsm::NLSM_LOAD_IMB_TOL,nlsm::NLSM_SPLIT_FIX, NULL, 0);
     //ot::Mesh * mesh = ot::createSplitMesh(nlsm::NLSM_ELE_ORDER,1,2,comm);
-    //mesh->setDomainBounds(Point(nlsm::NLSM_GRID_MIN_X,nlsm::NLSM_GRID_MIN_Y,nlsm::NLSM_GRID_MIN_Z), Point(nlsm::NLSM_GRID_MAX_X, nlsm::NLSM_GRID_MAX_Y,nlsm::NLSM_GRID_MAX_Z));
+    mesh->setDomainBounds(Point(nlsm::NLSM_GRID_MIN_X,nlsm::NLSM_GRID_MIN_Y,nlsm::NLSM_GRID_MIN_Z), Point(nlsm::NLSM_GRID_MAX_X, nlsm::NLSM_GRID_MAX_Y,nlsm::NLSM_GRID_MAX_Z));
     
     mesh->computeMinMaxLevel(lmin,lmax);
     nlsm::NLSM_RK45_TIME_STEP_SIZE=nlsm::NLSM_CFL_FACTOR*((nlsm::NLSM_COMPD_MAX[0]-nlsm::NLSM_COMPD_MIN[0])*((1u<<(m_uiMaxDepth-lmax))/((double) nlsm::NLSM_ELE_ORDER))/((double)(1u<<(m_uiMaxDepth))));
@@ -218,6 +218,30 @@ int main (int argc, char** argv)
 
      if(!rank)
       std::cout<<"ts_mode: "<<ts_mode<<std::endl;
+
+
+    std::vector<DendroIntL> part_sz;
+    std::vector<DendroIntL> weight_sz;
+    part_sz.resize(npes,0);
+    weight_sz.resize(npes,0);
+    localSz = mesh->getNumLocalMeshElements();
+    par::Mpi_Gather(&localSz,part_sz.data(),1,0,comm);
+    const ot::TreeNode* pNodes = mesh->getAllElements().data();
+
+    for(unsigned int ele = mesh->getElementLocalBegin(); ele < mesh->getElementLocalEnd(); ele ++)
+      localSz+=(nlsm::getEleWeight(&pNodes[ele])/100000);
+    
+    par::Mpi_Gather(&localSz,weight_sz.data(),1,0,comm);
+
+    if(!rank)
+    {
+      for(unsigned int i=0; i < part_sz.size(); i++)
+      {
+        std::cout<<"local sz: "<<i<<" part_sz: "<<part_sz[i]<<" weight: "<<weight_sz[i]<<std::endl;
+      }
+        
+    }
+
 
 
     const ts::ETSType tsType = ts::ETSType::RK3;
@@ -248,7 +272,6 @@ int main (int argc, char** argv)
             const DendroScalar time = enuts->curr_time();    
 
             const bool isActive = enuts->is_active();
-            
 
             if(!rank_global)
                 std::cout<<GRN<<"[Explicit NUTS]: Executing step :  "<<enuts->curr_step()<<std::setw(10)<<"\tcurrent time :"<<enuts->curr_time()<<std::setw(10)<<"\t dt(min):"<<enuts->get_dt_min()<<std::setw(10)<<"\t dt(max):"<<enuts->get_dt_max()<<std::setw(10)<<"\t"<<NRM<<std::endl;
@@ -256,8 +279,8 @@ int main (int argc, char** argv)
             appCtx->terminal_output();  
 
             bool isRemesh = false;    
-            // if( (step % nlsm::NLSM_REMESH_TEST_FREQ) == 0 )
-            //     isRemesh = appCtx->is_remesh();
+            if( (step % nlsm::NLSM_REMESH_TEST_FREQ) == 0 )
+                isRemesh = appCtx->is_remesh();
             
             if(isRemesh)
             {
@@ -268,8 +291,7 @@ int main (int argc, char** argv)
                 appCtx->terminal_output();
 
             }
-            
-        
+                    
             enuts->sync_with_mesh();
 
             if((step % nlsm::NLSM_IO_OUTPUT_FREQ) == 0 )
@@ -278,27 +300,28 @@ int main (int argc, char** argv)
             if( (step % nlsm::NLSM_CHECKPT_FREQ) == 0 )
             appCtx -> write_checkpt();
 
-          //appCtx_ets->dump_pt(std::cout);
-          //appCtx_enuts->dump_pt(std::cout);
-          //ets->dump_pt(std::cout);
-          //enuts->dump_pt(std::cout);
-          #ifdef __PROFILE_ETS__
-            char fName[200];
-            std::ofstream f_ets, f_enuts;
-            sprintf(fName,"%s_enuts.prof",nlsm::NLSM_PROFILE_FILE_PREFIX.c_str());
-            if(!rank) 
-            {
-              f_enuts.open (fName,std::fstream::app);
-              if(f_enuts.fail()) {std::cout<<fName<<" file open failed "<<std::endl; MPI_Abort(comm,0);}
-            }
+            //appCtx_ets->dump_pt(std::cout);
+            //appCtx_enuts->dump_pt(std::cout);
+            //ets->dump_pt(std::cout);
+            //enuts->dump_pt(std::cout);
 
-            enuts->dump_pt(f_enuts);
-            enuts->reset_pt();
+            #ifdef __PROFILE_ETS__
+              char fName[200];
+              std::ofstream f_ets, f_enuts;
+              sprintf(fName,"%s_enuts.prof",nlsm::NLSM_PROFILE_FILE_PREFIX.c_str());
+              if(!rank) 
+              {
+                f_enuts.open (fName,std::fstream::app);
+                if(f_enuts.fail()) {std::cout<<fName<<" file open failed "<<std::endl; MPI_Abort(comm,0);}
+              }
+
+              enuts->dump_pt(f_enuts);
+              enuts->reset_pt();
 
 
-            if(!rank)  f_ets.close();
-            if(!rank)  f_enuts.close();
-          #endif
+              if(!rank)  f_ets.close();
+              if(!rank)  f_enuts.close();
+            #endif
 
             
         }

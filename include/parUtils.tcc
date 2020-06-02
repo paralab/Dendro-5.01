@@ -366,6 +366,8 @@ int Mpi_Alltoallv_sparse(T *sendbuf, int *sendcnts, int *sdispls, T *recvbuf, in
     PROF_A2AV_WAIT_BEGIN
 
     MPI_Waitall(commCnt, requests, statuses);
+    // 27/05/20(Milinda) : A2A_sparse was crashing on impi19 in frontera. I put a barrier here since all2all v should be a blocking call, otherwise repeated calls might cause problems. 
+    MPI_Barrier(comm); 
 
     PROF_A2AV_WAIT_END
 
@@ -701,172 +703,217 @@ int scatterValues(std::vector<T> &in, std::vector<T> &out, DendroIntL outSz, MPI
   MPI_Comm_size(comm, &npes);
   MPI_Comm_rank(comm, &rank);
 
-  MPI_Request request;
-  MPI_Status status;
+  #if 0
+    // Milinda(26/05/2020) : simple scatter values code that wrote, because scatterValues was crashing on Frontera
+    // for larger number of cores. May be it was due to not setting I_MPI_ALLREDUCE=1. There are some all_reduce (intel mpi) errrors in 
+    // Frontera.  
+    std::vector<int> sc;
+    std::vector<int> sfst;
+    std::vector<int> rc;
+    std::vector<int> rfst;
 
-  DendroIntL inSz = in.size();
-  out.resize(outSz);
+    sc.resize(npes,0);
+    sfst.resize(npes,0);
+    rc.resize(npes,0);
+    rfst.resize(npes,0);
 
-  DendroIntL off1 = 0, off2 = 0;
-  DendroIntL *scnIn = NULL;
-  if (inSz)
-  {
-    scnIn = new DendroIntL[inSz];
-    assert(scnIn);
-  }
+    int npes_act = in.size()/DENDRO_DEFAULT_GRAIN_SZ;
+    
+    if (npes_act > npes)
+      npes_act = npes;
 
-  // perform a local scan first ...
-  DendroIntL zero = 0;
-  if (inSz)
-  {
-    scnIn[0] = 1;
-    for (DendroIntL i = 1; i < inSz; i++)
+    if(npes_act==0)
+      npes_act=2;
+
+    const DendroIntL inSz = in.size();
+
+    for(unsigned int i=0; i < npes_act; i++)
+      sc[i] = ((i+1)*inSz)/npes_act - ((i)*inSz)/npes_act;
+
+    par::Mpi_Alltoall(sc.data(),rc.data(),1,comm);
+
+    sfst[0] = 0;
+    rfst[0] = 0;
+
+    omp_par::scan(sc.data(),sfst.data(),npes);
+    omp_par::scan(rc.data(),rfst.data(),npes);
+
+    out.resize(rfst[npes-1] + rc[npes-1]);
+    par::Mpi_Alltoallv(in.data(), sc.data(), sfst.data(),out.data(),rc.data(),rfst.data(),comm);
+  #endif
+  
+  #if 1
+
+    MPI_Request request;
+    MPI_Status status;
+
+    DendroIntL inSz = in.size();
+    out.resize(outSz);
+
+    DendroIntL off1 = 0, off2 = 0;
+    DendroIntL *scnIn = NULL;
+    if (inSz)
     {
-      scnIn[i] = scnIn[i - 1] + 1;
-    } //end for
-    // now scan with the final members of
-    par::Mpi_Scan<DendroIntL>(scnIn + inSz - 1, &off1, 1, MPI_SUM, comm);
-  }
-  else
-  {
-    par::Mpi_Scan<DendroIntL>(&zero, &off1, 1, MPI_SUM, comm);
-  }
+      scnIn = new DendroIntL[inSz];
+      assert(scnIn);
+    }
 
-  // communicate the offsets ...
-  if (rank < (npes - 1))
-  {
-    par::Mpi_Issend<DendroIntL>(&off1, 1, (rank + 1), 0, comm, &request);
-  }
-  if (rank)
-  {
-    par::Mpi_Recv<DendroIntL>(&off2, 1, (rank - 1), 0, comm, &status);
-  }
-  else
-  {
-    off2 = 0;
-  }
-
-  // add offset to local array
-  for (DendroIntL i = 0; i < inSz; i++)
-  {
-    scnIn[i] = scnIn[i] + off2; // This has the global scan results now ...
-  }                             //end for
-
-  //Gather Scan of outCnts
-  DendroIntL *outCnts;
-  outCnts = new DendroIntL[npes];
-  assert(outCnts);
-
-  if (rank < (npes - 1))
-  {
-    MPI_Status statusWait;
-    MPI_Wait(&request, &statusWait);
-  }
-
-  if (outSz)
-  {
-    par::Mpi_Scan<DendroIntL>(&outSz, &off1, 1, MPI_SUM, comm);
-  }
-  else
-  {
-    par::Mpi_Scan<DendroIntL>(&zero, &off1, 1, MPI_SUM, comm);
-  }
-
-  par::Mpi_Allgather<DendroIntL>(&off1, outCnts, 1, comm);
-
-  int *sendSz = new int[npes];
-  assert(sendSz);
-
-  int *recvSz = new int[npes];
-  assert(recvSz);
-
-  int *sendOff = new int[npes];
-  assert(sendOff);
-
-  int *recvOff = new int[npes];
-  assert(recvOff);
-
-  // compute the partition offsets and sizes so that All2Allv can be performed.
-  // initialize ...
-  for (int i = 0; i < npes; i++)
-  {
-    sendSz[i] = 0;
-  }
-
-  //The Heart of the algorithm....
-  //scnIn and outCnts are both sorted
-  DendroIntL inCnt = 0;
-  int pCnt = 0;
-  while ((inCnt < inSz) && (pCnt < npes))
-  {
-    if (scnIn[inCnt] <= outCnts[pCnt])
+    // perform a local scan first ...
+    DendroIntL zero = 0;
+    if (inSz)
     {
-      sendSz[pCnt]++;
-      inCnt++;
+      scnIn[0] = 1;
+      for (DendroIntL i = 1; i < inSz; i++)
+      {
+        scnIn[i] = scnIn[i - 1] + 1;
+      } //end for
+      // now scan with the final members of
+      par::Mpi_Scan<DendroIntL>(scnIn + inSz - 1, &off1, 1, MPI_SUM, comm);
     }
     else
     {
-      pCnt++;
+      par::Mpi_Scan<DendroIntL>(&zero, &off1, 1, MPI_SUM, comm);
     }
-  }
 
-  // communicate with other procs how many you shall be sending and get how
-  // many to recieve from whom.
-  par::Mpi_Alltoall<int>(sendSz, recvSz, 1, comm);
+    // communicate the offsets ...
+    if (rank < (npes - 1))
+    {
+      par::Mpi_Issend<DendroIntL>(&off1, 1, (rank + 1), 0, comm, &request);
+    }
+    if (rank)
+    {
+      par::Mpi_Recv<DendroIntL>(&off2, 1, (rank - 1), 0, comm, &status);
+    }
+    else
+    {
+      off2 = 0;
+    }
 
-  int nn = 0; // new value of nlSize, ie the local nodes.
-  for (int i = 0; i < npes; i++)
-  {
-    nn += recvSz[i];
-  }
+    // add offset to local array
+    for (DendroIntL i = 0; i < inSz; i++)
+    {
+      scnIn[i] = scnIn[i] + off2; // This has the global scan results now ...
+    }                             //end for
 
-  // compute offsets ...
-  sendOff[0] = 0;
-  recvOff[0] = 0;
-  for (int i = 1; i < npes; i++)
-  {
-    sendOff[i] = sendOff[i - 1] + sendSz[i - 1];
-    recvOff[i] = recvOff[i - 1] + recvSz[i - 1];
-  }
+    //Gather Scan of outCnts
+    DendroIntL *outCnts;
+    outCnts = new DendroIntL[npes];
+    assert(outCnts);
 
-  assert(static_cast<unsigned int>(nn) == outSz);
-  // perform All2All  ...
-  T *inPtr = NULL;
-  T *outPtr = NULL;
-  if (!in.empty())
-  {
-    inPtr = &(*(in.begin()));
-  }
-  if (!out.empty())
-  {
-    outPtr = &(*(out.begin()));
-  }
-  par::Mpi_Alltoallv_sparse<T>(inPtr, sendSz, sendOff,
-                               outPtr, recvSz, recvOff, comm);
+    if (rank < (npes - 1))
+    {
+      MPI_Status statusWait;
+      MPI_Wait(&request, &statusWait);
+    }
 
-  // clean up...
-  if (scnIn)
-  {
-    delete[] scnIn;
-    scnIn = NULL;
-  }
+    if (outSz)
+    {
+      par::Mpi_Scan<DendroIntL>(&outSz, &off1, 1, MPI_SUM, comm);
+    }
+    else
+    {
+      par::Mpi_Scan<DendroIntL>(&zero, &off1, 1, MPI_SUM, comm);
+    }
 
-  delete[] outCnts;
-  outCnts = NULL;
+    par::Mpi_Allgather<DendroIntL>(&off1, outCnts, 1, comm);
 
-  delete[] sendSz;
-  sendSz = NULL;
+    int *sendSz = new int[npes];
+    assert(sendSz);
 
-  delete[] sendOff;
-  sendOff = NULL;
+    int *recvSz = new int[npes];
+    assert(recvSz);
 
-  delete[] recvSz;
-  recvSz = NULL;
+    int *sendOff = new int[npes];
+    assert(sendOff);
 
-  delete[] recvOff;
-  recvOff = NULL;
+    int *recvOff = new int[npes];
+    assert(recvOff);
+
+    // compute the partition offsets and sizes so that All2Allv can be performed.
+    // initialize ...
+    for (int i = 0; i < npes; i++)
+    {
+      sendSz[i] = 0;
+    }
+
+    //The Heart of the algorithm....
+    //scnIn and outCnts are both sorted
+    DendroIntL inCnt = 0;
+    int pCnt = 0;
+    while ((inCnt < inSz) && (pCnt < npes))
+    {
+      if (scnIn[inCnt] <= outCnts[pCnt])
+      {
+        sendSz[pCnt]++;
+        inCnt++;
+      }
+      else
+      {
+        pCnt++;
+      }
+    }
+
+    // communicate with other procs how many you shall be sending and get how
+    // many to recieve from whom.
+    par::Mpi_Alltoall<int>(sendSz, recvSz, 1, comm);
+
+    int nn = 0; // new value of nlSize, ie the local nodes.
+    for (int i = 0; i < npes; i++)
+    {
+      nn += recvSz[i];
+    }
+
+    // compute offsets ...
+    sendOff[0] = 0;
+    recvOff[0] = 0;
+    for (int i = 1; i < npes; i++)
+    {
+      sendOff[i] = sendOff[i - 1] + sendSz[i - 1];
+      recvOff[i] = recvOff[i - 1] + recvSz[i - 1];
+    }
+
+    assert(static_cast<unsigned int>(nn) == outSz);
+    // perform All2All  ...
+    T *inPtr = NULL;
+    T *outPtr = NULL;
+    if (!in.empty())
+    {
+      inPtr = &(*(in.begin()));
+    }
+    if (!out.empty())
+    {
+      outPtr = &(*(out.begin()));
+    }
+    par::Mpi_Alltoallv_sparse<T>(inPtr, sendSz, sendOff,
+                                outPtr, recvSz, recvOff, comm);
+
+    // clean up...
+    if (scnIn)
+    {
+      delete[] scnIn;
+      scnIn = NULL;
+    }
+
+    delete[] outCnts;
+    outCnts = NULL;
+
+    delete[] sendSz;
+    sendSz = NULL;
+
+    delete[] sendOff;
+    sendOff = NULL;
+
+    delete[] recvSz;
+    recvSz = NULL;
+
+    delete[] recvOff;
+    recvOff = NULL;
+  #endif
 
   PROF_PAR_SCATTER_END
+
+  
+
 }
 
 template <typename T>

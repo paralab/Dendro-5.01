@@ -722,7 +722,7 @@ namespace nlsm
 
     unsigned int getEleWeight(const ot::TreeNode* pNode) 
     {
-        return (1u<<(3*pNode->getLevel()))*6;
+        return (1u<<(3*pNode->getLevel()))*1;
     }
 
 }// end of namespace nlsm
