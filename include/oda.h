@@ -333,6 +333,14 @@ namespace ot
         * */
         void getElementalCoords(unsigned int eleID, double* coords) const ;
 
+        
+        void setOctantWeight(unsigned int ele,unsigned int w) { 
+            ot::TreeNode* pNodes = (ot::TreeNode*)m_uiMesh->getAllElements().data();
+            pNodes[ele].setWeight(w);
+            return;
+        }
+
+        unsigned int getOctantWeight(unsigned int ele) const  { return m_uiMesh->getAllElements()[ele].getWeight(); }
 
         /**@brief get a constant pointer for the reference element*/
         inline const RefElement* getReferenceElement()const { return  m_uiMesh->getReferenceElement();}
