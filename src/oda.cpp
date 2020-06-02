@@ -529,7 +529,7 @@ namespace ot
         pNodes.resize(m_uiMesh->getNumLocalMeshElements());
 
         for(unsigned int ele=m_uiMesh->getElementLocalBegin(); ele < m_uiMesh->getElementLocalEnd(); ele++)
-            pNodes[ele] = meshNodes[ele];
+            pNodes[ele-m_uiMesh->getElementLocalBegin()] = meshNodes[ele];
         
         ot::Mesh* pMesh = new ot::Mesh(pNodes,1,m_uiMesh->getElementOrder(),commGlobal,false,ot::SM_TYPE::FEM_CG,grainSz,ld_bal,sfK,getWeight);
         ot::DA* newDA= new ot::DA(pMesh);
