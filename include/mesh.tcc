@@ -3619,7 +3619,7 @@ namespace ot
 
 
     template<typename T>
-    void Mesh::interGridTransferCellVec(const T* vecIn, T* vecOut, const ot::Mesh* pMesh,unsigned int dof,INTERGRID_TRANSFER_MODE mode)
+    void Mesh::interGridTransferCellVec(T* vecIn, T* vecOut, const ot::Mesh* pMesh,unsigned int dof,INTERGRID_TRANSFER_MODE mode)
     {
 
         MPI_Comm comm=m_uiCommGlobal;

@@ -2020,7 +2020,7 @@ public:
      * @param pMesh : new mesh. 
      */
     template<typename T>
-    void interGridTransferCellVec(const T* vecIn, T* vecOut, const ot::Mesh* pMesh,unsigned int dof=1, INTERGRID_TRANSFER_MODE mode=INTERGRID_TRANSFER_MODE::CELLVEC_CPY);
+    void interGridTransferCellVec(T* vecIn, T* vecOut, const ot::Mesh* pMesh,unsigned int dof=1, INTERGRID_TRANSFER_MODE mode=INTERGRID_TRANSFER_MODE::CELLVEC_CPY);
     
 
     /**

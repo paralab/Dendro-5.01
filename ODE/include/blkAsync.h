@@ -165,6 +165,60 @@ namespace ts
             }
 
             /**
+             * @brief Copy block vector form the vecDG. 
+             * 
+             * @param pMesh : pointer to the mesh 
+             * @param vecDG : pointer to the DG vector.   
+             * @param dof   : number of DOF  
+             */
+            void copyFromVecDG(const ot::Mesh*pMesh, const T* const vecDG,unsigned int dof=1)
+            {
+                if(!(pMesh->isActive()))
+                    return;
+                
+                const unsigned int blk = m_uiBlkID;
+                const ot::Block* blkList  = pMesh->getLocalBlockList().data();
+                const ot::TreeNode* pNodes = pMesh->getAllElements().data();
+
+                
+                const unsigned int unzipSz   = pMesh->getDegOfFreedomUnZip();
+                const unsigned int offset    = blkList[blk].getOffset();
+                const unsigned int nx        = blkList[blk].getAllocationSzX();
+                const unsigned int ny        = blkList[blk].getAllocationSzY();
+                const unsigned int nz        = blkList[blk].getAllocationSzZ();
+                const unsigned int pw        = blkList[blk].get1DPadWidth();
+                const unsigned int regLev    = blkList[blk].getRegularGridLev();
+                const unsigned int paddWidth = blkList[blk].get1DPadWidth();
+
+                const unsigned int lx   =   blkList[blk].getAllocationSzX();
+                const unsigned int ly   =   blkList[blk].getAllocationSzY();
+                const unsigned int lz   =   blkList[blk].getAllocationSzZ();
+                const ot::TreeNode blkNode = blkList[blk].getBlockNode();
+
+                const unsigned int eOrder = pMesh->getElementOrder();
+                const unsigned int nPe  = pMesh->getNumNodesPerElement(); 
+
+                const unsigned int dgSz = pMesh->getDegOfFreedomDG();
+                for(unsigned int v=0; v < dof; v++)
+                {
+                    for(unsigned int elem = blkList[blk].getLocalElementBegin(); elem < blkList[blk].getLocalElementEnd(); elem++)
+                    {
+                        const unsigned int ei  =  (pNodes[elem].getX()-blkNode.getX())>>(m_uiMaxDepth-regLev);
+                        const unsigned int ej  =  (pNodes[elem].getY()-blkNode.getY())>>(m_uiMaxDepth-regLev);
+                        const unsigned int ek  =  (pNodes[elem].getZ()-blkNode.getZ())>>(m_uiMaxDepth-regLev);
+
+                        for(unsigned int k=0; k < (eOrder+1); k++)
+                         for(unsigned int j=0; j < (eOrder+1); j++)
+                          for(unsigned int i=0; i < (eOrder+1); i++)
+                            m_uiVec[ (v*lx*ly*lz)  + (ek*eOrder+k+paddWidth)*(ly*lx)+(ej*eOrder+j+paddWidth)*(lx)+(ei*eOrder+i+paddWidth)] = vecDG[ (v*dgSz + elem*nPe)  +  k*(eOrder+1)*(eOrder+1) +  j*(eOrder+1) + i] ;
+                    }
+                
+                }
+
+                
+            }
+
+            /**
              * @brief copy a given other vector to the this vector. 
              * @param other : BlockAsyncVec that need to be coppied. 
              */

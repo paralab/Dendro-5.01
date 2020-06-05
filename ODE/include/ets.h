@@ -92,6 +92,7 @@ namespace ts
                         "gele_min\t gele_mean\t gele_max\t"\
                         "lele_min\t lele_mean\t lele_max\t"\
                         "lnodes_min\t lnodes_mean\t lnodes_max\t"\
+                        "remsh_igt_min\t remesh_igt_mean\t remesh_igt_max\t"\
                         "evolve_min\t evolve_mean\t evolve_max\t"\
                         "unzip_async_min\t unzip_async_mean\t unzip_async_max\t"\
                         "rhs_min\t rhs_mean\t rhs_max\t"\
@@ -132,6 +133,10 @@ namespace ts
                     DendroIntL localNodes=m_uiMesh->getNumLocalMeshNodes();
 
                     t_stat=localNodes;
+                    min_mean_max(&t_stat,t_stat_g,comm);
+                    if(!rank) outfile<<t_stat_g[0]<<"\t "<<t_stat_g[1]<<"\t "<<t_stat_g[2]<<"\t ";
+
+                    t_stat= m_uiAppCtx->m_uiCtxpt[CTXPROFILE::REMESH].snap;
                     min_mean_max(&t_stat,t_stat_g,comm);
                     if(!rank) outfile<<t_stat_g[0]<<"\t "<<t_stat_g[1]<<"\t "<<t_stat_g[2]<<"\t ";
 

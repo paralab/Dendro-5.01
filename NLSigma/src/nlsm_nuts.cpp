@@ -287,7 +287,7 @@ int main (int argc, char** argv)
                 if(!rank_global)
                     std::cout<<"[Explicit NUTS]: Remesh triggered "<<std::endl;;
 
-                appCtx->remesh(nlsm::NLSM_DENDRO_GRAIN_SZ, nlsm::NLSM_LOAD_IMB_TOL,nlsm::NLSM_SPLIT_FIX,true,false,false);
+                appCtx->remesh_and_gridtransfer(nlsm::NLSM_DENDRO_GRAIN_SZ, nlsm::NLSM_LOAD_IMB_TOL,nlsm::NLSM_SPLIT_FIX,true,false,false);
                 appCtx->terminal_output();
 
             }
@@ -363,7 +363,7 @@ int main (int argc, char** argv)
                 if(!rank_global)
                     std::cout<<"[ETS] : Remesh is triggered.  \n";
 
-                appCtx->remesh(nlsm::NLSM_DENDRO_GRAIN_SZ, nlsm::NLSM_LOAD_IMB_TOL,nlsm::NLSM_SPLIT_FIX,true,false,false);
+                appCtx->remesh_and_gridtransfer(nlsm::NLSM_DENDRO_GRAIN_SZ, nlsm::NLSM_LOAD_IMB_TOL,nlsm::NLSM_SPLIT_FIX,true,false,false);
                 appCtx->terminal_output();
 
             }
@@ -700,7 +700,7 @@ int main (int argc, char** argv)
                   if(!rank_global)
                       std::cout<<"[ETS] : Remesh is triggered.  \n";
 
-                  appCtx_ets->remesh(nlsm::NLSM_DENDRO_GRAIN_SZ, nlsm::NLSM_LOAD_IMB_TOL,nlsm::NLSM_SPLIT_FIX,true,false,false);
+                  appCtx_ets->remesh_and_gridtransfer(nlsm::NLSM_DENDRO_GRAIN_SZ, nlsm::NLSM_LOAD_IMB_TOL,nlsm::NLSM_SPLIT_FIX,true,false,false);
                   appCtx_ets->terminal_output();
               }
               
@@ -735,7 +735,7 @@ int main (int argc, char** argv)
               if(!rank_global)
                   std::cout<<"[Explicit NUTS]: Remesh triggered "<<std::endl;;
 
-              appCtx_enuts->remesh(nlsm::NLSM_DENDRO_GRAIN_SZ, nlsm::NLSM_LOAD_IMB_TOL,nlsm::NLSM_SPLIT_FIX,true,false,false);
+              appCtx_enuts->remesh_and_gridtransfer(nlsm::NLSM_DENDRO_GRAIN_SZ, nlsm::NLSM_LOAD_IMB_TOL,nlsm::NLSM_SPLIT_FIX,true,false,false);
               appCtx_enuts->terminal_output();
 
           }

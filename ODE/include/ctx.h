@@ -208,6 +208,14 @@ namespace ts
             /**@brief: default destructor*/
             ~Ctx(){};
             
+            /**@brief: update the mesh data strucutre. */
+            void set_mesh(ot::Mesh* pMesh) 
+            {
+                m_uiMesh= pMesh;
+                m_uiIsETSSynced =false;
+                return;
+            }
+
             /**@brief: returns the const ot::Mesh. */
             inline ot::Mesh* get_mesh() const {return m_uiMesh; } 
             
@@ -280,8 +288,16 @@ namespace ts
             virtual bool is_remesh() {return false;};
 
             /**
+             * @brief perform remesh and return the new mesh, (Note: mesh in the Ctx class is not updated to the new mesh.) This just compute the new mesh and returns it. 
+             * @param grain_sz : grain size for the remesh 
+             * @param ld_tol : load imbalance tolerance. 
+             * @param sf_k : splitter fix k
+             * @return ot::Mesh* : pointer to the new mesh. 
+             */
+            virtual ot::Mesh* remesh(unsigned int grain_sz = DENDRO_DEFAULT_GRAIN_SZ, double ld_tol = DENDRO_DEFAULT_LB_TOL, unsigned int sf_k = DENDRO_DEFAULT_SF_K);
+
+            /**
              * @brief performs remesh if the remesh flags are true. 
-             * 
              * @param grain_sz : grain size for the remesh 
              * @param ld_tol : load imbalance tolerance. 
              * @param sf_k : splitter fix value 
@@ -290,11 +306,10 @@ namespace ts
              * @param transferPrimitive : if true transform the primitive variables. 
              * @return int : return 0 if success. 
              */
-            virtual int remesh(unsigned int grain_sz = DENDRO_DEFAULT_GRAIN_SZ, double ld_tol = DENDRO_DEFAULT_LB_TOL, unsigned int sf_k = DENDRO_DEFAULT_SF_K ,bool transferEvolution = true, bool transferConstraint = false, bool transferPrimitive = false ); 
+            virtual int remesh_and_gridtransfer(unsigned int grain_sz = DENDRO_DEFAULT_GRAIN_SZ, double ld_tol = DENDRO_DEFAULT_LB_TOL, unsigned int sf_k = DENDRO_DEFAULT_SF_K ,bool transferEvolution = true, bool transferConstraint = false, bool transferPrimitive = false ); 
 
             /**
              * @brief performs intergrid transfer for a given mesh variable. 
-             * 
              * @param newMesh : Mesh object the variables needed to be transfered.
              * @param transferEvolution : if true transform the evolution variables.  
              * @param transferConstraint : if true transform the constraint variales. 
@@ -642,18 +657,25 @@ namespace ts
 
         for(unsigned int i=0 ; i < async_k; i++)
         {
-            for(unsigned int j=((i*dof)/async_k); j < (((i+1)*dof)/async_k); j++)   
+
+            const unsigned int v_begin = ((i*dof)/async_k);
+            const unsigned int v_end   = (((i+1)*dof)/async_k);
+
+            for(unsigned int j=v_begin; j < v_end; j++)   
                 m_uiMesh->readFromGhostBegin(in_ptr + j*sz_per_dof_zip, 1);
 
             
             if(i>0)
             {
-                for(unsigned int j= (((i-1)*dof)/async_k); j < ((i*dof)/async_k); j++ )
+                const unsigned int vb_prev = (((i-1)*dof)/async_k);
+                const unsigned int ve_prev = ((i*dof)/async_k);
+
+                for(unsigned int j=vb_prev; j < ve_prev; j++ )
                     m_uiMesh->unzip(in_ptr + j*sz_per_dof_zip, out_ptr + j*sz_per_dof_uzip);
 
             }
 
-            for(unsigned int j=((i*dof)/async_k); j < (((i+1)*dof)/async_k); j++)
+            for(unsigned int j=v_begin; j < v_end; j++)
                 m_uiMesh->readFromGhostEnd(in_ptr + j*sz_per_dof_zip, 1);
 
         }
@@ -689,19 +711,27 @@ namespace ts
 
         for(unsigned int i=0 ; i < async_k; i++)
         {
+            const unsigned int v_begin = ((i*dof)/async_k);
+            const unsigned int v_end   = (((i+1)*dof)/async_k);
             
-            for(unsigned int j=((i*dof)/async_k); j < (((i+1)*dof)/async_k); j++)
+            for(unsigned int j=v_begin; j < v_end; j++)   
             {
                 m_uiMesh->zip(in_ptr + j*sz_per_dof_uzip,out_ptr + j*sz_per_dof_zip);
             }
                
+            
             if(i>0)
             {
-                for(unsigned int j= (((i-1)*dof)/async_k); j < ((i*dof)/async_k); j++ )
+                const unsigned int vb_prev = (((i-1)*dof)/async_k);
+                const unsigned int ve_prev = ((i*dof)/async_k);
+
+                for(unsigned int j=vb_prev; j < ve_prev; j++ )
                     m_uiMesh->readFromGhostBegin(out_ptr + j*sz_per_dof_zip,1);
             }
+
         }
 
+        // the last batch. 
         for(unsigned int j= (((async_k-1)*dof)/async_k); j < ((async_k*dof)/async_k); j++ )
             m_uiMesh->readFromGhostBegin(out_ptr + j*sz_per_dof_zip,1);
 
@@ -717,9 +747,8 @@ namespace ts
 
     }
 
-    
-    template<typename T,typename I>
-    int Ctx<T,I>::remesh(unsigned int grain_sz, double ld_tol, unsigned int sf_k, bool transferEvolution, bool transferConstraint, bool transferPrimitive)
+    template<typename T, typename I>
+    ot::Mesh* Ctx<T,I>::remesh(unsigned int grain_sz, double ld_tol, unsigned int sf_k) 
     {
 
         #ifdef __PROFILE_CTX__
@@ -791,7 +820,22 @@ namespace ts
         #endif
         
         ot::Mesh* newMesh=m_uiMesh->ReMesh(grain_sz,ld_tol,sf_k);
-        
+
+        #ifdef __PROFILE_CTX__
+            m_uiCtxpt[CTXPROFILE::REMESH].stop();
+        #endif
+
+
+        return newMesh;
+
+    }
+    
+    template<typename T,typename I>
+    int Ctx<T,I>::remesh_and_gridtransfer(unsigned int grain_sz, double ld_tol, unsigned int sf_k, bool transferEvolution, bool transferConstraint, bool transferPrimitive)
+    {
+
+        ot::Mesh* newMesh = remesh(grain_sz,ld_tol,sf_k);
+
         DendroIntL oldElements=m_uiMesh->getNumLocalMeshElements();
         DendroIntL newElements=newMesh->getNumLocalMeshElements();
 
@@ -811,10 +855,6 @@ namespace ts
         delete newMesh;
 
         m_uiIsETSSynced = false;
-
-        #ifdef __PROFILE_CTX__
-            m_uiCtxpt[CTXPROFILE::REMESH].stop();
-        #endif
 
         
         return 0; 
@@ -899,7 +939,7 @@ namespace ts
                 const unsigned int nPDOF_new = eVars[i].GetSizePerDof();
 
                 for(unsigned int v=0; v < dof; v++)
-                    m_uiMesh->interGridTransfer( (in + v*nPDOF_old) , (out + v*nPDOF_new) , newMesh, true);
+                    m_uiMesh->interGridTransfer( (in + v*nPDOF_old) , (out + v*nPDOF_new) , newMesh);
             
             }
             
@@ -918,7 +958,7 @@ namespace ts
                 const unsigned int nPDOF_new = cVars[i].GetSizePerDof();
 
                 for(unsigned int v=0; v < dof; v++)
-                    m_uiMesh->interGridTransfer(in + v*nPDOF_old , out + v*nPDOF_new ,newMesh, true);
+                    m_uiMesh->interGridTransfer(in + v*nPDOF_old , out + v*nPDOF_new ,newMesh);
             
             }
 
@@ -938,7 +978,7 @@ namespace ts
                 const unsigned int nPDOF_new = pVars[i].GetSizePerDof();
 
                 for(unsigned int v=0; v < dof; v++)
-                    m_uiMesh->interGridTransfer(in + v*nPDOF_old , out + v*nPDOF_new ,newMesh, true);
+                    m_uiMesh->interGridTransfer(in + v*nPDOF_old , out + v*nPDOF_new ,newMesh);
                 
             }
 
