@@ -1,5 +1,6 @@
 For questions: [![Gitter](https://badges.gitter.im/Dendro-5-01/community.svg)](https://gitter.im/Dendro-5-01/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 
+[![DOI](https://zenodo.org/badge/102657919.svg)](https://zenodo.org/badge/latestdoi/102657919)
 
 <img src="https://github.com/paralab/Dendro-5.01/blob/master/docs/fig/dendro.png" alt="Dendro" width="400"/>
 
