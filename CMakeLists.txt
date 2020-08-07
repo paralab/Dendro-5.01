@@ -108,15 +108,22 @@ if(MANUAL_BLAS_LAPACK)
 else ()
     find_package(BLAS REQUIRED)
     find_package(LAPACK REQUIRED)
-    set(LAPACK_LINKER_FLAGS -llapack -lblas -lgfortran -lquadmath)
-    #set(LAPACKE_DIR $ENV{LAPACK}/LAPACKE)
+    set(LAPACK_LINKER_FLAGS -llapacke -llapack -lblas -lgfortran -lquadmath)
+    set(LAPACKE_DIR $ENV{LAPACK}/LAPACKE)
     set(LINK_FLAGS "${LINK_FLAGS} ${LAPACK_LINKER_FLAGS}")
+    # LAPACKE is not used anymore. 
     #find_library(LAPACKE_LIB
     #        NAMES lapacke lapackelib liblapacke
     #        HINTS "/usr/lib/"
     #        )
-    set(LAPACK_LIBRARIES ${LAPACK_LIBRARIES})
+    set(LAPACK_LIBRARIES ${LAPACK_LIBRARIES} ${LAPACKE_LIB})
     message(STATUS ${LAPACK_LIBRARIES})
+    
+    if (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
+        message("${CMAKE_CXX_COMPILER_ID} compiler detected adding -mkl flag for BLAS LAPACK")
+        set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mkl")
+        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mkl")
+    endif()
 endif()
 
 endif()
