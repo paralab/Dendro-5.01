@@ -535,7 +535,7 @@ namespace ot
         }
 
         assert( (m_uiIsUnzip==false) && (m_uiIsGhosted==true) && (m_uiIsElemental ==false) ); // current min max implementation. 
-        const I sz = (m_uiSize/m_uiDof);
+        const I sz = pMesh->getDegOfFreedom();
         T* ptr = m_uiData + dof*sz;
 
         const unsigned int num_local_nodes = pMesh->getNumLocalMeshNodes();

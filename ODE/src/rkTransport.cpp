@@ -334,7 +334,7 @@ namespace ode
 
             const double* varPtr []={&(*(m_uiPrevU.begin()))};
             double wTol=m_uiWaveletTol;
-            std::function<double(double,double,double)> waveletTolFunc =[wTol](double x,double y, double z){ return wTol;};
+            std::function<double(double,double,double,double* hx)> waveletTolFunc =[wTol](double x,double y, double z,double *hx){ return wTol;};
 
             for(double t=m_uiCurrentTime;t<m_uiTimeEnd;t=t+m_uiT_h)
             {

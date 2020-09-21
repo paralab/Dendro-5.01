@@ -74,17 +74,7 @@ RefElement::RefElement(unsigned int dim, unsigned int order)
 
     ipT_1D_0.resize(m_uiNrp*m_uiNrp);
     ipT_1D_1.resize(m_uiNrp*m_uiNrp);
-    Fr.resize(m_uiNrp*m_uiNrp);
-
-    //TODO Later change this to proper computation. 
-    // Only coded for 4th order element  IGT. 
-    gridT.resize(6,0);
-    for(unsigned int i=0; i< 6; i++ )
-     gridT[i] = IP_1D_FD_Order_5[i];
-
-    const unsigned int p2c_sz=25*25*25;
-    out_p2c.resize(p2c_sz,0);
-
+    
 
     #ifdef WITH_BLAS_LAPACK
 
@@ -236,9 +226,6 @@ RefElement::RefElement(unsigned int dim, unsigned int order)
         printArray_2D(&(*(quadT_1D.begin())),m_uiNrp,m_uiNrp);*/
         //std::cout<<" wg: ";printArray_1D((&(*(w.begin()))),m_uiNrp);
 
-        for(unsigned int i=0;i<m_uiNrp;i++)
-            Fr[i * m_uiNrp  + i ] = 1.0;
-        //computeFilterOp(2,1);
         //printArray_2D(&(*(Fr.begin())),m_uiNrp,m_uiNrp);
     
     #else
@@ -380,48 +367,6 @@ void RefElement::generateHeaderFile(char * fName)
 
 }
 
-
-void RefElement::computeFilterOp(unsigned int nc,unsigned int s)
-{
-    for(unsigned int i=0;i<m_uiNrp;i++)
-        Fr[i * m_uiNrp  + i ] = 1.0;
-    
-    const double alpha = -log(__DBL_EPSILON__);
-    
-    for(unsigned int i=nc;i<m_uiNrp;i++)
-    {
-      Fr[i * m_uiNrp  + i ] = exp(-alpha*(i-nc)/(pow((m_uiNrp-nc),2*s)));
-    }
-
-    //printArray_2D(&(*(Fr.begin())),m_uiNrp,m_uiNrp);
-
-    std::vector<double> invVr;
-    invVr.resize(m_uiNrp*m_uiNrp);
-
-    std::memcpy(&(*(invVr.begin())),&(*(Vr.begin())),sizeof(double)*m_uiNrp*m_uiNrp);
-
-    #ifdef WITH_BLAS_LAPACK
-        lapack::inverse(&(*(invVr.begin())),m_uiNrp);
-    #else
-        std::cout<<"Enable blas lapck to use elemental high frequency filtering. "<<std::endl;
-        exit(0);        
-    #endif
-
-    for(unsigned int i=0;i<m_uiNrp;i++)
-    {
-        for(unsigned int j=0;j<m_uiNrp;j++)
-        {
-            double sum=0;
-            for(unsigned int k=0;k<m_uiNrp;k++)
-            {
-                sum+=(Vr[i * m_uiNrp + k ]  * Fr[k*m_uiNrp + k] * invVr[k*m_uiNrp + j]); 
-            }
-            Fr[i*m_uiNrp + j] = sum;
-        }
-    }
-
-
-}
 
 
 void RefElement::I3D_Children2ParentInjection(const double * in, double* out) const

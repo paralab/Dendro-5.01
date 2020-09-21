@@ -15,7 +15,7 @@
 namespace ot 
 {
 
-    Mesh* createMesh(const ot::TreeNode* oct, unsigned int num,unsigned int eleOrder, MPI_Comm comm , unsigned int verbose,  ot::SM_TYPE sm_type, unsigned int grain_sz, double ld_tol, unsigned int sf_k, unsigned int (*getWeight)(const ot::TreeNode *),unsigned int coarsestBlkLev)
+    Mesh* createMesh(const ot::TreeNode* oct, unsigned int num,unsigned int eleOrder, MPI_Comm comm , unsigned int verbose,  ot::SM_TYPE sm_type, unsigned int grain_sz, double ld_tol, unsigned int sf_k, unsigned int (*getWeight)(const ot::TreeNode *))
     {
         
 
@@ -126,7 +126,7 @@ namespace ot
         if(!rank) std::cout<<GRN<<" balanced # octants : "<<globalSz<<NRM<<std::endl;
 
 
-        ot::Mesh * mesh=new ot::Mesh(balOct,1,eleOrder,comm,true,sm_type,grain_sz,ld_tol,sf_k,getWeight,coarsestBlkLev);
+        ot::Mesh * mesh=new ot::Mesh(balOct,1,eleOrder,comm,true,sm_type,grain_sz,ld_tol,sf_k,getWeight);
         localSz=mesh->getNumLocalMeshNodes();
         par::Mpi_Reduce(&localSz,&globalSz,1,MPI_SUM,0,comm);
         if(!rank) std::cout<<GRN<<" # of CG nodes (vertices) : "<<globalSz<<NRM<<std::endl;
@@ -134,14 +134,11 @@ namespace ot
         return mesh;
     }
 
-
     Mesh* createWAMRMesh(std::function<void(double,double,double,double*)> func, double wtol, unsigned int numVars,unsigned int eleOrder, MPI_Comm comm, unsigned int verbose,ot::SM_TYPE sm_type , unsigned int * refIds, unsigned int sz, unsigned int grain_sz , double ld_tol , unsigned int sf_k )
     {
         std::vector<TreeNode> tmpNodes;
         std::vector<unsigned int> refVars;
         refVars.resize(numVars);
-
-        
 
         double t_stat;
         double t_stat_g[3];
@@ -159,6 +156,142 @@ namespace ot
         
     }
 
+    void meshWAMRConvergence(ot::Mesh*& pMesh, std::function<void(double,double,double,double*)> func,  double wtol, unsigned int numVars, unsigned int eleOrder,unsigned int * refIds, unsigned int sz, unsigned int maxiter)
+    {
+        
+        MPI_Comm gcomm = pMesh->getMPIGlobalCommunicator();
+        int rank, npes;
+
+        MPI_Comm_size(gcomm,&npes);
+        MPI_Comm_rank(gcomm,&rank);
+
+        std::vector<unsigned int> refVars;
+        unsigned int * rid=NULL;
+        unsigned int   nr =0;
+
+        if(refIds==NULL || sz==0)
+        {
+            refVars.resize(numVars);
+        
+            for(unsigned int i=0; i< refVars.size(); i++)
+                refVars[i] = i;
+
+            rid = refVars.data();
+            nr = refVars.size();
+
+        }else
+        {
+            rid = refIds;
+            nr  = sz;
+        }
+
+        bool isRefine1=false;
+        unsigned int iter=0;
+        
+        std::function<double(double,double,double)> waveletTolFunc =[wtol](double x,double y, double z) {
+            return wtol;
+        };
+        
+        do
+        {
+            DVec vecCG;
+            DVec vecUz;
+            vecCG.VecCreate(pMesh,true,false,false,numVars);
+            vecUz.VecCreate(pMesh,false,true,false,numVars);
+            DendroScalar* zipIn[numVars];
+            DendroScalar* unzipIn[numVars];
+
+            vecCG.Get2DVec(zipIn);
+            vecUz.Get2DVec(unzipIn);
+
+            if(pMesh->isActive())
+            {
+                
+                unsigned int nodeLookUp_CG;
+                unsigned int nodeLookUp_DG;
+                double x,y,z,len;
+                const ot::TreeNode * pNodes=&(*(pMesh->getAllElements().begin()));
+                unsigned int ownerID,ii_x,jj_y,kk_z;
+                unsigned int eleOrder=pMesh->getElementOrder();
+                const unsigned int * e2n_cg = &(*(pMesh->getE2NMapping().begin()));
+                const unsigned int * e2n_dg = &(*(pMesh->getE2NMapping_DG().begin()));
+                const unsigned int nPe = pMesh->getNumNodesPerElement();
+                const unsigned int nodeLocalBegin = pMesh->getNodeLocalBegin();
+                const unsigned int nodeLocalEnd   = pMesh->getNodeLocalEnd();
+
+
+                double var[numVars];
+
+                for(unsigned int elem=pMesh->getElementLocalBegin();elem<pMesh->getElementLocalEnd();elem++)
+                {
+
+                    for(unsigned int k=0;k<(eleOrder+1);k++)
+                        for(unsigned int j=0;j<(eleOrder+1);j++ )
+                            for(unsigned int i=0;i<(eleOrder+1);i++)
+                            {
+                                nodeLookUp_CG=e2n_cg[elem*nPe+k*(eleOrder+1)*(eleOrder+1)+j*(eleOrder+1)+i];
+                                if(nodeLookUp_CG>=nodeLocalBegin && nodeLookUp_CG<nodeLocalEnd)
+                                {
+                                    nodeLookUp_DG=e2n_dg[elem*nPe+k*(eleOrder+1)*(eleOrder+1)+j*(eleOrder+1)+i];
+                                    pMesh->dg2eijk(nodeLookUp_DG,ownerID,ii_x,jj_y,kk_z);
+                                    len= (double) (1u<<(m_uiMaxDepth-pNodes[ownerID].getLevel()));
+                                    x=pNodes[ownerID].getX()+ ii_x*(len/(double)(eleOrder));
+                                    y=pNodes[ownerID].getY()+ jj_y*(len/(double)(eleOrder));
+                                    z=pNodes[ownerID].getZ()+ kk_z*(len/(double)(eleOrder));
+                                    
+                                    func((double)x,(double)y,(double)z,var);
+                                    for(unsigned int v=0;v< numVars ; v++)
+                                        zipIn[v][nodeLookUp_CG]=var[v];
+
+                                }
+                            }
+                    
+                }
+
+
+                pMesh->readFromGhostBegin(vecCG.GetVecArray(),numVars);
+                pMesh->readFromGhostEnd(vecCG.GetVecArray(),numVars);
+
+                pMesh->unzip(vecCG.GetVecArray(), vecUz.GetVecArray(), numVars);
+
+            }
+
+            
+            std::vector<unsigned int> refine_flags;
+            refine_flags.resize(pMesh->getNumLocalMeshElements());
+            isRefine1 = wavelet::compute_wavelet_remesh_flags(pMesh, refine_flags, (const DendroScalar**) unzipIn , rid, nr ,waveletTolFunc,0.1,true);
+
+            if(isRefine1)
+            {
+                
+                
+                pMesh->setMeshRefinementFlags(refine_flags);
+                ot::Mesh* newMesh = pMesh->ReMesh();
+                
+                DendroIntL localSz = pMesh->getNumLocalMeshElements();
+                DendroIntL gSz_new, gSz_old;
+
+                par::Mpi_Reduce(&localSz,&gSz_old,1,MPI_SUM,0,gcomm);
+                localSz = newMesh->getNumLocalMeshElements();
+                par::Mpi_Reduce(&localSz,&gSz_new,1,MPI_SUM,0,gcomm);
+                if(!rank)
+                    std::cout<<"[WAMR Grid Convergence]  old mesh size: "<<gSz_old<<" new mesh size: "<<gSz_new<<std::endl;
+
+                std::swap(newMesh,pMesh);
+                delete newMesh;
+
+                iter++; 
+            }
+
+            vecCG.VecDestroy();
+            vecUz.VecDestroy();
+
+        }while(isRefine1 && iter < maxiter);
+        
+        return ;
+
+    }
+
     void computeBlockUnzipGhostNodes(const ot::Mesh* pMesh, unsigned int blk, std::vector<unsigned int>& gid)
     {
 
@@ -172,7 +305,7 @@ namespace ot
             const unsigned int* e2n_cg = &(*(pMesh->getE2NMapping().begin()));
             const unsigned int* e2e = &(*(pMesh->getE2EMapping().begin()));
 
-            const std::vector<ot::Block> blkList = pMesh->getLocalBlockList();
+            const std::vector<ot::Block>& blkList = pMesh->getLocalBlockList();
             const unsigned int nPe = pMesh->getNumNodesPerElement();
 
             unsigned int lookup,node_cg;
@@ -610,281 +743,8 @@ namespace ot
 
     void computeBlockUnzipDepElements(const ot::Mesh* pMesh, unsigned int blk, std::vector<unsigned int>& eid)
     {
-        
-        if(pMesh->isActive())
-        {
-            const ot::TreeNode * pNodes= &(*(pMesh->getAllElements().begin()));
-
-            const unsigned int nodeLocalBegin = pMesh->getNodeLocalBegin();
-            const unsigned int nodeLocalEnd = pMesh->getNodeLocalEnd();
-
-            const unsigned int* e2n_cg = &(*(pMesh->getE2NMapping().begin()));
-            const unsigned int* e2e = &(*(pMesh->getE2EMapping().begin()));
-
-            const std::vector<ot::Block> blkList = pMesh->getLocalBlockList();
-            const unsigned int nPe = pMesh->getNumNodesPerElement();
-
-            unsigned int lookup,node_cg;
-            unsigned int child[NUM_CHILDREN];
-
-            if(blk> blkList.size()) 
-                return;
-
-            const unsigned int pWidth = blkList[blk].get1DPadWidth();
-            const ot::TreeNode blkNode = blkList[blk].getBlockNode();
-            const unsigned int regLevel = blkList[blk].getRegularGridLev();
-            
-            eid.clear();
-            unsigned int fchild[4];
-
-            for(unsigned int elem = blkList[blk].getLocalElementBegin(); elem < blkList[blk].getLocalElementEnd(); elem++)
-            {
-                const unsigned int ei=(pNodes[elem].getX()-blkNode.getX())>>(m_uiMaxDepth-regLevel);
-                const unsigned int ej=(pNodes[elem].getY()-blkNode.getY())>>(m_uiMaxDepth-regLevel);
-                const unsigned int ek=(pNodes[elem].getZ()-blkNode.getZ())>>(m_uiMaxDepth-regLevel);
-
-                const unsigned int emin = 0;
-                const unsigned int emax = (1u<<(regLevel-blkNode.getLevel()))-1;
-
-                if(pWidth > 0)
-                {   
-                    // we need to look for the boundary neigbours only when the padding width is > 0 . 
-                    if(ei==emin)
-                    { 
-                        // OCT_DIR_LEFT
-                        const unsigned int dir = OCT_DIR_LEFT;
-                        lookup = e2e[elem*NUM_FACES + dir];
-                        if(lookup!=LOOK_UP_TABLE_DEFAULT)
-                        {
-                            if(pNodes[lookup].getLevel() > regLevel )
-                            {  
-                                
-                                pMesh->getFinerFaceNeighbors(elem, dir, fchild);
-                                eid.push_back(fchild[0]);
-                                eid.push_back(fchild[1]);
-                                eid.push_back(fchild[2]);
-                                eid.push_back(fchild[3]);
-
-
-                            }else
-                            {   
-                                // neighbour octant is same lev or coarser
-                                assert(pNodes[lookup].getLevel() <= regLevel );
-                                eid.push_back(lookup);
-
-                            }
-
-                        }
-                    }
-
-                    if(ei==emax)
-                    { 
-                        // OCT_DIR_RIGHT
-                        const unsigned int dir = OCT_DIR_RIGHT;
-                        lookup = e2e[elem*NUM_FACES + dir];
-                        
-                        if(lookup!=LOOK_UP_TABLE_DEFAULT)
-                        {
-                            if(pNodes[lookup].getLevel() > regLevel )
-                            {  
-                                
-                                pMesh->getFinerFaceNeighbors(elem, dir, fchild);
-                                eid.push_back(fchild[0]);
-                                eid.push_back(fchild[1]);
-                                eid.push_back(fchild[2]);
-                                eid.push_back(fchild[3]);
-
-
-                            }else
-                            {   
-                                // neighbour octant is same lev or coarser
-                                assert(pNodes[lookup].getLevel() <= regLevel );
-                                eid.push_back(lookup);
-
-                            }
-
-                        }
-
-                    }
-
-                    if(ej==emin)
-                    {   
-                        // OCT_DIR_DOWN
-                        const unsigned int dir = OCT_DIR_DOWN;
-                        lookup = e2e[elem*NUM_FACES + dir];
-                        
-                        if(lookup!=LOOK_UP_TABLE_DEFAULT)
-                        {
-                            if(pNodes[lookup].getLevel() > regLevel )
-                            {  
-                                
-                                pMesh->getFinerFaceNeighbors(elem, dir, fchild);
-                                eid.push_back(fchild[0]);
-                                eid.push_back(fchild[1]);
-                                eid.push_back(fchild[2]);
-                                eid.push_back(fchild[3]);
-
-
-                            }else
-                            {   
-                                // neighbour octant is same lev or coarser
-                                assert(pNodes[lookup].getLevel() <= regLevel );
-                                eid.push_back(lookup);
-
-                            }
-
-                        }
-
-                    }
-
-                    if(ej==emax)
-                    {   
-                        
-                        // OCT_DIR_UP
-                        const unsigned int dir = OCT_DIR_UP;
-                        lookup = e2e[elem*NUM_FACES + dir];
-                        if(lookup!=LOOK_UP_TABLE_DEFAULT)
-                        {
-                            if(pNodes[lookup].getLevel() > regLevel )
-                            {  
-                                
-                                pMesh->getFinerFaceNeighbors(elem, dir, fchild);
-                                eid.push_back(fchild[0]);
-                                eid.push_back(fchild[1]);
-                                eid.push_back(fchild[2]);
-                                eid.push_back(fchild[3]);
-
-
-                            }else
-                            {   
-                                // neighbour octant is same lev or coarser
-                                assert(pNodes[lookup].getLevel() <= regLevel );
-                                eid.push_back(lookup);
-
-                            }
-
-                        }
-
-                    }
-
-
-                    if(ek==emin)
-                    {   
-                        // OCT_DIR_BACK
-                        const unsigned int dir = OCT_DIR_BACK;
-                        lookup = e2e[elem*NUM_FACES + dir];
-                        if(lookup!=LOOK_UP_TABLE_DEFAULT)
-                        {
-                            if(pNodes[lookup].getLevel() > regLevel )
-                            {  
-                                
-                                pMesh->getFinerFaceNeighbors(elem, dir, fchild);
-                                eid.push_back(fchild[0]);
-                                eid.push_back(fchild[1]);
-                                eid.push_back(fchild[2]);
-                                eid.push_back(fchild[3]);
-
-
-                            }else
-                            {   
-                                // neighbour octant is same lev or coarser
-                                assert(pNodes[lookup].getLevel() <= regLevel );
-                                eid.push_back(lookup);
-
-                            }
-
-                        }
-
-                    }
-
-                    if(ek==emax)
-                    {
-                        // OCT_DIR_FRONT
-                        const unsigned int dir = OCT_DIR_FRONT;
-                        lookup = e2e[elem*NUM_FACES + dir];
-                        if(lookup!=LOOK_UP_TABLE_DEFAULT)
-                        {
-                            if(pNodes[lookup].getLevel() > regLevel )
-                            {  
-                                
-                                pMesh->getFinerFaceNeighbors(elem, dir, fchild);
-                                eid.push_back(fchild[0]);
-                                eid.push_back(fchild[1]);
-                                eid.push_back(fchild[2]);
-                                eid.push_back(fchild[3]);
-
-
-                            }else
-                            {   
-                                // neighbour octant is same lev or coarser
-                                assert(pNodes[lookup].getLevel() <= regLevel );
-                                eid.push_back(lookup);
-
-                            }
-
-                        }   
-                        
-                    }
-                
-                }
-
-            }
-
-            
-            // now look for edge neighbors and vertex neighbors of the block, this is only needed when the padding width is >0
-            if(pWidth>0)
-            {
-                const std::vector<unsigned int> blk2Edge_map = blkList[blk].getBlk2DiagMap_vec();
-                const std::vector<unsigned int> blk2Vert_map = blkList[blk].getBlk2VertexMap_vec();
-                const unsigned int blk_ele_1D = blkList[blk].getElemSz1D();
-
-                for(unsigned int edir =0; edir < NUM_EDGES; edir++)
-                {
-
-                    for(unsigned int k=0; k< blk_ele_1D; k++)
-                    {
-
-                        if(blk2Edge_map[edir*(2*blk_ele_1D) + 2*k] != LOOK_UP_TABLE_DEFAULT)
-                        {
-                            if(blk2Edge_map[edir*(2*blk_ele_1D) + 2*k+0] == blk2Edge_map[edir*(2*blk_ele_1D) + 2*k+1])
-                            {
-                                lookup = blk2Edge_map[edir*(2*blk_ele_1D) + 2*k+0];
-                                eid.push_back(lookup);
-
-                                
-                            }else
-                            {
-                                lookup = blk2Edge_map[edir*(2*blk_ele_1D) + 2*k+0];
-                                eid.push_back(lookup);
-                                
-                                lookup = blk2Edge_map[edir*(2*blk_ele_1D) + 2*k+1];
-                                eid.push_back(lookup);
-
-                            }
-                        }
-                        
-                    }
-
-                }
-
-                
-                for(unsigned int k=0; k < blk2Vert_map.size(); k++)
-                {
-                    lookup = blk2Vert_map[k];
-
-                    if(lookup!=LOOK_UP_TABLE_DEFAULT)
-                        eid.push_back(lookup);
-
-                }
-
-            
-            }
-
-            std::sort(eid.begin(),eid.end());
-            eid.erase(std::unique(eid.begin(),eid.end()),eid.end());
-        
-        }
-
+        pMesh->blkUnzipElementIDs(blk,eid);        
+        return;
     }
 
     unsigned int computeTLevel(const ot::Mesh* const pMesh, unsigned int blk)
@@ -892,7 +752,7 @@ namespace ot
         if(pMesh->isActive())
         {
             
-            std::vector<ot::Block> blkList = pMesh->getLocalBlockList();
+            const std::vector<ot::Block>& blkList = pMesh->getLocalBlockList();
             const unsigned int * const e2e = pMesh->getE2EMapping().data();
             const ot::TreeNode* const pNodes = pMesh->getAllElements().data();
             const ot::Block block = blkList[blk];
@@ -974,7 +834,6 @@ namespace ot
 
 
     }
-
 
     Mesh* createSplitMesh(unsigned int eleOrder, unsigned int lmin, unsigned int lmax,MPI_Comm comm)
     {

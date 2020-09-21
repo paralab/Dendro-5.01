@@ -644,8 +644,8 @@ namespace nlsm
             refineVarIds[vIndex]=NLSM_REFINE_VARIABLE_INDICES[vIndex];
 
         double wTol=NLSM_WAVELET_TOL;
-        std::function<double(double,double,double)> waveletTolFunc =[wTol](double x,double y, double z) {
-            return computeWTol(x,y,z,wTol);
+        std::function<double(double,double,double,double*)> waveletTolFunc =[wTol](double x,double y, double z,double*hx) {
+            return computeWTol(x,y,z,hx);
         };
 
 
@@ -760,7 +760,7 @@ namespace nlsm
                 m_uiMesh->performGhostExchange(diffVec);
                 m_uiMesh->performGhostExchange(chiAnalytical);
 
-                double l_rs = rsNormLp<double>(m_uiMesh,chiAnalytical,evolVar[nlsm::VAR::U_CHI],2);
+                double l_rs = rsNormLp<double>(m_uiMesh,diffVec,2);
                 double l_min=vecMin(diffVec+m_uiMesh->getNodeLocalBegin(),(m_uiMesh->getNumLocalMeshNodes()),m_uiMesh->getMPICommunicator());
                 double l_max=vecMax(diffVec+m_uiMesh->getNodeLocalBegin(),(m_uiMesh->getNumLocalMeshNodes()),m_uiMesh->getMPICommunicator());
                 double l2_norm=normL2(diffVec+m_uiMesh->getNodeLocalBegin(),(m_uiMesh->getNumLocalMeshNodes()),m_uiMesh->getMPICommunicator());
@@ -796,6 +796,18 @@ namespace nlsm
         }
 
         return 0; 
+    }
+
+    unsigned int NLSMCtx::getBlkTimestepFac(unsigned int blev, unsigned int lmin, unsigned int lmax)
+    {
+        const unsigned int ldiff=0;
+        if((lmax-blev) <=ldiff)
+            return 1;
+        else
+        {
+            return 1u<<(lmax-blev-ldiff);
+        }
+
     }
 
 

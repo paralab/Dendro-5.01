@@ -223,7 +223,7 @@ namespace ode
                 refineVarIds[vIndex]=nlsm::NLSM_REFINE_VARIABLE_INDICES[vIndex];
 
             double wTol=nlsm::NLSM_WAVELET_TOL;
-            std::function<double(double,double,double)> waveletTolFunc =[wTol](double x,double y, double z){ return nlsm::computeWTol(x,y,z,wTol);};
+            std::function<double(double,double,double,double*)> waveletTolFunc =[wTol](double x,double y, double z,double *hx){ return nlsm::computeWTol(x,y,z,hx);};
             unsigned int iterCount=1;
             do
             {
@@ -629,7 +629,7 @@ namespace ode
                     const unsigned int nodeLocalBegin=m_uiMesh->getNodeLocalBegin();
                     const unsigned int nodeLocalEnd=m_uiMesh->getNodeLocalEnd();
 
-                    const std::vector<ot::Block> blkList=m_uiMesh->getLocalBlockList();
+                    const std::vector<ot::Block>& blkList=m_uiMesh->getLocalBlockList();
 
                     unsigned int offset;
                     double ptmin[3], ptmax[3];
@@ -830,7 +830,9 @@ namespace ode
                 refineVarIds[vIndex]=nlsm::NLSM_REFINE_VARIABLE_INDICES[vIndex];
 
             double wTol=nlsm::NLSM_WAVELET_TOL;
-            std::function<double(double,double,double)> waveletTolFunc =[wTol](double x,double y, double z){ return nlsm::computeWTol(x,y,z,wTol);};
+            std::function<double(double,double,double,double*)> waveletTolFunc =[wTol](double x,double y, double z,double*hx) {
+                return nlsm::computeWTol(x,y,z,hx);
+            };
 
 
             double l_min,l_max;

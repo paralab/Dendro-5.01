@@ -25,7 +25,7 @@ bool ot::test::isBlkFlagsValid(const ot::Mesh* pMesh)
         const unsigned int* e2n_cg = &(*(pMesh->getE2NMapping().begin()));
         const unsigned int* e2e = &(*(pMesh->getE2EMapping().begin()));
 
-        const std::vector<ot::Block> blkList = pMesh->getLocalBlockList();
+        const std::vector<ot::Block>& blkList = pMesh->getLocalBlockList();
         const unsigned int nPe = pMesh->getNumNodesPerElement();
 
         unsigned int lookup,node_cg;

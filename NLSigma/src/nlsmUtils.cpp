@@ -558,7 +558,7 @@ namespace nlsm
 
     }
 
-    double computeWTol(double x,double y,double z,double tolMin)
+    double computeWTol(double x,double y,double z,double* hx)
     {
        return nlsm::NLSM_WAVELET_TOL;
     }
@@ -581,7 +581,7 @@ namespace nlsm
                 pNodes[ele].setFlag(((OCT_NO_CHANGE<<NUM_LEVEL_BITS)|pNodes[ele].getLevel()));
 
 
-            const std::vector<ot::Block> blkList = pMesh->getLocalBlockList();
+            const std::vector<ot::Block>& blkList = pMesh->getLocalBlockList();
             unsigned int sz[3];
             unsigned int ei[3];
             

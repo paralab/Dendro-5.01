@@ -442,7 +442,7 @@ namespace ot
                 }
 
                 // 2. get the element local splitters.
-                const std::vector<ot::TreeNode> splitterElements=mesh->getSplitterElements();
+                const std::vector<ot::TreeNode>& splitterElements=mesh->getSplitterElements();
                 std::vector<ot::Key> splitterKeys;  // contains the splitter key begin.
                 for(unsigned int i=0;i<npesActive;i++)
                 {
@@ -510,8 +510,8 @@ namespace ot
                             coord[0]=domain_coords[m_uiDim * (*ownerList)[w]     ];
                             coord[1]=domain_coords[m_uiDim * (*ownerList)[w] + 1 ];
                             coord[2]=domain_coords[m_uiDim * (*ownerList)[w] + 2 ];
-                            //out[(*ownerList)[w]]=lagrangeInterpElementToCoord(mesh,in,coord, pt_min, pt_max, searchResult,mesh->getElementOrder());
-                            out[(*ownerList)[w]] = linear_lagrange(mesh, in, coord, pt_min, pt_max, searchResult);
+                            out[(*ownerList)[w]]=lagrangeInterpElementToCoord(mesh,in,coord, pt_min, pt_max, searchResult,mesh->getElementOrder());
+                            //out[(*ownerList)[w]] = linear_lagrange(mesh, in, coord, pt_min, pt_max, searchResult);
                             validIndices.push_back((*ownerList)[w]);
                         }
 

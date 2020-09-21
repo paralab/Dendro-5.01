@@ -56,6 +56,7 @@ extern double t_sm_g[3];
 extern double t_blk_g[3];
 
 #include "dendroProfileParams.h"
+#include "waveletRefEl.h"
 
 /**
  * How the oct flags are used in the mesh generation part.
@@ -155,6 +156,14 @@ namespace ot
      * CELLVEC_CPY : cell vec copy without any interpolation. 
      */
     enum INTERGRID_TRANSFER_MODE{INJECTION=0, P2CT, CELLVEC_CPY};
+
+    /**
+     * @brief vector types supported by the mesh class. 
+     * CG_NODAL  : Nodal CG vector.   
+     * DG_NODAL  : Nodal DG vector. 
+     * ELEMENTAL : Elemental Vector. 
+     */
+    enum VEC_TYPE{CG_NODAL, DG_NODAL, ELEMENTAL};
 
 
 } // namespace ot
@@ -817,40 +826,7 @@ private:
 
     inline void directionToIJK(unsigned int direction, std::vector<unsigned int> &ii_x, std::vector<unsigned int> &jj_y, std::vector<unsigned int> &kk_z);
 
-    /**
-     * @brief: Specific to GR code. Interpolation function written to interpolate the 3rd points for 4th order element.
-     * @param [in] upWind: advection up wind stencil coefficients
-     * @param [in] element : unzip element ID
-     * @param [in] lookUp: face lookup ID
-     * @param [in] vecLookUp:  allocated vector to lookup Nodal values.
-     * @param [in] cnum: injection element cnum
-     * @param [in] parentInterpIn: parent values.
-     * @param [in] parentInterpOut: vector to perform parent to child interpolation
-     * @param [in] padDir : direction of the padding.
-     * @param [in] padWidth: width of the padding.
-     * @param [in] zippedVec: zipped vector
-     * @param [out] out : child to parent injection filled with the correct value.
-     * */
-    template <typename T>
-    inline void interpUpWind(const double *upWind, const unsigned int element, const unsigned int lookup, T *vecLookUp, const unsigned int cnum, const T *parentInterpIn, T *parentInterpOut, const unsigned int padDir, const unsigned int padWidth, const T *zippedVec, T *out);
-
-    /**
-     * @brief: Specific to GR code. Interpolation function written to interpolate the 3rd points for 4th order element.
-     * @param [in] upWind: advection up wind stencil coefficients
-     * @param [in] element : unzip element ID
-     * @param [in] lookUp: face lookup ID
-     * @param [in] vecLookUp:  allocated vector to lookup Nodal values.
-     * @param [in] cnum: injection element cnum
-     * @param [in] parentInterpIn: parent values.
-     * @param [in] parentInterpOut: vector to perform parent to child interpolation
-     * @param [in] padDir : direction of the padding.
-     * @param [in] padWidth: width of the padding.
-     * @param [in] zippedVec: zipped vector
-     * @param [out] out : child to parent injection filled with the correct value.
-     * */
-    template <typename T>
-    inline void interpDownWind(const double *downWind, const unsigned int element, const unsigned int lookup, T *vecLookUp, const unsigned int cnum, const T *parentInterpIn, T *parentInterpOut, const unsigned int padDir, const unsigned int padWidth, const T *zippedVec, T *out);
-
+    
     /**@brief: Performs block padding along the diagonal direction.
      * @param[in] blk: block to perform diagonal direction padding.
      * @param[in] zippedVec: zipped vector
@@ -1081,7 +1057,7 @@ public:
      * @param[in] ld_tol: load imbalance tolerance for comm expansion and shrinking
      * @param[in] sf_k: splitter fix _k value. (Needed by SFC_partitioinng for large p>=10,000)
      * */
-    Mesh(std::vector<ot::TreeNode> &in, unsigned int k_s, unsigned int pOrder, MPI_Comm comm, bool pBlockSetup = true, SM_TYPE smType = SM_TYPE::FDM, unsigned int grainSz = DENDRO_DEFAULT_GRAIN_SZ, double ld_tol = DENDRO_DEFAULT_LB_TOL, unsigned int sf_k = DENDRO_DEFAULT_SF_K, unsigned int (*getWeight)(const ot::TreeNode *)=NULL , unsigned int coarsetBLkLev = 0);
+    Mesh(std::vector<ot::TreeNode> &in, unsigned int k_s, unsigned int pOrder, MPI_Comm comm, bool pBlockSetup = true, SM_TYPE smType = SM_TYPE::FDM, unsigned int grainSz = DENDRO_DEFAULT_GRAIN_SZ, double ld_tol = DENDRO_DEFAULT_LB_TOL, unsigned int sf_k = DENDRO_DEFAULT_SF_K, unsigned int (*getWeight)(const ot::TreeNode *)=NULL, unsigned int* blk_tags=NULL, unsigned int blk_tags_sz=0);
 
     /**@brief destructor for mesh (releases the allocated variables in the class. )*/
     ~Mesh();
@@ -1090,7 +1066,7 @@ public:
      * @brief Perform the blocks initialization so that we can apply the stencil for the grid as a sequnce of finite number of regular grids.
      * note that this should be called after performing all E2N and E2N mapping.
      * */
-    void performBlocksSetup();
+    void performBlocksSetup(unsigned int cLev, unsigned int* tag, unsigned int tsz);
 
     /**
      * @brief computes the face to element map.
@@ -1217,10 +1193,10 @@ public:
     inline const RefElement *getReferenceElement() const { return &m_uiRefEl; }
 
     /**@brief returns the send proc list size*/
-    inline const unsigned int getSendProcListSize() const { return m_uiSendProcList.size(); }
+    inline unsigned int getSendProcListSize() const { return m_uiSendProcList.size(); }
 
     /**@brief returns the recv proc list size*/
-    inline const unsigned int getRecvProcListSize() const { return m_uiRecvProcList.size(); }
+    inline unsigned int getRecvProcListSize() const { return m_uiRecvProcList.size(); }
 
     /**@brief returns the nodal send counts*/
     inline const std::vector<unsigned int> &getNodalSendCounts() const { return m_uiSendNodeCount; }
@@ -1277,7 +1253,7 @@ public:
     inline Point getDomainMinPt() const {return m_uiDMinPt;}
 
     /**@brief: get the domain max point. */
-    inline Point getDoaminMaxPt() const {return m_uiDMaxPt;}
+    inline Point getDomainMaxPt() const {return m_uiDMaxPt;}
 
     /** @brief: Decompose the DG index to element id and it's i,j,k values.*/
     inline void dg2eijk(unsigned int dg_index, unsigned int &e, unsigned int &i, unsigned int &j, unsigned int &k) const
@@ -1313,6 +1289,10 @@ public:
 
     /**@brief waiting for all the mesh instances both active. This should not be called if not needed. this is a BARRIER. */
     inline void waitActive() const {MPI_Barrier(m_uiCommActive);}
+
+    /**@brief: Destroy an allocated vector using the createVectorXX */
+    template<typename T>
+    inline void destroyVector(T*& vec) const { delete [] vec; vec=NULL; }; 
 
     /**@brief set refinement flags for the octree.
      * This is non const function
@@ -1614,7 +1594,7 @@ public:
            * @param[out]: vector allocated the memory for unzipped version.
          * */
     template <typename T>
-    T *createUnZippedVector() const;
+    T *createUnZippedVector(unsigned int dof=1) const;
 
     /**@brief allocate memory for variable array based on the adaptive mesh.
           * @param[in] uvec: allocate memory for uvec (unzipped version)
@@ -1628,7 +1608,7 @@ public:
           * @param[in] initValue: initialize the vector to the given value.
           * */
     template <typename T>
-    T *createUnZippedVector(const T initValue) const;
+    T *createUnZippedVector(const T initValue,unsigned int dof=1) const;
 
 
     /**
@@ -1727,6 +1707,28 @@ public:
      */
     template<typename T>
     void unzip(const T* in, T* out, const unsigned int *blkIDs, unsigned int numblks,unsigned int dof=1);
+
+
+    /**
+     * @brief performs unzip operation for a given block id. 
+     * 
+     * @tparam T type of the vector. 
+     * @param in : DG vector
+     * @param out : unzipped vector. 
+     * @param blk :pointer to list of block ids, for the unzip. 
+     * @param numblks: number of block ids specified. 
+     */
+    template<typename T>
+    void unzipDG(const T* in, T* out, const unsigned int *blkIDs, unsigned int numblks,unsigned int dof=1);
+
+    /**
+     * @brief Creates the decomposition of adaptive octree variables into blocklist variables that we computed.
+     * @param [in] in : adaptive representation of the variable array. (created by createVec function)
+     * @param [out] out: decomposed representation of the adaptive array.
+     * @note this routine assumes that for both arrays memory has been allocated. Routine is responsible only to fill up the unzipped entries.
+     * */
+    template <typename T>
+    void unzipDG(const T *in, T *out, unsigned int dof=1);
     
 
     /**@author Milinda Fernando
@@ -1932,7 +1934,25 @@ public:
     * */
 
     template <typename T>
-    bool isReMeshUnzip(const T **unzippedVec, const unsigned int *varIds, const unsigned int numVars, std::function<double(double, double, double)> wavelet_tol, double amr_coarse_fac = DENDRO_AMR_COARSEN_FAC, double coarsen_hx = DENDRO_REMESH_UNZIP_SCALE_FAC);
+    bool isReMeshUnzip(const T **unzippedVec, const unsigned int *varIds, const unsigned int numVars, std::function<double(double, double, double,double*)> wavelet_tol, double amr_coarse_fac = DENDRO_AMR_COARSEN_FAC, double coarsen_hx = DENDRO_REMESH_UNZIP_SCALE_FAC);
+
+    /**
+     * @brief 
+     * 
+     * @tparam T 
+     * @param blkID 
+     * @param unzippedVec 
+     * @param varIds 
+     * @param numVars 
+     * @param wavelet_tol 
+     * @param amr_coarse_fac 
+     * @param coarsen_hx 
+     * @return true 
+     * @return false 
+     */
+    template <typename T>
+    bool isReMeshBlk(unsigned int blkID, const T **unzippedVec, const unsigned int *varIds, const unsigned int numVars, std::function<double(double, double, double)> wavelet_tol, double amr_coarse_fac = DENDRO_AMR_COARSEN_FAC, double coarsen_hx = DENDRO_REMESH_UNZIP_SCALE_FAC);
+
 
     /**
      * @brief: Remesh the mesh with the new computed elements.
@@ -1943,7 +1963,7 @@ public:
      * @param[in] sfK: spliiter fix parameter (need to specify larger value when run in super large scale)
      * @param[in] getWeight: function pointer which returns a uint weight values for an given octant
      * */
-    ot::Mesh *ReMesh(unsigned int grainSz = DENDRO_DEFAULT_GRAIN_SZ, double ld_tol = DENDRO_DEFAULT_LB_TOL, unsigned int sfK = DENDRO_DEFAULT_SF_K,unsigned int (*getWeight)(const ot::TreeNode *)=NULL);
+    ot::Mesh *ReMesh(unsigned int grainSz = DENDRO_DEFAULT_GRAIN_SZ, double ld_tol = DENDRO_DEFAULT_LB_TOL, unsigned int sfK = DENDRO_DEFAULT_SF_K,unsigned int (*getWeight)(const ot::TreeNode *)=NULL,unsigned int* blk_tags=NULL,unsigned int blk_tag_sz=0);
 
 
     /**
@@ -2022,17 +2042,6 @@ public:
     template<typename T>
     void interGridTransferCellVec(T* vecIn, T* vecOut, const ot::Mesh* pMesh,unsigned int dof=1, INTERGRID_TRANSFER_MODE mode=INTERGRID_TRANSFER_MODE::CELLVEC_CPY);
     
-
-    /**
-     * @brief performs the intergrid transfer operation using the unzip representation. Compared to elemental 
-     * intergrid transfer this uses information from neighbouring elements while the transfer occurs. 
-     * @tparam T : data type of the vectors
-     * @param unzip : unizp representation of the vectors. 
-     * @param vec : zip representation of the transfered vectors. 
-     * @param pMesh : new mesh.
-     */
-    template<typename T>
-    void interGridTransferUnzip(T*& unzip, T*& vec, const ot::Mesh *pMesh);
 
     /**
     *@brief : Returns the nodal values of a given element for a given variable vector.
@@ -2123,9 +2132,41 @@ public:
      * basis error capture crieteria, (look at the RefEl Class, to see how Dendro uses the basis representation)
      
      * @param refine_flags : refinement flags, OCT_SPLIT, OCT_COARSE, OCT_NO_CHANGE
+     * return true if the local partition is chnaged. 
      * 
      */
-    void setMeshRefinementFlags(const std::vector<unsigned int>& refine_flags);
+    bool setMeshRefinementFlags(const std::vector<unsigned int>& refine_flags);
+
+    /**
+     * @brief Perform linear transformation from octree coordinate to domain coordinates
+     * @param oct_pt : Octree point
+     * @param domain_pt : doamin point
+     */
+    void octCoordToDomainCoord(const Point& oct_pt, Point& domain_pt) const ;
+    
+    /**
+     * @brief Perform linear coord. transformation from domain points to octree coords. 
+     * @param domain_pt : domain point. 
+     * @param oct_pt : octree point. 
+     */
+    void domainCoordToOctCoord(const Point& domain_pt, Point& oct_pt) const ;
+
+    /**
+     * @brief computes tree node owner processor
+     * @param pNodes List of pNodes. 
+     * @param n : number of pNodes. 
+     * @param ownerranks Owner rank size allocated (n)
+     */
+    void computeTreeNodeOwnerProc(const ot::TreeNode * pNodes, unsigned int n, int* ownerranks) const;
+
+    /**
+     * @brief computes the element ids of padding elements in all directions for a given block id. 
+     * 
+     * @param blk block local id
+     * @param eid : vector of element ids. 
+     */
+    void blkUnzipElementIDs(unsigned int blk, std::vector<unsigned int>&eid) const ;
+
 
 
 };

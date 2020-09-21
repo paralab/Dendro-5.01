@@ -214,10 +214,10 @@ namespace ts
              * @brief Allocates internal variables for the time stepper. 
              * @return int 
              */
-            virtual int allocate_internal_vars();
+            int allocate_internal_vars();
 
             /**@brief: Deallocate internal variables. */
-            virtual int deallocate_internal_vars();
+            int deallocate_internal_vars();
             
 
         public: 
@@ -301,7 +301,7 @@ namespace ts
             inline TSInfo get_timestep_info() const {return m_uiTimeInfo;} 
 
             /**@brief: perform synchronizations with correct variable allocations for the new mesh: should be called after remeshing.  */
-            virtual int sync_with_mesh();
+            int sync_with_mesh();
             
             /**@brief: advance to next time step*/
             void evolve();
@@ -472,6 +472,11 @@ namespace ts
         double current_t_adv=current_t;
         const double dt = m_uiTimeInfo._m_uiTh;
 
+        m_uiAppCtx->pre_timestep(m_uiEVar);
+
+        const unsigned int DOF = m_uiEVar.GetDof();
+        const unsigned int szPDof = pMesh->getDegOfFreedom();
+
         if(pMesh->isActive())
         {
             
@@ -480,14 +485,13 @@ namespace ts
             const unsigned int nodeLocalBegin=pMesh->getNodeLocalBegin();
             const unsigned int nodeLocalEnd=pMesh->getNodeLocalEnd();
 
-            const std::vector<ot::Block> blkList=pMesh->getLocalBlockList();
+            const std::vector<ot::Block>& blkList=pMesh->getLocalBlockList();
             unsigned int offset;
             double ptmin[3], ptmax[3];
             unsigned int sz[3];
             unsigned int bflag;
             double dx,dy,dz;
             
-            m_uiAppCtx->pre_timestep(m_uiEVar);
             for(int stage=0; stage< m_uiNumStages ; stage++)
             {
                 m_uiEVecTmp[0].VecCopy(m_uiEVar,true);
@@ -495,14 +499,26 @@ namespace ts
                 const T* eptr = m_uiEVar.GetVecArray();
                 T* tmp  = (T*)m_uiEVecTmp[0].GetVecArray();
 
-                
-                for(int p = 0 ; p < stage;  p++ )
+
+                for(unsigned int v=0; v < DOF; v++)
                 {
-                    const T* sptr = m_uiStVec[p].GetVecArray();
-                    for(unsigned int n=0; n < m_uiEVar.GetSize(); n++)
-                        tmp[n]+= (m_uiAij[(stage)*m_uiNumStages + p]*dt*sptr[n]);
-                
+                    for(unsigned int node=pMesh->getNodeLocalBegin(); node < pMesh->getNodeLocalEnd(); node++)
+                    {
+                        for(int p = 0 ; p < stage;  p++ )
+                        {
+                            const T* sptr = m_uiStVec[p].GetVecArray();
+                            tmp[v*szPDof + node ] += (m_uiAij[(stage)*m_uiNumStages + p] * dt * sptr[v*szPDof + node]);
+                        }
+                    }
                 }
+
+                // 01/09/20 Milinda :  no need to update the ghost zones. 
+                // for(int p = 0 ; p < stage;  p++ )
+                // {
+                //     const T* sptr = m_uiStVec[p].GetVecArray();
+                //     for(unsigned int n=0; n < m_uiEVar.GetSize(); n++)
+                //         tmp[n]+= (m_uiAij[(stage)*m_uiNumStages + p]*dt*sptr[n]);
+                // }
                 
                 current_t_adv=current_t+m_uiCi[stage] * dt;
 
@@ -516,10 +532,9 @@ namespace ts
             for(unsigned int k=0; k< m_uiNumStages; k++)
                 m_uiEVar.VecFMA(m_uiAppCtx->get_mesh(), m_uiStVec[k], 1, m_uiBi[k]*dt, true);
             
-            m_uiAppCtx->post_timestep(m_uiEVar);
-            
-
         }
+
+        m_uiAppCtx->post_timestep(m_uiEVar);
 
         m_uiAppCtx->increment_ts_info();
         m_uiTimeInfo = m_uiAppCtx->get_ts_info();

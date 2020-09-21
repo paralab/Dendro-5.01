@@ -266,7 +266,7 @@ namespace io
         * @param [in] varNames: list of variable names
         * @param [in] vars: double ** pointer to the varaibles.
         * */
-        void mesh2vtu(const ot::Mesh *pMesh, const char *fPrefix,unsigned int numFieldData,const char** filedDataNames,const double * filedData,unsigned int numPointdata, const char **pointDataNames, const double **pointData);
+        void mesh2vtu(const ot::Mesh *pMesh, const char *fPrefix,unsigned int numFieldData,const char** filedDataNames,const double * filedData,unsigned int numPointdata, const char **pointDataNames, const double **pointData,bool isDGPData=false);
 
 
         /**
@@ -286,7 +286,7 @@ namespace io
         * @param [in] varNames: list of variable names
         * @param [in] vars: double ** pointer to the varaibles.
         * */
-        void mesh2vtuCoarse(const ot::Mesh *pMesh, const char *fPrefix,unsigned int numFieldData,const char** filedDataNames,const double * filedData,unsigned int numPointdata, const char **pointDataNames, const double **pointData);
+        void mesh2vtuCoarse(const ot::Mesh *pMesh, const char *fPrefix,unsigned int numFieldData,const char** filedDataNames,const double * filedData,unsigned int numPointdata, const char **pointDataNames, const double **pointData,bool isDGPData=false);
 
         /**
         *@breif Writes the given mesh to a binary vtu (in xml format) file (Note that this will write only the coarse octree. ).
@@ -296,7 +296,7 @@ namespace io
         * @param [in] varNames: list of variable names
         * @param [in] vars: double ** pointer to the varaibles.
         * */
-        void mesh2vtuFine(const ot::Mesh *pMesh, const char *fPrefix,unsigned int numFieldData,const char** filedDataNames,const double * filedData,unsigned int numPointdata, const char **pointDataNames, const double **pointData);
+        void mesh2vtuFine(const ot::Mesh *pMesh, const char *fPrefix,unsigned int numFieldData,const char** filedDataNames,const double * filedData,unsigned int numPointdata, const char **pointDataNames, const double **pointData, unsigned int nCellData=0, const char** cellDNames=NULL, const double** cellData=NULL, bool isDGPData=false);
 
 
         /**
@@ -313,7 +313,7 @@ namespace io
          * @param pointDataNames : point data names. 
          * @param pointData : pointer to the point data. 
          */
-        void mesh2vtu_slice(const ot::Mesh *pMesh, unsigned int s_val[], unsigned int s_normal[], const char *fPrefix,unsigned int numFieldData,const char** filedDataNames,const double * filedData,unsigned int numPointdata, const char **pointDataNames, const double **pointData);
+        void mesh2vtu_slice(const ot::Mesh *pMesh, unsigned int s_val[], unsigned int s_normal[], const char *fPrefix,unsigned int numFieldData,const char** filedDataNames,const double * filedData,unsigned int numPointdata, const char **pointDataNames, const double **pointData,bool isDGPData=false);
         
         
         /**

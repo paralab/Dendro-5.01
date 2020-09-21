@@ -27,7 +27,7 @@ namespace ts
         enum CTXPROFILE {IS_REMESH=0, REMESH, GRID_TRASFER, RHS, RHS_BLK, UNZIP, ZIP, CTX_LAST};
     #endif
 
-    template<typename T, typename I>
+    template<typename DerivedCtx, typename T, typename I>
     class Ctx{
 
         #ifdef __PROFILE_CTX__
@@ -199,6 +199,9 @@ namespace ts
             /**@brief: is true indicates that the ETS is synced with the current mesh. */
             bool m_uiIsETSSynced = true;
 
+            /**@brief: weight function to perform advanced weighted partitioning. */
+            unsigned int (*m_getWeight)(const ot::TreeNode *)=NULL;
+
             
         public: 
         
@@ -208,6 +211,9 @@ namespace ts
             /**@brief: default destructor*/
             ~Ctx(){};
             
+            /**@brief: derived class static cast*/            
+            DerivedCtx &asLeaf() { return static_cast<DerivedCtx &>(*this); }
+
             /**@brief: update the mesh data strucutre. */
             void set_mesh(ot::Mesh* pMesh) 
             {
@@ -215,6 +221,22 @@ namespace ts
                 m_uiIsETSSynced =false;
                 return;
             }
+
+            /**@biref: set the weighted partition function.*/
+            void set_wpart_function(unsigned int (*getWeight)(const ot::TreeNode *))
+            {
+                m_getWeight = getWeight;
+            }
+
+            /**@brief: returns true if the m_getWeight function is set*/
+            bool is_wpart_func_set() { 
+                
+                if(m_getWeight==NULL)
+                 return false;
+                else
+                 return true;
+
+            } 
 
             /**@brief: returns the const ot::Mesh. */
             inline ot::Mesh* get_mesh() const {return m_uiMesh; } 
@@ -229,7 +251,9 @@ namespace ts
             inline void set_ets_synced(bool s) {m_uiIsETSSynced = s; }
 
             /**@brief: initial solution*/
-            virtual int initialize() {return 0;};
+            int initialize() {
+                return asLeaf().initialize(); 
+            }
             
             /**@brief: right hand side computation v= F(u,t);
              * @param [in] in : input (u vector) for the evolution variables. 
@@ -237,19 +261,9 @@ namespace ts
              * @param [in] sz: number of in and out vectors (dof)
              * @param [in] time : current time at the evolution. 
             */
-            virtual int rhs(ot::DVector<T,I>* in , ot::DVector<T,I>* out, unsigned int sz , T time) {return 0;};
-
-            /**
-             * @brief block wise RHS. 
-             * 
-             * @param in : input vector (unzip version)
-             * @param out : output vector (unzip version)
-             * @param blkIDs : local block ids where the rhs is computed.  
-             * @param sz : size of the block ids
-             * @param blk_time : block time  corresponding to the block ids. 
-             * @return int 
-             */
-            //virtual int rhs_blkwise(ot::DVector<T,I> in , ot::DVector<T,I> out, const unsigned int* const blkIDs, unsigned int numIds, T*  //blk_time) const {return 0;}
+            int rhs(ot::DVector<T,I>* in , ot::DVector<T,I>* out, unsigned int sz , T time){
+                return asLeaf().rhs(in, out,sz,time);
+            }
 
             /**
              * @brief compute the block for the rhs (used in ENUTS). 
@@ -259,33 +273,49 @@ namespace ts
              * @param blk_time : blk time 
              * @return int 
              */
-            virtual int rhs_blk(const T* in, T* out, unsigned int dof, unsigned int local_blk_id, T  blk_time) {return 0;};
+            int rhs_blk(const T* in, T* out, unsigned int dof, unsigned int local_blk_id, T  blk_time){
+                return asLeaf().rhs_blk(in,out,dof,local_blk_id,blk_time);
+            }
 
             /**@brief: compute constraints. */
-            virtual int compute_constraints() {return 0;}
+            int compute_constraints(){
+                return asLeaf().compute_constraints();
+            }
 
             /**@brief: compute primitive variables. */
-            virtual int compute_primitives() {return 0;}
+            int compute_primitives(){
+                return asLeaf().compute_primitives();
+            }
             
             /**@brief: function execute before each stage
              * @param sIn: stage var in. 
             */
-            virtual int pre_stage(ot::DVector<T,I> sIn)  {return 0;}; 
+            int pre_stage(ot::DVector<T,I> sIn){
+                return asLeaf().pre_stage(sIn);
+            }
 
             /**@brief: function execute after each stage
              * @param sIn: stage var in. 
             */
-            virtual int post_stage(ot::DVector<T,I> sIn)  {return 0;};
+            int post_stage(ot::DVector<T,I> sIn){
+                return asLeaf().post_stage(sIn);
+            }
 
             /**@brief: function execute before each step*/
-            virtual int pre_timestep(ot::DVector<T,I> sIn) {return 0;}; 
+            int pre_timestep(ot::DVector<T,I> sIn){
+                return asLeaf().pre_timestep(sIn);
+            } 
 
             /**@brief: function execute after each step*/
-            virtual int post_timestep(ot::DVector<T,I> sIn) {return 0;};
+            int post_timestep(ot::DVector<T,I> sIn){
+                return asLeaf().post_timestep(sIn);
+            }
 
             
             /**@brief: function execute after each step*/
-            virtual bool is_remesh() {return false;};
+            bool is_remesh() {
+                return asLeaf().is_remesh();
+            };
 
             /**
              * @brief perform remesh and return the new mesh, (Note: mesh in the Ctx class is not updated to the new mesh.) This just compute the new mesh and returns it. 
@@ -319,30 +349,38 @@ namespace ts
             virtual int grid_transfer(ot::Mesh* newMesh, bool transferEvolution = true, bool transferConstraint = false, bool transferPrimitive = false);
 
             /**@brief: write vtu files and output related stuff. */
-            virtual int write_vtu() {return 0;};
+            int write_vtu() {
+                return asLeaf().write_vtu();
+            }
 
             /**@brief: writes checkpoint*/
-            virtual int write_checkpt() {return 0;};
+            int write_checkpt(){
+                return asLeaf().write_checkpt();
+            }
 
             /**@brief: restore from check point*/
-            virtual int restore_checkpt() {return 0;};
+            int restore_checkpt() {
+                return asLeaf().restore_checkpt();
+            }
 
             /**@brief: should be called for free up the contex memory. */
-            virtual int finalize() {return 0;};
+            int finalize() {
+                return asLeaf().finalize();
+            }
 
             /**@brief: Add variables to the time stepper*/
-            virtual ot::DVector<T,I> create_vec(CTXVType type, bool isGhosted = false, bool isUnzip =false, bool isElemental = false, unsigned int dof=1);
+            ot::DVector<T,I> create_vec(CTXVType type, bool isGhosted = false, bool isUnzip =false, bool isElemental = false, unsigned int dof=1);
 
             /**@brief: destroy a vector 
              * @param vec: DVector object 
              * @param type: DVector type. 
             */
-            virtual void destroy_vec(ot::DVector<T,I>& vec, CTXVType type);
+            void destroy_vec(ot::DVector<T,I>& vec, CTXVType type);
 
             /**@brief: destroy vector 
              * @param vec: DVector object
             */
-            virtual void destroy_vec(ot::DVector<T,I>& vec);
+            void destroy_vec(ot::DVector<T,I>& vec);
 
             /**
              * @brief performs unzip operation, 
@@ -351,7 +389,7 @@ namespace ts
              * @param out : output unzip vector. 
              * @param async_k : async communicator. 
              */
-            virtual void unzip(ot::DVector<T,I>& in , ot::DVector<T,I>& out, unsigned int async_k = 1);
+            void unzip(ot::DVector<T,I>& in , ot::DVector<T,I>& out, unsigned int async_k = 1);
 
             /**
              * @brief performs zip operation
@@ -359,34 +397,71 @@ namespace ts
              * @param in : unzip vector
              * @param out : zip vector. 
              */
-            virtual void zip(ot::DVector<T,I>& in , ot::DVector<T,I>& out, unsigned int async_k = 1);
+            void zip(ot::DVector<T,I>& in , ot::DVector<T,I>& out, unsigned int async_k = 1);
 
             /**@brief: pack and returns the evolution variables to one DVector*/
-            virtual ot::DVector<T,I> get_evolution_vars() { ot::DVector<T,I> tmp; return tmp; };
+            ot::DVector<T,I> get_evolution_vars() { 
+                return asLeaf().get_evolution_vars();
+            }
 
             /**@brief: pack and returns the constraint variables to one DVector*/
-            virtual ot::DVector<T,I> get_constraint_vars(){ ot::DVector<T,I> tmp; return tmp; };
+            ot::DVector<T,I> get_constraint_vars(){ 
+                return asLeaf().get_constraint_vars();
+            }
 
             /**@brief: pack and returns the primitive variables to one DVector*/
-            virtual ot::DVector<T,I> get_primitive_vars(){ ot::DVector<T,I> tmp; return tmp; };
+            ot::DVector<T,I> get_primitive_vars(){ 
+                return asLeaf().get_primitive_vars();
+            }
 
             /**@brief: updates the time step information. */
-            virtual int increment_ts_info(T tfac=1.0, unsigned int sfac=1);
-
+            int increment_ts_info(T tfac=1.0, unsigned int sfac=1)
+            {
+                m_uiTinfo._m_uiT += (m_uiTinfo._m_uiTh*tfac);
+                m_uiTinfo._m_uiStep += (1*sfac);
+                return 0;
+            }
+            
             /**@brief: updates the application variables from the variable list. */
-            virtual int update_app_vars() {return 0;};
+            int update_app_vars() {
+                return asLeaf().update_app_vars();
+            }
 
             /**@brief: prints any messages to the terminal output. */
-            virtual int terminal_output() {return 0;};
+            int terminal_output() {
+                return asLeaf().terminal_output();
+            }
 
             /**@brief: returns the async communication batch size. */
-            virtual unsigned int get_async_batch_sz() {return 1;};
+            unsigned int get_async_batch_sz() {
+                return asLeaf().get_async_batch_sz();
+            };
+
+            /**@brief: returns the number of variables considered when performing refinement*/
+            unsigned int get_num_refine_vars() {
+                return asLeaf().get_num_refine_vars();
+            }
+
+            /**@brief: return the pointer for containing evolution refinement variable ids*/
+            const unsigned int* get_refine_var_ids(){
+                return asLeaf().get_refine_var_ids();
+            }
+
+            /**@brief return the wavelet tolerance function / value*/
+            std::function<double(double,double,double)> get_wtol_function(){
+                return asLeaf().get_wtol_function();
+            }
+
+            /**@brief: retunrs time step size factor for the  specified block*/
+            static unsigned int getBlkTimestepFac(unsigned int blev, unsigned int lmin, unsigned int lmax){
+                return DerivedCtx::getBlkTimestepFac();
+            }
 
             
     };
 
-    template<typename T, typename I>
-    ot::DVector<T,I> Ctx<T,I>::create_vec(CTXVType type, bool isGhosted, bool isUnzip, bool isElemental, unsigned int dof)
+    template<typename DerivedCtx, typename T, typename I>
+    ot::DVector<T,I> Ctx<DerivedCtx,T,I>::create_vec(CTXVType type, bool isGhosted, bool isUnzip, bool isElemental, unsigned int dof)
     {
         ot::DVector<T,I> tmp;
         tmp.VecCreate(m_uiMesh,isGhosted,isUnzip,isElemental,dof);
@@ -401,10 +476,11 @@ namespace ts
         return tmp;
     }
 
-    template<typename T,typename I>
-    void Ctx<T,I>::destroy_vec(ot::DVector<T,I>& vec, CTXVType type)
+    template<typename DerivedCtx, typename T, typename I>
+    void Ctx<DerivedCtx,T,I>::destroy_vec(ot::DVector<T,I>& vec, CTXVType type)
     {
         int index=-1;
+        bool isdealloc = false;
         if(type == CTXVType::EVOLUTION)
         {
             for(unsigned int i=0; i< m_uiEvolutionVar.size(); i++)
@@ -420,9 +496,11 @@ namespace ts
             {
                 m_uiEvolutionVar[index].VecDestroy();
                 m_uiEvolutionVar.erase( m_uiEvolutionVar.begin() + index);
+                isdealloc=true;
             }
                 
-
+            if(isdealloc)
+                return;
 
             index=-1;
             for(unsigned int i=0; i< m_uiEvolutionUnzipVar.size(); i++)
@@ -438,9 +516,11 @@ namespace ts
             {
                 m_uiEvolutionUnzipVar[index].VecDestroy();
                 m_uiEvolutionUnzipVar.erase(m_uiEvolutionUnzipVar.begin() + index);
+                isdealloc=true;
             }
                 
-            
+            if(isdealloc)
+                return;
 
             
         }
@@ -459,7 +539,11 @@ namespace ts
             {
                 m_uiConstrainedVar[index].VecDestroy();
                 m_uiConstrainedVar.erase(m_uiConstrainedVar.begin()+index);
+                isdealloc=true;
             }
+
+            if(isdealloc)
+                return;
                 
 
             // unzip
@@ -477,8 +561,11 @@ namespace ts
             {
                 m_uiConstraintUnzipVar[index].VecDestroy();
                 m_uiConstraintUnzipVar.erase(m_uiConstraintUnzipVar.begin()+index);
+                isdealloc=true;
             }
-                
+            
+            if(isdealloc)
+                return;
 
 
             
@@ -498,8 +585,11 @@ namespace ts
             {
                 m_uiPrimitiveVar[index].VecDestroy();
                 m_uiPrimitiveVar.erase(m_uiPrimitiveVar.begin()+index);
+                isdealloc=true;
             }
-                
+
+            if(isdealloc)
+             return;
             
 
             index=-1;
@@ -515,19 +605,28 @@ namespace ts
             {
                 m_uiPrimitiveUnzipVar[index].VecDestroy();
                 m_uiPrimitiveUnzipVar.erase(m_uiPrimitiveUnzipVar.begin()+index);
+                isdealloc=true;
             }
-                
 
+            if(isdealloc)
+             return;
+            
 
+        }
+
+        if(!isdealloc)
+        {
+            std::cout<<"[ctx]: memory dealloc faliure "<<__LINE__<<std::endl;
+            return ;
         }
         
     }
 
-
-    template<typename T,typename I>
-    void Ctx<T,I>::destroy_vec(ot::DVector<T,I>& vec)
+    template<typename DerivedCtx, typename T, typename I>
+    void Ctx<DerivedCtx,T,I>::destroy_vec(ot::DVector<T,I>& vec)
     {
         int index=-1;
+        bool isdealloc = false;
         for(unsigned int i=0; i< m_uiEvolutionVar.size(); i++)
         {
             if(m_uiEvolutionVar[i].GetVecArray() == vec.GetVecArray())
@@ -541,8 +640,11 @@ namespace ts
         {
             m_uiEvolutionVar[index].VecDestroy();
             m_uiEvolutionVar.erase(m_uiEvolutionVar.begin() +  index);
+            isdealloc=true;
         }
             
+        if(isdealloc)
+            return;
 
         
         index=-1;
@@ -559,8 +661,11 @@ namespace ts
         {
             m_uiEvolutionUnzipVar[index].VecDestroy();
             m_uiEvolutionUnzipVar.erase(m_uiEvolutionUnzipVar.begin() + index);
+            isdealloc=true;
         }
 
+        if(isdealloc)
+            return;
 
 
         index =-1;
@@ -577,8 +682,11 @@ namespace ts
         {
             m_uiConstrainedVar[index].VecDestroy();
             m_uiConstrainedVar.erase(m_uiConstrainedVar.begin() + index);
+            isdealloc=true;
         }
-            
+        
+        if(isdealloc)
+            return;
 
         // unzip
         index=-1;
@@ -594,8 +702,11 @@ namespace ts
         {
             m_uiConstraintUnzipVar[index].VecDestroy();
             m_uiConstraintUnzipVar.erase(m_uiConstraintUnzipVar.begin()+index);
+            isdealloc=true;
         }
-            
+        
+        if(isdealloc)
+            return;
 
         index=-1;
         for(unsigned int i=0; i< m_uiPrimitiveVar.size(); i++)
@@ -610,8 +721,11 @@ namespace ts
         {
             m_uiPrimitiveVar[index].VecDestroy();
             m_uiPrimitiveVar.erase( m_uiPrimitiveVar.begin() +  index);
+            isdealloc=true;
         }
-            
+        
+        if(isdealloc)
+            return;
 
 
         index=-1;
@@ -627,15 +741,22 @@ namespace ts
         {
             m_uiPrimitiveUnzipVar[index].VecDestroy();
             m_uiPrimitiveUnzipVar.erase(m_uiPrimitiveUnzipVar.begin()+index);
+            isdealloc=true;
         }
             
+        if(!isdealloc)
+        {
+            std::cout<<"[ctx]: memory dealloc faliure "<<__LINE__<<std::endl;
+            return ;
+        }
+    
 
 
         
     }
     
-    template<typename T, typename I>
-    void Ctx<T,I>::unzip(ot::DVector<T,I>& in , ot::DVector<T,I>& out, unsigned int async_k)
+    template<typename DerivedCtx, typename T, typename I>
+    void Ctx<DerivedCtx,T,I>::unzip(ot::DVector<T,I>& in , ot::DVector<T,I>& out, unsigned int async_k)
     {
         
         #ifdef __PROFILE_CTX__
@@ -689,9 +810,8 @@ namespace ts
         
     }
 
-
-    template<typename T, typename I>
-    void Ctx<T,I>::zip(ot::DVector<T,I>& in , ot::DVector<T,I>& out, unsigned int async_k)
+    template<typename DerivedCtx, typename T, typename I>
+    void Ctx<DerivedCtx,T,I>::zip(ot::DVector<T,I>& in , ot::DVector<T,I>& out, unsigned int async_k)
     {
 
         #ifdef __PROFILE_CTX__
@@ -747,8 +867,8 @@ namespace ts
 
     }
 
-    template<typename T, typename I>
-    ot::Mesh* Ctx<T,I>::remesh(unsigned int grain_sz, double ld_tol, unsigned int sf_k) 
+    template<typename DerivedCtx, typename T, typename I>
+    ot::Mesh* Ctx<DerivedCtx,T,I>::remesh(unsigned int grain_sz, double ld_tol, unsigned int sf_k) 
     {
 
         #ifdef __PROFILE_CTX__
@@ -819,7 +939,7 @@ namespace ts
 
         #endif
         
-        ot::Mesh* newMesh=m_uiMesh->ReMesh(grain_sz,ld_tol,sf_k);
+        ot::Mesh* newMesh=m_uiMesh->ReMesh(grain_sz,ld_tol,sf_k,m_getWeight);
 
         #ifdef __PROFILE_CTX__
             m_uiCtxpt[CTXPROFILE::REMESH].stop();
@@ -830,8 +950,8 @@ namespace ts
 
     }
     
-    template<typename T,typename I>
-    int Ctx<T,I>::remesh_and_gridtransfer(unsigned int grain_sz, double ld_tol, unsigned int sf_k, bool transferEvolution, bool transferConstraint, bool transferPrimitive)
+    template<typename DerivedCtx, typename T, typename I>
+    int Ctx<DerivedCtx,T,I>::remesh_and_gridtransfer(unsigned int grain_sz, double ld_tol, unsigned int sf_k, bool transferEvolution, bool transferConstraint, bool transferPrimitive)
     {
 
         ot::Mesh* newMesh = remesh(grain_sz,ld_tol,sf_k);
@@ -861,8 +981,8 @@ namespace ts
 
     }
 
-    template<typename T, typename I>
-    int Ctx<T,I>::grid_transfer(ot::Mesh* newMesh, bool transferEvolution, bool transferConstraint, bool transferPrimitive)
+    template<typename DerivedCtx, typename T, typename I>
+    int Ctx<DerivedCtx,T,I>::grid_transfer(ot::Mesh* newMesh, bool transferEvolution, bool transferConstraint, bool transferPrimitive)
     {
 
         #ifdef __PROFILE_CTX__
@@ -1026,16 +1146,6 @@ namespace ts
        
     }
 
-
-    template<typename T, typename I>
-    int Ctx<T,I>::increment_ts_info(T tfac, unsigned int sfac)
-    {
-        m_uiTinfo._m_uiT += (m_uiTinfo._m_uiTh*tfac);
-        m_uiTinfo._m_uiStep += (1*sfac);
-        
-        return 0; 
-
-    }
-
-
+    
+    
  } // end of namespace ts

@@ -168,10 +168,10 @@ int main (int argc, char** argv)
         function2Octree(f_init,nlsm::NLSM_NUM_VARS,nlsm::NLSM_REFINE_VARIABLE_INDICES,nlsm::NLSM_NUM_REFINE_VARS,tmpNodes,m_uiMaxDepth,nlsm::NLSM_WAVELET_TOL,nlsm::NLSM_ELE_ORDER,comm);
         
     }
-
+    
     unsigned int lmin=1,lmax=5;
-    // std::vector<ot::TreeNode> tmpOct;
-    // createRegularOctree(tmpOct,lmin,m_uiDim,m_uiMaxDepth,comm);
+    // tmpNodes.clear();
+    // createRegularOctree(tmpNodes,lmin,m_uiDim,m_uiMaxDepth,comm);
 
     // //std::cout<<"tmpOct: "<<tmpOct.size()<<std::endl;
 
@@ -198,9 +198,7 @@ int main (int argc, char** argv)
     // }
     // std::swap(tmpNodes,tmpOct);
 
-    ot::Mesh * mesh = ot::createMesh(tmpNodes.data(),tmpNodes.size(),nlsm::NLSM_ELE_ORDER,comm,1,ot::SM_TYPE::FDM,nlsm::NLSM_DENDRO_GRAIN_SZ,nlsm::NLSM_LOAD_IMB_TOL,nlsm::NLSM_SPLIT_FIX, nlsm::getEleWeight, 0);
-    //ot::Mesh * mesh = ot::createMesh(tmpNodes.data(),tmpNodes.size(),nlsm::NLSM_ELE_ORDER,comm,1,ot::SM_TYPE::FDM,nlsm::NLSM_DENDRO_GRAIN_SZ,nlsm::NLSM_LOAD_IMB_TOL,nlsm::NLSM_SPLIT_FIX, NULL, 0);
-    //ot::Mesh * mesh = ot::createSplitMesh(nlsm::NLSM_ELE_ORDER,1,2,comm);
+    ot::Mesh * mesh = ot::createMesh(tmpNodes.data(),tmpNodes.size(),nlsm::NLSM_ELE_ORDER,comm,1,ot::SM_TYPE::FDM,nlsm::NLSM_DENDRO_GRAIN_SZ,nlsm::NLSM_LOAD_IMB_TOL,nlsm::NLSM_SPLIT_FIX);
     mesh->setDomainBounds(Point(nlsm::NLSM_GRID_MIN_X,nlsm::NLSM_GRID_MIN_Y,nlsm::NLSM_GRID_MIN_Z), Point(nlsm::NLSM_GRID_MAX_X, nlsm::NLSM_GRID_MAX_Y,nlsm::NLSM_GRID_MAX_Z));
     
     mesh->computeMinMaxLevel(lmin,lmax);
@@ -220,58 +218,52 @@ int main (int argc, char** argv)
       std::cout<<"ts_mode: "<<ts_mode<<std::endl;
 
 
-    std::vector<DendroIntL> part_sz;
-    std::vector<DendroIntL> weight_sz;
-    part_sz.resize(npes,0);
-    weight_sz.resize(npes,0);
-    localSz = mesh->getNumLocalMeshElements();
-    par::Mpi_Gather(&localSz,part_sz.data(),1,0,comm);
-    const ot::TreeNode* pNodes = mesh->getAllElements().data();
+    // std::vector<DendroIntL> part_sz;
+    // std::vector<DendroIntL> weight_sz;
+    // part_sz.resize(npes,0);
+    // weight_sz.resize(npes,0);
+    // localSz = mesh->getNumLocalMeshElements();
+    // par::Mpi_Gather(&localSz,part_sz.data(),1,0,comm);
+    // const ot::TreeNode* pNodes = mesh->getAllElements().data();
 
-    for(unsigned int ele = mesh->getElementLocalBegin(); ele < mesh->getElementLocalEnd(); ele ++)
-      localSz+=(nlsm::getEleWeight(&pNodes[ele])/100000);
+    // for(unsigned int ele = mesh->getElementLocalBegin(); ele < mesh->getElementLocalEnd(); ele ++)
+    //   localSz+=(nlsm::getEleWeight(&pNodes[ele])/100000);
     
-    par::Mpi_Gather(&localSz,weight_sz.data(),1,0,comm);
+    // par::Mpi_Gather(&localSz,weight_sz.data(),1,0,comm);
 
-    if(!rank)
-    {
-      for(unsigned int i=0; i < part_sz.size(); i++)
-      {
-        std::cout<<"local sz: "<<i<<" part_sz: "<<part_sz[i]<<" weight: "<<weight_sz[i]<<std::endl;
-      }
+    // if(!rank)
+    // {
+    //   for(unsigned int i=0; i < part_sz.size(); i++)
+    //   {
+    //     std::cout<<"local sz: "<<i<<" part_sz: "<<part_sz[i]<<" weight: "<<weight_sz[i]<<std::endl;
+    //   }
         
-    }
+    // }
 
 
 
-    const ts::ETSType tsType = ts::ETSType::RK3;
-    
-
+    const ts::ETSType tsType = ts::ETSType::RK4;
     if(ts_mode == 0)
     { 
-        //NUTS
-        //assert(ot::test::isBlkFlagsValid(mesh));
-        //std::cout<<"unzip : "<<mesh->getDegOfFreedomUnZip()<<" all : "<<mesh->getDegOfFreedomUnZip()*24<<" sz _per dof : "<<((mesh->getDegOfFreedomUnZip()*24)/24)<<std::endl;
         
         nlsm::NLSMCtx *  appCtx = new nlsm::NLSMCtx(mesh); 
         ts::ExplicitNUTS<DendroScalar,nlsm::NLSMCtx>*  enuts = new ts::ExplicitNUTS<DendroScalar,nlsm::NLSMCtx>(appCtx);
 
-        //double * vec = mesh->createVector<double>(f_init_alpha);
-        //bool state =ot::test::isSubScatterMapValid<double>(mesh,enuts->get_sub_scatter_maps(),vec);
-        //std::cout<<" subSM valid : "<<state<<std::endl;
-        //delete [] vec;
-        
         std::vector<double> ld_stat_g;
         enuts->set_evolve_vars(appCtx->get_evolution_vars());
         enuts->set_ets_coefficients(tsType);
         
         const unsigned int rank_global = enuts->get_global_rank();
-        for(enuts->init(); enuts->curr_time() < nlsm::NLSM_RK45_TIME_END ; enuts->evolve())
+        const unsigned int pt_remesh_freq = 5;//(1u<<(lmax-lmin-3))
+        
+        //for(enuts->init(); enuts->curr_time() < nlsm::NLSM_RK45_TIME_END ; enuts->evolve())
+        for(enuts->init(); enuts->curr_time() < nlsm::NLSM_RK45_TIME_END ; enuts->evolve_with_remesh(pt_remesh_freq))
         {
             const DendroIntL step = enuts->curr_step();
             const DendroScalar time = enuts->curr_time();    
 
             const bool isActive = enuts->is_active();
+            enuts->dump_load_statistics(std::cout);
 
             if(!rank_global)
                 std::cout<<GRN<<"[Explicit NUTS]: Executing step :  "<<enuts->curr_step()<<std::setw(10)<<"\tcurrent time :"<<enuts->curr_time()<<std::setw(10)<<"\t dt(min):"<<enuts->get_dt_min()<<std::setw(10)<<"\t dt(max):"<<enuts->get_dt_max()<<std::setw(10)<<"\t"<<NRM<<std::endl;
@@ -288,7 +280,7 @@ int main (int argc, char** argv)
                     std::cout<<"[Explicit NUTS]: Remesh triggered "<<std::endl;;
 
                 appCtx->remesh_and_gridtransfer(nlsm::NLSM_DENDRO_GRAIN_SZ, nlsm::NLSM_LOAD_IMB_TOL,nlsm::NLSM_SPLIT_FIX,true,false,false);
-                appCtx->terminal_output();
+                //appCtx->terminal_output();
 
             }
                     
@@ -418,7 +410,7 @@ int main (int argc, char** argv)
         nlsm::NLSMCtx *  appCtx_enuts = new nlsm::NLSMCtx(mesh); 
         nlsm::NLSMCtx *  appCtx_ets = new nlsm::NLSMCtx(mesh); 
 
-        ts::ExplicitNUTS<DendroScalar,nlsm::NLSMCtx>*  enuts = new ts::ExplicitNUTS<DendroScalar,nlsm::NLSMCtx>(appCtx_enuts);
+        ts::ExplicitNUTS<DendroScalar,nlsm::NLSMCtx>*  enuts = new ts::ExplicitNUTS<DendroScalar,nlsm::NLSMCtx>(appCtx_enuts,false);
         ts::ETS<DendroScalar,nlsm::NLSMCtx>*           ets   = new ts::ETS<DendroScalar,nlsm::NLSMCtx>(appCtx_ets);
 
 

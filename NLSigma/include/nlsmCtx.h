@@ -22,7 +22,7 @@
 namespace nlsm
 {
 
-    class NLSMCtx : public ts::Ctx<DendroScalar, DendroIntL>
+    class NLSMCtx : public ts::Ctx<NLSMCtx,DendroScalar, DendroIntL>
     {
 
         
@@ -55,7 +55,7 @@ namespace nlsm
             ~NLSMCtx();
 
             /**@brief: initial solution*/
-            virtual int initialize();
+            int initialize();
             
             /**
              * @brief computes the BSSN rhs 
@@ -66,7 +66,7 @@ namespace nlsm
              * @param time : current time. 
              * @return int : status. (0) on success. 
              */
-            virtual int rhs(DVec* in , DVec* out, unsigned int sz , DendroScalar time);
+            int rhs(DVec* in , DVec* out, unsigned int sz , DendroScalar time);
 
             /**
              * @brief compute the block for the rhs (used in ENUTS). 
@@ -76,56 +76,73 @@ namespace nlsm
              * @param blk_time : blk time 
              * @return int 
              */
-            virtual int rhs_blk(const DendroScalar* in, DendroScalar* out, unsigned int dof, unsigned int local_blk_id, DendroScalar  blk_time) ;
+            int rhs_blk(const DendroScalar* in, DendroScalar* out, unsigned int dof, unsigned int local_blk_id, DendroScalar  blk_time) ;
             
             /**@brief: function execute before each stage
              * @param sIn: stage var in. 
             */
-            virtual int pre_stage(DVec sIn); 
+            int pre_stage(DVec sIn); 
 
             /**@brief: function execute after each stage
              * @param sIn: stage var in. 
             */
-            virtual int post_stage(DVec sIn);
+            int post_stage(DVec sIn);
 
             /**@brief: function execute before each step*/
-            virtual int pre_timestep(DVec sIn); 
+            int pre_timestep(DVec sIn); 
 
             /**@brief: function execute after each step*/
-            virtual int post_timestep(DVec sIn);
+            int post_timestep(DVec sIn);
 
             /**@brief: function execute after each step*/
-            virtual bool is_remesh();
+            bool is_remesh();
 
             /**@brief: write to vtu. */
-            virtual int write_vtu();
+            int write_vtu();
 
             /**@brief: writes checkpoint*/
-            virtual int write_checkpt();
+            int write_checkpt();
 
             /**@brief: restore from check point*/
-            virtual int restore_checkpt();
+            int restore_checkpt();
 
             /**@brief: should be called for free up the contex memory. */
-            virtual int finalize();
+            int finalize();
 
             /**@brief: pack and returns the evolution variables to one DVector*/
-            virtual DVec get_evolution_vars();
+            DVec get_evolution_vars();
 
             /**@brief: pack and returns the constraint variables to one DVector*/
-            virtual DVec get_constraint_vars();
+            DVec get_constraint_vars();
 
             /**@brief: pack and returns the primitive variables to one DVector*/
-            virtual DVec get_primitive_vars();
+            DVec get_primitive_vars();
 
             /**@brief: updates the application variables from the variable list. */
-            virtual int update_app_vars();
+            int update_app_vars();
 
             /**@brief: prints any messages to the terminal output. */
-            virtual int terminal_output();
+            int terminal_output();
 
             /**@brief: returns the async communication batch size. */
-            virtual unsigned int get_async_batch_sz() {return NLSM_ASYNC_COMM_K;}
+            unsigned int get_async_batch_sz() {return NLSM_ASYNC_COMM_K;}
+
+            /**@brief: returns the number of variables considered when performing refinement*/
+            unsigned int get_num_refine_vars() {return NLSM_NUM_REFINE_VARS;}
+
+            /**@brief: return the pointer for containing evolution refinement variable ids*/
+            const unsigned int* get_refine_var_ids() { return NLSM_REFINE_VARIABLE_INDICES;}
+            
+            /**@brief return the wavelet tolerance function / value*/
+            std::function<double(double, double, double,double *)> get_wtol_function(){
+
+                double wtol = NLSM_WAVELET_TOL;
+                std::function<double(double,double,double,double*)> waveletTolFunc =[wtol](double x,double y, double z,double * hx){ return nlsm::computeWTol(x,y,z,hx);};
+                return waveletTolFunc;
+                
+            }
+
+            static unsigned int getBlkTimestepFac(unsigned int blev, unsigned int lmin, unsigned int lmax);
             
 
 

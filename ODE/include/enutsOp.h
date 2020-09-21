@@ -9,6 +9,14 @@
  * 
  */
 
+
+/**
+ * Note that these correction operations are constructed from picewise linear approximation of F(u), 
+ * [k] = CxPx[DU] -> (1)
+ * and the B computation comes from the (1) and the Taylor exapansion of the RK stages. 
+ * 
+ */
+
 #pragma once
 
 #include <iostream>
@@ -83,7 +91,8 @@ namespace ts
              */
             void Bdt(DendroScalar dt, unsigned int rk_s);
 
-
+            
+            // stage correction routines begin
 
             /**
              * @brief perform the finer to coarser time stage corrections. 
@@ -111,8 +120,36 @@ namespace ts
              */
             void Ccf(DendroScalar** out, const DendroScalar** in, const unsigned int* sz, unsigned int rk_s, DendroScalar dt_c, DendroScalar dt_f, DendroScalar dt, unsigned int dof=1);
 
+            
+            // stage correction routines end
 
+            // below routines are for coarser to finer and finer to coarser time corrections, which is needed resuming LTS time stepper after intergrid transfer.
+            // U(t) correction 
+            // For these corrections we need all the computed stages. 
+            
+            /**
+             * @brief Performs correction operators for Ut
+             * @param out 
+             * @param in 
+             * @param sz 
+             * @param dt_c 
+             * @param dt_f 
+             * @param dt 
+             * @param dof 
+             */
+            void coarser_finer_ut_correction(DendroScalar** out, const DendroScalar** in, const unsigned int* sz, DendroScalar dt_c, DendroScalar dt_f, DendroScalar dt, unsigned int dof=1);
 
+            /**
+             * @brief 
+             * @param out 
+             * @param in 
+             * @param sz 
+             * @param dt_c 
+             * @param dt_f 
+             * @param dt 
+             * @param dof 
+             */
+            void finer_coarser_ut_correction(DendroScalar** out, const DendroScalar** in, const unsigned int* sz, DendroScalar dt_c, DendroScalar dt_f, DendroScalar dt, unsigned int dof=1);
 
 
     };

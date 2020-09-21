@@ -21,10 +21,23 @@
 #include "oct2vtk.h"
 #include <iostream>
 #include "blkAsync.h"
+#include "waveletAMR.h"
+#include "mathMeshUtils.h"
+
+#define __LTS_BLK_SYNC_TIME_COMP_TOL__ 1e-6
 
 namespace ts
 {   
+    /**@brief: Meta-data structure to compute the correct weight for the LTS wpart. */
+    struct WeightedPartitionData
+    {
+        unsigned int lmin;
+        unsigned int lmax;
+        unsigned int (*tfac) (unsigned int blev, unsigned int lmin, unsigned int lmax);
+    };
 
+    /**@brief:  wpart meta data, (only should be used in the LTS class. )*/
+    static WeightedPartitionData wpart_meta;
 
     /**
      * @brief : simple structure to support storing of a single time step (explicit methods)
@@ -262,11 +275,17 @@ namespace ts
             /**@brief: DG vector for m_uiEVar*/
             DVec m_uiEvarDG;
 
+            /**@brief: temp vector of the DG scheme*/
+            DVec m_uiDGTmp0;
+
             /**@brief: List of block async vector. */
             std::vector<ts::BlockTimeStep<T>> m_uiBVec;
 
             /**@brief : keep track of the element time. */
             std::vector<unsigned int> m_uiEleTime;
+
+            /**@brief : keep track of the element DT (int) to get the double dt, m_uiDT*DT[e] */
+            std::vector<unsigned int> m_uiEleDT;
             
             /**@brief min and max time of blocks for a given level. */
             std::vector<unsigned int> m_uiBlkTimeLevMinMax;
@@ -277,10 +296,11 @@ namespace ts
             /**@brief: store the partial step id for the latest evolution. */
             unsigned int m_uiPt;
 
-            
+            /**@brief: store the active block IDs evolved by the partial blocks*/
+            std::vector<unsigned int> m_uiActiveBlkIDs;
 
-            
-
+            /**@brief : if true weighted partition is used*/
+            bool m_uiUseWeightedPart;
 
         private:
 
@@ -296,16 +316,16 @@ namespace ts
              * @brief Allocates internal variables for the time stepper. 
              * @return int 
              */
-            virtual int allocate_internal_vars();
+            int allocate_internal_vars();
 
             /**@brief: Deallocate internal variables*/
-            virtual int deallocate_internal_vars(); 
+            int deallocate_internal_vars(); 
 
             /**@bried: synchronize the block vectors*/
-            virtual void sync_blk_timestep(unsigned int blk, unsigned int rk_s);
+            void sync_blk_timestep(unsigned int blk, unsigned int rk_s, bool isIGTSync=false);
             
             /**@brief: update the element timestep*/
-            virtual void update_ele_timestep();
+            void update_ele_timestep();
 
 
             
@@ -316,7 +336,7 @@ namespace ts
              * Assumptions: Note that blocks result in from octree to block decomposition can be not 2:1 balanced.
              * But to perform NUTS, blocks should be 2:1 balanced. 
             */
-            ExplicitNUTS(Ctx* ctx);
+            ExplicitNUTS(Ctx* ctx, bool useWpart =true);
 
             /**@brief: default destructor */
             ~ExplicitNUTS();
@@ -325,7 +345,7 @@ namespace ts
             void init();
 
             /**@brief : evolve the variables to the next coarsest time step (i.e. loop over the block sequence. ) Evolution in the sense of the  NUTS*/
-            virtual void evolve();
+            void evolve();
 
             /**
              * @brief : Perform parital step for the evolution. 
@@ -334,25 +354,36 @@ namespace ts
             void partial_evolve(unsigned int pt);
 
             /**@brief: compute the evolution with remesh triggered at partial steps. */
-            void evolve_with_remesh(double sync_time, unsigned int remesh_freq=5);
+            void evolve_with_remesh(unsigned int remesh_freq=5);
             
             /**@brief: returns  a constant pointer to the sub scatter maps. */
             //inline ot::SubScatterMap* const get_sub_scatter_maps() const {return m_uiSubSM;}
 
             /**@brief: perform remesh for the nuts class. */
-            virtual void remesh(unsigned int grain_sz = DENDRO_DEFAULT_GRAIN_SZ, double ld_tol = DENDRO_DEFAULT_LB_TOL, unsigned int sf_k = DENDRO_DEFAULT_SF_K);
+            void remesh(unsigned int grain_sz = DENDRO_DEFAULT_GRAIN_SZ, double ld_tol = DENDRO_DEFAULT_LB_TOL, unsigned int sf_k = DENDRO_DEFAULT_SF_K);
+
+            /**
+             * @brief compute the wavelets for the LTS vectors. 
+             * 
+             * @param varIds : variable ids considered for remeshing. 
+             * @param numvars : number of variables. 
+             * @param amr_coarsen_fac : AMR coarsening factor. 
+             * @return true : if needed remeshing. 
+             * @return false 
+             */
+            bool isRemeshEvars(const unsigned int * varIds, unsigned int numvars, std::function<double(double,double,double,double*)>wavelet_tol, double amr_coarsen_fac=0.1);
 
             /**@brief: update all the internal data strucutures, with a new mesh pointer. */
-            virtual int sync_with_mesh();
+            int sync_with_mesh();
 
             /**@brief returns the dt min value */
-            T get_dt_min() const { return m_uiTimeInfo._m_uiTh; } 
+            T get_dt_min() const { return m_uiTimeInfo._m_uiTh * m_uiAppCtx->getBlkTimestepFac(m_uiLevMax,m_uiLevMin,m_uiLevMax); } 
             
             /**@brief returns the dt max value */
-            T get_dt_max() const { return m_uiTimeInfo._m_uiTh*(1u<<(m_uiLevMax-m_uiLevMin)); }
+            T get_dt_max() const { return m_uiTimeInfo._m_uiTh * m_uiAppCtx->getBlkTimestepFac(m_uiLevMin,m_uiLevMin,m_uiLevMax); }
 
             /**@brief: prints the load balance statistis*/
-            void  dump_load_statistics(std::ostream & sout) const ;
+            void  dump_load_statistics(std::ostream & sout);
 
             /**@brief: computes the estimated speedup for a given mesh. */
             void  dump_est_speedup(std::ostream & sout);
@@ -373,19 +404,68 @@ namespace ts
             void blk_vec_to_zipDG(const ts::BlockTimeStep<T>* blkVec, DVec& vecDG,unsigned int s=0);
 
             /**
+             * @brief copy the block vector, to unzip vector, 
+             * @param blkVec : array of block async vector
+             * @param vecUzip : unzip vector
+             * @param s : s index of the block async vector
+             */
+            void blk_vec_to_unzipDG(const ts::BlockTimeStep<T>* blkVec, DVec& vecUzip,unsigned int s=0);
+
+            /**
              * @brief copy DG vector to the block vector. 
              * 
-             * @param vecDG 
-             * @param blkVec 
-             * @param s 
+             * @param vecDG DG vector
+             * @param blkVec array of block async vector, 
+             * @param s : s index, of the block async vector. 
              */
             void vecDG_to_blk_vec(DVec& vecDG, ts::BlockTimeStep<T>* blkVec, unsigned int s=0);
+
+            /**@brief: compute weight for a wpart. */
+            static unsigned int getOctWeight(const ot::TreeNode* pNode)
+            {
+                const unsigned int  finest_t = wpart_meta.tfac(wpart_meta.lmax,wpart_meta.lmin,wpart_meta.lmax);//m_uiAppCtx->getBlkTimestepFac(m_uiLevMax,m_uiLevMin,m_uiLevMax); // finest  time level.
+                const unsigned int coarset_t = wpart_meta.tfac(wpart_meta.lmin,wpart_meta.lmin,wpart_meta.lmax);//m_uiAppCtx->getBlkTimestepFac(m_uiLevMin,m_uiLevMin,m_uiLevMax); // coarset time level. 
+                const unsigned int weight = ((coarset_t-finest_t)/(wpart_meta.tfac(pNode->getLevel(),wpart_meta.lmin,wpart_meta.lmax)));//*nPe;
+                return std::max(1u,weight);
+            }
+
+            /**@brief: update wpart meta data from current variables. */
+            void update_wpart_metadata()
+            {
+                wpart_meta.lmin = m_uiLevMin;
+                wpart_meta.lmax = m_uiLevMax;
+                wpart_meta.tfac = &(Ctx::getBlkTimestepFac);
+
+                return;
+            }
+
         
     };
 
     template<typename T, typename Ctx>
-    ExplicitNUTS<T,Ctx>::ExplicitNUTS(Ctx* ctx) : ETS<T,Ctx>(ctx)
-    {
+    ExplicitNUTS<T,Ctx>::ExplicitNUTS(Ctx* ctx, bool useWpart) : ETS<T,Ctx>(ctx)
+    {   
+
+        m_uiUseWeightedPart = useWpart;
+        if(m_uiUseWeightedPart)
+        {
+            ot::Mesh* pMesh = m_uiAppCtx->get_mesh();
+            pMesh->computeMinMaxLevel(m_uiLevMin,m_uiLevMax);
+
+            update_wpart_metadata();
+
+            if(!m_uiAppCtx->is_wpart_func_set())
+                m_uiAppCtx->set_wpart_function(getOctWeight);
+         
+            ot::Mesh* newMesh = m_uiAppCtx->remesh();
+
+            m_uiAppCtx->grid_transfer(newMesh,false,false,false);
+            m_uiAppCtx->update_app_vars();   
+
+            std::swap(pMesh,newMesh);
+            delete newMesh;
+            m_uiAppCtx->set_mesh(pMesh);
+        }
         this->init_data_structures();
         
     }
@@ -409,11 +489,11 @@ namespace ts
             const unsigned int npes = pMesh->getMPICommSize();
             MPI_Comm comm = pMesh->getMPICommunicator();
 
-            const unsigned int  finest_t = 1u<<(m_uiLevMax - m_uiLevMax); // finest  time level.
-            const unsigned int coarset_t = 1u<<(m_uiLevMax - m_uiLevMin); // coarset time level. 
+            const unsigned int  finest_t = m_uiAppCtx->getBlkTimestepFac(m_uiLevMax,m_uiLevMin,m_uiLevMax); // finest  time level.
+            const unsigned int coarset_t = m_uiAppCtx->getBlkTimestepFac(m_uiLevMin,m_uiLevMin,m_uiLevMax); // coarset time level. 
 
             double red_stat[3]; // for mpi reduction stats. 
-            std::vector<ot::Block> blkList = pMesh->getLocalBlockList();
+            const std::vector<ot::Block>& blkList = pMesh->getLocalBlockList();
             const ot::TreeNode* pNodes = pMesh->getAllElements().data();
 
             // initialize the block async vectors
@@ -449,7 +529,7 @@ namespace ts
                     const unsigned int BLK_T = m_uiBVec[blk]._time;
                     const unsigned int NN   =  m_uiBVec[blk]._vec[0].getSz();
                     const unsigned int bLev =  pNodes[blkList[blk].getLocalElementBegin()].getLevel();
-                    const unsigned int BLK_DT = 1u<<(m_uiLevMax - bLev);
+                    const unsigned int BLK_DT = m_uiAppCtx->getBlkTimestepFac(bLev,m_uiLevMin,m_uiLevMax);
                     if( pt% BLK_DT !=0 )
                         continue;
 
@@ -478,11 +558,11 @@ namespace ts
                     const unsigned int BLK_T = m_uiBVec[blk]._time;
                     const unsigned int NN   =  m_uiBVec[blk]._vec[0].getSz();
                     const unsigned int bLev =  pNodes[blkList[blk].getLocalElementBegin()].getLevel();
-                    const unsigned int BLK_DT = 1u<<(m_uiLevMax - bLev);
+                    const unsigned int BLK_DT = m_uiAppCtx->getBlkTimestepFac(bLev,m_uiLevMin,m_uiLevMax);
                     if( pt% BLK_DT !=0 )
                         continue;
 
-                    m_uiBVec[blk]._time += 1u<<(m_uiLevMax -bLev); 
+                    m_uiBVec[blk]._time += BLK_DT; 
                     m_uiBVec[blk]._rks=0;
                     
                 
@@ -507,17 +587,50 @@ namespace ts
     }
 
     template<typename T, typename Ctx>
+    void ExplicitNUTS<T,Ctx>::dump_load_statistics(std::ostream & sout)
+    {
+
+        
+        const ot::Mesh* pMesh = m_uiAppCtx->get_mesh();
+        
+        if(pMesh->isActive())
+        {
+            double local_weight=0;
+            const ot::TreeNode* pNodes = pMesh->getAllElements().data();
+            for(unsigned int ele = pMesh->getElementLocalBegin(); ele < pMesh->getElementLocalEnd(); ele++)
+                local_weight+=getOctWeight(&pNodes[ele]);
+
+            double ld_stat[3];
+            MPI_Comm aComm =pMesh->getMPICommunicator();
+
+            par::Mpi_Reduce(&local_weight,ld_stat+0,1,MPI_MIN,0,aComm);
+            par::Mpi_Reduce(&local_weight,ld_stat+1,1,MPI_SUM,0,aComm);
+            ld_stat[1]=ld_stat[1]/(double)pMesh->getMPICommSize();
+            par::Mpi_Reduce(&local_weight,ld_stat+2,1,MPI_MAX,0,aComm);
+
+            if(!pMesh->getMPIRank())
+                std::cout<<YLW<<"\t LD Bal: (min,mean,max): "<<ld_stat[0]<<"|\t"<<ld_stat[1]<<"|\t"<<ld_stat[2]<<NRM<<std::endl;
+
+        }
+
+        
+
+
+
+    }
+
+    template<typename T, typename Ctx>
     void ExplicitNUTS<T,Ctx>::init_data_structures()
     {
 
-         // identify dependent and independent blocks. 
+        // identify dependent and independent blocks. 
         const ot::Mesh* pMesh = m_uiAppCtx->get_mesh();
         const bool isActive = pMesh->isActive();
         
         pMesh->computeMinMaxLevel(m_uiLevMin,m_uiLevMax);
-        par::Mpi_Bcast(&m_uiLevMin,1,0,pMesh->getMPIGlobalCommunicator());
-        par::Mpi_Bcast(&m_uiLevMax,1,0,pMesh->getMPIGlobalCommunicator());
         assert( (m_uiLevMin > 0 ) && (m_uiLevMax <= m_uiMaxDepth) );
+
+        update_wpart_metadata();
 
     }
 
@@ -541,14 +654,14 @@ namespace ts
 
         m_uiStVec.resize(m_uiNumStages);
         
-        // for(unsigned int i=0; i < m_uiNumStages; i++)
-        //     m_uiStVec[i].VecCreate(m_uiAppCtx->get_mesh(), false , true, false , m_uiEVar.GetDof());
-
         for(unsigned int i=0; i < m_uiNumStages; i++)
             m_uiStVec[i].VecCreateDG(m_uiAppCtx->get_mesh(), true, m_uiEVar.GetDof());
 
         m_uiEVecTmp[0].VecCreate(m_uiAppCtx->get_mesh(), m_uiEVar.IsGhosted() , m_uiEVar.IsUnzip(), m_uiEVar.IsElemental() , m_uiEVar.GetDof());
         m_uiEVecTmp[1].VecCreate(m_uiAppCtx->get_mesh(), m_uiEVar.IsGhosted() , m_uiEVar.IsUnzip(), m_uiEVar.IsElemental() , m_uiEVar.GetDof());
+
+        // allocate tmp DG vectors
+        m_uiDGTmp0.VecCreateDG(m_uiAppCtx->get_mesh(), true, m_uiEVar.GetDof());
 
         m_uiEvarUzip.VecCreate(m_uiAppCtx->get_mesh(), false , true, false ,m_uiEVar.GetDof());
         m_uiEvarDG.VecCreateDG(m_uiAppCtx->get_mesh(), true, m_uiEVar.GetDof());
@@ -557,7 +670,9 @@ namespace ts
         if(pMesh->isActive())
         {
             m_uiEleTime.resize(pMesh->getAllElements().size(),0);
-            std::vector<ot::Block> blkList = pMesh->getLocalBlockList();
+            m_uiEleDT.resize(pMesh->getAllElements().size(),0);
+
+            const std::vector<ot::Block>& blkList = pMesh->getLocalBlockList();
             m_uiBVec.resize(blkList.size());
 
             for(unsigned int blk =0; blk < blkList.size(); blk++)
@@ -571,6 +686,7 @@ namespace ts
         m_uiECOp = new ENUTSOp(m_uiType);
         m_uiIsInternalAlloc=true;
         m_uiBlkTimeLevMinMax.resize(2*m_uiMaxDepth,0);
+        m_uiActiveBlkIDs.reserve(pMesh->getLocalBlockList().size());
         return 0;
 
         
@@ -592,9 +708,14 @@ namespace ts
         this->m_uiEVecTmp[0].VecDestroy();
         this->m_uiEVecTmp[1].VecDestroy();
 
+        //deallocate DG tmp. 
+        m_uiDGTmp0.VecDestroy();
+
         m_uiEvarUzip.VecDestroy();
         m_uiEvarDG.VecDestroy();
 
+        m_uiEleTime.clear();
+        m_uiEleDT.clear();
 
         for(unsigned int k=0; k < m_uiBVec.size(); k++)
         {
@@ -606,6 +727,9 @@ namespace ts
         
         m_uiBVec.clear();
 
+        m_uiBlkTimeLevMinMax.clear();
+        m_uiActiveBlkIDs.clear();
+
         delete m_uiECOp;
         m_uiIsInternalAlloc = false;
         return 0;
@@ -616,7 +740,7 @@ namespace ts
     void ExplicitNUTS<T,Ctx>::blk_vec_to_zipCG(const ts::BlockTimeStep<T>* blkVec, DVec& vecCG, unsigned int s)
     {
         ot::Mesh* pMesh = m_uiAppCtx->get_mesh();
-        const std::vector<ot::Block> blkList = pMesh->getLocalBlockList();
+        const std::vector<ot::Block>& blkList = pMesh->getLocalBlockList();
         const unsigned int DOF = vecCG.GetDof();
         
         for(unsigned int blk =0; blk < blkList.size(); blk++)
@@ -630,7 +754,7 @@ namespace ts
     void ExplicitNUTS<T,Ctx>::blk_vec_to_zipDG(const ts::BlockTimeStep<T>* blkVec, DVec& vecDG, unsigned int s)
     {
         ot::Mesh* pMesh = m_uiAppCtx->get_mesh();
-        const std::vector<ot::Block> blkList = pMesh->getLocalBlockList();
+        const std::vector<ot::Block>& blkList = pMesh->getLocalBlockList();
         const unsigned int DOF = vecDG.GetDof();
         
         for(unsigned int blk =0; blk < blkList.size(); blk++)
@@ -640,10 +764,40 @@ namespace ts
     }
 
     template<typename T, typename Ctx>
+    void ExplicitNUTS<T,Ctx>::blk_vec_to_unzipDG(const ts::BlockTimeStep<T>* blkVec, DVec& vecUzip,unsigned int s)
+    {
+        ot::Mesh* pMesh = m_uiAppCtx->get_mesh();
+        const std::vector<ot::Block>& blkList = pMesh->getLocalBlockList();
+        const unsigned int DOF = vecUzip.GetDof();
+
+        for(unsigned int v=0; v < DOF; v++)
+        {
+            T * d_ptr = vecUzip.GetVecArray() + v * pMesh->getDegOfFreedomUnZip();
+            
+            for(unsigned int blk=0; blk < blkList.size(); blk++)
+            {   
+                
+                const unsigned int offset = blkList[blk].getOffset();
+                
+                const unsigned int lx = blkList[blk].getAllocationSzX();
+                const unsigned int ly = blkList[blk].getAllocationSzY();
+                const unsigned int lz = blkList[blk].getAllocationSzZ();
+
+                const T * bvec  =  blkVec[blk]._vec[s].data() + (v*lx*ly*lz);
+
+                std::memcpy(d_ptr+offset, bvec , sizeof(T)*(lx*ly*lz));
+            }
+        }
+
+        return;
+
+    }
+
+    template<typename T, typename Ctx>
     void ExplicitNUTS<T,Ctx>::vecDG_to_blk_vec(DVec& vecDG, ts::BlockTimeStep<T>* blkVec, unsigned int s)
     {
         ot::Mesh* pMesh = m_uiAppCtx->get_mesh();
-        const std::vector<ot::Block> blkList = pMesh->getLocalBlockList();
+        const std::vector<ot::Block>& blkList = pMesh->getLocalBlockList();
         const unsigned int DOF = vecDG.GetDof();
         
 
@@ -657,7 +811,6 @@ namespace ts
 
 
     }
-
 
     template<typename T, typename Ctx>
     int ExplicitNUTS<T,Ctx>::sync_with_mesh()
@@ -690,13 +843,13 @@ namespace ts
     }
 
     template<typename T, typename Ctx>
-    void ExplicitNUTS<T,Ctx>::sync_blk_timestep(unsigned int blk, unsigned int rk_s)
+    void ExplicitNUTS<T,Ctx>::sync_blk_timestep(unsigned int blk, unsigned int rk_s,bool isIGTSync)
     {
 
         #ifdef __PROFILE_ENUTS__
             m_uiPt[ENUTSPROFILE::BLK_SYNC].start();
         #endif
-
+        
         ot::Mesh* pMesh = (ot::Mesh*)m_uiAppCtx->get_mesh();
         if((!(pMesh->isActive())) || m_uiBVec[blk]._vec[rk_s].isSynced() )
             return;
@@ -715,11 +868,9 @@ namespace ts
         const unsigned int nPe       =   pMesh->getNumNodesPerElement();
         
         const unsigned int * etVec   =   m_uiEleTime.data();
+        const unsigned int * dtELev  =   m_uiEleDT.data();
+
         MPI_Comm comm = pMesh->getMPICommunicator();
-        
-        assert(rk_s>=1 && rk_s <= m_uiNumStages);
-        assert(PW>0);
-        
         
         const unsigned int lx     =  blkList[blk].getAllocationSzX();
         const unsigned int ly     =  blkList[blk].getAllocationSzY();
@@ -736,10 +887,12 @@ namespace ts
 
         const unsigned int bLev  =  pNodes[blkList[blk].getLocalElementBegin()].getLevel();
         const unsigned int bTime =  etVec[blkList[blk].getLocalElementBegin()];
+        const unsigned int bDT   =  dtELev[blkList[blk].getLocalElementBegin()];
         
         
         T dt;
-        unsigned int tl=0;
+        unsigned int tl  = 0;
+        unsigned int dtl = 0; // dt time level. 
         unsigned int lookUp;
         const unsigned int cSz[3] = { eOrder+1, eOrder+1, eOrder+1 };
         
@@ -748,14 +901,15 @@ namespace ts
 
         const unsigned int dof = m_uiEVar.GetDof();
         std::vector<T> cVec;
-        cVec.resize(dof*nPe*rk_s);
+        cVec.resize(dof*nPe*(m_uiNumStages+1));
 
-        T* cVin[rk_s*dof];  // correction vec. pointer in,
-        T* cVout[rk_s*dof]; // correction vec. pointer out,
-
-        T * dgWVec = m_uiEvarDG.GetVecArray();
-        T * cgWVec = m_uiEVecTmp[0].GetVecArray();
+        T* cVin[(m_uiNumStages+1)*dof];  // correction vec. pointer in,
+        T* cVout[(m_uiNumStages+1)*dof]; // correction vec. pointer out,
+        
+        T * dgWVec = m_uiDGTmp0.GetVecArray();
+        //T * cgWVec = m_uiEVecTmp[0].GetVecArray();
         T * uzWVec = m_uiEvarUzip.GetVecArray();
+        
 
         T* m_uiVec = (T*) m_uiBVec[blk]._vec[rk_s].data();
 
@@ -763,147 +917,335 @@ namespace ts
         for(unsigned int i=0; i < m_uiNumStages; i++)
             dgStages[i] = m_uiStVec[i].GetVecArray();
 
+        T * dgEVar = m_uiEvarDG.GetVecArray();
 
         std::vector<unsigned int> eid;
         computeBlockUnzipDepElements(pMesh, blk, eid);
-        
 
-        // apply time interpolation correction operators. 
-        for(unsigned int m=0; m < eid.size(); m++)
-        {
-            const unsigned int elem = eid[m];
-            tl = etVec[elem];
+        if(rk_s==0)
+        {   // Sync operation for U(t,.)
             
-            if(pNodes[elem].getLevel() == bLev)
+            for(unsigned int m=0; m < eid.size(); m++)
             {
+                const unsigned int elem = eid[m];
+                tl  = etVec[elem];  // this is the current time the block is at, in the block loop time. 
+                dtl = dtELev[elem]; // this is time step size level used to get to this time point. 
+                // You can use the element/block level to compute the future time step size level. 
                 
-                if( tl != bTime)
-                {
-                    std::cout<<" blk : "<<blk <<" bTime : "<<bTime <<" neigh. element (same lev) : "<<pNodes[elem]<<"  is at time : "<<tl<<"   time gap should be zero  "<<std::endl;
-                    MPI_Abort(comm, 0);
-                }
-
-                #pragma unroll
-                for(unsigned int v=0; v < dof; v++)
-                    std::memcpy(dgWVec + v*dgSz + elem * nPe , dgStages[rk_s-1] + v*dgSz + elem * nPe, sizeof(T)*nPe );
-
-            }else if(pNodes[elem].getLevel() < bLev)
-            {
-                const T dt_c             =  (1u<<(m_uiLevMax-pNodes[elem].getLevel()))*(m_uiTimeInfo._m_uiTh);
-                const T dt_f             =  0.5*dt_c;
+                T t_blk = m_uiTimeInfo._m_uiT + bTime * m_uiTimeInfo._m_uiTh ;
+                T t_ele = m_uiTimeInfo._m_uiT + tl    * m_uiTimeInfo._m_uiTh;
 
                 if( tl == bTime)
+                {
+                    // both elements are in the same time. 
                     dt=0;
-                else
+                    #pragma unroll
+                    for(unsigned int v=0; v < dof; v++)
+                        std::memcpy(dgWVec + v*dgSz + elem * nPe , dgEVar + v*dgSz + elem * nPe, sizeof(T)*nPe );
+
+                }else if(tl > bTime)
                 {
-                    
-                    if( tl != (bTime  + (1u<<(m_uiLevMax - bLev)) )  )
+                    assert(dtl>= bDT);
+                    // elem is in the future.
+                    const T dt_c             =  dtl*(m_uiTimeInfo._m_uiTh);
+                    const T dt_f             =  bDT*(m_uiTimeInfo._m_uiTh);
+                    dt = (tl-bTime)*(m_uiTimeInfo._m_uiTh);
+
+                    for(unsigned int v=0; v < dof; v++)
                     {
-                        std::cout<<" blk : "<<blk <<" bTime : "<<bTime <<" neigh. element (coaser) : "<<pNodes[elem]<<" is at time : "<<tl<<" time gap is "<<(1u<<(m_uiLevMax - bLev))<<" invalid" <<std::endl;
-                        MPI_Abort(comm, 0);
+                        for(unsigned int s=0; s <m_uiNumStages; s++ )
+                        {
+                            cVin [v*(m_uiNumStages+1)  +  s ] = dgStages[s] + v *dgSz + elem*nPe;
+                            cVout[v*(m_uiNumStages+1)  +  s ]  = cVec.data() + v*(m_uiNumStages+1)*nPe + s*nPe;
+                        }
+
+                        cVin[v*(m_uiNumStages+1) +  m_uiNumStages ] = dgEVar + v*dgSz + elem*nPe;    
+                        cVout[v*(m_uiNumStages+1)  +  m_uiNumStages ]  = cVec.data() + v*(m_uiNumStages+1)*nPe + m_uiNumStages*nPe; 
                     }
-                    dt=0.5*dt_c;
+                    
                     
 
-                }
+                    #ifdef __PROFILE_ENUTS__
+                        m_uiPt[ENUTSPROFILE::NUTS_CORRECTION].start();
+                    #endif
 
-                for(unsigned int v=0; v < dof; v++)
-                for(unsigned int s=1; s <= rk_s; s++ )
+                    m_uiECOp->coarser_finer_ut_correction(cVout,(const T**) cVin, cSz,dt_c,dt_f,dt,dof);
+                    
+                    #ifdef __PROFILE_ENUTS__
+                        m_uiPt[ENUTSPROFILE::NUTS_CORRECTION].stop();
+                    #endif
+                    
+                    #pragma unroll
+                    for(unsigned int v=0; v < dof; v++)
+                        std::memcpy(dgWVec + v*dgSz + elem * nPe , cVout[v*(m_uiNumStages+1)  +  m_uiNumStages], sizeof(T)*nPe );
+
+                    
+
+
+                }else
                 {
-                    cVin [v*rk_s  +  (s-1) ]  = dgStages[s-1] + v *dgSz  + elem*nPe;
-                    cVout[v*rk_s  +  (s-1) ]  = cVec.data() + v*rk_s*nPe + (s-1)*nPe; 
+                    // elem is in the past. 
+                    assert(tl<bTime);
+                    assert(dtl<= bDT);
+                    // elem is in the future.
+                    const T dt_c             =  bDT*(m_uiTimeInfo._m_uiTh);
+                    const T dt_f             =  dtl*(m_uiTimeInfo._m_uiTh);
+
+                    dt = (bTime-tl)*(m_uiTimeInfo._m_uiTh);
+
+                    for(unsigned int v=0; v < dof; v++)
+                    {
+                        for(unsigned int s=0; s <m_uiNumStages; s++ )
+                        {
+                            cVin [v*(m_uiNumStages+1)  +  s ] = dgStages[s] + v *dgSz + elem*nPe;
+                            cVout[v*(m_uiNumStages+1)  +  s ]  = cVec.data() + v*(m_uiNumStages+1)*nPe + s*nPe;
+                        }
+                            
+
+                        cVin[v*(m_uiNumStages+1) +  m_uiNumStages ] = dgEVar + v*dgSz + elem*nPe;    
+                        cVout[v*(m_uiNumStages+1)  +  m_uiNumStages ]  = cVec.data() + v*(m_uiNumStages+1)*nPe + m_uiNumStages*nPe; 
+                    }
+                    
+                    #ifdef __PROFILE_ENUTS__
+                        m_uiPt[ENUTSPROFILE::NUTS_CORRECTION].start();
+                    #endif
+
+                    m_uiECOp->finer_coarser_ut_correction(cVout,(const T**) cVin, cSz,dt_c,dt_f,dt,dof);
+                    
+                    #ifdef __PROFILE_ENUTS__
+                        m_uiPt[ENUTSPROFILE::NUTS_CORRECTION].stop();
+                    #endif
+                    
+                    #pragma unroll
+                    for(unsigned int v=0; v < dof; v++)
+                        std::memcpy(dgWVec + v*dgSz + elem * nPe , cVout[v*(m_uiNumStages+1)  +  m_uiNumStages], sizeof(T)*nPe );
+
+
                 }
 
-                #ifdef __PROFILE_ENUTS__
-                    m_uiPt[ENUTSPROFILE::NUTS_CORRECTION].start();
-                #endif
-
-                m_uiECOp->Ccf(cVout,(const T**) cVin,cSz,rk_s,dt_c,dt_f,dt,dof);
-
-                #ifdef __PROFILE_ENUTS__
-                    m_uiPt[ENUTSPROFILE::NUTS_CORRECTION].stop();
-                #endif
                 
-                #pragma unroll
-                for(unsigned int v=0; v < dof; v++)
-                    std::memcpy(dgWVec + v*dgSz + elem * nPe , cVout[v*rk_s  +  (rk_s-1)], sizeof(T)*nPe );
 
             }
-            else
+
+
+
+        }else
+        {
+            assert(rk_s>=1 && rk_s <= m_uiNumStages);
+            assert(PW>0);
+
+            // apply time interpolation correction operators. 
+            for(unsigned int m=0; m < eid.size(); m++)
             {
+                const unsigned int elem = eid[m];
+                tl  = etVec[elem];  // this is the current time the block is at, in the block loop time. 
+                dtl = dtELev[elem]; // this is time step size level used to get to this time point. 
+                // You can use the element/block level to compute the future time step size level. 
 
-                const T dt_c             =  (1u<<(m_uiLevMax-bLev))*(m_uiTimeInfo._m_uiTh);
-                const T dt_f             =  0.5*dt_c;
+                T t_blk = m_uiTimeInfo._m_uiT + bTime * m_uiTimeInfo._m_uiTh ;
+                T t_ele = m_uiTimeInfo._m_uiT + tl    * m_uiTimeInfo._m_uiTh;
+                
+                const T t_blk_prev = m_uiTimeInfo._m_uiT + bTime * m_uiTimeInfo._m_uiTh - bDT * m_uiTimeInfo._m_uiTh;
+                const T t_ele_prev = m_uiTimeInfo._m_uiT + tl    * m_uiTimeInfo._m_uiTh - dtl * m_uiTimeInfo._m_uiTh;
 
-                assert(pNodes[elem].getLevel() == bLev + 1);
-                if( tl == bTime)
-                    dt=0;
-                else
+                if(isIGTSync)
                 {
-                    
-                    if( bTime != (tl  + (1u<<(m_uiLevMax - bLev-1))) )
+                    // update where these stages are computed. 
+                    t_blk = t_blk_prev;
+                    t_ele = t_ele_prev;
+
+                    if(fabs(t_ele - t_blk) <= __LTS_BLK_SYNC_TIME_COMP_TOL__)
                     {
-                        std::cout<<" blk : "<<blk <<" bTime : "<<bTime <<" neigh. element (finer) : "<<pNodes[elem]<<" is at time : "<<tl<<" time gap is "<<(1u<<(m_uiLevMax - bLev))<<" invalid" <<std::endl;
-                        MPI_Abort(comm, 0);
+                        // no interpolation is needed. 
+                        #pragma unroll
+                        for(unsigned int v=0; v < dof; v++)
+                            std::memcpy(dgWVec + v*dgSz + elem * nPe , dgStages[rk_s-1] + v*dgSz + elem * nPe, sizeof(T)*nPe);
+
+                    }else if ( (t_ele - t_blk) >__LTS_BLK_SYNC_TIME_COMP_TOL__)
+                    {
+                        // elem is in future. 
+                        T dt_c             =  dtl*(m_uiTimeInfo._m_uiTh);
+                        T dt_f             =  bDT*(m_uiTimeInfo._m_uiTh);
+
+                        if(dt_c < dt_f)
+                            std::swap(dt_c,dt_f);
+
+                        dt = (t_ele-t_blk);
+                        
+                        for(unsigned int v=0; v < dof; v++)
+                        for(unsigned int s=1; s <= rk_s; s++ )
+                        {
+                            cVin [v*rk_s  +  (s-1) ]  = dgStages[s-1] + v *dgSz  + elem*nPe;
+                            cVout[v*rk_s  +  (s-1) ]  = cVec.data() + v*rk_s*nPe + (s-1)*nPe; 
+                        }
+
+                        #ifdef __PROFILE_ENUTS__
+                            m_uiPt[ENUTSPROFILE::NUTS_CORRECTION].start();
+                        #endif
+
+                        m_uiECOp->Ccf(cVout,(const T**) cVin,cSz,rk_s,dt_c,dt_f,dt,dof);
+
+                        #ifdef __PROFILE_ENUTS__
+                            m_uiPt[ENUTSPROFILE::NUTS_CORRECTION].stop();
+                        #endif
+                        
+                        #pragma unroll
+                        for(unsigned int v=0; v < dof; v++)
+                            std::memcpy(dgWVec + v*dgSz + elem * nPe , cVout[v*rk_s  +  (rk_s-1)], sizeof(T)*nPe );
+                    }
+                    else if( (t_blk -t_ele) > __LTS_BLK_SYNC_TIME_COMP_TOL__ ) 
+                    {
+                        // blk is in future
+                        T dt_c             =  (bDT)*(m_uiTimeInfo._m_uiTh);
+                        T dt_f             =  (dtl)*(m_uiTimeInfo._m_uiTh);
+
+                        if(dt_c < dt_f)
+                            std::swap(dt_c,dt_f);
+
+                        dt = (t_blk-t_ele);
+                        
+                        for(unsigned int v=0; v < dof; v++)
+                        for(unsigned int s=1; s <= rk_s; s++ )
+                        {
+                            cVin [v*rk_s  +  (s-1) ]  = dgStages[s-1] + v *dgSz  + elem*nPe;
+                            cVout[v*rk_s  +  (s-1) ]  = cVec.data() + v*rk_s*nPe + (s-1)*nPe; 
+                        }
+
+                        #ifdef __PROFILE_ENUTS__
+                            m_uiPt[ENUTSPROFILE::NUTS_CORRECTION].start();
+                        #endif
+                        
+                        m_uiECOp->Cfc(cVout,(const T**) cVin,cSz,rk_s,dt_c,dt_f,dt,dof);
+                        
+                        #ifdef __PROFILE_ENUTS__
+                            m_uiPt[ENUTSPROFILE::NUTS_CORRECTION].stop();
+                        #endif
+                        
+                        #pragma unroll
+                        for(unsigned int v=0; v < dof; v++)
+                            std::memcpy(dgWVec + v*dgSz + elem * nPe , cVout[v*rk_s  +  (rk_s-1)], sizeof(T)*nPe );
+                        
+                        
                     }
 
-                    dt=0.5*dt_c;
-                    
 
-                }
 
-                for(unsigned int v=0; v < dof; v++)
-                for(unsigned int s=1; s <= rk_s; s++ )
+                }else
                 {
-                    cVin [v*rk_s  +  (s-1) ]  = dgStages[s-1] + v *dgSz  + elem*nPe;
-                    cVout[v*rk_s  +  (s-1) ]  = cVec.data() + v*rk_s*nPe + (s-1)*nPe; 
+
+                    if(bTime==tl)
+                    {
+                        // no interpolation is needed. 
+                        #pragma unroll
+                        for(unsigned int v=0; v < dof; v++)
+                            std::memcpy(dgWVec + v*dgSz + elem * nPe , dgStages[rk_s-1] + v*dgSz + elem * nPe, sizeof(T)*nPe);
+
+                    }else if (tl>bTime)
+                    {
+                        // elem is in future. 
+                        T dt_c             =  dtl*(m_uiTimeInfo._m_uiTh);
+                        T dt_f             =  bDT*(m_uiTimeInfo._m_uiTh);
+
+                        if(dt_c < dt_f)
+                            std::swap(dt_c,dt_f);
+
+                        dt = (t_ele-t_blk);
+                        
+                        for(unsigned int v=0; v < dof; v++)
+                        for(unsigned int s=1; s <= rk_s; s++ )
+                        {
+                            cVin [v*rk_s  +  (s-1) ]  = dgStages[s-1] + v *dgSz  + elem*nPe;
+                            cVout[v*rk_s  +  (s-1) ]  = cVec.data() + v*rk_s*nPe + (s-1)*nPe; 
+                        }
+
+                        #ifdef __PROFILE_ENUTS__
+                            m_uiPt[ENUTSPROFILE::NUTS_CORRECTION].start();
+                        #endif
+
+                        m_uiECOp->Ccf(cVout,(const T**) cVin,cSz,rk_s,dt_c,dt_f,dt,dof);
+
+                        #ifdef __PROFILE_ENUTS__
+                            m_uiPt[ENUTSPROFILE::NUTS_CORRECTION].stop();
+                        #endif
+                        
+                        #pragma unroll
+                        for(unsigned int v=0; v < dof; v++)
+                            std::memcpy(dgWVec + v*dgSz + elem * nPe , cVout[v*rk_s  +  (rk_s-1)], sizeof(T)*nPe );
+                    }
+                    else
+                    {
+                        assert(tl<bTime);
+                        // blk is in future
+                        T dt_c             =  (bDT)*(m_uiTimeInfo._m_uiTh);
+                        T dt_f             =  (dtl)*(m_uiTimeInfo._m_uiTh);
+
+                        if(dt_c < dt_f)
+                            std::swap(dt_c,dt_f);
+
+                        dt = (t_blk-t_ele);
+                        
+                        for(unsigned int v=0; v < dof; v++)
+                        for(unsigned int s=1; s <= rk_s; s++ )
+                        {
+                            cVin [v*rk_s  +  (s-1) ]  = dgStages[s-1] + v *dgSz  + elem*nPe;
+                            cVout[v*rk_s  +  (s-1) ]  = cVec.data() + v*rk_s*nPe + (s-1)*nPe; 
+                        }
+
+                        #ifdef __PROFILE_ENUTS__
+                            m_uiPt[ENUTSPROFILE::NUTS_CORRECTION].start();
+                        #endif
+                        
+                        m_uiECOp->Cfc(cVout,(const T**) cVin,cSz,rk_s,dt_c,dt_f,dt,dof);
+                        
+                        #ifdef __PROFILE_ENUTS__
+                            m_uiPt[ENUTSPROFILE::NUTS_CORRECTION].stop();
+                        #endif
+                        
+                        #pragma unroll
+                        for(unsigned int v=0; v < dof; v++)
+                            std::memcpy(dgWVec + v*dgSz + elem * nPe , cVout[v*rk_s  +  (rk_s-1)], sizeof(T)*nPe );
+                        
+                        
+                    }
+
                 }
-
-                #ifdef __PROFILE_ENUTS__
-                    m_uiPt[ENUTSPROFILE::NUTS_CORRECTION].start();
-                #endif
                 
-                m_uiECOp->Cfc(cVout,(const T**) cVin,cSz,rk_s,dt_c,dt_f,dt,dof);
                 
-                #ifdef __PROFILE_ENUTS__
-                    m_uiPt[ENUTSPROFILE::NUTS_CORRECTION].stop();
-                #endif
                 
-                #pragma unroll
-                for(unsigned int v=0; v < dof; v++)
-                    std::memcpy(dgWVec + v*dgSz + elem * nPe , cVout[v*rk_s  +  (rk_s-1)], sizeof(T)*nPe );
-
             }
+
+            // for(unsigned int elem = blkList[blk].getLocalElementBegin(); elem < blkList[blk].getLocalElementEnd(); elem++)
+            // {
+            //     const unsigned int ei=(pNodes[elem].getX()-blkNode.getX())>>(m_uiMaxDepth-regLevel);
+            //     const unsigned int ej=(pNodes[elem].getY()-blkNode.getY())>>(m_uiMaxDepth-regLevel);
+            //     const unsigned int ek=(pNodes[elem].getZ()-blkNode.getZ())>>(m_uiMaxDepth-regLevel);
+
+            //     const unsigned int emin = 0;
+            //     const unsigned int emax = (1u<<(regLevel-blkNode.getLevel()))-1;
+
+            //     assert(etVec[elem] == bTime );
+
+            //     #pragma unroll
+            //     for(unsigned int v=0; v < dof; v++)
+            //         std::memcpy(dgWVec + v*dgSz + elem * nPe , dgStages[rk_s-1] + v*dgSz + elem * nPe, sizeof(T)*nPe );
+
+            // }
+
+            // for(unsigned int elem = blkList[blk].getLocalElementBegin(); elem < blkList[blk].getLocalElementEnd(); elem++)
+            //     eid.push_back(elem);
+            // pMesh->DG2CGVec(dgWVec,cgWVec,true,eid.data(),eid.size(),dof);
+            // pMesh->unzip(cgWVec,uzWVec, &blk, 1, dof);
+            
+            // #pragma unroll
+            // for(unsigned int v=0; v < dof; v++)
+            //     std::memcpy(m_uiVec + v*lx*ly*lz , uzWVec + v* unSz + offset, sizeof(T)*(lx*ly*lz));
+
+            // return;
 
         }
-
-        // for(unsigned int elem = blkList[blk].getLocalElementBegin(); elem < blkList[blk].getLocalElementEnd(); elem++)
-        // {
-        //     const unsigned int ei=(pNodes[elem].getX()-blkNode.getX())>>(m_uiMaxDepth-regLevel);
-        //     const unsigned int ej=(pNodes[elem].getY()-blkNode.getY())>>(m_uiMaxDepth-regLevel);
-        //     const unsigned int ek=(pNodes[elem].getZ()-blkNode.getZ())>>(m_uiMaxDepth-regLevel);
-
-        //     const unsigned int emin = 0;
-        //     const unsigned int emax = (1u<<(regLevel-blkNode.getLevel()))-1;
-
-        //     assert(etVec[elem] == bTime );
-
-        //     #pragma unroll
-        //     for(unsigned int v=0; v < dof; v++)
-        //         std::memcpy(dgWVec + v*dgSz + elem * nPe , dgStages[rk_s-1] + v*dgSz + elem * nPe, sizeof(T)*nPe );
-
-        // }
-
-        // for(unsigned int elem = blkList[blk].getLocalElementBegin(); elem < blkList[blk].getLocalElementEnd(); elem++)
-        //     eid.push_back(elem);
-        // pMesh->DG2CGVec(dgWVec,cgWVec,true,eid.data(),eid.size(),dof);
-        // pMesh->unzip(cgWVec,uzWVec, &blk, 1, dof);
         
-        // #pragma unroll
-        // for(unsigned int v=0; v < dof; v++)
-        //     std::memcpy(m_uiVec + v*lx*ly*lz , uzWVec + v* unSz + offset, sizeof(T)*(lx*ly*lz));
 
-        // return;
+        
 
         
         // now need to copy to the block unzip/ block asyncVector 
@@ -919,6 +1261,8 @@ namespace ts
         std::vector<T> p2cI;
         p2cI.resize(nPe);
 
+        const double d_compar_tol=1e-6;
+
         for(unsigned int m=0; m < eid.size(); m++)
         {
             const unsigned int ele = eid[m];
@@ -931,7 +1275,11 @@ namespace ts
                 
                 for(unsigned int k=0; k < eOrder+1; k++)
                 {
-                    const double zz  = pNodes[ele].minZ() + k*hh;
+                    double zz  = pNodes[ele].minZ() + k*hh;
+                    
+                    if(fabs(zz-zmin)<d_compar_tol) zz=zmin;
+                    if(fabs(zz-zmax)<d_compar_tol) zz=zmax;
+
                     if(zz < zmin || zz > zmax) 
                         continue;
                     const unsigned int kkz = std::round((zz-zmin)*invhh);
@@ -940,7 +1288,11 @@ namespace ts
 
                     for(unsigned int j=0; j < eOrder+1; j++)
                     {   
-                        const double yy  = pNodes[ele].minY() + j*hh;
+                        double yy  = pNodes[ele].minY() + j*hh;
+
+                        if(fabs(yy-ymin)<d_compar_tol) yy=ymin;
+                        if(fabs(yy-ymax)<d_compar_tol) yy=ymax;
+
                         if(yy < ymin || yy > ymax) 
                             continue;
                         const unsigned int jjy = std::round((yy-ymin)*invhh);
@@ -950,7 +1302,10 @@ namespace ts
 
                         for(unsigned int i=0; i < eOrder+1; i++)
                         {
-                            const double xx = pNodes[ele].minX() + i*hh;
+                            double xx = pNodes[ele].minX() + i*hh;
+
+                            if(fabs(xx-xmin)<d_compar_tol) xx=xmin;
+                            if(fabs(xx-xmax)<d_compar_tol) xx=xmax;
                             
                             if(xx < xmin || xx > xmax) 
                                 continue;
@@ -971,7 +1326,16 @@ namespace ts
                             // }
 
                             for(unsigned int v=0; v < dof; v++)
+                            {
+                                // double v1 = m_uiVec[(v*lx*ly*lz) + kkz*lx*ly + jjy*lx + iix];
+                                // double v2 = dgWVec[v*dgSz + ele*nPe + k*(eOrder+1)*(eOrder+1)+ j*(eOrder+1) + i];
+                                // if(rk_s==0 && fabs(v2-v1)>1e-3)
+                                // {
+                                //     std::cout<<"var : "<<v<<" equal level copy: "<<blk<<" old : "<<v1<<" new : "<<v2<<std::endl;    
+                                // }
                                 m_uiVec[(v*lx*ly*lz) + kkz*lx*ly + jjy*lx + iix] =  dgWVec[v*dgSz + ele*nPe + k*(eOrder+1)*(eOrder+1)+ j*(eOrder+1) + i];
+                            }
+                                
 
                         }
                     
@@ -980,7 +1344,8 @@ namespace ts
                 }
 
 
-            }else if(pNodes[ele].getLevel() > bLev)
+            }
+            else if(pNodes[ele].getLevel() > bLev)
             {
                 assert((bLev+1) == pNodes[ele].getLevel());
                 const unsigned int cnum = pNodes[ele].getMortonIndex();
@@ -994,7 +1359,10 @@ namespace ts
 
                 for(unsigned int k=cb; k < eOrder+1; k+=2)
                 {
-                    const double zz  = (pNodes[ele].minZ() + k*hh);
+                    double zz  = (pNodes[ele].minZ() + k*hh);
+                    if(fabs(zz-zmin)<d_compar_tol) zz=zmin;
+                    if(fabs(zz-zmax)<d_compar_tol) zz=zmax;
+
                     if(zz < zmin || zz > zmax) 
                         continue;
                     const unsigned int kkz = std::round((zz-zmin)*invhh);
@@ -1002,7 +1370,11 @@ namespace ts
 
                     for(unsigned int j=cb; j < eOrder+1; j+=2)
                     {   
-                        const double yy  = pNodes[ele].minY() + j*hh;
+                        double yy  = pNodes[ele].minY() + j*hh;
+                        
+                        if(fabs(yy-ymin)<d_compar_tol) yy=ymin;
+                        if(fabs(yy-ymax)<d_compar_tol) yy=ymax;
+
                         if(yy < ymin || yy > ymax) 
                             continue;
 
@@ -1011,7 +1383,10 @@ namespace ts
 
                         for(unsigned int i=cb; i < eOrder+1; i+=2)
                         {
-                            const double xx = pNodes[ele].minX() + i*hh;
+                            double xx = pNodes[ele].minX() + i*hh;
+
+                            if(fabs(xx-xmin)<d_compar_tol) xx=xmin;
+                            if(fabs(xx-xmax)<d_compar_tol) xx=xmax;
                             
                             if(xx < xmin || xx > xmax) 
                                 continue;
@@ -1031,7 +1406,17 @@ namespace ts
 
                             //std::cout<<"blk: "<<blk<<" blk copy : (i,j,k): ("<<iix<<" , "<<jjy<<", "<<kkz<<")"<<" of : "<<lx<<" xx: "<<xx<<" yy: "<<yy<<" zz:"<<zz<<" xmin: "<<xmin<<" ymin: "<<ymin<<" zmin: "<<zmin<<" hh : "<<hh<<" hhx : "<<hx<<std::endl;
                             for(unsigned int v=0; v < dof; v++)
+                            {
+                                // double v1 = m_uiVec[(v*lx*ly*lz) + kkz*lx*ly + jjy*lx + iix];
+                                // double v2 = dgWVec[v*dgSz + ele*nPe + k*(eOrder+1)*(eOrder+1)+ j*(eOrder+1) + i];
+                                // if(rk_s==0 && fabs(v2-v1)>1e-3)
+                                // {
+                                //     std::cout<<"var : "<<v<<" copy from finer octant: "<<blk<<" old : "<<v1<<" new : "<<v2<<std::endl;    
+                                // }
                                 m_uiVec[(v*lx*ly*lz) + kkz*lx*ly + jjy*lx + iix] = dgWVec[v*dgSz + ele*nPe + k*(eOrder+1)*(eOrder+1)+ j*(eOrder+1) + i];
+                            }
+                                
+                            
 
                         }
                     
@@ -1041,11 +1426,12 @@ namespace ts
 
 
               
-            }else
+            }
+            else
             {
                 assert((bLev) == (pNodes[ele].getLevel()+1));
                 childOct.clear();
-                pNodes[ele].addChildren(childOct);
+                pNodes[ele].addChildren(childOct); // note this is the ordering of SFC (depends on Hilbert or Morton. )
 
                 for(unsigned int child = 0; child < NUM_CHILDREN; child++)
                 {
@@ -1060,11 +1446,16 @@ namespace ts
 
                     for(unsigned int v=0; v < dof; v++)
                     {
-                        pMesh->parent2ChildInterpolation(&dgWVec[v*dgSz + ele*nPe],p2cI.data(),child,m_uiDim);
+                        const unsigned int cnum = childOct[child].getMortonIndex();
+                        pMesh->parent2ChildInterpolation(&dgWVec[v*dgSz + ele*nPe],p2cI.data(),cnum,m_uiDim);
 
                         for(unsigned int k=0; k < eOrder+1; k++)
                         {
-                            const double zz  = childOct[child].minZ() + k*hh;
+                            double zz  = childOct[child].minZ() + k*hh;
+                            
+                            if(fabs(zz-zmin)<d_compar_tol) zz=zmin;
+                            if(fabs(zz-zmax)<d_compar_tol) zz=zmax;
+                            
                             if(zz < zmin || zz > zmax) 
                                 continue;
                             const unsigned int kkz = std::round((zz-zmin)*invhh);
@@ -1072,7 +1463,11 @@ namespace ts
 
                             for(unsigned int j=0; j < eOrder+1; j++)
                             {   
-                                const double yy  = childOct[child].minY() + j*hh;
+                                double yy  = childOct[child].minY() + j*hh;
+                                
+                                if(fabs(yy-ymin)<d_compar_tol) yy=ymin;
+                                if(fabs(yy-ymax)<d_compar_tol) yy=ymax;
+                                
                                 if(yy < ymin || yy > ymax) 
                                     continue;
 
@@ -1081,13 +1476,22 @@ namespace ts
 
                                 for(unsigned int i=0; i < eOrder+1; i++)
                                 {
-                                    const double xx = childOct[child].minX() + i*hh;
+                                    double xx = childOct[child].minX() + i*hh;
+                                    
+                                    if(fabs(xx-xmin)<d_compar_tol) xx=xmin;
+                                    if(fabs(xx-xmax)<d_compar_tol) xx=xmax;
                                     
                                     if(xx < xmin || xx > xmax) 
                                         continue;
                                     const unsigned int iix = std::round((xx-xmin)*invhh);
                                     assert(iix>=0 && iix<lx);
                                     //std::cout<<"blk: "<<blk<<" blk copy : (i,j,k): ("<<iix<<" , "<<jjy<<", "<<kkz<<")"<<" of : "<<lx<<" xx: "<<xx<<" yy: "<<yy<<" zz:"<<zz<<" xmin: "<<xmin<<" ymin: "<<ymin<<" zmin: "<<zmin<<" hh : "<<hh<<" hhx : "<<hx<<" child: "<<child<<std::endl;
+                                    // double v1 = m_uiVec[(v*lx*ly*lz) + kkz*lx*ly + jjy*lx + iix];
+                                    // double v2 = p2cI[k*(eOrder+1)*(eOrder+1)+ j*(eOrder+1) + i];
+                                    // if(rk_s==0 && fabs(v2-v1)>1e-3)
+                                    // {
+                                    //     std::cout<<"var : "<<v<<" copy from coaser octant(p2c): "<<blk<<" old : "<<v1<<" new : "<<v2<<std::endl;    
+                                    // }
                                     m_uiVec[(v*lx*ly*lz) + kkz*lx*ly + jjy*lx + iix] =  p2cI[k*(eOrder+1)*(eOrder+1)+ j*(eOrder+1) + i];
 
                                 }
@@ -1106,29 +1510,70 @@ namespace ts
 
         }
         
-
-        for(unsigned int elem = blkList[blk].getLocalElementBegin(); elem < blkList[blk].getLocalElementEnd(); elem++)
+        // block internal copy. 
+        if(rk_s==0)
         {
-            const unsigned int ei=(pNodes[elem].getX()-blkNode.getX())>>(m_uiMaxDepth-regLevel);
-            const unsigned int ej=(pNodes[elem].getY()-blkNode.getY())>>(m_uiMaxDepth-regLevel);
-            const unsigned int ek=(pNodes[elem].getZ()-blkNode.getZ())>>(m_uiMaxDepth-regLevel);
+            for(unsigned int elem = blkList[blk].getLocalElementBegin(); elem < blkList[blk].getLocalElementEnd(); elem++)
+            {
+                const unsigned int ei=(pNodes[elem].getX()-blkNode.getX())>>(m_uiMaxDepth-regLevel);
+                const unsigned int ej=(pNodes[elem].getY()-blkNode.getY())>>(m_uiMaxDepth-regLevel);
+                const unsigned int ek=(pNodes[elem].getZ()-blkNode.getZ())>>(m_uiMaxDepth-regLevel);
 
-            const unsigned int emin = 0;
-            const unsigned int emax = (1u<<(regLevel-blkNode.getLevel()))-1;
+                const unsigned int emin = 0;
+                const unsigned int emax = (1u<<(regLevel-blkNode.getLevel()))-1;
 
-            assert(etVec[elem] == bTime );
+                assert(etVec[elem] == bTime );
 
-            // #pragma unroll
-            // for(unsigned int v=0; v < dof; v++)
-            //     std::memcpy(dgWVec + v*dgSz + elem * nPe , dgStages[rk_s-1] + v*dgSz + elem * nPe, sizeof(T)*nPe );
-            
-            for(unsigned int v=0; v < dof; v++)
-             for(unsigned int k=0;k<(eOrder+1);k++)
-              for(unsigned int j=0;j<(eOrder+1);j++)
-               for(unsigned int i=0;i<(eOrder+1);i++)
-                m_uiVec[v*lx*ly*lz + (ek*eOrder+k+PW)*(ly*lx)+(ej*eOrder+j+PW)*(lx)+(ei*eOrder+i+PW)]=dgStages[rk_s-1][ v*dgSz + elem * nPe + k*(eOrder+1)*(eOrder+1) + j*(eOrder+1) + i];
+                // #pragma unroll
+                // for(unsigned int v=0; v < dof; v++)
+                //     std::memcpy(dgWVec + v*dgSz + elem * nPe , dgStages[rk_s-1] + v*dgSz + elem * nPe, sizeof(T)*nPe );
+                
+                for(unsigned int v=0; v < dof; v++)
+                for(unsigned int k=0;k<(eOrder+1);k++)
+                for(unsigned int j=0;j<(eOrder+1);j++)
+                for(unsigned int i=0;i<(eOrder+1);i++)
+                {
+                    // double v1 = m_uiVec[v*lx*ly*lz + (ek*eOrder+k+PW)*(ly*lx)+(ej*eOrder+j+PW)*(lx)+(ei*eOrder+i+PW)];
+                    // double v2 = dgEVar[ v*dgSz + elem * nPe + k*(eOrder+1)*(eOrder+1) + j*(eOrder+1) + i];
+
+                    // if(fabs(v1-v2)>1e-3)
+                    //     std::cout<<"i: "<<i<< "j: "<<j<<" k: "<<k<<" [internal]: v1(old): "<<v1<<" v2:(new): "<<v2<<std::endl;
+
+                    m_uiVec[v*lx*ly*lz + (ek*eOrder+k+PW)*(ly*lx)+(ej*eOrder+j+PW)*(lx)+(ei*eOrder+i+PW)]=dgEVar[ v*dgSz + elem * nPe + k*(eOrder+1)*(eOrder+1) + j*(eOrder+1) + i];
+                }
+                    
+
+            }
 
         }
+        else
+        {
+            for(unsigned int elem = blkList[blk].getLocalElementBegin(); elem < blkList[blk].getLocalElementEnd(); elem++)
+            {
+                const unsigned int ei=(pNodes[elem].getX()-blkNode.getX())>>(m_uiMaxDepth-regLevel);
+                const unsigned int ej=(pNodes[elem].getY()-blkNode.getY())>>(m_uiMaxDepth-regLevel);
+                const unsigned int ek=(pNodes[elem].getZ()-blkNode.getZ())>>(m_uiMaxDepth-regLevel);
+
+                const unsigned int emin = 0;
+                const unsigned int emax = (1u<<(regLevel-blkNode.getLevel()))-1;
+
+                assert(etVec[elem] == bTime );
+
+                // #pragma unroll
+                // for(unsigned int v=0; v < dof; v++)
+                //     std::memcpy(dgWVec + v*dgSz + elem * nPe , dgStages[rk_s-1] + v*dgSz + elem * nPe, sizeof(T)*nPe );
+                
+                for(unsigned int v=0; v < dof; v++)
+                for(unsigned int k=0;k<(eOrder+1);k++)
+                for(unsigned int j=0;j<(eOrder+1);j++)
+                for(unsigned int i=0;i<(eOrder+1);i++)
+                    m_uiVec[v*lx*ly*lz + (ek*eOrder+k+PW)*(ly*lx)+(ej*eOrder+j+PW)*(lx)+(ei*eOrder+i+PW)]=dgStages[rk_s-1][ v*dgSz + elem * nPe + k*(eOrder+1)*(eOrder+1) + j*(eOrder+1) + i];
+
+            }
+
+        }
+
+        
 
         #ifdef __PROFILE_ENUTS__
             m_uiPt[ENUTSPROFILE::BLK_SYNC].stop();
@@ -1145,11 +1590,18 @@ namespace ts
         if(!(pMesh->isActive()))
             return;
 
-        std::vector<ot::Block> blkList = pMesh->getLocalBlockList();
+        const ot::TreeNode* pNodes  = pMesh->getAllElements().data(); 
+        const std::vector<ot::Block>& blkList = pMesh->getLocalBlockList();
         for(unsigned int blk =0; blk < blkList.size(); blk++)
         {
+            const unsigned int bLev =  pNodes[blkList[blk].getLocalElementBegin()].getLevel();
+            const unsigned int BLK_DT = m_uiAppCtx->getBlkTimestepFac(bLev,m_uiLevMin,m_uiLevMax);
+
             for(unsigned int ele = blkList[blk].getLocalElementBegin(); ele < blkList[blk].getLocalElementEnd(); ele ++)
+            {
                 m_uiEleTime[ele] = m_uiBVec[blk]._time;
+                m_uiEleDT[ele]   = BLK_DT;
+            }
             
         }
 
@@ -1164,17 +1616,18 @@ namespace ts
         if(!(pMesh->isActive()))
             return;
         
-        const std::vector<ot::Block> blkList = pMesh->getLocalBlockList();
+        const std::vector<ot::Block>& blkList = pMesh->getLocalBlockList();
         const ot::TreeNode* pNodes = pMesh->getAllElements().data();
         const double current_t= m_uiTimeInfo._m_uiT;
         const unsigned int DOF = m_uiEVar.GetDof();
         
         double current_t_adv=current_t;
-        const double dt_finest = m_uiTimeInfo._m_uiTh;
-        const double dt_coarset = (1u<<(m_uiLevMax-m_uiLevMin)) * m_uiTimeInfo._m_uiTh;
         
-        const unsigned int  finest_t = 1u<<(m_uiLevMax - m_uiLevMax); // finest  time level.
-        const unsigned int coarset_t = 1u<<(m_uiLevMax - m_uiLevMin); // coarset time level. 
+        const unsigned int  finest_t = m_uiAppCtx->getBlkTimestepFac(m_uiLevMax,m_uiLevMin,m_uiLevMax); // finest  time level.
+        const unsigned int coarset_t = m_uiAppCtx->getBlkTimestepFac(m_uiLevMin,m_uiLevMin,m_uiLevMax);
+
+        const double dt_finest  = m_uiTimeInfo._m_uiTh;
+        const double dt_coarset = coarset_t * m_uiTimeInfo._m_uiTh;
 
 
         assert(blkList.size() > 0);
@@ -1198,28 +1651,56 @@ namespace ts
                 m_uiBlkTimeLevMinMax[2*bLev + 1] = BLK_T;
         }
 
+        m_uiActiveBlkIDs.clear();
+        // compute the active block list for this partial timestep. 
+        for(unsigned int blk =0; blk < blkList.size(); blk++)
+        {
+            const unsigned int BLK_T = m_uiBVec[blk]._time;
+            const unsigned int NN   =  m_uiBVec[blk]._vec[0].getSz();
+            const unsigned int bLev =  pNodes[blkList[blk].getLocalElementBegin()].getLevel();
+            const unsigned int BLK_DT = m_uiAppCtx->getBlkTimestepFac(bLev,m_uiLevMin,m_uiLevMax);
+
+            const T blk_dt = m_uiTimeInfo._m_uiTh * BLK_DT;
+            
+            bool isBlkSynced = true;
+            if(m_uiBlkTimeLevMinMax[2*bLev+0] !=  m_uiBlkTimeLevMinMax[2*bLev+1] )
+                isBlkSynced = false;
+
+            // if(!isBlkSynced)                    
+            //     std::cout<<"isBlkSynced : "<<isBlkSynced<<" blk_lev:"<<bLev<<" blk min : "<<m_uiBlkTimeLevMinMax[2*bLev+0]<<" blk max "<< m_uiBlkTimeLevMinMax[2*bLev+1]<<std::endl;
+            // skip blocks is they are not synced, and the time is equal to the max time. 
+            if( (!isBlkSynced && BLK_T == m_uiBlkTimeLevMinMax[2*bLev+1]) || (pt % BLK_DT !=0) )
+                continue;
+
+            m_uiActiveBlkIDs.push_back(blk);
+                
+        }
+
+        //std::cout<<"rank: "<<pMesh->getMPIRank()<<"pt: "<<pt<<" active block size: "<<m_uiActiveBlkIDs.size()<<std::endl;
+
         
         for(unsigned int rk=1; rk <= m_uiNumStages; rk++ )
         {
             const unsigned int BLK_S = rk;
-            for(unsigned int blk =0; blk < blkList.size(); blk++)
+            for(unsigned int bb =0; bb < m_uiActiveBlkIDs.size(); bb++)
             {
+                const unsigned int blk = m_uiActiveBlkIDs[bb];
                 const unsigned int BLK_T = m_uiBVec[blk]._time;
                 const unsigned int NN   =  m_uiBVec[blk]._vec[0].getSz();
                 const unsigned int bLev =  pNodes[blkList[blk].getLocalElementBegin()].getLevel();
-                const unsigned int BLK_DT = 1u<<(m_uiLevMax - bLev);
+                const unsigned int BLK_DT = m_uiAppCtx->getBlkTimestepFac(bLev,m_uiLevMin,m_uiLevMax);
 
                 const T blk_dt = m_uiTimeInfo._m_uiTh * BLK_DT;
                 
-                bool isBlkSynced = true;
-                if(m_uiBlkTimeLevMinMax[2*bLev+0] !=  m_uiBlkTimeLevMinMax[2*bLev+1] )
-                    isBlkSynced = false;
+                // bool isBlkSynced = true;
+                // if(m_uiBlkTimeLevMinMax[2*bLev+0] !=  m_uiBlkTimeLevMinMax[2*bLev+1] )
+                //     isBlkSynced = false;
 
                 // if(!isBlkSynced)                    
                 //     std::cout<<"isBlkSynced : "<<isBlkSynced<<" blk min : "<<m_uiBlkTimeLevMinMax[2*bLev+0]<<" blk max "<< m_uiBlkTimeLevMinMax[2*bLev+1]<<std::endl;
                 // skip blocks is they are not synced, and the time is equal to the max time. 
-                if( (!isBlkSynced && BLK_T == m_uiBlkTimeLevMinMax[2*bLev+1]) || (pt % BLK_DT !=0) )
-                    continue;
+                // if( (!isBlkSynced && BLK_T == m_uiBlkTimeLevMinMax[2*bLev+1]) || (pt % BLK_DT !=0) )
+                //     continue;
 
                 //std::cout<<"[NUTS]: pt: "<<pt<<" blk: "<<blk<<" rk : "<<rk<<" step size: "<<BLK_DT<<" time : "<<BLK_T<<std::endl;
 
@@ -1262,20 +1743,21 @@ namespace ts
             pMesh->readFromGhostEndEleDGVec(m_uiStVec[BLK_S-1].GetVecArray(),DOF);
 
             
-            for(unsigned int blk =0; blk < blkList.size(); blk++)
+            for(unsigned int bb=0; bb < m_uiActiveBlkIDs.size(); bb++)
             {
+                const unsigned int blk = m_uiActiveBlkIDs[bb]; 
                 const unsigned int BLK_T = m_uiBVec[blk]._time;
                 const unsigned int NN   =  m_uiBVec[blk]._vec[0].getSz();
                 const unsigned int bLev =  pNodes[blkList[blk].getLocalElementBegin()].getLevel();
-                const unsigned int BLK_DT = 1u<<(m_uiLevMax - bLev);
+                const unsigned int BLK_DT = m_uiAppCtx->getBlkTimestepFac(bLev,m_uiLevMin,m_uiLevMax);
 
-                bool isBlkSynced = true;
-                if(m_uiBlkTimeLevMinMax[2*bLev+0] !=  m_uiBlkTimeLevMinMax[2*bLev+1] )
-                    isBlkSynced = false;
+                // bool isBlkSynced = true;
+                // if(m_uiBlkTimeLevMinMax[2*bLev+0] !=  m_uiBlkTimeLevMinMax[2*bLev+1] )
+                //     isBlkSynced = false;
 
-                // skip blocks is they are not synced, and the time is equal to the max time. 
-                if( (!isBlkSynced && BLK_T == m_uiBlkTimeLevMinMax[2*bLev+1]) || (pt % BLK_DT !=0) )
-                    continue;
+                // // skip blocks is they are not synced, and the time is equal to the max time. 
+                // if( (!isBlkSynced && BLK_T == m_uiBlkTimeLevMinMax[2*bLev+1]) || (pt % BLK_DT !=0) )
+                //     continue;
 
                 sync_blk_timestep(blk,BLK_S);
                 m_uiBVec[blk]._vec[BLK_S].mark_synced();
@@ -1287,22 +1769,22 @@ namespace ts
         }
 
         // compute the time step vector and increment time. 
-        for(unsigned int blk =0; blk < blkList.size(); blk++)
+        for(unsigned int bb=0; bb < m_uiActiveBlkIDs.size(); bb++)
         {
-
+            const unsigned int blk = m_uiActiveBlkIDs[bb];
             const unsigned int BLK_T = m_uiBVec[blk]._time;
             const unsigned int NN   =  m_uiBVec[blk]._vec[0].getSz();
             const unsigned int bLev =  pNodes[blkList[blk].getLocalElementBegin()].getLevel();
-            const unsigned int BLK_DT = 1u<<(m_uiLevMax - bLev);
+            const unsigned int BLK_DT = m_uiAppCtx->getBlkTimestepFac(bLev,m_uiLevMin,m_uiLevMax);
             const T blk_dt = m_uiTimeInfo._m_uiTh * BLK_DT;
             
-            bool isBlkSynced = true;
-            if(m_uiBlkTimeLevMinMax[2*bLev+0] !=  m_uiBlkTimeLevMinMax[2*bLev+1] )
-                isBlkSynced = false;
+            // bool isBlkSynced = true;
+            // if(m_uiBlkTimeLevMinMax[2*bLev+0] !=  m_uiBlkTimeLevMinMax[2*bLev+1] )
+            //     isBlkSynced = false;
 
-            // skip blocks is they are not synced, and the time is equal to the max time. 
-            if( (!isBlkSynced && BLK_T == m_uiBlkTimeLevMinMax[2*bLev+1]) || (pt % BLK_DT !=0) )
-                continue;
+            // // skip blocks is they are not synced, and the time is equal to the max time. 
+            // if( (!isBlkSynced && BLK_T == m_uiBlkTimeLevMinMax[2*bLev+1]) || (pt % BLK_DT !=0) )
+            //     continue;
 
             T* out_ptr = (T*)m_uiBVec[blk]._vec[0].data();
             for(unsigned int s=1;  s <= m_uiNumStages; s++)
@@ -1313,7 +1795,7 @@ namespace ts
                     out_ptr[n] += (blk_dt * m_uiBi[(s-1)]*stage_ptr[n]);
             }
 
-            m_uiBVec[blk]._time += 1u<<(m_uiLevMax -bLev); 
+            m_uiBVec[blk]._time += BLK_DT; 
             m_uiBVec[blk]._rks=0;
             m_uiBVec[blk]._vec[0].mark_synced();
 
@@ -1327,6 +1809,9 @@ namespace ts
         
         pMesh->readFromGhostBeginElementVec(m_uiEleTime.data(),1);
         pMesh->readFromGhostEndElementVec(m_uiEleTime.data(),1);
+
+        pMesh->readFromGhostBeginElementVec(m_uiEleDT.data(),1);
+        pMesh->readFromGhostEndElementVec(m_uiEleDT.data(),1);
 
         pMesh->waitActive();
         
@@ -1348,13 +1833,15 @@ namespace ts
         m_uiTimeInfo = m_uiAppCtx->get_ts_info();
         const double current_t= m_uiTimeInfo._m_uiT;
         double current_t_adv=current_t;
-        const double dt_finest = m_uiTimeInfo._m_uiTh;
-        const double dt_coarset = (1u<<(m_uiLevMax-m_uiLevMin)) * m_uiTimeInfo._m_uiTh;
         // Assumption: m_uiEvar is time synced accross all the blocks. 
 
-        const unsigned int  finest_t = 1u<<(m_uiLevMax - m_uiLevMax); // finest  time level.
-        const unsigned int coarset_t = 1u<<(m_uiLevMax - m_uiLevMin); // coarset time level. 
+        const unsigned int  finest_t = m_uiAppCtx->getBlkTimestepFac(m_uiLevMax,m_uiLevMin,m_uiLevMax); // finest  time level.
+        const unsigned int coarset_t = m_uiAppCtx->getBlkTimestepFac(m_uiLevMin,m_uiLevMin,m_uiLevMax); // coarset time level. 
+
+        const double dt_finest  = m_uiTimeInfo._m_uiTh;
+        const double dt_coarset = coarset_t * m_uiTimeInfo._m_uiTh;
         
+        m_uiAppCtx->pre_timestep(m_uiEVar);
 
         if(pMesh->isActive())
         {
@@ -1369,14 +1856,14 @@ namespace ts
             MPI_Comm comm = pMesh->getMPICommunicator();
 
             const ot::TreeNode* const pNodes = pMesh->getAllElements().data();
-            m_uiAppCtx->pre_timestep(m_uiEVar);
+            
 
             #ifdef __PROFILE_ENUTS__
                 m_uiPt[ENUTSPROFILE::ENUTS_BLK_UNZIP].start();
             #endif
 
             m_uiAppCtx->unzip(m_uiEVar,m_uiEvarUzip ,m_uiAppCtx->get_async_batch_sz());  // unzip m_uiEVec to m_uiEVarUnzip
-            const std::vector<ot::Block> blkList = pMesh->getLocalBlockList();
+            const std::vector<ot::Block>& blkList = pMesh->getLocalBlockList();
 
             // initialize the block async vectors
             for(unsigned int blk =0; blk < blkList.size(); blk++)
@@ -1397,13 +1884,16 @@ namespace ts
             
             for(unsigned int ele = pMesh->getElementPreGhostBegin(); ele < pMesh->getElementPostGhostEnd(); ele ++)
                 m_uiEleTime[ele]=0;
+                
 
             this->update_ele_timestep();
 
             
             pMesh->readFromGhostBeginElementVec(m_uiEleTime.data(),1);
+            pMesh->readFromGhostBeginElementVec(m_uiEleDT.data(),1);
+
             pMesh->readFromGhostEndElementVec(m_uiEleTime.data(),1);
-            
+            pMesh->readFromGhostEndElementVec(m_uiEleDT.data(),1);
             
             for(unsigned int pt=0; pt< coarset_t; pt ++)
             {
@@ -1414,7 +1904,7 @@ namespace ts
                 //     const unsigned int BLK_T = m_uiBVec[blk]._time;
                 //     const unsigned int NN   =  m_uiBVec[blk]._vec[0].getSz();
                 //     const unsigned int bLev =  pNodes[blkList[blk].getLocalElementBegin()].getLevel();
-                //     const unsigned int BLK_DT = 1u<<(m_uiLevMax - bLev);
+                //     const unsigned int BLK_DT = m_uiAppCtx->getBlkTimestepFac(bLev,m_uiLevMin,m_uiLevMax);;
                 //     if( pt% BLK_DT !=0 )
                 //         continue;
                 //     numBlkEvolved++;
@@ -1422,6 +1912,13 @@ namespace ts
 
                 // std::cout<<"[ENUTS] : pt: "<<pt<<" number of blocks evolved : "<<numBlkEvolved<<" out of "<<blkList.size()<<std::endl;
                 this->partial_evolve(pt);
+                m_uiPt=pt;
+                const unsigned int pt_freq = std::min(10u,coarset_t);
+                if( m_uiPt % pt_freq == 0) 
+                {
+                    if(!pMesh->getMPIRankGlobal())
+                        std::cout<<"[LTS] : local ts: "<<m_uiPt<<" of total "<<coarset_t<<std::endl;
+                }
                 
             }
 
@@ -1435,7 +1932,7 @@ namespace ts
                 const unsigned int BLK_T = m_uiBVec[blk]._time;
                 const unsigned int NN   =  m_uiBVec[blk]._vec[0].getSz();
                 const unsigned int bLev =  pNodes[blkList[blk].getLocalElementBegin()].getLevel();
-                const unsigned int BLK_DT = 1u<<(m_uiLevMax - bLev);
+                const unsigned int BLK_DT = m_uiAppCtx->getBlkTimestepFac(bLev,m_uiLevMin,m_uiLevMax);
 
                 m_uiBVec[blk]._vec[0].zip(pMesh, m_uiEVar.GetVecArray(),DOF);
 
@@ -1449,7 +1946,7 @@ namespace ts
         }
 
         
-
+        m_uiAppCtx->post_timestep(m_uiEVar);
         m_uiAppCtx->increment_ts_info((T)coarset_t,1);
         m_uiTimeInfo = m_uiAppCtx->get_ts_info();
         pMesh->waitAll();
@@ -1475,54 +1972,356 @@ namespace ts
         par::Mpi_Reduce(&oldElements,&oldElements_g,1,MPI_SUM,0,pMesh->getMPIGlobalCommunicator());
         par::Mpi_Reduce(&newElements,&newElements_g,1,MPI_SUM,0,newMesh->getMPIGlobalCommunicator());
 
-        // if(!(m_uiMesh->getMPIRankGlobal()))
-        //     std::cout<<"[LTS]: remesh : "<<m_uiTinfo._m_uiStep<<"\ttime : "<<m_uiTinfo._m_uiT<<"\told mesh: "<<oldElements_g<<"\tnew mesh:"<<newElements_g<<std::endl;
 
-        const unsigned int DOF = m_uiEvarDG.GetDof();
-        DVec evarDG;
-        evarDG.VecCreateDG(pMesh,true,DOF);
+        unsigned int lminmax[2];
+        newMesh->computeMinMaxLevel(lminmax[0],lminmax[1]);
+       
 
+        if(!(pMesh->getMPIRankGlobal()))
+        {
+            std::cout<<"[LTS]: remesh "<<m_uiPt<<": \ttime : "<<m_uiTimeInfo._m_uiT<<"\told mesh: "<<oldElements_g<<"\tnew mesh:"<<newElements_g<<std::endl;
+            printf("[LTS]: old level (min, max): (%d,%d)  --> new level (min, max): (%d, %d) \n",m_uiLevMin,m_uiLevMax,lminmax[0],lminmax[1]);
+            //printf("[LTS]: old number of blocks %d new mesh number of blocks :  %d \n",pMesh->getLocalBlockList().size(), newMesh->getLocalBlockList().size());
+        }
+
+        const unsigned int DOF = m_uiEvarDG.GetDof();    
+
+
+        //0 : synced vector
+        //1 : rk stage 
+        //. : ....
+        //m_uiNumStages : last rk stage. 
+        std::vector<DVec> nMeshVec;
+        nMeshVec.resize(m_uiNumStages+1);
+
+        for(unsigned int i=0; i < (m_uiNumStages+1); i++)
+            nMeshVec[i].VecCreateDG(newMesh,true,DOF); 
+
+
+        // element time vector. 
         std::vector<unsigned int> eleTimeVec;
         eleTimeVec.resize(newMesh->getAllElements().size(),0);
+        
+        // time level in dt. 
+        std::vector<unsigned int> eleTimeLev;
+        eleTimeLev.resize(newMesh->getAllElements().size(),0);
 
+        // input block vector. 
         blk_vec_to_zipDG(m_uiBVec.data(),m_uiEvarDG,0);
+        
+        
+        // computed stage vectors. 
+        for(unsigned int s=1; s <=m_uiNumStages; s++)
+            blk_vec_to_zipDG(m_uiBVec.data(),m_uiStVec[s-1],s);
 
-        pMesh->interGridTransfer_DG(m_uiEvarDG.GetVecArray(), evarDG.GetVecArray(), newMesh, m_uiEvarDG.GetDof());
+        const unsigned int dg_sz_old = pMesh->getDegOfFreedomDG();
+        const unsigned int dg_sz_new = newMesh->getDegOfFreedomDG();
+        const unsigned int nPe = pMesh->getNumNodesPerElement();
+
+        #if 0
+        for(unsigned int v=0; v< DOF; v++)
+        {
+
+            double vmin = vecMin(pMesh,m_uiEvarDG.GetVecArray() + v * pMesh->getDegOfFreedomDG(), ot::VEC_TYPE::DG_NODAL,true);
+            double vmax = vecMax(pMesh,m_uiEvarDG.GetVecArray() + v * pMesh->getDegOfFreedomDG(), ot::VEC_TYPE::DG_NODAL,true);
+
+            if(!pMesh->getMPIRankGlobal())
+                std::cout<<" Evar before IGT var: "<<v<< " vmin: "<<vmin<<" vmax: "<<vmax<<std::endl;
+
+            for(unsigned int s=0; s < m_uiNumStages; s++)
+            {
+                double vmin = vecMin(pMesh,m_uiStVec[s].GetVecArray() + v * pMesh->getDegOfFreedomDG(), ot::VEC_TYPE::DG_NODAL,true);
+                double vmax = vecMax(pMesh,m_uiStVec[s].GetVecArray() + v * pMesh->getDegOfFreedomDG(), ot::VEC_TYPE::DG_NODAL,true);
+
+                if(!pMesh->getMPIRankGlobal())
+                    std::cout<<" stage: "<<s<<" before IGT var: "<<v<< " vmin: "<<vmin<<" vmax: "<<vmax<<std::endl;
+
+            }
+        
+        }
+        #endif
+
+        pMesh->interGridTransfer_DG(m_uiEvarDG.GetVecArray(), nMeshVec[0].GetVecArray(), newMesh, DOF);
+        for(unsigned int i=0; i < (m_uiNumStages); i++)
+            pMesh->interGridTransfer_DG(m_uiStVec[i].GetVecArray(),nMeshVec[i+1].GetVecArray(),newMesh,DOF);
+
+         // intergrid transfer for the elemental vector. 
         pMesh->interGridTransferCellVec(m_uiEleTime.data(),eleTimeVec.data(),newMesh,1,ot::INTERGRID_TRANSFER_MODE::CELLVEC_CPY);
         
+        // intergrid transfer for the elemental time level dt.
+        pMesh->interGridTransferCellVec(m_uiEleDT.data(),eleTimeLev.data(),newMesh,1,ot::INTERGRID_TRANSFER_MODE::CELLVEC_CPY);
+
+        // regroup blocks with element time tag values. 
+        newMesh->performBlocksSetup(0,eleTimeVec.data() + newMesh->getElementLocalBegin(), newMesh->getNumLocalMeshElements());
+
+        // {
+        //         const unsigned int coarset_t = m_uiAppCtx->getBlkTimestepFac(m_uiLevMin,m_uiLevMin,m_uiLevMax); // coarset time level. 
+        //         std::vector<double> eleT;
+        //         eleT.resize(newMesh->getAllElements().size(),0);
+                
+        //         for(unsigned int ele= newMesh->getElementLocalBegin(); ele < newMesh->getElementLocalEnd(); ele++)
+        //             eleT[ele] = eleTimeVec[ele];//std::cout<<"ele : "<<ele<<" time : "<<m_uiEleTime[ele]<<std::endl;
+
+        //         const char*  pVarNames []  = {"CHI","PHI"};
+        //         const double* pVarData []  = {nMeshVec[0].GetVecArray() , nMeshVec[0].GetVecArray() + newMesh->getDegOfFreedomDG()};
+        //         const char*  cVarNames []  = {"time_level"};
+        //         const double* cVarData []  = {eleT.data()}; 
+                
+        //         char fname[256];
+        //         int lts_step = this->curr_step() * coarset_t + m_uiPt;
+                
+        //         sprintf(fname,"remesh_lts_%d",lts_step);
+        //         io::vtk::mesh2vtuFine(newMesh,fname,0,NULL,NULL,2,pVarNames,pVarData,1,cVarNames,cVarData,true);
+        // }
+
+
+
         m_uiAppCtx->grid_transfer(newMesh,true,false,false);
         m_uiAppCtx->update_app_vars();
 
         std::swap(pMesh,newMesh);
         delete newMesh;
 
-        
-
         m_uiAppCtx->set_mesh(pMesh);
         
+
+        // to sync with ETS variables. (GTS) timestepper class. 
+        m_uiEVar = m_uiAppCtx->get_evolution_vars();
+        m_uiAppCtx->set_ets_synced(true);
+
+
+        // sync with ENUTS (LTS) timestepper class. 
         this->deallocate_internal_vars();
         this->free_data_structures();
         
         this->init_data_structures();
         this->allocate_internal_vars();
 
-        // note: I don't think we need a ghost exchange since we are dealing with the DG vectors. 
-        // pMesh->readFromGhostBeginEleDGVec(evarDG.GetVecArray(),evarDG.GetDof());
-        // pMesh->readFromGhostEndEleDGVec(evarDG.GetVecArray(),evarDG.GetDof());
+        // vecDG_to_blk_vec(nMeshVec[0], m_uiBVec.data(), 0);
 
-        vecDG_to_blk_vec(evarDG,m_uiBVec.data(),0);        
+        // for(unsigned int s=1; s <=m_uiNumStages; s++)
+        //     vecDG_to_blk_vec(nMeshVec[s], m_uiBVec.data(), s);
 
+        std::swap(nMeshVec[0],m_uiEvarDG);
+        for(unsigned int s=1; s <=m_uiNumStages; s++)
+            std::swap(nMeshVec[s],m_uiStVec[s-1]);
+
+        
         std::swap(m_uiEleTime,eleTimeVec);
+        std::swap(m_uiEleDT,eleTimeLev);
         eleTimeVec.clear();
+        eleTimeLev.clear();
+
+        for(unsigned int i=0; i < (m_uiNumStages+1); i++)
+            nMeshVec[i].VecDestroy();
+
+        // ghost sync begin. 
+        pMesh->readFromGhostBeginEleDGVec(m_uiEvarDG.GetVecArray(),m_uiEvarDG.GetDof());
+        
+        for(unsigned int i=0; i < m_uiNumStages; i++)
+            pMesh->readFromGhostBeginEleDGVec(m_uiStVec[i].GetVecArray(),m_uiStVec[i].GetDof());
+        
+        pMesh->readFromGhostBeginElementVec(m_uiEleTime.data(),1);
+        pMesh->readFromGhostBeginElementVec(m_uiEleDT.data(),1);
+
+        pMesh->readFromGhostEndEleDGVec(m_uiEvarDG.GetVecArray(),m_uiEvarDG.GetDof());
+
+        for(unsigned int i=0; i < m_uiNumStages; i++)
+            pMesh->readFromGhostEndEleDGVec(m_uiStVec[i].GetVecArray(),m_uiStVec[i].GetDof());
+        
+        pMesh->readFromGhostEndElementVec(m_uiEleTime.data(),1);
+        pMesh->readFromGhostEndElementVec(m_uiEleDT.data(),1);
+
         
 
+        #if 0
+        for(unsigned int v=0; v< DOF; v++)
+        {
+
+            double vmin = vecMin(pMesh,m_uiEvarDG.GetVecArray() + v * pMesh->getDegOfFreedomDG(), ot::VEC_TYPE::DG_NODAL,true);
+            double vmax = vecMax(pMesh,m_uiEvarDG.GetVecArray() + v * pMesh->getDegOfFreedomDG(), ot::VEC_TYPE::DG_NODAL,true);
+
+            if(!pMesh->getMPIRankGlobal())
+                std::cout<<" Evar after IGT var: "<<v<< " vmin: "<<vmin<<" vmax: "<<vmax<<std::endl;
+
+            for(unsigned int s=0; s < m_uiNumStages; s++)
+            {
+                double vmin = vecMin(pMesh,m_uiStVec[s].GetVecArray() + v * pMesh->getDegOfFreedomDG(), ot::VEC_TYPE::DG_NODAL,true);
+                double vmax = vecMax(pMesh,m_uiStVec[s].GetVecArray() + v * pMesh->getDegOfFreedomDG(), ot::VEC_TYPE::DG_NODAL,true);
+
+                if(!pMesh->getMPIRankGlobal())
+                    std::cout<<" stage: "<<s<<" after IGT var: "<<v<< " vmin: "<<vmin<<" vmax: "<<vmax<<std::endl;
+            }
+
+        }
+        #endif
+
+        // update block time.
+        const std::vector<ot::Block>& blkList = pMesh->getLocalBlockList();
+        const ot::TreeNode* pNodes = pMesh->getAllElements().data();
+
+        // restore the block time.
+        bool isBlkEleTimeSynced = true;
+        for(unsigned int blk=0; blk< blkList.size(); blk++)
+        {
+            const unsigned int eletime = m_uiEleTime[blkList[blk].getLocalElementBegin()];
+            for(unsigned int ele = blkList[blk].getLocalElementBegin(); ele < blkList[blk].getLocalElementEnd(); ele ++)
+            {
+                if(m_uiEleTime[ele] != eletime )
+                {
+                    std::cout<<"rank: "<<pMesh->getMPIRank()<<" element : "<<pNodes[ele]<<" in block : "<<blk<<" is time wise not synchronized  eletime : "<<eletime<<" current eletime : "<<m_uiEleTime[ele]
+                    <<" ele dt1 : "<<m_uiEleDT[blkList[blk].getLocalElementBegin()]<<" ele dt2 : "<<m_uiEleDT[ele]<<std::endl;
+                    isBlkEleTimeSynced = false;
+                }
+            }
+            m_uiBVec[blk]._time=eletime;
+            m_uiBVec[blk]._vec[0].mark_unsynced();
+
+        }
+
+        if(!isBlkEleTimeSynced)
+        {
+            std::cout<<"rank: "<<pMesh->getMPIRankGlobal()<<" elements in blocks synced constraint failed. "<<std::endl;
+            MPI_Abort(pMesh->getMPICommunicator(),0);
+        }
+
+        for(unsigned int blk=0; blk< blkList.size(); blk++)
+        {
+            m_uiBVec[blk]._vec[0].mark_unsynced();
+            sync_blk_timestep(blk,0);
+            m_uiBVec[blk]._vec[0].mark_synced();
+
+            for(unsigned int s=1; s <=m_uiNumStages; s++)
+            {
+                m_uiBVec[blk]._vec[s].mark_unsynced();
+                sync_blk_timestep(blk,s,true);
+
+            }
+                
+            
+        }
+
+        
         return;
         
 
     }
 
     template<typename T, typename Ctx>
-    void ExplicitNUTS<T,Ctx>::evolve_with_remesh(double sync_time, unsigned int remesh_freq)
+    bool ExplicitNUTS<T,Ctx>::isRemeshEvars(const unsigned int * varIds, unsigned int numvars, std::function<double(double,double,double,double*)>wavelet_tol, double amr_coarsen_fac)
+    {
+        ot::Mesh* pMesh = (ot::Mesh*)m_uiAppCtx->get_mesh();
+        std::vector<unsigned int> refine_flags;
+        bool isMeshGlobalChanged = false;
+        bool isMeshLocalChanged  = false;
+
+
+        if(pMesh->isActive())
+        {
+
+            const std::vector<ot::Block> & blkList = pMesh->getLocalBlockList();
+            const unsigned int eOrder = pMesh->getElementOrder();
+
+            const unsigned int unz_ele = (2*eOrder+1)*(2*eOrder+1)*(2*eOrder+1);
+            const unsigned int DOF = m_uiEVar.GetDof();
+
+            std::vector<T> uEleVec;
+            uEleVec.resize(unz_ele*DOF);
+
+            std::vector<T> uEleRefIn;
+            uEleRefIn.resize(unz_ele*numvars);
+
+            std::vector<double> wMax; 
+            wMax.resize(pMesh->getNumLocalMeshElements(),0.0);
+
+            const unsigned int eleOfst = pMesh->getElementLocalBegin();
+            RefElement* refEl = (RefElement*)pMesh->getReferenceElement();
+            wavelet::WaveletEl wRefEl(refEl);
+
+            const ot::TreeNode* pNodes = pMesh->getAllElements().data();
+
+            for(unsigned int blk =0; blk < blkList.size(); blk ++)
+            {
+                
+                for(unsigned int ele = blkList[blk].getLocalElementBegin();  ele < blkList[blk].getLocalElementEnd(); ele++)
+                {
+                    bool isBdyEle = pMesh->isBoundaryOctant(ele);
+                    m_uiBVec[blk]._vec[0].getUnzipElementalValues(pMesh, ele, uEleVec.data());
+                    
+                    for(unsigned int v=0; v < numvars; v++)
+                    {
+                        const unsigned int vid = varIds[v];
+                        std::memcpy(uEleRefIn.data() + v*unz_ele, uEleVec.data() + vid*unz_ele,sizeof(T)*unz_ele);
+                    }
+
+                    const double oct_dx = (1u<<(m_uiMaxDepth-pNodes[ele].getLevel()))/(double(pMesh->getElementOrder()));
+                    Point oct_pt1 = Point(pNodes[ele].minX() , pNodes[ele].minY(), pNodes[ele].minZ());
+                    Point oct_pt2 = Point(pNodes[ele].minX() + oct_dx , pNodes[ele].minY() + oct_dx, pNodes[ele].minZ() + oct_dx);
+                    Point domain_pt1,domain_pt2,dx_domain;
+                    pMesh->octCoordToDomainCoord(oct_pt1,domain_pt1);
+                    pMesh->octCoordToDomainCoord(oct_pt2,domain_pt2);
+                    dx_domain=domain_pt2-domain_pt1;
+                    double hx[3] ={dx_domain.x(),dx_domain.y(),dx_domain.z()};
+                    const double tol_ele = wavelet_tol(domain_pt1.x(),domain_pt1.y(),domain_pt1.z(),hx);
+
+                    wMax[ele-eleOfst] = wavelet::compute_element_wavelet(pMesh,(const wavelet::WaveletEl*)&wRefEl,uEleRefIn.data(),tol_ele,numvars,isBdyEle);
+                    
+                    //if(isBdyEle)
+                    //std::cout<<"ele : "<<ele<<" comp. coefficient : "<<wMax[ele-eleOfst]<<std::endl;
+
+                }
+
+            }
+
+            refine_flags.clear();
+            refine_flags.resize(pMesh->getNumLocalMeshElements(),OCT_NO_CHANGE);
+
+            for(unsigned int ele = pMesh->getElementLocalBegin(); ele < pMesh->getElementLocalEnd(); ele++)
+            {
+                const double oct_dx = (1u<<(m_uiMaxDepth-pNodes[ele].getLevel()))/(double(pMesh->getElementOrder()));
+                Point oct_pt1 = Point(pNodes[ele].minX() , pNodes[ele].minY(), pNodes[ele].minZ());
+                Point oct_pt2 = Point(pNodes[ele].minX() + oct_dx , pNodes[ele].minY() + oct_dx, pNodes[ele].minZ() + oct_dx);
+                Point domain_pt1,domain_pt2,dx_domain;
+                pMesh->octCoordToDomainCoord(oct_pt1,domain_pt1);
+                pMesh->octCoordToDomainCoord(oct_pt2,domain_pt2);
+                dx_domain=domain_pt2-domain_pt1;
+                double hx[3] ={dx_domain.x(),dx_domain.y(),dx_domain.z()};
+                const double tol_ele = wavelet_tol(domain_pt1.x(),domain_pt1.y(),domain_pt1.z(),hx);
+
+                const double l_max = wMax[ele - eleOfst];
+
+                if(pNodes[ele].getLevel()<m_uiLevMax && l_max > tol_ele)
+                {
+                    refine_flags[(ele-eleOfst)] = OCT_SPLIT;
+                    isMeshLocalChanged = true;
+
+                }else if( pNodes[ele].getLevel()>m_uiLevMin && l_max < amr_coarsen_fac* tol_ele)
+                {
+                    // 08/17/2020 : time sub-cycling mess up when we coarsen during the LTS remesh. (currently coarsen enabled at synced remesh. )
+                    refine_flags[(ele-eleOfst)] = OCT_NO_CHANGE;//OCT_COARSE;
+                    //isMeshLocalChanged =true;
+                }else
+                {
+                    refine_flags[(ele-eleOfst)] = OCT_NO_CHANGE;
+                }
+
+                //std::cout<<"ele: "<<ele<<" refinement flag: "<<refine_flags[(ele-eleOfst)]<<" wc : "<<wMax[ele-eleOfst]<<std::endl;
+
+            }
+
+        }
+        //std::cout<<"grank : "<<pMesh->getMPIRankGlobal()<<std::endl;
+        MPI_Allreduce(&isMeshLocalChanged,&isMeshGlobalChanged,1,MPI_CXX_BOOL,MPI_LOR,pMesh->getMPIGlobalCommunicator());
+        
+        if(isMeshGlobalChanged)
+            pMesh->setMeshRefinementFlags(refine_flags);
+
+        return isMeshGlobalChanged;
+
+    }
+    
+    template<typename T, typename Ctx>
+    void ExplicitNUTS<T,Ctx>::evolve_with_remesh(unsigned int remesh_freq)
     {
 
         #ifdef __PROFILE_ENUTS__
@@ -1534,16 +2333,17 @@ namespace ts
         const double current_t= m_uiTimeInfo._m_uiT;
         double current_t_adv=current_t;
         
-        const double dt_finest = m_uiTimeInfo._m_uiTh;
-        const double dt_coarset = (1u<<(m_uiLevMax-m_uiLevMin)) * m_uiTimeInfo._m_uiTh;
-
+        
         // Assumption: m_uiEvar is time synced accross all the blocks. 
-        const unsigned int  finest_t = 1u<<(m_uiLevMax - m_uiLevMax); // finest  time level.
-        const unsigned int coarset_t = 1u<<(m_uiLevMax - m_uiLevMin); // coarset time level. 
+        const unsigned int  finest_t = m_uiAppCtx->getBlkTimestepFac(m_uiLevMax,m_uiLevMin,m_uiLevMax); // finest  time level.
+        const unsigned int coarset_t = m_uiAppCtx->getBlkTimestepFac(m_uiLevMin,m_uiLevMin,m_uiLevMax); // coarset time level. 
         const unsigned int sync_level = m_uiLevMin;
 
-        
+        const double dt_finest  = m_uiTimeInfo._m_uiTh;
+        const double dt_coarset = coarset_t * m_uiTimeInfo._m_uiTh;
 
+        
+        m_uiAppCtx->pre_timestep(m_uiEVar);
 
         if(pMesh->isActive())
         {
@@ -1558,10 +2358,8 @@ namespace ts
             MPI_Comm comm = pMesh->getMPICommunicator();
 
             const ot::TreeNode* const pNodes = pMesh->getAllElements().data();
-            const std::vector<ot::Block> blkList = pMesh->getLocalBlockList();
+            const std::vector<ot::Block>& blkList = pMesh->getLocalBlockList();
             
-            m_uiAppCtx->pre_timestep(m_uiEVar);
-
             #ifdef __PROFILE_ENUTS__
                 m_uiPt[ENUTSPROFILE::ENUTS_BLK_UNZIP].start();
             #endif
@@ -1593,23 +2391,64 @@ namespace ts
 
             
             pMesh->readFromGhostBeginElementVec(m_uiEleTime.data(),1);
+            pMesh->readFromGhostBeginElementVec(m_uiEleDT.data(),1);
+
             pMesh->readFromGhostEndElementVec(m_uiEleTime.data(),1);
+            pMesh->readFromGhostEndElementVec(m_uiEleDT.data(),1);
 
 
         }
 
 
         unsigned int pt=0;
-        std::vector<unsigned int> blk_time_min_max;
-        blk_time_min_max.resize(m_uiMaxDepth,0);
+        m_uiPt=pt;
 
         while( pt < coarset_t)
         {
 
-            if( (pt % remesh_freq) == 0)
-            {
-                bool isRemesh =false ; // pMesh->isReMeshUnzip()
+            pMesh = m_uiAppCtx->get_mesh();
+            
+            this->partial_evolve(pt);
 
+            pt++;
+            m_uiPt=pt;
+            
+            const unsigned int pt_freq = std::min(10u,coarset_t);
+            if( m_uiPt % pt_freq == 0) 
+            {
+                if(!pMesh->getMPIRankGlobal())
+                    std::cout<<"[LTS] : local ts: "<<m_uiPt<<" of total "<<coarset_t<<std::endl;
+            }
+            // if(!pMesh->getMPIRankGlobal())
+            // std::cout<<"local ts: "<<m_uiPt<<" of total "<<coarset_t<<std::endl;
+            // {
+            //     blk_vec_to_zipDG(m_uiBVec.data(),m_uiEvarDG,0);
+            //     std::vector<double> eleT;
+            //     eleT.resize(pMesh->getAllElements().size(),0);
+                
+            //     for(unsigned int ele= pMesh->getElementLocalBegin(); ele < pMesh->getElementLocalEnd(); ele++)
+            //         eleT[ele] = m_uiEleTime[ele];//std::cout<<"ele : "<<ele<<" time : "<<m_uiEleTime[ele]<<std::endl;
+
+            //     const char*  pVarNames []  = {"CHI","PHI"};
+            //     const double* pVarData []  = {m_uiEvarDG.GetVecArray() ,  m_uiEvarDG.GetVecArray() + pMesh->getDegOfFreedomDG()};
+            //     const char*  cVarNames []  = {"time_level"};
+            //     const double* cVarData []  = {eleT.data()}; 
+                
+            //     char fname[256];
+            //     int lts_step = this->curr_step() * coarset_t + m_uiPt;
+                
+            //     sprintf(fname,"lts_step_%d",lts_step);
+            //     io::vtk::mesh2vtuFine(pMesh,fname,0,NULL,NULL,2,pVarNames,pVarData,1,cVarNames,cVarData,true);
+            // }
+
+            if( (pt < coarset_t) &&  (pt % remesh_freq) == 0)
+            {
+
+                const unsigned int* refVIDs  =  m_uiAppCtx->get_refine_var_ids();
+                unsigned int numRefVars = m_uiAppCtx->get_num_refine_vars();
+                std::function<double(double,double,double,double*)> waveletTolFunc = m_uiAppCtx->get_wtol_function();
+                bool isRemesh = (numRefVars > 0 ) ? this->isRemeshEvars(refVIDs,numRefVars,waveletTolFunc,0.1) : false;
+                //bool isRemesh = this->isRemeshEvars(refVIDs,numRefVars,waveletTolFunc,0.1);
                 if(isRemesh)
                 {
                     // create new mesh. 
@@ -1618,16 +2457,35 @@ namespace ts
                         // 2. timeCell vector
                     
                     // compute new min and max levels. 
+                    //std::cout<<"Remesh triggered but not doing remesh: )"<<std::endl;
                     this->remesh();
                 }
 
+                // blk_vec_to_zipDG(m_uiBVec.data(),m_uiEvarDG,0);
+                // pMesh->readFromGhostBeginEleDGVec(m_uiEvarDG.GetVecArray(),m_uiEvarDG.GetDof());
+                // pMesh->readFromGhostEndEleDGVec(m_uiEvarDG.GetVecArray(),m_uiEvarDG.GetDof());
+
+                // const std::vector<ot::Block>& blkList = pMesh->getLocalBlockList();
+                // for(unsigned int blk=0; blk< blkList.size(); blk++)
+                // {
+                //     // T* tmp = (T*) m_uiBVec[blk]._vec[0].data();
+                //     // for(unsigned int w=0; w <  m_uiBVec[blk]._vec[0].getDOF()* m_uiBVec[blk]._vec[0].getSz(); w++)
+                //     //     tmp[w]=0;
+                    
+                //     m_uiBVec[blk]._vec[0].mark_unsynced();
+                //     sync_blk_timestep(blk,0);
+                //     m_uiBVec[blk]._vec[0].mark_synced();
+
+                // }
+                
+
+
             }
 
-            pMesh = m_uiAppCtx->get_mesh();
-            if(pMesh->isActive())
-                this->partial_evolve(pt);
+            
 
-            pt++;
+
+            
             
 
         }
@@ -1637,7 +2495,7 @@ namespace ts
         if(pMesh->isActive())
         {   
             
-            const std::vector<ot::Block> blkList = pMesh->getLocalBlockList();
+            const std::vector<ot::Block>& blkList = pMesh->getLocalBlockList();
 
             #ifdef __PROFILE_ENUTS__
                 m_uiPt[ENUTSPROFILE::ENUTS_BLK_ZIP].start();
@@ -1649,7 +2507,7 @@ namespace ts
                 //const unsigned int BLK_T = m_uiBVec[blk]._time;
                 //const unsigned int NN   =  m_uiBVec[blk]._vec[0].getSz();
                 //const unsigned int bLev =  pNodes[blkList[blk].getLocalElementBegin()].getLevel();
-                //const unsigned int BLK_DT = 1u<<(m_uiLevMax - bLev);
+                //const unsigned int BLK_DT = m_uiAppCtx->getBlkTimestepFac(bLev,m_uiLevMin,m_uiLevMax);
                 m_uiBVec[blk]._vec[0].zip(pMesh, m_uiEVar.GetVecArray(),DOF);
             }
 
@@ -1663,7 +2521,7 @@ namespace ts
 
         
         
-        
+        m_uiAppCtx->post_timestep(m_uiEVar);
         m_uiAppCtx->increment_ts_info((T)coarset_t,1);
         m_uiTimeInfo = m_uiAppCtx->get_ts_info();
         pMesh->waitAll();

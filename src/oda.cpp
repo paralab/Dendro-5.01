@@ -558,7 +558,7 @@ namespace ot
 
             const unsigned int npes = m_uiMesh->getMPICommSize();
 
-            const std::vector<ot::TreeNode> sElements = m_uiMesh->getSplitterElements();
+            const std::vector<ot::TreeNode>& sElements = m_uiMesh->getSplitterElements();
             for(unsigned int p=0; p< npes ;p++)
             {
                 keys.push_back(ot::SearchKey(sElements[2*p]));

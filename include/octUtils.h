@@ -124,7 +124,7 @@ void enforceSiblingsAreNotPartitioned(std::vector<ot::TreeNode> & in,MPI_Comm co
  * @param [out] blockList finite sequence of blocks.
  * */
 
-void octree2BlockDecomposition(std::vector<ot::TreeNode>& pNodes, std::vector<ot::Block>& blockList,unsigned int maxDepth,unsigned int & d_min, unsigned int & d_max, DendroIntL localBegin, DendroIntL localEnd,unsigned int eleOrder,unsigned int coarsetLev=0);
+void octree2BlockDecomposition(std::vector<ot::TreeNode>& pNodes, std::vector<ot::Block>& blockList,unsigned int maxDepth,unsigned int & d_min, unsigned int & d_max, DendroIntL localBegin, DendroIntL localEnd,unsigned int eleOrder,unsigned int coarsetLev=0, unsigned int *tag=NULL, unsigned int tsz=0);
 
 
 

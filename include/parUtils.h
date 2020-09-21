@@ -278,49 +278,64 @@ extern int splitCommEvent;
   PetscLogEventEnd(partwEvent, 0, 0, 0, 0); \
   PetscFunctionReturn(0);
 
+#define __MPI_CHECK_ERROR__(error_code,comm)
+
 #else
 
-#define PROF_A2AV_WAIT_BEGIN
-#define PROF_SPLIT_COMM_2WAY_BEGIN
-#define PROF_SPLIT_COMM_BEGIN
-#define PROF_SEARCH_BEGIN
-#define PROF_PAR_SCATTER_BEGIN
-#define PROF_PAR_SENDRECV_BEGIN
-#define PROF_PAR_BCAST_BEGIN
-#define PROF_PAR_GATHER_BEGIN
-#define PROF_PAR_SCAN_BEGIN
-#define PROF_PAR_REDUCE_BEGIN
-#define PROF_PAR_ALLREDUCE_BEGIN
-#define PROF_PAR_ALL2ALL_BEGIN
-#define PROF_PAR_ALLGATHERV_BEGIN
-#define PROF_PAR_ALLGATHER_BEGIN
-#define PROF_PAR_ALL2ALLV_SPARSE_BEGIN
-#define PROF_PAR_ALL2ALLV_DENSE_BEGIN
-#define PROF_PAR_CONCAT_BEGIN
-#define PROF_SORT_BEGIN
-#define PROF_REMDUP_BEGIN
-#define PROF_PARTW_BEGIN
+#define PROF_A2AV_WAIT_BEGIN int error_code=MPI_SUCCESS;
+#define PROF_SPLIT_COMM_2WAY_BEGIN int error_code=MPI_SUCCESS;
+#define PROF_SPLIT_COMM_BEGIN int error_code=MPI_SUCCESS;
+#define PROF_SEARCH_BEGIN int error_code=MPI_SUCCESS;
+#define PROF_PAR_SCATTER_BEGIN int error_code=MPI_SUCCESS;
+#define PROF_PAR_SENDRECV_BEGIN int error_code=MPI_SUCCESS;
+#define PROF_PAR_BCAST_BEGIN int error_code=MPI_SUCCESS;
+#define PROF_PAR_GATHER_BEGIN int error_code=MPI_SUCCESS;
+#define PROF_PAR_SCAN_BEGIN int error_code=MPI_SUCCESS;
+#define PROF_PAR_REDUCE_BEGIN int error_code=MPI_SUCCESS;
+#define PROF_PAR_ALLREDUCE_BEGIN int error_code=MPI_SUCCESS;
+#define PROF_PAR_ALL2ALL_BEGIN int error_code=MPI_SUCCESS;
+#define PROF_PAR_ALLGATHERV_BEGIN int error_code=MPI_SUCCESS;
+#define PROF_PAR_ALLGATHER_BEGIN int error_code=MPI_SUCCESS;
+#define PROF_PAR_ALL2ALLV_SPARSE_BEGIN int error_code=MPI_SUCCESS;
+#define PROF_PAR_ALL2ALLV_DENSE_BEGIN int error_code=MPI_SUCCESS;
+#define PROF_PAR_CONCAT_BEGIN int error_code=MPI_SUCCESS;
+#define PROF_SORT_BEGIN int error_code=MPI_SUCCESS;
+#define PROF_REMDUP_BEGIN int error_code=MPI_SUCCESS;
+#define PROF_PARTW_BEGIN int error_code=MPI_SUCCESS;
 
-#define PROF_A2AV_WAIT_END
-#define PROF_SPLIT_COMM_2WAY_END return 1;
-#define PROF_SPLIT_COMM_END return 1;
-#define PROF_SEARCH_END return 1;
-#define PROF_PAR_SCATTER_END return 1;
-#define PROF_PAR_SENDRECV_END return 1;
-#define PROF_PAR_BCAST_END return 1;
-#define PROF_PAR_GATHER_END return 1;
-#define PROF_PAR_SCAN_END return 1;
-#define PROF_PAR_REDUCE_END return 1;
-#define PROF_PAR_ALLREDUCE_END return 1;
-#define PROF_PAR_ALL2ALL_END return 1;
-#define PROF_PAR_ALLGATHERV_END return 1;
-#define PROF_PAR_ALLGATHER_END return 1;
-#define PROF_PAR_ALL2ALLV_SPARSE_END return 1;
-#define PROF_PAR_ALL2ALLV_DENSE_END return 1;
-#define PROF_PAR_CONCAT_END return 1;
-#define PROF_SORT_END return 1;
-#define PROF_REMDUP_END return 1;
-#define PROF_PARTW_END return 1;
+// milinda added a macro to track the MPI errors. 
+#define __MPI_CHECK_ERROR__(error_code,comm)\
+if (error_code != MPI_SUCCESS) {\
+int rank;\
+MPI_Comm_rank(comm,&rank);\
+char error_string[BUFSIZ];\
+int length_of_error_string;\
+MPI_Error_string(error_code, error_string, &length_of_error_string);\
+fprintf(stderr, "%3d: %s\n", rank, error_string);\
+}
+
+#define PROF_A2AV_WAIT_END __MPI_CHECK_ERROR__(error_code,comm); return error_code;
+#define PROF_SPLIT_COMM_2WAY_END __MPI_CHECK_ERROR__(error_code,comm); return error_code;
+#define PROF_SPLIT_COMM_END __MPI_CHECK_ERROR__(error_code,comm); return error_code;
+#define PROF_SEARCH_END __MPI_CHECK_ERROR__(error_code,comm); return error_code;
+#define PROF_PAR_SCATTER_END __MPI_CHECK_ERROR__(error_code,comm); return error_code;
+#define PROF_PAR_SENDRECV_END __MPI_CHECK_ERROR__(error_code,comm); return error_code;
+#define PROF_PAR_BCAST_END __MPI_CHECK_ERROR__(error_code,comm); return error_code;
+#define PROF_PAR_GATHER_END __MPI_CHECK_ERROR__(error_code,comm); return error_code;
+#define PROF_PAR_SCAN_END  __MPI_CHECK_ERROR__(error_code,comm); return error_code;
+#define PROF_PAR_REDUCE_END  __MPI_CHECK_ERROR__(error_code,comm); return error_code;
+#define PROF_PAR_ALLREDUCE_END  __MPI_CHECK_ERROR__(error_code,comm); return error_code;
+#define PROF_PAR_ALL2ALL_END __MPI_CHECK_ERROR__(error_code,comm); return error_code;
+#define PROF_PAR_ALLGATHERV_END __MPI_CHECK_ERROR__(error_code,comm); return error_code;
+#define PROF_PAR_ALLGATHER_END __MPI_CHECK_ERROR__(error_code,comm); return error_code;
+#define PROF_PAR_ALL2ALLV_SPARSE_END __MPI_CHECK_ERROR__(error_code,comm); return error_code;
+#define PROF_PAR_ALL2ALLV_DENSE_END __MPI_CHECK_ERROR__(error_code,comm); return error_code;
+#define PROF_PAR_CONCAT_END __MPI_CHECK_ERROR__(error_code,comm); return error_code;
+#define PROF_SORT_END __MPI_CHECK_ERROR__(error_code,comm); return error_code;
+#define PROF_REMDUP_END __MPI_CHECK_ERROR__(error_code,comm); return error_code;
+#define PROF_PARTW_END __MPI_CHECK_ERROR__(error_code,comm); return error_code;
+
+
 
 #endif
 

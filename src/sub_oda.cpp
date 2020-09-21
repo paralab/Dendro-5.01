@@ -280,16 +280,16 @@ ot::subDA::subDA(ot::DA* da, std::function<double ( double, double, double ) > f
 
         unsigned int k=0; 
         unsigned int offset=0;
-        const std::vector<unsigned int> da_sendCount = _mesh->getNodalSendCounts();
-        const std::vector<unsigned int> da_recvCount = _mesh->getNodalRecvCounts();
-        const std::vector<unsigned int> da_sendOffset = _mesh->getNodalSendOffsets();
-        const std::vector<unsigned int> da_recvOffset = _mesh->getNodalRecvOffsets();
+        const std::vector<unsigned int>& da_sendCount = _mesh->getNodalSendCounts();
+        const std::vector<unsigned int>& da_recvCount = _mesh->getNodalRecvCounts();
+        const std::vector<unsigned int>& da_sendOffset = _mesh->getNodalSendOffsets();
+        const std::vector<unsigned int>& da_recvOffset = _mesh->getNodalRecvOffsets();
 
-        const std::vector<unsigned int > spList = _mesh->getSendProcList();
-        const std::vector<unsigned int > rpList = _mesh->getRecvProcList();
+        const std::vector<unsigned int >& spList = _mesh->getSendProcList();
+        const std::vector<unsigned int >& rpList = _mesh->getRecvProcList();
 
-        const std::vector<unsigned int > da_sm = _mesh->getSendNodeSM();
-        const std::vector<unsigned int > da_rm = _mesh->getRecvNodeSM();
+        const std::vector<unsigned int >& da_sm = _mesh->getSendNodeSM();
+        const std::vector<unsigned int >& da_rm = _mesh->getRecvNodeSM();
 
         for (unsigned int p=0; p<spList.size(); ++p) {
             unsigned int cnt=0;  

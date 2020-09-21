@@ -116,8 +116,8 @@ void ot::SubScatterMap::compute_L2SM()
     const unsigned int * const rOffset = m_uiMesh->getNodalRecvOffsets().data();
     const unsigned int * const sSM = m_uiMesh->getSendNodeSM().data();
     const unsigned int * const rSM = m_uiMesh->getRecvNodeSM().data();
-    std::vector<unsigned int> sProcList = m_uiMesh->getSendProcList();
-    std::vector<unsigned int> rProcList = m_uiMesh->getRecvProcList();
+    const std::vector<unsigned int>& sProcList = m_uiMesh->getSendProcList();
+    const std::vector<unsigned int>& rProcList = m_uiMesh->getRecvProcList();
 
 
     for(unsigned int p =0; p < sProcList.size(); p++ )

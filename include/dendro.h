@@ -7,6 +7,12 @@
 
 #include <climits>
 #include <complex>
+#include <stdio.h>
+#include <execinfo.h>
+#include <signal.h>
+#include <stdlib.h>
+#include <unistd.h>
+
 
 
 #define RED "\e[1;31m"
@@ -174,5 +180,6 @@ extern unsigned int MAXDEAPTH_LEVEL_DIFF;
 // used in face to element map.
 #define ODA_FLAGS_TOTAL 3
 
+void __handler(int sig);
 
 #endif //SFCSORTBENCH_DENDRO_H

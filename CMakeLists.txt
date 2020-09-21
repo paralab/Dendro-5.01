@@ -30,17 +30,17 @@ endif()
 
 option(USE_64BIT_INDICES "Use 64-Bit indices. Reverts to 32-bit if turned off" ON)
 option(HILBERT_ORDERING "Use Hilbert ordering instead of Morton" ON)
-#option(RUN_WEAK_SCALING "Run Entire Weak Scaling" ON)
-#option(ALLTOALLV_FIX "Use K-way all to all v" OFF)
-option(SPLITTER_SELECTION_FIX "Turn on Splitter Selection fix" ON)
+option(RUN_WEAK_SCALING "Run Entire Weak Scaling" ON)
+option(ALLTOALLV_FIX "Use K-way all to all v" OFF)
+option(SPLITTER_SELECTION_FIX "Turn on Splitter Selection fix" OFF)
 option(DIM_2 "use the two dimentional sorting" OFF)
-#option(PROFILE_TREE_SORT "Profile the tree sort code, construction and balancing. " OFF)
+option(PROFILE_TREE_SORT "Profile the tree sort code, construction and balancing. " OFF)
 option(WITH_BLAS_LAPACK "build using BLAS and LAPACk" ON)
 option(MANUAL_BLAS_LAPACK "configure BLAS and LAPACK Manually" OFF)
 option(DENDRO_VTK_BINARY "write vtk/vtu files in binary mode " ON)
 option(DENDRO_VTK_ZLIB_COMPRES "write vtk/vtu files in binary mode with zlib compression (only compatible with binary mode) " OFF)
-#option(ALLTOALL_SPARSE "uses isend irecv for ghost exchange (for some mpi implementations this might be efficient)" OFF)
-#option(ENABLE_DENDRO_PROFILE_COUNTERS " enables dendro internal profile counters. " OFF)
+option(ALLTOALL_SPARSE "uses isend irecv for ghost exchange (for some mpi implementations this might be efficient)" OFF)
+option(ENABLE_DENDRO_PROFILE_COUNTERS " enables dendro internal profile counters. " OFF)
 option(RK_SOLVER_OVERLAP_COMM_AND_COMP " enables RK solver comm. & comp. overlap. (might be good in large scale runs) " ON)
 option(WITH_CUDA " build dendro with cuda " OFF)
 option(BUILD_WITH_PETSC " build dendro with PETSC " OFF)
@@ -118,12 +118,13 @@ else ()
     #        )
     set(LAPACK_LIBRARIES ${LAPACK_LIBRARIES} ${LAPACKE_LIB})
     message(STATUS ${LAPACK_LIBRARIES})
-    
+
     if (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
         message("${CMAKE_CXX_COMPILER_ID} compiler detected adding -mkl flag for BLAS LAPACK")
         set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mkl")
         set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mkl")
     endif()
+  
 endif()
 
 endif()
@@ -177,6 +178,9 @@ endif()
 
 if(ENABLE_DENDRO_PROFILE_COUNTERS)
     add_definitions(-DENABLE_DENDRO_PROFILE_COUNTERS)
+    add_definitions(-D__PROFILE_CTX__)
+    add_definitions(-D__PROFILE_ETS__)
+    add_definitions(-D__PROFILE_ENUTS__)
 endif()
 
 if(RK_SOLVER_OVERLAP_COMM_AND_COMP)
@@ -232,6 +236,7 @@ set(DENDRO_INCLUDE_FILES
         include/mathMeshUtils.h
         include/mathUtils.h
         include/mathUtils.tcc
+        include/memory_pool.h
         include/stencil.h
         include/dollar.hpp
         include/block.h
@@ -252,6 +257,9 @@ set(DENDRO_INCLUDE_FILES
         include/sub_oda.tcc
         include/dvec.h
         include/meshUtils.h
+        include/waveletRefEl.h
+        include/waveletAMR.h
+        include/waveletAMR.tcc
         test/include/testUtils.h
         test/include/testUtils.tcc
         test/include/meshTestUtils.h
@@ -277,6 +285,7 @@ set(DENDRO_SOURCE_FILES
         src/odaUtils.cpp
         src/sub_oda.cpp
         src/meshUtils.cpp
+        src/waveletRefEl.cpp
         test/src/meshTestUtils.cpp
         )
 
@@ -578,6 +587,23 @@ target_include_directories(stencilExample PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/IO
 target_include_directories(stencilExample PRIVATE ${MPI_INCLUDE_PATH})
 target_include_directories(stencilExample PRIVATE ${GSL_INCLUDE_DIRS})
 
+
+set(SOURCE_FILES FEM/examples/src/dgVecTest.cpp)
+add_executable(dgVecTest ${SOURCE_FILES})
+target_link_libraries(dgVecTest dendro5  ${LAPACK_LIBRARIES} ${MPI_LIBRARIES} m)
+target_include_directories(dgVecTest PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_include_directories(dgVecTest PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test/include)
+target_include_directories(dgVecTest PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/examples/include)
+target_include_directories(dgVecTest PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/FEM/include)
+target_include_directories(dgVecTest PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/ODE/include)
+target_include_directories(dgVecTest PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/LinAlg/include)
+target_include_directories(dgVecTest PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/IO/vtk/include)
+target_include_directories(dgVecTest PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/IO/zlib/inc)
+target_include_directories(dgVecTest PRIVATE ${MPI_INCLUDE_PATH})
+target_include_directories(dgVecTest PRIVATE ${GSL_INCLUDE_DIRS})
+
+
+
 set(SOURCE_FILES FEM/examples/src/testInterp.cpp)
 add_executable(testInterp ${SOURCE_FILES})
 target_link_libraries(testInterp dendro5  ${LAPACK_LIBRARIES} ${MPI_LIBRARIES} m)
@@ -688,6 +714,22 @@ target_include_directories(heatEq PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/IO/vtk/inc
 target_include_directories(heatEq PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/IO/zlib/inc)
 target_include_directories(heatEq PRIVATE ${MPI_INCLUDE_PATH})
 target_include_directories(heatEq PRIVATE ${GSL_INCLUDE_DIRS})
+
+
+set(SOURCE_FILES FEM/examples/src/subdaExample.cpp)
+add_executable(subDAExample ${SOURCE_FILES})
+target_link_libraries(subDAExample dendro5 ${LAPACK_LIBRARIES} ${MPI_LIBRARIES} m)
+target_include_directories(subDAExample PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_include_directories(subDAExample PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test/include)
+target_include_directories(subDAExample PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/examples/include)
+target_include_directories(subDAExample PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/FEM/include)
+target_include_directories(subDAExample PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/FEM/examples/include)
+target_include_directories(subDAExample PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/ODE/include)
+target_include_directories(subDAExample PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/LinAlg/include)
+target_include_directories(subDAExample PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/IO/vtk/include)
+target_include_directories(subDAExample PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/IO/zlib/inc)
+target_include_directories(subDAExample PRIVATE ${MPI_INCLUDE_PATH})
+target_include_directories(subDAExample PRIVATE ${GSL_INCLUDE_DIRS})
 
 
 

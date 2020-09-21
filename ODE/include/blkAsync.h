@@ -43,12 +43,6 @@ namespace ts
             /**@brief: number of dof. */
             unsigned int m_uiDof;
 
-            /**@brief: list of send requests*/
-            std::vector<MPI_Request*> m_uiSendReq;
-
-            /**@brief: list of recv requests*/
-            //std::vector<MPI_Request*> m_uiRecvReq;
-
             
             
         public:
@@ -225,7 +219,6 @@ namespace ts
             void vecCopy(const BlockAsyncVector<T>& other)
             {
                 m_uiBlkID = other.m_uiBlkID;
-                m_uiSendReq = other.m_uiSendReq;
                 m_uiIsSynced = other.isSynced();
                 m_uiMode = other.m_uiMode;
                 m_uiDof = other.m_uiDof;
@@ -386,20 +379,8 @@ namespace ts
                 return;
             }
 
-            /**@brief: Initiate an asynchronous send from my blocks to other processors*/
-            virtual void iSend(const ot::Mesh* pMesh, T* vBuff, const  std::vector<unsigned int>& sp,  int tag, MPI_Comm comm) const 
-            {
-
-            }
-
-            /**@brief: Wait until the send req. are completed. */
-            virtual void waitOnSend()
-            {
-
-            }
-
             /**@brief: returns the m_uiVec pointer. */
-            inline const T* data() { return m_uiVec ; }
+            inline const T* data() const { return m_uiVec ; }
 
             /**@brief: return the block id*/
             inline unsigned int getBlkID() const {return m_uiBlkID;}
@@ -427,6 +408,220 @@ namespace ts
                     for(unsigned int n=0; n < nn; n++)
                         sout<<"m_uiVec["<<n<<"] : "<<m_uiVec[ v*nn + n ]<<std::endl;
                 }
+            }
+
+             /**
+             * @brief Get the Unzip Elemental values from the block async vector. 
+             * @param pMesh : Pointer to the mesh class. 
+             * @param ele : element ID.
+             * @param eleVec : element vector (unzip). 
+             */
+            
+            void getUnzipElementalValues(const ot::Mesh* pMesh, unsigned int ele ,T* eleVec)
+            {
+
+                if(pMesh->isActive())
+                {
+
+                    const std::vector<ot::Block>& blkList = pMesh->getLocalBlockList();
+                    const ot::TreeNode* pNodes = pMesh->getAllElements().data();
+
+                    if( !(ele >= blkList[m_uiBlkID].getLocalElementBegin()  && ele < blkList[m_uiBlkID].getLocalElementEnd())  )
+                    {
+                        std::cout<<"Error : "<<__LINE__<<" block async. get unzip elemental values called on the invalid BVec"<<std::endl;
+                        return;
+                    }
+                        
+
+                    ot::TreeNode blkNode = blkList[m_uiBlkID].getBlockNode();
+
+                    const unsigned int lx        = blkList[m_uiBlkID].getAllocationSzX();
+                    const unsigned int ly        = blkList[m_uiBlkID].getAllocationSzY();
+                    const unsigned int lz        = blkList[m_uiBlkID].getAllocationSzZ();
+                    const unsigned int offset    = blkList[m_uiBlkID].getOffset();
+                    const unsigned int paddWidth = blkList[m_uiBlkID].get1DPadWidth();
+
+                    const unsigned int regLev    = blkList[m_uiBlkID].getRegularGridLev();
+
+                    const unsigned int ei=(pNodes[ele].getX()-blkNode.getX())>>(m_uiMaxDepth-regLev);
+                    const unsigned int ej=(pNodes[ele].getY()-blkNode.getY())>>(m_uiMaxDepth-regLev);
+                    const unsigned int ek=(pNodes[ele].getZ()-blkNode.getZ())>>(m_uiMaxDepth-regLev);
+                    const unsigned int eleIDMax = blkList[m_uiBlkID].getElemSz1D();
+
+                    const unsigned int eOrder = pMesh->getElementOrder();
+
+                    const unsigned int ib = ei*eOrder;
+                    const unsigned int ie = ei*eOrder + (eOrder+1) + 2*paddWidth;
+
+                    const unsigned int jb = ej*eOrder;
+                    const unsigned int je = ej*eOrder + (eOrder+1) + 2*paddWidth;
+
+                    const unsigned int kb = ek*eOrder;
+                    const unsigned int ke = ek*eOrder + (eOrder+1) + 2*paddWidth;
+
+                    const unsigned int en[3] = {(eOrder+1) + 2*paddWidth , (eOrder+1) + 2*paddWidth, (eOrder+1) + 2*paddWidth };
+
+
+                    for(unsigned int v=0; v < m_uiDof; v++)
+                    {
+                        T* uzipVec = m_uiVec + v*m_uiSz[0]*m_uiSz[1]*m_uiSz[2];
+                        T* out     = eleVec  + v*en[0]*en[1]*en[2];
+
+
+                        for(unsigned int k=kb; k< ke; k++)
+                        for(unsigned int j=jb; j< je; j++)
+                        for(unsigned int i=ib; i< ie; i++)
+                            out[(k-kb) * en[1]*en[0] + (j-jb)*en[1] + (i-ib)] = uzipVec[k*ly*lx + j*lx + i];
+
+            
+
+                        // copy the unzip element last point to the padding region. 
+                        // if(pNodes[ele].minX()==0)
+                        // {
+                        //     assert(ei==0);
+
+                        //     for(unsigned int k=kb; k< ke; k++)
+                        //     for(unsigned int j=jb; j< je; j++)
+                        //     for(unsigned int i=ib; i< paddWidth; i++)
+                        //         out[(k-kb) * en[1]*en[0] + (j-jb)*en[1] + (i-ib)] = uzipVec[k*ly*lx + j*lx + paddWidth];
+
+                        // }
+
+
+                        // if(pNodes[ele].minY()==0)
+                        // {
+                        //     assert(ej==0);
+
+                        //     for(unsigned int k=kb; k< ke; k++)
+                        //     for(unsigned int j=jb; j< paddWidth; j++)
+                        //     for(unsigned int i=ib; i< ie; i++)
+                        //         out[(k-kb) * en[1]*en[0] + (j-jb)*en[1] + (i-ib)] = uzipVec[k*ly*lx + paddWidth*lx + i];
+
+                        // }
+
+                        // if(pNodes[ele].minZ()==0)
+                        // {
+                        //     assert(ek==0);
+
+                        //     for(unsigned int k=kb; k< paddWidth; k++)
+                        //     for(unsigned int j=jb; j< je; j++)
+                        //     for(unsigned int i=ib; i< ie; i++)
+                        //         out[(k-kb) * en[1]*en[0] + (j-jb)*en[1] + (i-ib)] = uzipVec[paddWidth*ly*lx + j*lx + i];
+
+                        // }
+
+
+                        // if(pNodes[ele].maxX()==(1u<<m_uiMaxDepth))
+                        // {
+                        //     assert(ei==(eleIDMax-1));
+
+                        //     for(unsigned int k=kb; k< ke; k++)
+                        //     for(unsigned int j=jb; j< je; j++)
+                        //     for(unsigned int i=(ie-paddWidth); i< ie; i++)
+                        //         out[(k-kb) * en[1]*en[0] + (j-jb)*en[1] + (i-ib)] = uzipVec[k*ly*lx + j*lx + (ie-paddWidth-1)];
+
+                        // }
+
+                        // if(pNodes[ele].maxY()==(1u<<m_uiMaxDepth))
+                        // {
+                        //     assert(ej==(eleIDMax-1));
+
+                        //     for(unsigned int k=kb; k< ke; k++)
+                        //     for(unsigned int j=(je-paddWidth); j< je; j++)
+                        //     for(unsigned int i=ib; i< ie; i++)
+                        //         out[(k-kb) * en[1]*en[0] + (j-jb)*en[1] + (i-ib)] = uzipVec[k*ly*lx + (je-paddWidth-1)*lx + i];
+
+                        // }
+
+                        // if(pNodes[ele].maxZ()==(1u<<m_uiMaxDepth))
+                        // {
+                        //     assert(ek==(eleIDMax-1));
+
+                        //     for(unsigned int k=(ke-paddWidth); k< ke; k++)
+                        //     for(unsigned int j=jb; j< je; j++)
+                        //     for(unsigned int i=ib; i< ie; i++)
+                        //         out[(k-kb) * en[1]*en[0] + (j-jb)*en[1] + (i-ib)] = uzipVec[(ke-paddWidth-1)*ly*lx + j*lx + i];
+
+                        // }
+
+
+
+                    }
+
+                    
+
+
+                }
+
+
+                return;
+            
+            }
+            
+
+            void getElementalValues(const ot::Mesh* pMesh, unsigned int ele, T* eleVec)
+            {
+                
+                
+                if(pMesh->isActive())
+                {
+
+                    const std::vector<ot::Block>& blkList = pMesh->getLocalBlockList();
+                    const ot::TreeNode* pNodes = pMesh->getAllElements().data();
+
+                    if( !(ele >= blkList[m_uiBlkID].getLocalElementBegin()  && ele < blkList[m_uiBlkID].getLocalElementEnd())  )
+                    {
+                        std::cout<<"Error : "<<__LINE__<<" block async. get unzip elemental values called on the invalid BVec"<<std::endl;
+                        return;
+                    }
+                        
+
+                    ot::TreeNode blkNode = blkList[m_uiBlkID].getBlockNode();
+
+                    const unsigned int lx        = blkList[m_uiBlkID].getAllocationSzX();
+                    const unsigned int ly        = blkList[m_uiBlkID].getAllocationSzY();
+                    const unsigned int lz        = blkList[m_uiBlkID].getAllocationSzZ();
+                    const unsigned int offset    = blkList[m_uiBlkID].getOffset();
+                    const unsigned int paddWidth = blkList[m_uiBlkID].get1DPadWidth();
+
+                    const unsigned int regLev    = blkList[m_uiBlkID].getRegularGridLev();
+
+                    const unsigned int ei=(pNodes[ele].getX()-blkNode.getX())>>(m_uiMaxDepth-regLev);
+                    const unsigned int ej=(pNodes[ele].getY()-blkNode.getY())>>(m_uiMaxDepth-regLev);
+                    const unsigned int ek=(pNodes[ele].getZ()-blkNode.getZ())>>(m_uiMaxDepth-regLev);
+                    const unsigned int eleIDMax = blkList[m_uiBlkID].getElemSz1D();
+
+                    const unsigned int eOrder = pMesh->getElementOrder();
+
+                    const unsigned int ib = ei*eOrder + paddWidth  ;
+                    const unsigned int ie = ei*eOrder + (eOrder+1) ;
+
+                    const unsigned int jb = ej*eOrder + paddWidth  ;
+                    const unsigned int je = ej*eOrder + (eOrder+1) ;
+
+                    const unsigned int kb = ek*eOrder + paddWidth  ;
+                    const unsigned int ke = ek*eOrder + (eOrder+1) ;
+
+                    const unsigned int en[3] = {(eOrder+1) , (eOrder+1) , (eOrder+1) };
+
+
+                    for(unsigned int v=0; v < m_uiDof; v++)
+                    {
+                        T* uzipVec = m_uiVec + v*m_uiSz[0]*m_uiSz[1]*m_uiSz[2];
+                        T* out     = eleVec  + v*en[0]*en[1]*en[2];
+
+
+                        for(unsigned int k=kb; k< ke; k++)
+                        for(unsigned int j=jb; j< je; j++)
+                        for(unsigned int i=ib; i< ie; i++)
+                            out[(k-kb) * en[1]*en[0] + (j-jb)*en[1] + (i-ib)] = uzipVec[k*ly*lx + j*lx + i];
+
+                    }
+
+                }
+
+
+                return;
             }
 
 

@@ -18,6 +18,8 @@
 #include <iostream>
 #include <functional>
 #include "parUtils.h"
+#include "dvec.h"
+#include "waveletAMR.h"
 namespace ot
 {   
 
@@ -36,7 +38,7 @@ namespace ot
      * @param sf_k : splitter fix values. 
      * @return Mesh mesh object. 
      */
-    Mesh* createMesh(const ot::TreeNode* oct, unsigned int num,unsigned int eleOrder, MPI_Comm comm , unsigned int verbose=1, ot::SM_TYPE sm_type = ot::SM_TYPE::FDM, unsigned int grain_sz = DENDRO_DEFAULT_GRAIN_SZ, double ld_tol = DENDRO_DEFAULT_LB_TOL, unsigned int sf_k = DENDRO_DEFAULT_SF_K, unsigned int (*getWeight)(const ot::TreeNode *)=NULL, unsigned int coarsestBlkLev=0);
+    Mesh* createMesh(const ot::TreeNode* oct, unsigned int num,unsigned int eleOrder, MPI_Comm comm , unsigned int verbose=1, ot::SM_TYPE sm_type = ot::SM_TYPE::FDM, unsigned int grain_sz = DENDRO_DEFAULT_GRAIN_SZ, double ld_tol = DENDRO_DEFAULT_LB_TOL, unsigned int sf_k = DENDRO_DEFAULT_SF_K, unsigned int (*getWeight)(const ot::TreeNode *)=NULL);
 
 
     /**
@@ -58,7 +60,17 @@ namespace ot
      */
     Mesh* createWAMRMesh(std::function<void(double,double,double,double*)> func, double wtol, unsigned int numVars, unsigned int eleOrder, MPI_Comm comm, unsigned int verbose=1,ot::SM_TYPE sm_type = ot::SM_TYPE::FDM, unsigned int * refIds=NULL, unsigned int sz=0, unsigned int grain_sz = DENDRO_DEFAULT_GRAIN_SZ, double ld_tol = DENDRO_DEFAULT_LB_TOL, unsigned int sf_k = DENDRO_DEFAULT_SF_K);
 
-    
+    /**
+     * @brief Creates a mesh which is guranteed to converge 
+     * @param pMesh : Pointer to current mesh object
+     * @param wtol : wavelet tolerance, 
+     * @param numVars : number of variables defined on the mesh. 
+     * @param eleOrder : element order. 
+     * @param refIds : refinment ids
+     * @param sz : size of the refinement ids
+     * @param maxiter : number of maximum iteration. 
+     */
+    void meshWAMRConvergence(ot::Mesh*& pMesh, std::function<void(double,double,double,double*)> func, double wtol, unsigned int numVars, unsigned int eleOrder,unsigned int * refIds=NULL, unsigned int sz=0, unsigned int maxiter=10);
 
     /**
      * @brief computes block unzip ghost node dependancies. 

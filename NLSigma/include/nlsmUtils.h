@@ -80,7 +80,7 @@ namespace nlsm
   /**
    * @brief wavelet tolerance as a function of space.
    * */
-  double computeWTol(double x,double y,double z,double tol_min);
+  double computeWTol(double x,double y,double z,double* hx);
 
   /**
    * @brief force refinement at the pulse. 

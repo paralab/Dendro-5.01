@@ -28,6 +28,16 @@ extern "C" void dgetrf_(int* M, int *N, double* A, int* lda, int* IPIV, int* INF
 // generate inverse of a matrix given its LU decomposition
 extern "C" void dgetri_(int* N, double* A, int* lda, int* IPIV, double* WORK, int* lwork, int* INFO);
 
+// generic mat-mat multiplications
+extern "C" void dgemm_(char * transa, char * transb, int * m, int * n, int * k,
+              double * alpha, double * A, int * lda,
+              double * B, int * ldb, double * beta,
+              double * C, int * ldc);
+
+// generic matrix vector multiplication. 
+extern "C" void dgemv_(char * trans, int * m, int *n, double *alpha,
+              double * A, int *lda, double * x, int *incx, double *beta, double* y, int* incy);  
+
 
 namespace lapack
 {

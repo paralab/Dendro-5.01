@@ -149,8 +149,8 @@ bool ot::test::isElementalNodalValuesValid( ot::Mesh * pMesh,T* vec,std::functio
     nodalValues.resize(pMesh->getNumNodesPerElement());
     const unsigned int eleOrder=pMesh->getElementOrder();
 
-    const std::vector<ot::TreeNode> pNodes=pMesh->getAllElements();
-    const std::vector<unsigned int> e2n_dg=pMesh->getE2NMapping_DG();
+    const std::vector<ot::TreeNode>& pNodes=pMesh->getAllElements();
+    const std::vector<unsigned int>& e2n_dg=pMesh->getE2NMapping_DG();
     unsigned int owner,ix,jy,kz;
     const unsigned int nPe=pMesh->getNumNodesPerElement();
     bool isValid=true;
@@ -293,8 +293,8 @@ bool ot::test::isUnzipValid(ot::Mesh* pMesh, T* unzipVec,std::function<T(T,T,T)>
     if(!(pMesh->isActive())) return true;
 
     const int rank =pMesh->getMPIRank();
-    const std::vector<ot::TreeNode> pNodes=pMesh->getAllElements();
-    const std::vector<ot::Block> blkList=pMesh->getLocalBlockList();
+    const std::vector<ot::TreeNode>& pNodes=pMesh->getAllElements();
+    const std::vector<ot::Block>& blkList=pMesh->getLocalBlockList();
 
     /*std::vector<ot::TreeNode> localElem;
     std::vector<ot::TreeNode> ghostElem;
@@ -350,6 +350,24 @@ bool ot::test::isUnzipValid(ot::Mesh* pMesh, T* unzipVec,std::function<T(T,T,T)>
         pt_max[1]=(double)blkNode.maxY()+pW*hy;
         pt_max[2]=(double)blkNode.maxZ()+pW*hz;
 
+        // to check if the specific non-boundary block has non at any unzip point. below we specically check the each boundary case accordingly. 
+        if(!bflag)
+        for(unsigned int k=0; k < lz; k++)
+            for(unsigned int j=0;j < ly; j++)
+                for(unsigned int i=0;i < lx; i++)
+                {
+                    x=pt_min[0]+i*hx;
+                    y=pt_min[1]+j*hy;
+                    z=pt_min[2]+k*hz;
+
+                    if(fabs(unzipVec[offset+k*ly*lx+j*lx+i]-fn(x,y,z))>tol)
+                    {
+                        valid=false;
+                        std::cout<<"rank: "<<rank<<"blk: "<<blkNode<<" block unzip error : unzip value:  "<<unzipVec[offset+k*ly*lx+j*lx+i]<<"\t func(x,y,z): "<<fn(x,y,z)<<" (i,j,k): ("<<i<<", "<<j<<","<<k<<" )"<<"sz: "<<lx<<std::endl;
+                    }
+
+                }
+
         ib=pW;
         ie=lx-pW;
 
@@ -380,7 +398,7 @@ bool ot::test::isUnzipValid(ot::Mesh* pMesh, T* unzipVec,std::function<T(T,T,T)>
 
         if(!(bflag & (1u<<OCT_DIR_LEFT)))
         {
-            ib=1;
+            ib=0;
             ie=pW;
             jb=pW;
             je=ly-pW;
@@ -405,42 +423,13 @@ bool ot::test::isUnzipValid(ot::Mesh* pMesh, T* unzipVec,std::function<T(T,T,T)>
                     }
 
                 if(!(bflag & (1u<<OCT_DIR_DOWN)))
-            {
-                ib=1;
-                ie=pW;
-                jb=1;
-                je=pW;
-                kb=pW;
-                ke=lz-pW;
-
-                for(unsigned int k=kb; k<ke; k++)
-                    for(unsigned int j=jb;j<je; j++)
-                        for(unsigned int i=ib;i<ie; i++)
-                        {
-                            x=pt_min[0]+i*hx;
-                            y=pt_min[1]+j*hy;
-                            z=pt_min[2]+k*hz;
-
-                            if(fabs(unzipVec[offset+k*ly*lx+j*lx+i]-fn(x,y,z))>tol)
-                            {
-                                valid=false;
-                                std::cout<<"rank: "<<rank<<"blk: "<<blkNode<<" block[LEFT_DOWN] unzip error : unzip value:  "<<unzipVec[offset+k*ly*lx+j*lx+i]<<"\t func(x,y,z): "<<fn(x,y,z)<<" (i,j,k): ("<<i<<", "<<j<<","<<k<<" )"<<"sz: "<<lx<<std::endl;
-                            }
-
-
-                        }
-
-
-
-                if(!(bflag & (1u<<OCT_DIR_BACK)))
                 {
-
-                    ib=1;
+                    ib=0;
                     ie=pW;
-                    jb=1;
+                    jb=0;
                     je=pW;
-                    kb=1;
-                    ke=pW;
+                    kb=pW;
+                    ke=lz-pW;
 
                     for(unsigned int k=kb; k<ke; k++)
                         for(unsigned int j=jb;j<je; j++)
@@ -453,88 +442,182 @@ bool ot::test::isUnzipValid(ot::Mesh* pMesh, T* unzipVec,std::function<T(T,T,T)>
                                 if(fabs(unzipVec[offset+k*ly*lx+j*lx+i]-fn(x,y,z))>tol)
                                 {
                                     valid=false;
-                                    std::cout<<"rank: "<<rank<<"blk: "<<blkNode<<" block[LEFT_DOWN_BACK] unzip error : unzip value:  "<<unzipVec[offset+k*ly*lx+j*lx+i]<<"\t func(x,y,z): "<<fn(x,y,z)<<" (i,j,k): ("<<i<<", "<<j<<","<<k<<" )"<<"sz: "<<lx<<std::endl;
+                                    std::cout<<"rank: "<<rank<<"blk: "<<blkNode<<" block[LEFT_DOWN] unzip error : unzip value:  "<<unzipVec[offset+k*ly*lx+j*lx+i]<<"\t func(x,y,z): "<<fn(x,y,z)<<" (i,j,k): ("<<i<<", "<<j<<","<<k<<" )"<<"sz: "<<lx<<std::endl;
                                 }
 
 
                             }
 
 
-                }
 
+                    if(!(bflag & (1u<<OCT_DIR_BACK)))
+                    {
 
+                        ib=0;
+                        ie=pW;
+                        jb=0;
+                        je=pW;
+                        kb=0;
+                        ke=pW;
 
-                if(!(bflag & (1u<<OCT_DIR_FRONT)))
-                {
-
-                    ib=1;
-                    ie=pW;
-                    jb=1;
-                    je=pW;
-                    kb=lz-pW;
-                    ke=lz-1;
-
-                    for(unsigned int k=kb; k<ke; k++)
-                        for(unsigned int j=jb;j<je; j++)
-                            for(unsigned int i=ib;i<ie; i++)
-                            {
-                                x=pt_min[0]+i*hx;
-                                y=pt_min[1]+j*hy;
-                                z=pt_min[2]+k*hz;
-
-                                if(fabs(unzipVec[offset+k*ly*lx+j*lx+i]-fn(x,y,z))>tol)
+                        for(unsigned int k=kb; k<ke; k++)
+                            for(unsigned int j=jb;j<je; j++)
+                                for(unsigned int i=ib;i<ie; i++)
                                 {
-                                    valid=false;
-                                    std::cout<<"rank: "<<rank<<"blk: "<<blkNode<<" block[LEFT_DOWN_FRONT] unzip error : unzip value:  "<<unzipVec[offset+k*ly*lx+j*lx+i]<<"\t func(x,y,z): "<<fn(x,y,z)<<" (i,j,k): ("<<i<<", "<<j<<","<<k<<" )"<<"sz: "<<lx<<std::endl;
+                                    x=pt_min[0]+i*hx;
+                                    y=pt_min[1]+j*hy;
+                                    z=pt_min[2]+k*hz;
+
+                                    if(fabs(unzipVec[offset+k*ly*lx+j*lx+i]-fn(x,y,z))>tol)
+                                    {
+                                        valid=false;
+                                        std::cout<<"rank: "<<rank<<"blk: "<<blkNode<<" block[LEFT_DOWN_BACK] unzip error : unzip value:  "<<unzipVec[offset+k*ly*lx+j*lx+i]<<"\t func(x,y,z): "<<fn(x,y,z)<<" (i,j,k): ("<<i<<", "<<j<<","<<k<<" )"<<"sz: "<<lx<<std::endl;
+                                    }
+
+
                                 }
 
 
-                            }
+                    }
+
+
+
+                    if(!(bflag & (1u<<OCT_DIR_FRONT)))
+                    {
+
+                        ib=0;
+                        ie=pW;
+                        jb=0;
+                        je=pW;
+                        kb=lz-pW;
+                        ke=lz;
+
+                        for(unsigned int k=kb; k<ke; k++)
+                            for(unsigned int j=jb;j<je; j++)
+                                for(unsigned int i=ib;i<ie; i++)
+                                {
+                                    x=pt_min[0]+i*hx;
+                                    y=pt_min[1]+j*hy;
+                                    z=pt_min[2]+k*hz;
+
+                                    if(fabs(unzipVec[offset+k*ly*lx+j*lx+i]-fn(x,y,z))>tol)
+                                    {
+                                        valid=false;
+                                        std::cout<<"rank: "<<rank<<"blk: "<<blkNode<<" block[LEFT_DOWN_FRONT] unzip error : unzip value:  "<<unzipVec[offset+k*ly*lx+j*lx+i]<<"\t func(x,y,z): "<<fn(x,y,z)<<" (i,j,k): ("<<i<<", "<<j<<","<<k<<" )"<<"sz: "<<lx<<std::endl;
+                                    }
+
+
+                                }
+
+
+                    }
+
 
 
                 }
-
-
-
-            }
 
                 if(!(bflag & (1u<<OCT_DIR_UP)))
-            {
-                ib=1;
-                ie=pW;
-                jb=ly-pW;
-                je=ly-1;
-                kb=pW;
-                ke=lz-pW;
+                {
+                    ib=0;
+                    ie=pW;
+                    jb=ly-pW;
+                    je=ly;
+                    kb=pW;
+                    ke=lz-pW;
 
-                for(unsigned int k=kb; k<ke; k++)
-                    for(unsigned int j=jb;j<je; j++)
-                        for(unsigned int i=ib;i<ie; i++)
-                        {
-                            x=pt_min[0]+i*hx;
-                            y=pt_min[1]+j*hy;
-                            z=pt_min[2]+k*hz;
-
-                            if(fabs(unzipVec[offset+k*ly*lx+j*lx+i]-fn(x,y,z))>tol)
+                    for(unsigned int k=kb; k<ke; k++)
+                        for(unsigned int j=jb;j<je; j++)
+                            for(unsigned int i=ib;i<ie; i++)
                             {
-                                valid=false;
-                                std::cout<<"rank: "<<rank<<"blk: "<<blkNode<<" block[LEFT_UP] unzip error : unzip value:  "<<unzipVec[offset+k*ly*lx+j*lx+i]<<"\t func(x,y,z): "<<fn(x,y,z)<<" (i,j,k): ("<<i<<", "<<j<<","<<k<<" )"<<"sz: "<<lx<<std::endl;
+                                x=pt_min[0]+i*hx;
+                                y=pt_min[1]+j*hy;
+                                z=pt_min[2]+k*hz;
+
+                                if(fabs(unzipVec[offset+k*ly*lx+j*lx+i]-fn(x,y,z))>tol)
+                                {
+                                    valid=false;
+                                    std::cout<<"rank: "<<rank<<"blk: "<<blkNode<<" block[LEFT_UP] unzip error : unzip value:  "<<unzipVec[offset+k*ly*lx+j*lx+i]<<"\t func(x,y,z): "<<fn(x,y,z)<<" (i,j,k): ("<<i<<", "<<j<<","<<k<<" )"<<"sz: "<<lx<<std::endl;
+                                }
+
+
                             }
 
 
-                        }
 
 
+                    if(!(bflag & (1u<<OCT_DIR_BACK)))
+                    {
+
+                        ib=0;
+                        ie=pW;
+                        jb=ly-pW;
+                        je=ly;
+                        kb=0;
+                        ke=pW;
+
+                        for(unsigned int k=kb; k<ke; k++)
+                            for(unsigned int j=jb;j<je; j++)
+                                for(unsigned int i=ib;i<ie; i++)
+                                {
+                                    x=pt_min[0]+i*hx;
+                                    y=pt_min[1]+j*hy;
+                                    z=pt_min[2]+k*hz;
+
+                                    if(fabs(unzipVec[offset+k*ly*lx+j*lx+i]-fn(x,y,z))>tol)
+                                    {
+                                        valid=false;
+                                        std::cout<<"rank: "<<rank<<"blk: "<<blkNode<<" block[LEFT_UP_BACK] unzip error : unzip value:  "<<unzipVec[offset+k*ly*lx+j*lx+i]<<"\t func(x,y,z): "<<fn(x,y,z)<<" (i,j,k): ("<<i<<", "<<j<<","<<k<<" )"<<"sz: "<<lx<<std::endl;
+                                    }
+
+
+                                }
+
+
+                    }
+
+
+                    if(!(bflag & (1u<<OCT_DIR_FRONT)))
+                    {
+
+                        ib=0;
+                        ie=pW;
+                        jb=ly-pW;
+                        je=ly;
+                        kb=lz-pW;
+                        ke=lz;
+
+                        for(unsigned int k=kb; k<ke; k++)
+                            for(unsigned int j=jb;j<je; j++)
+                                for(unsigned int i=ib;i<ie; i++)
+                                {
+                                    x=pt_min[0]+i*hx;
+                                    y=pt_min[1]+j*hy;
+                                    z=pt_min[2]+k*hz;
+
+                                    if(fabs(unzipVec[offset+k*ly*lx+j*lx+i]-fn(x,y,z))>tol)
+                                    {
+                                        valid=false;
+                                        std::cout<<"rank: "<<rank<<"blk: "<<blkNode<<" block[LEFT_UP_FRONT] unzip error : unzip value:  "<<unzipVec[offset+k*ly*lx+j*lx+i]<<"\t func(x,y,z): "<<fn(x,y,z)<<" (i,j,k): ("<<i<<", "<<j<<","<<k<<" )"<<"sz: "<<lx<<std::endl;
+                                    }
+
+
+                                }
+
+
+                    }
+
+
+
+                }
 
 
                 if(!(bflag & (1u<<OCT_DIR_BACK)))
                 {
-
-                    ib=1;
+                    ib=0;
                     ie=pW;
-                    jb=ly-pW;
-                    je=ly-1;
-                    kb=1;
+                    jb=pW;
+                    je=ly-pW;
+                    kb=0;
                     ke=pW;
 
                     for(unsigned int k=kb; k<ke; k++)
@@ -548,25 +631,26 @@ bool ot::test::isUnzipValid(ot::Mesh* pMesh, T* unzipVec,std::function<T(T,T,T)>
                                 if(fabs(unzipVec[offset+k*ly*lx+j*lx+i]-fn(x,y,z))>tol)
                                 {
                                     valid=false;
-                                    std::cout<<"rank: "<<rank<<"blk: "<<blkNode<<" block[LEFT_UP_BACK] unzip error : unzip value:  "<<unzipVec[offset+k*ly*lx+j*lx+i]<<"\t func(x,y,z): "<<fn(x,y,z)<<" (i,j,k): ("<<i<<", "<<j<<","<<k<<" )"<<"sz: "<<lx<<std::endl;
+                                    std::cout<<"rank: "<<rank<<"blk: "<<blkNode<<" block[LEFT_BACK] unzip error : unzip value:  "<<unzipVec[offset+k*ly*lx+j*lx+i]<<"\t func(x,y,z): "<<fn(x,y,z)<<" (i,j,k): ("<<i<<", "<<j<<","<<k<<" )"<<"sz: "<<lx<<" x: "<<x<<" y: "<<y<<" z: "<<z<<std::endl;
                                 }
 
 
-                            }
 
+
+                            }
 
                 }
 
 
                 if(!(bflag & (1u<<OCT_DIR_FRONT)))
                 {
-
-                    ib=1;
+                    ib=0;
                     ie=pW;
-                    jb=ly-pW;
-                    je=ly-1;
+                    jb=pW;
+                    je=ly-pW;
+
                     kb=lz-pW;
-                    ke=lz-1;
+                    ke=lz;
 
                     for(unsigned int k=kb; k<ke; k++)
                         for(unsigned int j=jb;j<je; j++)
@@ -579,80 +663,13 @@ bool ot::test::isUnzipValid(ot::Mesh* pMesh, T* unzipVec,std::function<T(T,T,T)>
                                 if(fabs(unzipVec[offset+k*ly*lx+j*lx+i]-fn(x,y,z))>tol)
                                 {
                                     valid=false;
-                                    std::cout<<"rank: "<<rank<<"blk: "<<blkNode<<" block[LEFT_UP_FRONT] unzip error : unzip value:  "<<unzipVec[offset+k*ly*lx+j*lx+i]<<"\t func(x,y,z): "<<fn(x,y,z)<<" (i,j,k): ("<<i<<", "<<j<<","<<k<<" )"<<"sz: "<<lx<<std::endl;
+                                    std::cout<<"rank: "<<rank<<"blk: "<<blkNode<<"  block[LEFT_FRONT] unzip error : unzip value:  "<<unzipVec[offset+k*ly*lx+j*lx+i]<<"\t func(x,y,z): "<<fn(x,y,z)<<" (i,j,k): ("<<i<<", "<<j<<","<<k<<" )"<<"sz: "<<lx<<std::endl;
                                 }
 
 
                             }
 
-
                 }
-
-
-
-
-            }
-
-
-                if(!(bflag & (1u<<OCT_DIR_BACK)))
-             {
-                 ib=1;
-                 ie=pW;
-                 jb=pW;
-                 je=ly-pW;
-                 kb=1;
-                 ke=pW;
-
-                 for(unsigned int k=kb; k<ke; k++)
-                     for(unsigned int j=jb;j<je; j++)
-                         for(unsigned int i=ib;i<ie; i++)
-                         {
-                             x=pt_min[0]+i*hx;
-                             y=pt_min[1]+j*hy;
-                             z=pt_min[2]+k*hz;
-
-                             if(fabs(unzipVec[offset+k*ly*lx+j*lx+i]-fn(x,y,z))>tol)
-                             {
-                                 valid=false;
-                                 std::cout<<"rank: "<<rank<<"blk: "<<blkNode<<" block[LEFT_BACK] unzip error : unzip value:  "<<unzipVec[offset+k*ly*lx+j*lx+i]<<"\t func(x,y,z): "<<fn(x,y,z)<<" (i,j,k): ("<<i<<", "<<j<<","<<k<<" )"<<"sz: "<<lx<<" x: "<<x<<" y: "<<y<<" z: "<<z<<std::endl;
-                             }
-
-
-
-
-                         }
-
-             }
-
-
-                 if(!(bflag & (1u<<OCT_DIR_FRONT)))
-            {
-                ib=1;
-                ie=pW;
-                jb=pW;
-                je=ly-pW;
-
-                kb=lz-pW;
-                ke=lz-1;
-
-                for(unsigned int k=kb; k<ke; k++)
-                    for(unsigned int j=jb;j<je; j++)
-                        for(unsigned int i=ib;i<ie; i++)
-                        {
-                            x=pt_min[0]+i*hx;
-                            y=pt_min[1]+j*hy;
-                            z=pt_min[2]+k*hz;
-
-                            if(fabs(unzipVec[offset+k*ly*lx+j*lx+i]-fn(x,y,z))>tol)
-                            {
-                                valid=false;
-                                std::cout<<"rank: "<<rank<<"blk: "<<blkNode<<"  block[LEFT_FRONT] unzip error : unzip value:  "<<unzipVec[offset+k*ly*lx+j*lx+i]<<"\t func(x,y,z): "<<fn(x,y,z)<<" (i,j,k): ("<<i<<", "<<j<<","<<k<<" )"<<"sz: "<<lx<<std::endl;
-                            }
-
-
-                        }
-
-            }
 
 
 
@@ -665,7 +682,7 @@ bool ot::test::isUnzipValid(ot::Mesh* pMesh, T* unzipVec,std::function<T(T,T,T)>
 
 
             ib=lx-pW;
-            ie=lx-1;
+            ie=lx;
             jb=pW;
             je=ly-pW;
             kb=pW;
@@ -693,8 +710,8 @@ bool ot::test::isUnzipValid(ot::Mesh* pMesh, T* unzipVec,std::function<T(T,T,T)>
              if(!(bflag & (1u<<OCT_DIR_DOWN)))
              {
                  ib=lx-pW;
-                 ie=lx-1;
-                 jb=1;
+                 ie=lx;
+                 jb=0;
                  je=pW;
                  kb=pW;
                  ke=lz-pW;
@@ -723,10 +740,10 @@ bool ot::test::isUnzipValid(ot::Mesh* pMesh, T* unzipVec,std::function<T(T,T,T)>
                  if(!(bflag & (1u<<OCT_DIR_BACK)))
                  {
                      ib=lx-pW;
-                     ie=lx-1;
-                     jb=1;
+                     ie=lx;
+                     jb=0;
                      je=pW;
-                     kb=1;
+                     kb=0;
                      ke=pW;
 
                      for(unsigned int k=kb; k<ke; k++)
@@ -751,11 +768,11 @@ bool ot::test::isUnzipValid(ot::Mesh* pMesh, T* unzipVec,std::function<T(T,T,T)>
                  if(!(bflag & (1u<<OCT_DIR_FRONT)))
                  {
                      ib=lx-pW;
-                     ie=lx-1;
-                     jb=1;
+                     ie=lx;
+                     jb=0;
                      je=pW;
                      kb=lz-pW;
-                     ke=lz-1;
+                     ke=lz;
 
                      for(unsigned int k=kb; k<ke; k++)
                          for(unsigned int j=jb;j<je; j++)
@@ -783,9 +800,9 @@ bool ot::test::isUnzipValid(ot::Mesh* pMesh, T* unzipVec,std::function<T(T,T,T)>
              if(!(bflag & (1u<<OCT_DIR_UP)))
              {
                  ib=lx-pW;
-                 ie=lx-1;
+                 ie=lx;
                  jb=ly-pW;
-                 je=ly-1;
+                 je=ly;
                  kb=pW;
                  ke=lz-pW;
 
@@ -810,9 +827,9 @@ bool ot::test::isUnzipValid(ot::Mesh* pMesh, T* unzipVec,std::function<T(T,T,T)>
                  if(!(bflag & (1u<<OCT_DIR_BACK)))
                  {
                      ib=lx-pW;
-                     ie=lx-1;
+                     ie=lx;
                      jb=ly-pW;
-                     je=ly-1;
+                     je=ly;
                      kb=1;
                      ke=pW;
 
@@ -838,11 +855,11 @@ bool ot::test::isUnzipValid(ot::Mesh* pMesh, T* unzipVec,std::function<T(T,T,T)>
                  if(!(bflag & (1u<<OCT_DIR_FRONT)))
                  {
                      ib=lx-pW;
-                     ie=lx-1;
+                     ie=lx;
                      jb=ly-pW;
-                     je=ly-1;
+                     je=ly;
                      kb=lz-pW;
-                     ke=lz-1;
+                     ke=lz;
 
                      for(unsigned int k=kb; k<ke; k++)
                          for(unsigned int j=jb;j<je; j++)
@@ -870,10 +887,10 @@ bool ot::test::isUnzipValid(ot::Mesh* pMesh, T* unzipVec,std::function<T(T,T,T)>
             if(!(bflag & (1u<<OCT_DIR_BACK)))
             {
                 ib=lx-pW;
-                ie=lx-1;
+                ie=lx;
                 jb=pW;
                 je=ly-pW;
-                kb=1;
+                kb=0;
                 ke=pW;
 
                 for(unsigned int k=kb; k<ke; k++)
@@ -901,12 +918,12 @@ bool ot::test::isUnzipValid(ot::Mesh* pMesh, T* unzipVec,std::function<T(T,T,T)>
             if(!(bflag & (1u<<OCT_DIR_FRONT)))
             {
                 ib=lx-pW;
-                ie=lx-1;
+                ie=lx;
                 jb=pW;
                 je=ly-pW;
 
                 kb=lz-pW;
-                ke=lz-1;
+                ke=lz;
 
                 for(unsigned int k=kb; k<ke; k++)
                     for(unsigned int j=jb;j<je; j++)
@@ -942,7 +959,7 @@ bool ot::test::isUnzipValid(ot::Mesh* pMesh, T* unzipVec,std::function<T(T,T,T)>
 
             ib=pW;
             ie=lx-pW;
-            jb=1;
+            jb=0;
             je=pW;
             kb=pW;
             ke=lz-pW;
@@ -970,9 +987,9 @@ bool ot::test::isUnzipValid(ot::Mesh* pMesh, T* unzipVec,std::function<T(T,T,T)>
             {
                 ib=pW;
                 ie=lx-pW;
-                jb=1;
+                jb=0;
                 je=pW;
-                kb=1;
+                kb=0;
                 ke=pW;
 
                 for(unsigned int k=kb; k<ke; k++)
@@ -1001,11 +1018,11 @@ bool ot::test::isUnzipValid(ot::Mesh* pMesh, T* unzipVec,std::function<T(T,T,T)>
             {
                 ib=pW;
                 ie=lx-pW;
-                jb=1;
+                jb=0;
                 je=pW;
 
                 kb=lz-pW;
-                ke=lz-1;
+                ke=lz;
 
                 for(unsigned int k=kb; k<ke; k++)
                     for(unsigned int j=jb;j<je; j++)
@@ -1038,7 +1055,7 @@ bool ot::test::isUnzipValid(ot::Mesh* pMesh, T* unzipVec,std::function<T(T,T,T)>
             ib=pW;
             ie=lx-pW;
             jb=ly-pW;
-            je=ly-1;
+            je=ly;
             kb=pW;
             ke=lz-pW;
 
@@ -1066,8 +1083,8 @@ bool ot::test::isUnzipValid(ot::Mesh* pMesh, T* unzipVec,std::function<T(T,T,T)>
                 ib=pW;
                 ie=lx-pW;
                 jb=ly-pW;
-                je=ly-1;
-                kb=1;
+                je=ly;
+                kb=0;
                 ke=pW;
 
                 for(unsigned int k=kb; k<ke; k++)
@@ -1097,10 +1114,10 @@ bool ot::test::isUnzipValid(ot::Mesh* pMesh, T* unzipVec,std::function<T(T,T,T)>
                 ib=pW;
                 ie=lx-pW;
                 jb=ly-pW;
-                je=ly-1;
+                je=ly;
 
                 kb=lz-pW;
-                ke=lz-1;
+                ke=lz;
 
                 for(unsigned int k=kb; k<ke; k++)
                     for(unsigned int j=jb;j<je; j++)
@@ -1134,7 +1151,7 @@ bool ot::test::isUnzipValid(ot::Mesh* pMesh, T* unzipVec,std::function<T(T,T,T)>
             ie=lx-pW;
             jb=pW;
             je=ly-pW;
-            kb=1;
+            kb=0;
             ke=pW;
 
             for(unsigned int k=kb; k<ke; k++)
@@ -1166,7 +1183,7 @@ bool ot::test::isUnzipValid(ot::Mesh* pMesh, T* unzipVec,std::function<T(T,T,T)>
             jb=pW;
             je=ly-pW;
             kb=lz-pW;
-            ke=lz-1;
+            ke=lz;
 
             for(unsigned int k=kb; k<ke; k++)
                 for(unsigned int j=jb;j<je; j++)
@@ -1208,8 +1225,8 @@ bool ot::test::isUnzipNaN(ot::Mesh* pMesh, T* unzipVec)
     if(!(pMesh->isActive())) return false;
 
     const int rank =pMesh->getMPIRank();
-    const std::vector<ot::TreeNode> pNodes=pMesh->getAllElements();
-    const std::vector<ot::Block> blkList=pMesh->getLocalBlockList();
+    const std::vector<ot::TreeNode>& pNodes=pMesh->getAllElements();
+    const std::vector<ot::Block>& blkList=pMesh->getLocalBlockList();
 
     /*std::vector<ot::TreeNode> localElem;
     std::vector<ot::TreeNode> ghostElem;
@@ -2137,8 +2154,8 @@ bool ot::test::isUnzipInternalNaN(ot::Mesh* pMesh, T* unzipVec)
     if(!(pMesh->isActive())) return false;
 
     const int rank =pMesh->getMPIRank();
-    const std::vector<ot::TreeNode> pNodes=pMesh->getAllElements();
-    const std::vector<ot::Block> blkList=pMesh->getLocalBlockList();
+    const std::vector<ot::TreeNode>& pNodes=pMesh->getAllElements();
+    const std::vector<ot::Block>& blkList=pMesh->getLocalBlockList();
 
     /*std::vector<ot::TreeNode> localElem;
     std::vector<ot::TreeNode> ghostElem;
@@ -2490,7 +2507,7 @@ bool ot::test::isSubScatterMapValid( ot::Mesh* const pMesh , ot::SubScatterMap *
     const unsigned int zip_dof = pMesh->getDegOfFreedom();
     const unsigned int unzip_dof = pMesh->getDegOfFreedomUnZip();
 
-    const std::vector<ot::Block> blkList = pMesh->getLocalBlockList();
+    const std::vector<ot::Block>& blkList = pMesh->getLocalBlockList();
     bool state = true;
     bool state_g;
 

@@ -36,16 +36,18 @@ namespace par
 template <typename T>
 inline int Mpi_Isend(T *buf, int count, int dest, int tag, MPI_Comm comm, MPI_Request *request)
 {
-  MPI_Isend(buf, count, par::Mpi_datatype<T>::value(), dest, tag, comm, request);
-  return 1;
+  int error_code = MPI_Isend(buf, count, par::Mpi_datatype<T>::value(), dest, tag, comm, request);
+  __MPI_CHECK_ERROR__(error_code,comm);
+  return error_code;
 }
 
 template <typename T>
 inline int Mpi_Issend(T *buf, int count, int dest, int tag, MPI_Comm comm, MPI_Request *request)
 {
 
-  MPI_Issend(buf, count, par::Mpi_datatype<T>::value(),dest, tag, comm, request);
-  return 1;
+  int error_code = MPI_Issend(buf, count, par::Mpi_datatype<T>::value(),dest, tag, comm, request);
+  __MPI_CHECK_ERROR__(error_code,comm);
+  return error_code;
 
 }
 
@@ -53,24 +55,32 @@ template <typename T>
 inline int Mpi_Recv(T *buf, int count, int source, int tag, MPI_Comm comm, MPI_Status *status)
 {
 
-  MPI_Recv(buf, count, par::Mpi_datatype<T>::value(),source, tag, comm, status);
-  return 1;
+  int error_code = MPI_Recv(buf, count, par::Mpi_datatype<T>::value(),source, tag, comm, status);
+  __MPI_CHECK_ERROR__(error_code,comm);
+  return error_code;
+
 }
 
 template <typename T>
 inline int Mpi_Irecv(T *buf, int count, int source, int tag, MPI_Comm comm, MPI_Request *request)
 {
 
-  MPI_Irecv(buf, count, par::Mpi_datatype<T>::value(),source, tag, comm, request);
-  return 1;
+  int error_code = MPI_Irecv(buf, count, par::Mpi_datatype<T>::value(),source, tag, comm, request);
+  __MPI_CHECK_ERROR__(error_code,comm);
+  return error_code;
+
 }
 
 template <typename T, typename S>
 inline int Mpi_Sendrecv(T *sendBuf, int sendCount, int dest, int sendTag, S *recvBuf, int recvCount, int source, int recvTag, MPI_Comm comm, MPI_Status *status)
 {
   PROF_PAR_SENDRECV_BEGIN
-  MPI_Sendrecv(sendBuf, sendCount, par::Mpi_datatype<T>::value(), dest, sendTag,recvBuf, recvCount, par::Mpi_datatype<S>::value(), source, recvTag, comm, status);
+
+  error_code = MPI_Sendrecv(sendBuf, sendCount, par::Mpi_datatype<T>::value(), dest, sendTag,recvBuf, recvCount, par::Mpi_datatype<S>::value(), source, recvTag, comm, status);
+
   PROF_PAR_SENDRECV_END
+  
+
 }
 
 template <typename T>
@@ -81,9 +91,10 @@ inline int Mpi_Scan(T *sendbuf, T *recvbuf, int count, MPI_Op op, MPI_Comm comm)
   #endif
   PROF_PAR_SCAN_BEGIN
 
-  MPI_Scan(sendbuf, recvbuf, count, par::Mpi_datatype<T>::value(), op, comm);
+  error_code = MPI_Scan(sendbuf, recvbuf, count, par::Mpi_datatype<T>::value(), op, comm);
 
   PROF_PAR_SCAN_END
+
 }
 
 template <typename T>
@@ -94,9 +105,11 @@ inline int Mpi_Allreduce(T *sendbuf, T *recvbuf, int count, MPI_Op op, MPI_Comm 
   #endif
   PROF_PAR_ALLREDUCE_BEGIN
 
-  MPI_Allreduce(sendbuf, recvbuf, count, par::Mpi_datatype<T>::value(), op, comm);
+  error_code = MPI_Allreduce(sendbuf, recvbuf, count, par::Mpi_datatype<T>::value(), op, comm);
 
   PROF_PAR_ALLREDUCE_END
+  
+
 }
 
 template <typename T>
@@ -107,9 +120,10 @@ inline int Mpi_Alltoall(T *sendbuf, T *recvbuf, int count, MPI_Comm comm)
   #endif
   PROF_PAR_ALL2ALL_BEGIN
 
-  MPI_Alltoall(sendbuf, count, par::Mpi_datatype<T>::value(),recvbuf, count, par::Mpi_datatype<T>::value(), comm);
+  error_code = MPI_Alltoall(sendbuf, count, par::Mpi_datatype<T>::value(),recvbuf, count, par::Mpi_datatype<T>::value(), comm);
 
   PROF_PAR_ALL2ALL_END
+  
 }
 
 template <typename T>
@@ -119,10 +133,11 @@ inline int Mpi_Alltoallv(T *sendbuf, int *sendcnts, int *sdispls, T *recvbuf, in
     MPI_Barrier(comm);
   #endif
 
-  MPI_Alltoallv(sendbuf, sendcnts, sdispls, par::Mpi_datatype<T>::value(),
-      recvbuf, recvcnts, rdispls, par::Mpi_datatype<T>::value(),
-      comm);
-  return 0;
+  int error_code = MPI_Alltoallv(sendbuf, sendcnts, sdispls, par::Mpi_datatype<T>::value(), recvbuf, recvcnts, rdispls, par::Mpi_datatype<T>::value(), comm);
+  
+  __MPI_CHECK_ERROR__(error_code,comm);
+  return error_code;
+  
 }
 
 template <typename T>
@@ -133,9 +148,12 @@ inline int Mpi_Gather(T *sendBuffer, T *recvBuffer, int count, int root, MPI_Com
   #endif
   PROF_PAR_GATHER_BEGIN
 
-  MPI_Gather(sendBuffer, count, par::Mpi_datatype<T>::value(), recvBuffer, count, par::Mpi_datatype<T>::value(), root, comm);
+  error_code = MPI_Gather(sendBuffer, count, par::Mpi_datatype<T>::value(), recvBuffer, count, par::Mpi_datatype<T>::value(), root, comm);
 
   PROF_PAR_GATHER_END
+
+  
+
 }
 
 template <typename T>
@@ -146,9 +164,11 @@ inline int Mpi_Bcast(T *buffer, int count, int root, MPI_Comm comm)
   #endif
   PROF_PAR_BCAST_BEGIN
 
-  MPI_Bcast(buffer, count, par::Mpi_datatype<T>::value(), root, comm);
+  error_code = MPI_Bcast(buffer, count, par::Mpi_datatype<T>::value(), root, comm);
 
   PROF_PAR_BCAST_END
+  
+
 }
 
 template <typename T>
@@ -159,9 +179,10 @@ inline int Mpi_Reduce(T *sendbuf, T *recvbuf, int count, MPI_Op op, int root, MP
   #endif
   PROF_PAR_REDUCE_BEGIN
 
-  MPI_Reduce(sendbuf, recvbuf, count, par::Mpi_datatype<T>::value(), op, root, comm);
+  error_code = MPI_Reduce(sendbuf, recvbuf, count, par::Mpi_datatype<T>::value(), op, root, comm);
 
   PROF_PAR_REDUCE_END
+  
 }
 
 template <typename T>
@@ -171,7 +192,7 @@ int Mpi_Allgatherv(T *sendBuf, int sendCount, T *recvBuf, int *recvCounts, int *
     MPI_Barrier(comm);
   #endif
   PROF_PAR_ALLGATHERV_BEGIN
-
+  
   #ifdef __USE_A2A_FOR_MPI_ALLGATHER__
 
   int maxSendCount;
@@ -213,10 +234,11 @@ int Mpi_Allgatherv(T *sendBuf, int sendCount, T *recvBuf, int *recvCounts, int *
 
   #else
 
-  MPI_Allgatherv(sendBuf, sendCount, par::Mpi_datatype<T>::value(),recvBuf, recvCounts, displs, par::Mpi_datatype<T>::value(), comm);
+  error_code = MPI_Allgatherv(sendBuf, sendCount, par::Mpi_datatype<T>::value(),recvBuf, recvCounts, displs, par::Mpi_datatype<T>::value(), comm);
 
   #endif
   PROF_PAR_ALLGATHERV_END
+  
 
 }
 
@@ -247,11 +269,13 @@ int Mpi_Allgather(T *sendBuf, T *recvBuf, int count, MPI_Comm comm)
 
   #else
 
-  MPI_Allgather(sendBuf, count, par::Mpi_datatype<T>::value(), recvBuf, count, par::Mpi_datatype<T>::value(), comm);
+  error_code = MPI_Allgather(sendBuf, count, par::Mpi_datatype<T>::value(), recvBuf, count, par::Mpi_datatype<T>::value(), comm);
 
   #endif
 
   PROF_PAR_ALLGATHER_END
+  
+
 }
 
 template <typename T>
@@ -263,9 +287,7 @@ int Mpi_Alltoallv_sparse(T *sendbuf, int *sendcnts, int *sdispls, T *recvbuf, in
   PROF_PAR_ALL2ALLV_SPARSE_BEGIN
 
   #ifndef ALLTOALLV_FIX
-    Mpi_Alltoallv(sendbuf, sendcnts, sdispls, recvbuf, recvcnts, rdispls, comm);
-    return 0;
-  
+    error_code = Mpi_Alltoallv(sendbuf, sendcnts, sdispls, recvbuf, recvcnts, rdispls, comm);
   #else
 
   int npes, rank;
@@ -363,18 +385,16 @@ int Mpi_Alltoallv_sparse(T *sendbuf, int *sendcnts, int *sdispls, T *recvbuf, in
       recvbuf[rdispls[rank] + i] = sendbuf[sdispls[rank] + i];
     }
 
-    PROF_A2AV_WAIT_BEGIN
-
-    MPI_Waitall(commCnt, requests, statuses);
+    
+    error_code = MPI_Waitall(commCnt, requests, statuses);
     // 27/05/20(Milinda) : A2A_sparse was crashing on impi19 in frontera. I put a barrier here since all2all v should be a blocking call, otherwise repeated calls might cause problems. 
     MPI_Barrier(comm); 
-
-    PROF_A2AV_WAIT_END
 
     delete[] requests;
     delete[] statuses;
   #endif
   PROF_PAR_ALL2ALLV_SPARSE_END
+  
 
 }
 
@@ -387,7 +407,7 @@ int Mpi_Alltoallv_dense(T *sendbuf, int *sendcnts, int *sdispls, T *recvbuf, int
   PROF_PAR_ALL2ALLV_DENSE_BEGIN
 
   #ifndef ALLTOALLV_FIX
-    Mpi_Alltoallv(sendbuf, sendcnts, sdispls, recvbuf, recvcnts, rdispls, comm);
+    error_code = Mpi_Alltoallv(sendbuf, sendcnts, sdispls, recvbuf, recvcnts, rdispls, comm);
   #else
   int npes, rank;
   MPI_Comm_size(comm, &npes);
@@ -438,7 +458,7 @@ int Mpi_Alltoallv_dense(T *sendbuf, int *sendcnts, int *sdispls, T *recvbuf, int
     }
   }
 
-  par::Mpi_Alltoall<T>(tmpSendBuf, tmpRecvBuf, allToAllCount, comm);
+  error_code = par::Mpi_Alltoall<T>(tmpSendBuf, tmpRecvBuf, allToAllCount, comm);
 
   for (int i = 0; i < rank; i++)
   {
@@ -475,22 +495,21 @@ int Mpi_Alltoallv_dense(T *sendbuf, int *sendcnts, int *sdispls, T *recvbuf, int
 }
 
 template <typename T>
-int Mpi_Alltoallv_Kway(T *sbuff_, int *s_cnt_, int *sdisp_, T *rbuff_, int *r_cnt_, int *rdisp_, MPI_Comm c)
+int Mpi_Alltoallv_Kway(T *sbuff_, int *s_cnt_, int *sdisp_, T *rbuff_, int *r_cnt_, int *rdisp_, MPI_Comm comm)
 {
 
   #ifdef __PROFILE_WITH_BARRIER__
     MPI_Barrier(comm);
   #endif
   PROF_PAR_ALL2ALLV_DENSE_BEGIN
-
   #ifndef ALLTOALLV_FIX 
-    Mpi_Alltoallv(sbuff_, s_cnt_, sdisp_, rbuff_, r_cnt_, rdisp_, c);
+    error_code = Mpi_Alltoallv(sbuff_, s_cnt_, sdisp_, rbuff_, r_cnt_, rdisp_, comm);
   #else
 
   int kway = KWAY;
   int np, pid;
-  MPI_Comm_size(c, &np);
-  MPI_Comm_rank(c, &pid);
+  MPI_Comm_size(comm, &np);
+  MPI_Comm_rank(comm, &pid);
   //std::cout<<" Kway: "<<kway<<std::endl;
   int range[2] = {0, np};
   int split_id, partner;
@@ -541,7 +560,7 @@ int Mpi_Alltoallv_Kway(T *sbuff_, int *s_cnt_, int *sdisp_, T *rbuff_, int *r_cn
         int partner = (new_pid < cmp_np ? new_range[i] + new_pid : new_range[i + 1] - 1);
         assert((new_pid < cmp_np ? true : new_range[i] + new_pid == new_range[i + 1])); //Remove this.
         MPI_Sendrecv(&s_cnt[new_range[i] - new_range[0]], cmp_np, MPI_INT, partner, 0,
-                     &r_cnt[new_np * i], new_np, MPI_INT, partner, 0, c, &status);
+                     &r_cnt[new_np * i], new_np, MPI_INT, partner, 0, comm, &status);
 
         //Handle extra communication.
         if (new_pid == new_np - 1 && cmp_np > new_np)
@@ -549,7 +568,7 @@ int Mpi_Alltoallv_Kway(T *sbuff_, int *s_cnt_, int *sdisp_, T *rbuff_, int *r_cn
           int partner = new_range[i + 1] - 1;
           std::vector<int> s_cnt_ext(cmp_np, 0);
           MPI_Sendrecv(&s_cnt_ext[0], cmp_np, MPI_INT, partner, 0,
-                       &r_cnt_ext[new_np * i], new_np, MPI_INT, partner, 0, c, &status);
+                       &r_cnt_ext[new_np * i], new_np, MPI_INT, partner, 0, comm, &status);
         }
       }
 
@@ -572,7 +591,7 @@ int Mpi_Alltoallv_Kway(T *sbuff_, int *s_cnt_, int *sdisp_, T *rbuff_, int *r_cn
       int my_block = kway;
       while (pid < new_range[my_block])
         my_block--;
-      //      MPI_Barrier(c);
+      //      MPI_Barrier(comm);
       for (int i_ = 0; i_ <= kway / 2; i_++)
       {
         int i1 = (my_block + i_) % kway;
@@ -591,7 +610,7 @@ int Mpi_Alltoallv_Kway(T *sbuff_, int *s_cnt_, int *sdisp_, T *rbuff_, int *r_cn
 
           
           MPI_Sendrecv(&sbuff[send_dsp], send_cnt, MPI_BYTE, partner, 0,
-                       &rbuff[rdisp[new_np * i]], r_cnt[new_np * (i + 1) - 1] + rdisp[new_np * (i + 1) - 1] - rdisp[new_np * i], MPI_BYTE, partner, 0, c, &status);
+                       &rbuff[rdisp[new_np * i]], r_cnt[new_np * (i + 1) - 1] + rdisp[new_np * (i + 1) - 1] - rdisp[new_np * i], MPI_BYTE, partner, 0, comm, &status);
           
           //Handle extra communication.
           if (pid == new_np - 1 && cmp_np > new_np)
@@ -599,7 +618,7 @@ int Mpi_Alltoallv_Kway(T *sbuff_, int *s_cnt_, int *sdisp_, T *rbuff_, int *r_cn
             int partner = new_range[i + 1] - 1;
             std::vector<int> s_cnt_ext(cmp_np, 0);
             MPI_Sendrecv(NULL, 0, MPI_BYTE, partner, 0,
-                         &rbuff[rdisp_ext[new_np * i]], r_cnt_ext[new_np * (i + 1) - 1] + rdisp_ext[new_np * (i + 1) - 1] - rdisp_ext[new_np * i], MPI_BYTE, partner, 0, c, &status);
+                         &rbuff[rdisp_ext[new_np * i]], r_cnt_ext[new_np * (i + 1) - 1] + rdisp_ext[new_np * (i + 1) - 1] - rdisp_ext[new_np * i], MPI_BYTE, partner, 0, comm, &status);
           }
         }
       }
@@ -674,7 +693,6 @@ int Mpi_Alltoallv_Kway(T *sbuff_, int *s_cnt_, int *sdisp_, T *rbuff_, int *r_cn
     assert(blk_size - 2 * sizeof(int) <= r_cnt_[src_pid] * sizeof(T));
     memcpy(&rbuff_[rdisp_[src_pid]], buff_ptr[i] + 2 * sizeof(int), blk_size - 2 * sizeof(int));
   }
-  
   
   //Free memory.
   if (sbuff != NULL)
@@ -911,6 +929,7 @@ int scatterValues(std::vector<T> &in, std::vector<T> &out, DendroIntL outSz, MPI
   #endif
 
   PROF_PAR_SCATTER_END
+
 
   
 

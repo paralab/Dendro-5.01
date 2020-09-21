@@ -388,5 +388,141 @@ namespace ts
     }
 
 
+    void ENUTSOp::coarser_finer_ut_correction(DendroScalar** out, const DendroScalar** in, const unsigned int* sz, DendroScalar dt_c, DendroScalar dt_f, DendroScalar dt, unsigned int dof)
+    {
+        const unsigned int nx = sz[0];
+        const unsigned int ny = sz[1];
+        const unsigned int nz = sz[2];
+        const unsigned int NN = nx*ny*nz;
+        const unsigned int d = m_uiNumStages;
+        const unsigned int totalVars = d + 1;
+        
+        
+        // note: when dt=0, then the B = I;
+        Bdt(dt,m_uiNumStages);
+
+        const double inv_dtc = (1.0/dt_c);
+        
+        // B x P^{-1} x C^{-1}
+        for(unsigned int i=0; i < d; i++)
+            for(unsigned int j=0; j < d; j++)
+            {
+                m_uiMij[i*d + j] = 0.0;
+                double tmp = 1.0;
+                for(unsigned int k=0; k < d; k++)
+                {
+                    m_uiMij[i*d + j] += m_uiBij[i*d+k] * m_uiInvCij[k*d + j]*tmp;
+                    tmp = tmp*inv_dtc; 
+                }
+                    
+            }
+
+
+        // M_ij has the correct operator. 
+        // Vin  : 0, 1, 2, .. m_uiNumStages-1 these are RK stages, m_uiNumStages contains the U_f or U_c. 
+        // Vout : 0, 1, 2, .. m_uiNumStages-1 contains the correct stages to compute correct U form U_f or U_c
+        for(unsigned int v=0; v < dof; v++)
+        {
+        
+            for(unsigned int n=0; n < NN; n++)
+            {
+                for(unsigned int s=0; s <d; s++)
+                {
+                    m_uiVin[s]  = in[v*(d+1) + (s)][n];
+                    m_uiVout[s] = 0;
+                }
+
+                for(unsigned int si=0; si < m_uiNumStages; si++)
+                 for(unsigned int sj=0; sj < m_uiNumStages; sj++)
+                    m_uiVout[si] += m_uiMij[si*d + sj ] * m_uiVin[sj];
+                
+                double dt_by_fac_p = 1.0;
+                
+                out[v*(d+1) + m_uiNumStages][n] = in[v*(d+1) + m_uiNumStages][n];
+            
+                for(unsigned int si=0; si < m_uiNumStages; si++)
+                {
+                    dt_by_fac_p *= (dt_f / ((double)(si+1)));
+                    out[v*(d+1) + m_uiNumStages][n] -= (dt_by_fac_p*m_uiVout[si]);  
+                }
+                
+                //printf("out s %d n %d  val %f \n", rk_s-1,n, out[v*rk_s + rk_s-1][n]);
+                //printf("coarset to finer: in value: %f out value: %f \n",in[v*(d+1) + m_uiNumStages][n],out[v*(d+1) + m_uiNumStages][n]);
+            }
+        }
+
+
+        return;
+
+    }
+
+    void ENUTSOp::finer_coarser_ut_correction(DendroScalar** out, const DendroScalar** in, const unsigned int* sz, DendroScalar dt_c, DendroScalar dt_f, DendroScalar dt, unsigned int dof)
+    {
+        //std::cout<<"caling finer_coarser"<<std::endl;
+        const unsigned int nx = sz[0];
+        const unsigned int ny = sz[1];
+        const unsigned int nz = sz[2];
+        const unsigned int NN = nx*ny*nz;
+        const unsigned int d = m_uiNumStages;
+        const unsigned int totalVars = d + 1;
+        
+        
+        // note: when dt=0, then the B = I;
+        Bdt(dt,m_uiNumStages);
+
+        const double inv_dtf = (1.0/dt_f);
+        
+        // B x P^{-1} x C^{-1}
+        for(unsigned int i=0; i < d; i++)
+            for(unsigned int j=0; j < d; j++)
+            {
+                m_uiMij[i*d + j] = 0.0;
+                double tmp = 1.0;
+                for(unsigned int k=0; k < d; k++)
+                {
+                    m_uiMij[i*d + j] += m_uiBij[i*d+k] * m_uiInvCij[k*d + j]*tmp;
+                    tmp = tmp*inv_dtf; 
+                }
+                    
+            }
+
+
+        // M_ij has the correct operator. 
+        // Vin  : 0, 1, 2, .. m_uiNumStages-1 these are RK stages, m_uiNumStages contains the U_f or U_c. 
+        // Vout : 0, 1, 2, .. m_uiNumStages-1 contains the correct stages to compute correct U form U_f or U_c
+        for(unsigned int v=0; v < dof; v++)
+        {
+        
+            for(unsigned int n=0; n < NN; n++)
+            {
+                for(unsigned int s=0; s <d; s++)
+                {
+                    m_uiVin[s]  = in[v*(d+1) + (s)][n];
+                    m_uiVout[s] = 0;
+                }
+
+                for(unsigned int si=0; si < m_uiNumStages; si++)
+                 for(unsigned int sj=0; sj < m_uiNumStages; sj++)
+                    m_uiVout[si] += m_uiMij[si*d + sj ] * m_uiVin[sj];
+                
+                double dt_by_fac_p = 1.0;
+                
+                out[v*(d+1) + m_uiNumStages][n] = in[v*(d+1) + m_uiNumStages][n];
+            
+                for(unsigned int si=0; si < m_uiNumStages; si++)
+                {
+                    dt_by_fac_p *= (dt_f / ((double)(si+1)));
+                    out[v*(d+1) + m_uiNumStages][n] += (dt_by_fac_p*m_uiVout[si]);  
+                }
+                //printf("out s %d n %d  val %f \n", rk_s-1,n, out[v*rk_s + rk_s-1][n]);
+                //printf("finer to coarser: in value: %f out value: %f \n",in[v*(d+1) + m_uiNumStages][n],out[v*(d+1) + m_uiNumStages][n]);
+
+            }
+
+        }
+
+        return ;
+        
+    }
 
 }

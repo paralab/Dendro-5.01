@@ -569,17 +569,17 @@ namespace ot
 
         if(m_uiMesh->isActive())
         {
-            const std::vector<unsigned int> nodeSendCount=m_uiMesh->getNodalSendCounts();
-            const std::vector<unsigned int> nodeSendOffset=m_uiMesh->getNodalSendOffsets();
+            const std::vector<unsigned int>& nodeSendCount=m_uiMesh->getNodalSendCounts();
+            const std::vector<unsigned int>& nodeSendOffset=m_uiMesh->getNodalSendOffsets();
 
-            const std::vector<unsigned int> nodeRecvCount=m_uiMesh->getNodalRecvCounts();
-            const std::vector<unsigned int> nodeRecvOffset=m_uiMesh->getNodalRecvOffsets();
+            const std::vector<unsigned int>& nodeRecvCount=m_uiMesh->getNodalRecvCounts();
+            const std::vector<unsigned int>& nodeRecvOffset=m_uiMesh->getNodalRecvOffsets();
 
-            const std::vector<unsigned int> sendProcList=m_uiMesh->getSendProcList();
-            const std::vector<unsigned int> recvProcList=m_uiMesh->getRecvProcList();
+            const std::vector<unsigned int>& sendProcList=m_uiMesh->getSendProcList();
+            const std::vector<unsigned int>& recvProcList=m_uiMesh->getRecvProcList();
 
-            const std::vector<unsigned int> sendNodeSM=m_uiMesh->getSendNodeSM();
-            const std::vector<unsigned int> recvNodeSM=m_uiMesh->getRecvNodeSM();
+            const std::vector<unsigned int>& sendNodeSM=m_uiMesh->getSendNodeSM();
+            const std::vector<unsigned int>& recvNodeSM=m_uiMesh->getRecvNodeSM();
 
 
             const unsigned int activeNpes=m_uiMesh->getMPICommSize();
@@ -665,17 +665,17 @@ namespace ot
 
         if(m_uiMesh->isActive())
         {
-            const std::vector<unsigned int> nodeSendCount=m_uiMesh->getNodalSendCounts();
-            const std::vector<unsigned int> nodeSendOffset=m_uiMesh->getNodalSendOffsets();
+            const std::vector<unsigned int>& nodeSendCount=m_uiMesh->getNodalSendCounts();
+            const std::vector<unsigned int>& nodeSendOffset=m_uiMesh->getNodalSendOffsets();
 
-            const std::vector<unsigned int> nodeRecvCount=m_uiMesh->getNodalRecvCounts();
-            const std::vector<unsigned int> nodeRecvOffset=m_uiMesh->getNodalRecvOffsets();
+            const std::vector<unsigned int>& nodeRecvCount=m_uiMesh->getNodalRecvCounts();
+            const std::vector<unsigned int>& nodeRecvOffset=m_uiMesh->getNodalRecvOffsets();
 
-            const std::vector<unsigned int> sendProcList=m_uiMesh->getSendProcList();
-            const std::vector<unsigned int> recvProcList=m_uiMesh->getRecvProcList();
+            const std::vector<unsigned int>& sendProcList=m_uiMesh->getSendProcList();
+            const std::vector<unsigned int>& recvProcList=m_uiMesh->getRecvProcList();
 
-            const std::vector<unsigned int> sendNodeSM=m_uiMesh->getSendNodeSM();
-            const std::vector<unsigned int> recvNodeSM=m_uiMesh->getRecvNodeSM();
+            const std::vector<unsigned int>& sendNodeSM=m_uiMesh->getSendNodeSM();
+            const std::vector<unsigned int>& recvNodeSM=m_uiMesh->getRecvNodeSM();
 
 
             const unsigned int activeNpes=m_uiMesh->getMPICommSize();
@@ -755,17 +755,17 @@ namespace ot
 
         if(m_uiMesh->isActive())
         {
-            const std::vector<unsigned int> nodeRecvCount = m_uiMesh->getNodalSendCounts();
-            const std::vector<unsigned int> nodeRecvOffset = m_uiMesh->getNodalSendOffsets();
+            const std::vector<unsigned int>& nodeRecvCount = m_uiMesh->getNodalSendCounts();
+            const std::vector<unsigned int>& nodeRecvOffset = m_uiMesh->getNodalSendOffsets();
 
-            const std::vector<unsigned int> nodeSendCount = m_uiMesh->getNodalRecvCounts();
-            const std::vector<unsigned int> nodeSendOffset = m_uiMesh->getNodalRecvOffsets();
+            const std::vector<unsigned int>& nodeSendCount = m_uiMesh->getNodalRecvCounts();
+            const std::vector<unsigned int>& nodeSendOffset = m_uiMesh->getNodalRecvOffsets();
 
-            const std::vector<unsigned int> recvProcList=m_uiMesh->getSendProcList();
-            const std::vector<unsigned int> sendProcList=m_uiMesh->getRecvProcList();
+            const std::vector<unsigned int>& recvProcList=m_uiMesh->getSendProcList();
+            const std::vector<unsigned int>& sendProcList=m_uiMesh->getRecvProcList();
 
-            const std::vector<unsigned int> recvNodeSM = m_uiMesh->getSendNodeSM();
-            const std::vector<unsigned int> sendNodeSM = m_uiMesh->getRecvNodeSM();
+            const std::vector<unsigned int>& recvNodeSM = m_uiMesh->getSendNodeSM();
+            const std::vector<unsigned int>& sendNodeSM = m_uiMesh->getRecvNodeSM();
 
 
             const unsigned int activeNpes=m_uiMesh->getMPICommSize();
@@ -851,17 +851,17 @@ namespace ot
         
         if(m_uiMesh->isActive())
         {
-            const std::vector<unsigned int> nodeRecvCount = m_uiMesh->getNodalSendCounts();
-            const std::vector<unsigned int> nodeRecvOffset = m_uiMesh->getNodalSendOffsets();
+            const std::vector<unsigned int>& nodeRecvCount = m_uiMesh->getNodalSendCounts();
+            const std::vector<unsigned int>& nodeRecvOffset = m_uiMesh->getNodalSendOffsets();
 
-            const std::vector<unsigned int> nodeSendCount = m_uiMesh->getNodalRecvCounts();
-            const std::vector<unsigned int> nodeSendOffset = m_uiMesh->getNodalRecvOffsets();
+            const std::vector<unsigned int>& nodeSendCount = m_uiMesh->getNodalRecvCounts();
+            const std::vector<unsigned int>& nodeSendOffset = m_uiMesh->getNodalRecvOffsets();
 
-            const std::vector<unsigned int> recvProcList=m_uiMesh->getSendProcList();
-            const std::vector<unsigned int> sendProcList=m_uiMesh->getRecvProcList();
+            const std::vector<unsigned int>& recvProcList=m_uiMesh->getSendProcList();
+            const std::vector<unsigned int>& sendProcList=m_uiMesh->getRecvProcList();
 
-            const std::vector<unsigned int> recvNodeSM = m_uiMesh->getSendNodeSM();
-            const std::vector<unsigned int> sendNodeSM = m_uiMesh->getRecvNodeSM();
+            const std::vector<unsigned int>& recvNodeSM = m_uiMesh->getSendNodeSM();
+            const std::vector<unsigned int>& sendNodeSM = m_uiMesh->getRecvNodeSM();
 
 
             const unsigned int activeNpes=m_uiMesh->getMPICommSize();
