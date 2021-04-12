@@ -383,92 +383,92 @@ namespace ode
             std::vector<std::string> pDataNames;
             double *pData[(numConstVars+numEvolVars+2)];
 
-                #ifdef NLSM_COMPARE_WITH_ANALYTICAL_SOL
-                            double * chiAnalytical=m_uiMesh->createVector<double>();
-                            double * diffVec=m_uiMesh->createVector<double>();
+            #ifdef NLSM_COMPARE_WITH_ANALYTICAL_SOL
+                double * chiAnalytical=m_uiMesh->createVector<double>();
+                double * diffVec=m_uiMesh->createVector<double>();
 
-                            std::function<void(double,double,double,double,double*)> u_x_t=[](double x,double y,double z,double t,double*var){nlsm::analyticalSol(x,y,z,t,var);};
+                std::function<void(double,double,double,double,double*)> u_x_t=[](double x,double y,double z,double t,double*var){nlsm::analyticalSol(x,y,z,t,var);};
 
-                            // initialize diff begin.
-                            unsigned int nodeLookUp_CG;
-                            unsigned int nodeLookUp_DG;
-                            double x,y,z,len;
-                            const ot::TreeNode * pNodes=&(*(m_uiMesh->getAllElements().begin()));
-                            unsigned int ownerID,ii_x,jj_y,kk_z;
-                            unsigned int eleOrder=m_uiMesh->getElementOrder();
-                            const unsigned int * e2n_cg=&(*(m_uiMesh->getE2NMapping().begin()));
-                            const unsigned int * e2n_dg=&(*(m_uiMesh->getE2NMapping_DG().begin()));
-                            const unsigned int nPe=m_uiMesh->getNumNodesPerElement();
-                            const unsigned int nodeLocalBegin=m_uiMesh->getNodeLocalBegin();
-                            const unsigned int nodeLocalEnd=m_uiMesh->getNodeLocalEnd();
+                // initialize diff begin.
+                unsigned int nodeLookUp_CG;
+                unsigned int nodeLookUp_DG;
+                double x,y,z,len;
+                const ot::TreeNode * pNodes=&(*(m_uiMesh->getAllElements().begin()));
+                unsigned int ownerID,ii_x,jj_y,kk_z;
+                unsigned int eleOrder=m_uiMesh->getElementOrder();
+                const unsigned int * e2n_cg=&(*(m_uiMesh->getE2NMapping().begin()));
+                const unsigned int * e2n_dg=&(*(m_uiMesh->getE2NMapping_DG().begin()));
+                const unsigned int nPe=m_uiMesh->getNumNodesPerElement();
+                const unsigned int nodeLocalBegin=m_uiMesh->getNodeLocalBegin();
+                const unsigned int nodeLocalEnd=m_uiMesh->getNodeLocalEnd();
 
 
-                            double var[2];
+                double var[2];
 
-                            double mp, mm, mp_adm, mm_adm, E, J1, J2, J3;
+                double mp, mm, mp_adm, mm_adm, E, J1, J2, J3;
 
-                            for(unsigned int elem=m_uiMesh->getElementLocalBegin();elem<m_uiMesh->getElementLocalEnd();elem++)
+                for(unsigned int elem=m_uiMesh->getElementLocalBegin();elem<m_uiMesh->getElementLocalEnd();elem++)
+                {
+
+
+                    for(unsigned int k=0;k<(eleOrder+1);k++)
+                        for(unsigned int j=0;j<(eleOrder+1);j++ )
+                            for(unsigned int i=0;i<(eleOrder+1);i++)
                             {
+                                nodeLookUp_CG=e2n_cg[elem*nPe+k*(eleOrder+1)*(eleOrder+1)+j*(eleOrder+1)+i];
+                                if(nodeLookUp_CG>=nodeLocalBegin && nodeLookUp_CG<nodeLocalEnd)
+                                {
+                                    nodeLookUp_DG=e2n_dg[elem*nPe+k*(eleOrder+1)*(eleOrder+1)+j*(eleOrder+1)+i];
+                                    m_uiMesh->dg2eijk(nodeLookUp_DG,ownerID,ii_x,jj_y,kk_z);
+                                    len= (double) (1u<<(m_uiMaxDepth-pNodes[ownerID].getLevel()));
+                                    x=pNodes[ownerID].getX()+ ii_x*(len/(eleOrder));
+                                    y=pNodes[ownerID].getY()+ jj_y*(len/(eleOrder));
+                                    z=pNodes[ownerID].getZ()+ kk_z*(len/(eleOrder));
+                                    
+                                    u_x_t((double)x,(double)y,(double)z,m_uiCurrentTime,var);
+                                    diffVec[nodeLookUp_CG]=var[nlsm::VAR::U_CHI]-evolZipVarIn[nlsm::VAR::U_CHI][nodeLookUp_CG];
+                                    chiAnalytical[nodeLookUp_CG]=var[nlsm::VAR::U_CHI];
 
 
-                                for(unsigned int k=0;k<(eleOrder+1);k++)
-                                    for(unsigned int j=0;j<(eleOrder+1);j++ )
-                                        for(unsigned int i=0;i<(eleOrder+1);i++)
-                                        {
-                                            nodeLookUp_CG=e2n_cg[elem*nPe+k*(eleOrder+1)*(eleOrder+1)+j*(eleOrder+1)+i];
-                                            if(nodeLookUp_CG>=nodeLocalBegin && nodeLookUp_CG<nodeLocalEnd)
-                                            {
-                                                nodeLookUp_DG=e2n_dg[elem*nPe+k*(eleOrder+1)*(eleOrder+1)+j*(eleOrder+1)+i];
-                                                m_uiMesh->dg2eijk(nodeLookUp_DG,ownerID,ii_x,jj_y,kk_z);
-                                                len= (double) (1u<<(m_uiMaxDepth-pNodes[ownerID].getLevel()));
-                                                x=pNodes[ownerID].getX()+ ii_x*(len/(eleOrder));
-                                                y=pNodes[ownerID].getY()+ jj_y*(len/(eleOrder));
-                                                z=pNodes[ownerID].getZ()+ kk_z*(len/(eleOrder));
-                                                
-                                                u_x_t((double)x,(double)y,(double)z,m_uiCurrentTime,var);
-                                                diffVec[nodeLookUp_CG]=var[nlsm::VAR::U_CHI]-evolZipVarIn[nlsm::VAR::U_CHI][nodeLookUp_CG];
-                                                chiAnalytical[nodeLookUp_CG]=var[nlsm::VAR::U_CHI];
-
-
-                                            }
-
-                                        }
+                                }
 
                             }
 
-                            m_uiMesh->performGhostExchange(diffVec);
-                            m_uiMesh->performGhostExchange(chiAnalytical);
+                }
 
-                            double l_rs = rsNormLp<double>(m_uiMesh,chiAnalytical,evolZipVarIn[nlsm::VAR::U_CHI],2);
-                            double l_min=vecMin(diffVec+m_uiMesh->getNodeLocalBegin(),(m_uiMesh->getNumLocalMeshNodes()),m_uiMesh->getMPICommunicator());
-                            double l_max=vecMax(diffVec+m_uiMesh->getNodeLocalBegin(),(m_uiMesh->getNumLocalMeshNodes()),m_uiMesh->getMPICommunicator());
-                            double l2_norm=normL2(diffVec+m_uiMesh->getNodeLocalBegin(),(m_uiMesh->getNumLocalMeshNodes()),m_uiMesh->getMPICommunicator());
-                            DendroIntL local_dof=m_uiMesh->getNumLocalMeshNodes();
-                            DendroIntL total_dof=0;
-                            par::Mpi_Reduce(&local_dof,&total_dof,1,MPI_SUM,0,m_uiMesh->getMPICommunicator());
+                m_uiMesh->performGhostExchange(diffVec);
+                m_uiMesh->performGhostExchange(chiAnalytical);
 
-
-                            if(!m_uiMesh->getMPIRank()) {
-                                //std::cout << "executing step: " << m_uiCurrentStep << " dt: " << m_uiT_h << " rk_time : "<< m_uiCurrentTime << std::endl;
-                                l2_norm=sqrt((l2_norm*l2_norm)/(double)(total_dof*total_dof));
-                                std::cout <<YLW<< "\t ||VAR::DIFF|| (min, max,l2,l_2rs) : ("<<l_min<<", "<<l_max<<", "<<l2_norm<<", "<<l_rs<<" ) "<<NRM<<std::endl;
-
-                                std::ofstream fileGW;
-                                char fName[256];
-                                sprintf(fName,"%s_error.dat",nlsm::NLSM_PROFILE_FILE_PREFIX.c_str());
-                                fileGW.open (fName,std::ofstream::app);
-                                // writes the header
-                                if(m_uiCurrentStep==0)
-                                    fileGW<<"TimeStep\t"<<" time\t"<<" min\t"<<" max\t"<<" l2\t cgNodes\t l2_rs"<<std::endl;
-
-                                fileGW<<m_uiCurrentStep<<"\t"<<m_uiCurrentTime<<"\t"<<l_min<<"\t"<<l_max<<"\t"<<l2_norm<<"\t"<<total_dof<<"\t "<<l_rs<<std::endl;
-                                fileGW.close();
+                double l_rs = rsNormLp<double>(m_uiMesh,chiAnalytical,evolZipVarIn[nlsm::VAR::U_CHI],2);
+                double l_min=vecMin(diffVec+m_uiMesh->getNodeLocalBegin(),(m_uiMesh->getNumLocalMeshNodes()),m_uiMesh->getMPICommunicator());
+                double l_max=vecMax(diffVec+m_uiMesh->getNodeLocalBegin(),(m_uiMesh->getNumLocalMeshNodes()),m_uiMesh->getMPICommunicator());
+                double l2_norm=normL2(diffVec+m_uiMesh->getNodeLocalBegin(),(m_uiMesh->getNumLocalMeshNodes()),m_uiMesh->getMPICommunicator());
+                DendroIntL local_dof=m_uiMesh->getNumLocalMeshNodes();
+                DendroIntL total_dof=0;
+                par::Mpi_Reduce(&local_dof,&total_dof,1,MPI_SUM,0,m_uiMesh->getMPICommunicator());
 
 
-                            }
+                if(!m_uiMesh->getMPIRank()) {
+                    //std::cout << "executing step: " << m_uiCurrentStep << " dt: " << m_uiT_h << " rk_time : "<< m_uiCurrentTime << std::endl;
+                    l2_norm=sqrt((l2_norm*l2_norm)/(double)(total_dof*total_dof));
+                    std::cout <<YLW<< "\t ||VAR::DIFF|| (min, max,l2,l_2rs) : ("<<l_min<<", "<<l_max<<", "<<l2_norm<<", "<<l_rs<<" ) "<<NRM<<std::endl;
 
-                            // initialize diff end
-                #endif
+                    std::ofstream fileGW;
+                    char fName[256];
+                    sprintf(fName,"%s_error.dat",nlsm::NLSM_PROFILE_FILE_PREFIX.c_str());
+                    fileGW.open (fName,std::ofstream::app);
+                    // writes the header
+                    if(m_uiCurrentStep==0)
+                        fileGW<<"TimeStep\t"<<" time\t"<<" min\t"<<" max\t"<<" l2\t cgNodes\t l2_rs"<<std::endl;
+
+                    fileGW<<m_uiCurrentStep<<"\t"<<m_uiCurrentTime<<"\t"<<l_min<<"\t"<<l_max<<"\t"<<l2_norm<<"\t"<<total_dof<<"\t "<<l_rs<<std::endl;
+                    fileGW.close();
+
+
+                }
+
+                // initialize diff end
+            #endif
 
 
             for(unsigned int i=0;i<numEvolVars;i++)
@@ -612,12 +612,12 @@ namespace ode
                     double current_t_adv=current_t;
 
                     #ifdef RK_SOLVER_OVERLAP_COMM_AND_COMP
-                                        unzipVars_async(m_uiPrevVar,m_uiUnzipVar);
+                        unzipVars_async(m_uiPrevVar,m_uiUnzipVar);
                     #else
-                                        //1. perform ghost exchange.
-                                        performGhostExchangeVars(m_uiPrevVar);
-                                        //2. unzip all the variables.
-                                        unzipVars(m_uiPrevVar,m_uiUnzipVar);
+                        //1. perform ghost exchange.
+                        performGhostExchangeVars(m_uiPrevVar);
+                        //2. unzip all the variables.
+                        unzipVars(m_uiPrevVar,m_uiUnzipVar);
                     #endif
 
 
@@ -638,17 +638,17 @@ namespace ode
                     double dx,dy,dz;
                     const Point pt_min(nlsm::NLSM_COMPD_MIN[0],nlsm::NLSM_COMPD_MIN[1],nlsm::NLSM_COMPD_MIN[2]);
                     const Point pt_max(nlsm::NLSM_COMPD_MAX[0],nlsm::NLSM_COMPD_MAX[1],nlsm::NLSM_COMPD_MAX[2]);
-
+                    const unsigned int PW=nlsm::NLSM_PADDING_WIDTH;
 
                     for(unsigned int stage=0;stage<(nlsm::NLSM_RK4_STAGES-1);stage++)
                     {
 
 
-                    #ifdef DEBUG_RK_SOLVER
-                                            if(!rank)std::cout<<" stage: "<<stage<<" begin: "<<std::endl;
-                                        for(unsigned int index=0;index<nlsm::NLSM_NUM_VARS;index++)
-                                            ot::test::isUnzipNaN(m_uiMesh,m_uiUnzipVar[index]);
-                    #endif
+                        #ifdef DEBUG_RK_SOLVER
+                            if(!rank)std::cout<<" stage: "<<stage<<" begin: "<<std::endl;
+                            for(unsigned int index=0;index<nlsm::NLSM_NUM_VARS;index++)
+                                ot::test::isUnzipNaN(m_uiMesh,m_uiUnzipVar[index]);
+                        #endif
 
                         for(unsigned int blk=0;blk<blkList.size();blk++)
                         {
@@ -665,13 +665,13 @@ namespace ode
 
                             //std::cout<<" dx: "<<dx<<" ele x : "<<(1u<<(m_uiMaxDepth-m_uiMesh->getAllElements()[blkList[blk].getLocalElementBegin()].getLevel()))/(double)nlsm::NLSM_ELE_ORDER<<" computed blk: "<<blkList[blk].computeGridDx()<<std::endl;
 
-                            ptmin[0]=GRIDX_TO_X(blkList[blk].getBlockNode().minX())-3*dx;
-                            ptmin[1]=GRIDY_TO_Y(blkList[blk].getBlockNode().minY())-3*dy;
-                            ptmin[2]=GRIDZ_TO_Z(blkList[blk].getBlockNode().minZ())-3*dz;
+                            ptmin[0]=GRIDX_TO_X(blkList[blk].getBlockNode().minX())-PW*dx;
+                            ptmin[1]=GRIDY_TO_Y(blkList[blk].getBlockNode().minY())-PW*dy;
+                            ptmin[2]=GRIDZ_TO_Z(blkList[blk].getBlockNode().minZ())-PW*dz;
 
-                            ptmax[0]=GRIDX_TO_X(blkList[blk].getBlockNode().maxX())+3*dx;
-                            ptmax[1]=GRIDY_TO_Y(blkList[blk].getBlockNode().maxY())+3*dy;
-                            ptmax[2]=GRIDZ_TO_Z(blkList[blk].getBlockNode().maxZ())+3*dz;
+                            ptmax[0]=GRIDX_TO_X(blkList[blk].getBlockNode().maxX())+PW*dx;
+                            ptmax[1]=GRIDY_TO_Y(blkList[blk].getBlockNode().maxY())+PW*dy;
+                            ptmax[2]=GRIDZ_TO_Z(blkList[blk].getBlockNode().maxZ())+PW*dz;
 
                             nlsmRhs(m_uiUnzipVarRHS, (const double **)m_uiUnzipVar, offset, ptmin, ptmax, sz, bflag);
 
@@ -679,9 +679,9 @@ namespace ode
                         }
 
                         #ifdef DEBUG_RK_SOLVER
-                                                if(!rank)std::cout<<" stage: "<<stage<<" af rhs UNZIP RHS TEST:"<<std::endl;
-                                            for(unsigned int index=0;index<nlsm::NLSM_NUM_VARS;index++)
-                                                ot::test::isUnzipInternalNaN(m_uiMesh,m_uiUnzipVarRHS[index]);
+                            if(!rank)std::cout<<" stage: "<<stage<<" af rhs UNZIP RHS TEST:"<<std::endl;
+                            for(unsigned int index=0;index<nlsm::NLSM_NUM_VARS;index++)
+                                ot::test::isUnzipInternalNaN(m_uiMesh,m_uiUnzipVarRHS[index]);
                         #endif
 
 
@@ -690,9 +690,9 @@ namespace ode
 
 
                         #ifdef DEBUG_RK_SOLVER
-                                                for(unsigned int index=0;index<nlsm::NLSM_NUM_VARS;index++)
-                                                if(seq::test::isNAN(m_uiStage[stage][index]+m_uiMesh->getNodeLocalBegin(),m_uiMesh->getNumLocalMeshNodes()))
-                                                    std::cout<<" var: "<<index<<" contains nan af zip  stage: "<<stage<<std::endl;
+                            for(unsigned int index=0;index<nlsm::NLSM_NUM_VARS;index++)
+                            if(seq::test::isNAN(m_uiStage[stage][index]+m_uiMesh->getNodeLocalBegin(),m_uiMesh->getNumLocalMeshNodes()))
+                                std::cout<<" var: "<<index<<" contains nan af zip  stage: "<<stage<<std::endl;
                         #endif
 
                         /*for(unsigned int index=0;index<nlsm::NLSM_NUM_VARS;index++)
@@ -715,10 +715,10 @@ namespace ode
 
                         current_t_adv=current_t+RK4_T[stage+1]*m_uiT_h;
                         #ifdef RK_SOLVER_OVERLAP_COMM_AND_COMP
-                                                unzipVars_async(m_uiVarIm,m_uiUnzipVar);
+                            unzipVars_async(m_uiVarIm,m_uiUnzipVar);
                         #else
-                                                performGhostExchangeVars(m_uiVarIm);
-                                                unzipVars(m_uiVarIm,m_uiUnzipVar);
+                            performGhostExchangeVars(m_uiVarIm);
+                            unzipVars(m_uiVarIm,m_uiUnzipVar);
                         #endif
 
 
@@ -728,10 +728,9 @@ namespace ode
 
 
                     #ifdef DEBUG_RK_SOLVER
-                                        if(!rank)std::cout<<" stage: "<<(nlsm::NLSM_RK4_STAGES-1)<<" begin: "<<std::endl;
-
-                                    for(unsigned int index=0;index<nlsm::NLSM_NUM_VARS;index++)
-                                        ot::test::isUnzipNaN(m_uiMesh,m_uiUnzipVar[index]);
+                        if(!rank)std::cout<<" stage: "<<(nlsm::NLSM_RK4_STAGES-1)<<" begin: "<<std::endl;
+                        for(unsigned int index=0;index<nlsm::NLSM_NUM_VARS;index++)
+                            ot::test::isUnzipNaN(m_uiMesh,m_uiUnzipVar[index]);
                     #endif
 
 
@@ -749,13 +748,13 @@ namespace ode
                         dy=blkList[blk].computeDy(pt_min,pt_max);
                         dz=blkList[blk].computeDz(pt_min,pt_max);
 
-                        ptmin[0]=GRIDX_TO_X(blkList[blk].getBlockNode().minX())-3*dx;
-                        ptmin[1]=GRIDY_TO_Y(blkList[blk].getBlockNode().minY())-3*dy;
-                        ptmin[2]=GRIDZ_TO_Z(blkList[blk].getBlockNode().minZ())-3*dz;
+                        ptmin[0]=GRIDX_TO_X(blkList[blk].getBlockNode().minX())-PW*dx;
+                        ptmin[1]=GRIDY_TO_Y(blkList[blk].getBlockNode().minY())-PW*dy;
+                        ptmin[2]=GRIDZ_TO_Z(blkList[blk].getBlockNode().minZ())-PW*dz;
 
-                        ptmax[0]=GRIDX_TO_X(blkList[blk].getBlockNode().maxX())+3*dx;
-                        ptmax[1]=GRIDY_TO_Y(blkList[blk].getBlockNode().maxY())+3*dy;
-                        ptmax[2]=GRIDZ_TO_Z(blkList[blk].getBlockNode().maxZ())+3*dz;
+                        ptmax[0]=GRIDX_TO_X(blkList[blk].getBlockNode().maxX())+PW*dx;
+                        ptmax[1]=GRIDY_TO_Y(blkList[blk].getBlockNode().maxY())+PW*dy;
+                        ptmax[2]=GRIDZ_TO_Z(blkList[blk].getBlockNode().maxZ())+PW*dz;
 
 
                         nlsmRhs(m_uiUnzipVarRHS, (const double **)m_uiUnzipVar, offset, ptmin, ptmax, sz, bflag);
@@ -764,9 +763,9 @@ namespace ode
                     }
 
                     #ifdef DEBUG_RK_SOLVER
-                                        if(!rank)std::cout<<" stage: "<<(nlsm::NLSM_RK4_STAGES-1)<<" af rhs UNZIP RHS TEST:"<<std::endl;
-                                        for(unsigned int index=0;index<nlsm::NLSM_NUM_VARS;index++)
-                                            ot::test::isUnzipInternalNaN(m_uiMesh,m_uiUnzipVarRHS[index]);
+                        if(!rank)std::cout<<" stage: "<<(nlsm::NLSM_RK4_STAGES-1)<<" af rhs UNZIP RHS TEST:"<<std::endl;
+                        for(unsigned int index=0;index<nlsm::NLSM_NUM_VARS;index++)
+                            ot::test::isUnzipInternalNaN(m_uiMesh,m_uiUnzipVarRHS[index]);
                     #endif
 
                     zipVars(m_uiUnzipVarRHS,m_uiStage[(nlsm::NLSM_RK4_STAGES-1)]);
@@ -834,7 +833,7 @@ namespace ode
                 return nlsm::computeWTol(x,y,z,hx);
             };
 
-
+            const unsigned int PW=nlsm::NLSM_PADDING_WIDTH;
             double l_min,l_max;
             for(double t=m_uiCurrentTime;t<m_uiTimeEnd;t=t+m_uiT_h)
             {
@@ -865,26 +864,26 @@ namespace ode
                 if((m_uiCurrentStep%nlsm::NLSM_REMESH_TEST_FREQ)==0)
                 {
                     #ifdef RK_SOLVER_OVERLAP_COMM_AND_COMP
-                                        unzipVars_async(m_uiPrevVar,m_uiUnzipVar);
+                        unzipVars_async(m_uiPrevVar,m_uiUnzipVar);
                     #else
-                                        performGhostExchangeVars(m_uiPrevVar);
-                                        //isRefine=m_uiMesh->isReMesh((const double **)m_uiPrevVar,refineVarIds,refineNumVars,nlsm::NLSM_WAVELET_TOL);
-                                        unzipVars(m_uiPrevVar,m_uiUnzipVar);
+                        performGhostExchangeVars(m_uiPrevVar);
+                        //isRefine=m_uiMesh->isReMesh((const double **)m_uiPrevVar,refineVarIds,refineNumVars,nlsm::NLSM_WAVELET_TOL);
+                        unzipVars(m_uiPrevVar,m_uiUnzipVar);
                     #endif
                     
-                    //                     char fPrefix[256];
-                    //                     sprintf(fPrefix,"%s_wavelets_%d",nlsm::NLSM_VTU_FILE_PREFIX.c_str(),m_uiCurrentStep);
-                    //                     io::vtk::waveletsToVTU(m_uiMesh,(const double **)m_uiPrevVar,(const double**)m_uiUnzipVar,refineVarIds,refineNumVars,(const char*)fPrefix);
+                    //char fPrefix[256];
+                    //sprintf(fPrefix,"%s_wavelets_%d",nlsm::NLSM_VTU_FILE_PREFIX.c_str(),m_uiCurrentStep);
+                    //io::vtk::waveletsToVTU(m_uiMesh,(const double **)m_uiPrevVar,(const double**)m_uiUnzipVar,refineVarIds,refineNumVars,(const char*)fPrefix);
 
                     #ifdef DEBUG_RK_SOLVER
-                                        if(m_uiMesh->isActive())
-                                        {
-                                            if(!m_uiMesh->getMPIRank())std::cout<<" isRemesh Unzip : "<<std::endl;
-                                            for(unsigned int index=0;index<nlsm::NLSM_NUM_VARS;index++)
-                                                ot::test::isUnzipNaN(m_uiMesh,m_uiUnzipVar[index]);
-
-                                        }
+                        if(m_uiMesh->isActive())
+                        {
+                            if(!m_uiMesh->getMPIRank())std::cout<<" isRemesh Unzip : "<<std::endl;
+                            for(unsigned int index=0;index<nlsm::NLSM_NUM_VARS;index++)
+                                ot::test::isUnzipNaN(m_uiMesh,m_uiUnzipVar[index]);
+                        }
                     #endif
+                    
                     nlsm::timer::t_isReMesh.start();
                     if(nlsm::NLSM_ENABLE_BLOCK_ADAPTIVITY)
                         isRefine=false;

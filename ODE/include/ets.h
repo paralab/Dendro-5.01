@@ -306,6 +306,9 @@ namespace ts
             /**@brief: advance to next time step*/
             void evolve();
             
+            /**@brief: dump load statistics*/
+            void dump_load_statistics(std::ostream & sout);
+            
     };
 
 
@@ -448,6 +451,9 @@ namespace ts
         m_uiAppCtx->initialize();
         m_uiTimeInfo = m_uiAppCtx->get_ts_info();
         allocate_internal_vars();
+        //Ctx initialize might have changed the mesh i.e. converge untill mesh adapted to the initial data. 
+        m_uiAppCtx->set_ets_synced(false);
+        this->sync_with_mesh();
 
     }
 
@@ -604,5 +610,34 @@ namespace ts
         return 0;
     }
 
+
+    template<typename T, typename Ctx>
+    void ETS<T,Ctx>::dump_load_statistics(std::ostream & sout)
+    {
+
+        const ot::Mesh* pMesh = m_uiAppCtx->get_mesh();
+        
+        if(pMesh->isActive())
+        {
+            double local_weight=pMesh->getNumLocalMeshElements();
+            // const ot::TreeNode* pNodes = pMesh->getAllElements().data();
+            // for(unsigned int ele = pMesh->getElementLocalBegin(); ele < pMesh->getElementLocalEnd(); ele++)
+            //     local_weight+=getOctWeight(&pNodes[ele]);
+            double ld_stat[3];
+            MPI_Comm aComm =pMesh->getMPICommunicator();
+
+            par::Mpi_Reduce(&local_weight,ld_stat+0,1,MPI_MIN,0,aComm);
+            par::Mpi_Reduce(&local_weight,ld_stat+1,1,MPI_SUM,0,aComm);
+            ld_stat[1]=ld_stat[1]/(double)pMesh->getMPICommSize();
+            par::Mpi_Reduce(&local_weight,ld_stat+2,1,MPI_MAX,0,aComm);
+
+            if(!pMesh->getMPIRank())
+                std::cout<<YLW<<"\t LD Bal: (min,mean,max): "<<ld_stat[0]<<"|\t"<<ld_stat[1]<<"|\t"<<ld_stat[2]<<NRM<<std::endl;
+
+        }
+
+        return ;
+
+    }
 
 }// end of namespace ts

@@ -61,43 +61,34 @@ void nlsmRhs(double **unzipVarsRHS, const double **uZipVars,
 
   double r;
   double eta;
+  const unsigned int PW=nlsm::NLSM_PADDING_WIDTH;
 
   //cout << "begin loop" << endl;
-  for (unsigned int k = 3; k < nz-3; k++) {
+  for (unsigned int k = PW; k < nz-PW; k++) {
       z = pmin[2] + k*hz;
 
-    for (unsigned int j = 3; j < ny-3; j++) {
+    for (unsigned int j = PW; j < ny-PW; j++) {
        y = pmin[1] + j*hy;
 
-      for (unsigned int i = 3; i < nx-3; i++) {
+      for (unsigned int i = PW; i < nx-PW; i++) {
          x = pmin[0] + i*hx;
          pp = i + nx*(j + ny*k);
          r= sqrt(x*x + y*y + z*z);
 
-  #ifdef NLSM_NONLINEAR
-    if (r > 1.0e-17) {
-    nlsm::timer::t_rhs.start();
-    #include "nlsm_eqs.cpp"
-
-    nlsm::timer::t_rhs.stop();
-         } else {
-           chi_rhs[pp] = 0.0;
-           phi_rhs[pp] = 0.0;
-         }
-  #else
-    phi_rhs[pp] =  NLSM_WAVE_SPEED_X*grad2_0_0_chi[pp] + NLSM_WAVE_SPEED_Y*grad2_1_1_chi[pp] + NLSM_WAVE_SPEED_Z*grad2_2_2_chi[pp];
-    chi_rhs[pp] = phi[pp];
-  #endif
-
-    /*debugging 
-    unsigned int qi = 46 - 1;
-    unsigned int qj = 10 - 1;
-    unsigned int qk = 60 - 1;
-    unsigned int qidx = qi + nx*(qj + ny*qk);
-    if (0 && qidx == pp) {
-      std::cout << ".... end OPTIMIZED debug stuff..." << std::endl;
-    }*/
-
+        nlsm::timer::t_rhs.start();
+        #ifdef NLSM_NONLINEAR
+          if (r > 1.0e-6) {
+            phi_rhs[pp] =  NLSM_WAVE_SPEED_X*grad2_0_0_chi[pp] + NLSM_WAVE_SPEED_Y*grad2_1_1_chi[pp] + NLSM_WAVE_SPEED_Z*grad2_2_2_chi[pp] - sin(2*chi[pp])/pow(r, 2);
+            chi_rhs[pp] = phi[pp];
+          } else {
+            chi_rhs[pp] = 0.0;
+            phi_rhs[pp] = 0.0;
+          }
+        #else
+          phi_rhs[pp] =  NLSM_WAVE_SPEED_X*grad2_0_0_chi[pp] + NLSM_WAVE_SPEED_Y*grad2_1_1_chi[pp] + NLSM_WAVE_SPEED_Z*grad2_2_2_chi[pp];
+          chi_rhs[pp] = phi[pp];
+        #endif
+        nlsm::timer::t_rhs.stop();
 
       }
     }
@@ -139,9 +130,9 @@ void nlsmRhs(double **unzipVarsRHS, const double **uZipVars,
   const  double sigma = KO_DISS_SIGMA;
 
 
-  for (unsigned int k = 3; k < nz-3; k++) {
-    for (unsigned int j = 3; j < ny-3; j++) {
-      for (unsigned int i = 3; i < nx-3; i++) {
+  for (unsigned int k = PW; k < nz-PW; k++) {
+    for (unsigned int j = PW; j < ny-PW; j++) {
+      for (unsigned int i = PW; i < nx-PW; i++) {
         pp = i + nx*(j + ny*k);
 
         chi_rhs[pp]  += sigma * (grad_0_chi[pp] + grad_1_chi[pp] + grad_2_chi[pp]);
@@ -201,12 +192,13 @@ void nlsm_bcs(double *f_rhs, const double *f,
   double hy = (pmax[1] - pmin[1]) / (ny - 1);
   double hz = (pmax[2] - pmin[2]) / (nz - 1);
 
-  unsigned int ib = 3;
-  unsigned int jb = 3;
-  unsigned int kb = 3;
-  unsigned int ie = sz[0]-3;
-  unsigned int je = sz[1]-3;
-  unsigned int ke = sz[2]-3;
+  const unsigned int PW=nlsm::NLSM_PADDING_WIDTH;
+  unsigned int ib = PW;
+  unsigned int jb = PW;
+  unsigned int kb = PW;
+  unsigned int ie = sz[0]-PW;
+  unsigned int je = sz[1]-PW;
+  unsigned int ke = sz[2]-PW;
 
   double x,y,z;
   unsigned int pp;

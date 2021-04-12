@@ -749,63 +749,60 @@ namespace ot
 
     unsigned int computeTLevel(const ot::Mesh* const pMesh, unsigned int blk)
     {
-        if(pMesh->isActive())
+        if(!(pMesh->isActive()))
+            return 0;
+        
+        const std::vector<ot::Block>& blkList = pMesh->getLocalBlockList();
+        const unsigned int * const e2e = pMesh->getE2EMapping().data();
+        const ot::TreeNode* const pNodes = pMesh->getAllElements().data();
+        const ot::Block block = blkList[blk];
+
+        unsigned int b_lev = pNodes[block.getLocalElementBegin()].getLevel();
+        unsigned int eijk[3];
+
+        const std::vector<unsigned int> blkEdgeMap = block.getBlk2DiagMap_vec();
+        const std::vector<unsigned int> blkVertMap = block.getBlk2VertexMap_vec();
+
+        for(unsigned int i=0; i < blkEdgeMap.size(); i++)
         {
-            
-            const std::vector<ot::Block>& blkList = pMesh->getLocalBlockList();
-            const unsigned int * const e2e = pMesh->getE2EMapping().data();
-            const ot::TreeNode* const pNodes = pMesh->getAllElements().data();
-            const ot::Block block = blkList[blk];
-
-            unsigned int b_lev = pNodes[block.getLocalElementBegin()].getLevel();
-            unsigned int eijk[3];
-
-            const std::vector<unsigned int> blkEdgeMap = block.getBlk2DiagMap_vec();
-            const std::vector<unsigned int> blkVertMap = block.getBlk2VertexMap_vec();
-
-            for(unsigned int i=0; i < blkEdgeMap.size(); i++)
+            if( blkEdgeMap[i]!=LOOK_UP_TABLE_DEFAULT && (b_lev < pNodes[blkEdgeMap[i]].getLevel()))
             {
-                if( blkEdgeMap[i]!=LOOK_UP_TABLE_DEFAULT && (b_lev < pNodes[blkEdgeMap[i]].getLevel()))
-                {
-                    b_lev = pNodes[blkEdgeMap[i]].getLevel();
-                    return b_lev; // return since 2:1 balance octree there for the smallest neighbour octant. 
-                }
-                    
+                b_lev = pNodes[blkEdgeMap[i]].getLevel();
+                return b_lev; // return since 2:1 balance octree there for the smallest neighbour octant. 
             }
-
-            for(unsigned int i=0; i < blkVertMap.size(); i++)
-            {
-                if( blkVertMap[i]!=LOOK_UP_TABLE_DEFAULT && (b_lev < pNodes[blkVertMap[i]].getLevel()))
-                {
-                    b_lev = pNodes[blkVertMap[i]].getLevel();
-                    return b_lev; // return since 2:1 balance octree there for the smallest neighbour octant. 
-                }
-                    
-            }
-
-            for(unsigned int ele = block.getLocalElementBegin(); ele < block.getLocalElementEnd(); ele ++)
-            {
-                if(block.isBlockInternalEle(pNodes[ele]))
-                    continue;
-
-                for(unsigned int dir =0; dir< NUM_FACES; dir++)
-                {
-                    const unsigned int lookUp = e2e[ ele * NUM_FACES + dir ];
-                    if( lookUp !=LOOK_UP_TABLE_DEFAULT  && (b_lev < pNodes[lookUp].getLevel()) )
-                    {
-                        b_lev = pNodes[lookUp].getLevel();
-                        return b_lev; // return since 2:1 balance octree there for the smallest neighbour octant.  
-                    }
-                        
-                }
                 
-            }
-
-            return b_lev;
-
-
         }
 
+        for(unsigned int i=0; i < blkVertMap.size(); i++)
+        {
+            if( blkVertMap[i]!=LOOK_UP_TABLE_DEFAULT && (b_lev < pNodes[blkVertMap[i]].getLevel()))
+            {
+                b_lev = pNodes[blkVertMap[i]].getLevel();
+                return b_lev; // return since 2:1 balance octree there for the smallest neighbour octant. 
+            }
+                
+        }
+
+        for(unsigned int ele = block.getLocalElementBegin(); ele < block.getLocalElementEnd(); ele ++)
+        {
+            if(block.isBlockInternalEle(pNodes[ele]))
+                continue;
+
+            for(unsigned int dir =0; dir< NUM_FACES; dir++)
+            {
+                const unsigned int lookUp = e2e[ ele * NUM_FACES + dir ];
+                if( lookUp !=LOOK_UP_TABLE_DEFAULT  && (b_lev < pNodes[lookUp].getLevel()) )
+                {
+                    b_lev = pNodes[lookUp].getLevel();
+                    return b_lev; // return since 2:1 balance octree there for the smallest neighbour octant.  
+                }
+                    
+            }
+            
+        }
+
+        return b_lev;
+        
     }
 
     int slice_mesh(const ot::Mesh* pMesh, unsigned int s_val[3], unsigned int s_normal[3], std::vector<unsigned int>& sids)

@@ -17,7 +17,7 @@
 #include "TreeNode.h"
 #include <assert.h>
 #include <treenode2vtk.h>
-#define GHOST_WIDTH 3
+
 
 namespace ot
 {

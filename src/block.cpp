@@ -17,7 +17,7 @@ ot::Block::Block()
     m_uiLocalElementBegin=0;
     m_uiLocalElementEnd=0;
 
-    m_uiPaddingWidth=GHOST_WIDTH;
+    m_uiPaddingWidth=0;
 
     m_uiEleOrder=0;
     m_uiSize1D=0;
@@ -44,7 +44,7 @@ ot::Block::Block(ot::TreeNode pNode, unsigned int rotID ,unsigned int regLev, un
     m_uiLocalElementBegin=regEleBegin;
     m_uiLocalElementEnd=regEleEnd;
 
-    m_uiPaddingWidth=GHOST_WIDTH;
+    m_uiPaddingWidth=(eleOrder>>1u);//GHOST_WIDTH set to 1/2 of the element order (currently unzip mainly tested with even element orders);
 
     m_uiEleOrder=eleOrder;
     m_uiSize1D=m_uiEleOrder*(1u<<(m_uiRegGridLev-m_uiBlockNode.getLevel()))+1+2*m_uiPaddingWidth;

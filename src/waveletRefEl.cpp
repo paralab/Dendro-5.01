@@ -24,14 +24,18 @@ namespace wavelet
         const unsigned int wb = eleOrder>>1u;
         const unsigned int we = eleOrder + wb+1;
 
-        for(unsigned int i=wb; i < we; i+=2)
-            m_uiCIndex.push_back(i);
+        // for(unsigned int i=wb-1; i < we; i+=2)
+        //     m_uiCIndex.push_back(i);
 
         const unsigned int ib = 0; 
         const unsigned int ie = eleOrder + 2*pw +1;
         
         for(unsigned int i=ib;i < ie; i+=2)
             m_uiPIndex.push_back(i);
+
+        for(unsigned int i=ib+1; i < ie; i+=2)
+            m_uiCIndex.push_back(i);
+
 
         const double * I0 = m_uiRefEl->getIMTChild0();
         const double * I1 = m_uiRefEl->getIMTChild1();

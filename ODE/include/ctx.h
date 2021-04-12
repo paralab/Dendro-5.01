@@ -266,7 +266,7 @@ namespace ts
             }
 
             /**
-             * @brief compute the block for the rhs (used in ENUTS). 
+             * @brief compute the block for the rhs (used in LTS). 
              * @param in :  blk vectot in
              * @param out : blk vector out
              * @param local_blk_id : blkid
@@ -275,6 +275,54 @@ namespace ts
              */
             int rhs_blk(const T* in, T* out, unsigned int dof, unsigned int local_blk_id, T  blk_time){
                 return asLeaf().rhs_blk(in,out,dof,local_blk_id,blk_time);
+            }
+
+            /**
+             * @brief apply pre_stage compute for u vector F(u) at the block level. 
+             * @param in :  blk vectot in
+             * @param out : blk vector out
+             * @param local_blk_id : blkid
+             * @param blk_time : blk time 
+             * @return int 
+             */
+            int pre_stage_blk(T* in, unsigned int dof, unsigned int local_blk_id, T  blk_time){
+                return asLeaf().pre_stage_blk(in,dof,local_blk_id,blk_time);
+            }
+
+            /**
+             * @brief apply post_stage compute for v vector v=F(u) at the block level. 
+             * @param in :  blk vectot in
+             * @param out : blk vector out
+             * @param local_blk_id : blkid
+             * @param blk_time : blk time 
+             * @return int 
+             */
+            int post_stage_blk(T* in, unsigned int dof, unsigned int local_blk_id, T  blk_time){
+                return asLeaf().post_stage_blk(in,dof,local_blk_id,blk_time);
+            }
+
+            /**
+             * @brief apply pre_timestep operation before entering the rk solver  apply for y_{k}. 
+             * @param in :  blk vectot in
+             * @param out : blk vector out
+             * @param local_blk_id : blkid
+             * @param blk_time : blk time 
+             * @return int 
+             */
+            int pre_timestep_blk(T* in, unsigned int dof, unsigned int local_blk_id, T  blk_time){
+                return asLeaf().pre_timestep_blk(in,dof,local_blk_id,blk_time);
+            }
+
+            /**
+             * @brief apply post_timestep operation for each y_{k+1} computed from y_{k}
+             * @param in :  blk vectot in
+             * @param out : blk vector out
+             * @param local_blk_id : blkid
+             * @param blk_time : blk time 
+             * @return int 
+             */
+            int post_timestep_blk(T* in, unsigned int dof, unsigned int local_blk_id, T  blk_time){
+                return asLeaf().post_timestep_blk(in,dof,local_blk_id,blk_time);
             }
 
             /**@brief: compute constraints. */
@@ -451,10 +499,17 @@ namespace ts
             std::function<double(double,double,double)> get_wtol_function(){
                 return asLeaf().get_wtol_function();
             }
+            
+            /**@brief compute ts offset value*/
+            void compute_lts_ts_offset()
+            {
+                return asLeaf().compute_lts_ts_offset();
+            }
+
 
             /**@brief: retunrs time step size factor for the  specified block*/
             static unsigned int getBlkTimestepFac(unsigned int blev, unsigned int lmin, unsigned int lmax){
-                return DerivedCtx::getBlkTimestepFac();
+                return DerivedCtx::getBlkTimestepFac(blev, lmin, lmax);
             }
 
             
@@ -1143,6 +1198,8 @@ namespace ts
         #ifdef __PROFILE_CTX__
             m_uiCtxpt[CTXPROFILE::GRID_TRASFER].stop();
         #endif
+
+        return 0;
        
     }
 

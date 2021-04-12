@@ -96,6 +96,9 @@ namespace nlsm
             nlsm::NLSM_WAVELET_TOL=parFile["NLSM_WAVELET_TOL"];
             nlsm::NLSM_CFL_FACTOR=parFile["NLSM_CFL_FACTOR"];
 
+            if(parFile.find("NLSM_MINDEPTH")!=parFile.end())
+                nlsm::NLSM_MINDEPTH = parFile["NLSM_MINDEPTH"];
+
             if(parFile.find("NLSM_WAVE_SPEED_X")!=parFile.end())
                 nlsm::NLSM_WAVE_SPEED_X = parFile["NLSM_WAVE_SPEED_X"];
             
@@ -200,6 +203,7 @@ namespace nlsm
         par::Mpi_Bcast(&NLSM_RK45_DESIRED_TOL,1,0,comm);
         par::Mpi_Bcast(&NLSM_DIM,1,0,comm);
         par::Mpi_Bcast(&NLSM_MAXDEPTH,1,0,comm);
+        par::Mpi_Bcast(&NLSM_MINDEPTH,1,0,comm);
 
         par::Mpi_Bcast(&NLSM_ID_TYPE,1,0,comm);
         par::Mpi_Bcast(&NLSM_ID_AMP1,1,0,comm);
@@ -254,7 +258,8 @@ namespace nlsm
         NLSM_COMPD_MAX[1]=NLSM_GRID_MAX_Y;
         NLSM_COMPD_MAX[2]=NLSM_GRID_MAX_Z;
 
-
+        NLSM_PADDING_WIDTH = NLSM_ELE_ORDER>>1u;
+        
         par::Mpi_Bcast(&KO_DISS_SIGMA, 1, 0, comm);
 
         par::Mpi_Bcast(&NLSM_NUM_REFINE_VARS,1,0,comm);
@@ -266,10 +271,93 @@ namespace nlsm
 
         par::Mpi_Bcast(NLSM_REFINE_VARIABLE_INDICES,NLSM_NUM_VARS,0,comm);
         par::Mpi_Bcast(NLSM_VTU_OUTPUT_EVOL_INDICES,NLSM_NUM_VARS,0,comm);
+        
+
+        
 
     }
 
+    void dumpParamFile(std::ostream& sout, int root, MPI_Comm comm)
+    {
+        int rank,npes;
+        MPI_Comm_rank(comm,&rank);
+        MPI_Comm_size(comm,&npes);
 
+        if(rank==root|| npes==1)
+        {
+            sout<<"parameters read: "<<std::endl;
+            sout<<YLW<<"\tnpes :"<<npes<<NRM<<std::endl;
+            sout<<YLW<<"\tNLSM_ELE_ORDER :"<<nlsm::NLSM_ELE_ORDER<<NRM<<std::endl;
+            sout<<YLW<<"\tNLSM_PADDING_WIDTH :"<<nlsm::NLSM_PADDING_WIDTH<<NRM<<std::endl;
+            sout<<YLW<<"\tNLSM_DIM :"<<nlsm::NLSM_DIM<<NRM<<std::endl;
+            sout<<YLW<<"\tNLSM_IO_OUTPUT_FREQ :"<<nlsm::NLSM_IO_OUTPUT_FREQ<<NRM<<std::endl;
+            sout<<YLW<<"\tNLSM_REMESH_TEST_FREQ :"<<nlsm::NLSM_REMESH_TEST_FREQ<<NRM<<std::endl;
+            sout<<YLW<<"\tNLSM_CHECKPT_FREQ :"<<nlsm::NLSM_CHECKPT_FREQ<<NRM<<std::endl;
+            sout<<YLW<<"\tNLSM_RESTORE_SOLVER :"<<nlsm::NLSM_RESTORE_SOLVER<<NRM<<std::endl;
+            sout<<YLW<<"\tNLSM_ENABLE_BLOCK_ADAPTIVITY :"<<nlsm::NLSM_ENABLE_BLOCK_ADAPTIVITY<<NRM<<std::endl;
+            sout<<YLW<<"\tNLSM_VTU_FILE_PREFIX :"<<nlsm::NLSM_VTU_FILE_PREFIX<<NRM<<std::endl;
+            sout<<YLW<<"\tNLSM_CHKPT_FILE_PREFIX :"<<nlsm::NLSM_CHKPT_FILE_PREFIX<<NRM<<std::endl;
+            sout<<YLW<<"\tNLSM_PROFILE_FILE_PREFIX :"<<nlsm::NLSM_PROFILE_FILE_PREFIX<<NRM<<std::endl;
+            sout<<YLW<<"\tNLSM_IO_OUTPUT_GAP :"<<nlsm::NLSM_IO_OUTPUT_GAP<<NRM<<std::endl;
+            sout<<YLW<<"\tNLSM_DENDRO_GRAIN_SZ :"<<nlsm::NLSM_DENDRO_GRAIN_SZ<<NRM<<std::endl;
+            sout<<YLW<<"\tNLSM_ASYNC_COMM_K :"<<nlsm::NLSM_ASYNC_COMM_K<<NRM<<std::endl;
+            sout<<YLW<<"\tNLSM_DENDRO_AMR_FAC :"<<nlsm::NLSM_DENDRO_AMR_FAC<<NRM<<std::endl;
+            sout<<YLW<<"\tNLSM_CFL_FACTOR:"<<nlsm::NLSM_CFL_FACTOR<<NRM<<std::endl;
+            sout<<YLW<<"\tNLSM_WAVELET_TOL :"<<nlsm::NLSM_WAVELET_TOL<<NRM<<std::endl;
+            sout<<YLW<<"\tNLSM_LOAD_IMB_TOL :"<<nlsm::NLSM_LOAD_IMB_TOL<<NRM<<std::endl;
+            sout<<YLW<<"\tNLSM_RK45_TIME_BEGIN :"<<nlsm::NLSM_RK45_TIME_BEGIN<<NRM<<std::endl;
+            sout<<YLW<<"\tNLSM_RK45_TIME_END :"<<nlsm::NLSM_RK45_TIME_END<<NRM<<std::endl;
+            sout<<YLW<<"\tNLSM_RK45_TIME_STEP_SIZE :"<<nlsm::NLSM_RK45_TIME_STEP_SIZE<<NRM<<std::endl;
+            sout<<YLW<<"\tNLSM_RK45_DESIRED_TOL :"<<nlsm::NLSM_RK45_DESIRED_TOL<<NRM<<std::endl;
+            sout<<YLW<<"\tNLSM_COMPD_MIN : ( :"<<nlsm::NLSM_COMPD_MIN[0]<<" ,"<<nlsm::NLSM_COMPD_MIN[1]<<","<<nlsm::NLSM_COMPD_MIN[2]<<" )"<<NRM<<std::endl;
+            sout<<YLW<<"\tNLSM_COMPD_MAX : ( :"<<nlsm::NLSM_COMPD_MAX[0]<<" ,"<<nlsm::NLSM_COMPD_MAX[1]<<","<<nlsm::NLSM_COMPD_MAX[2]<<" )"<<NRM<<std::endl;
+            sout<<YLW<<"\tNLSM_BLK_MIN : ( :"<<nlsm::NLSM_BLK_MIN_X<<" ,"<<nlsm::NLSM_BLK_MIN_Y<<","<<nlsm::NLSM_BLK_MIN_Z<<" )"<<NRM<<std::endl;
+            sout<<YLW<<"\tNLSM_BLK_MAX : ( :"<<nlsm::NLSM_BLK_MAX_X<<" ,"<<nlsm::NLSM_BLK_MAX_Y<<","<<nlsm::NLSM_BLK_MAX_Z<<" )"<<NRM<<std::endl;
+            sout<<YLW<<"\tNLSM_OCTREE_MIN : ( :"<<nlsm::NLSM_OCTREE_MIN[0]<<" ,"<<nlsm::NLSM_OCTREE_MIN[1]<<","<<nlsm::NLSM_OCTREE_MIN[2]<<" )"<<NRM<<std::endl;
+            sout<<YLW<<"\tNLSM_OCTREE_MAX : ( :"<<nlsm::NLSM_OCTREE_MAX[0]<<" ,"<<nlsm::NLSM_OCTREE_MAX[1]<<","<<nlsm::NLSM_OCTREE_MAX[2]<<" )"<<NRM<<std::endl;
+            sout<<YLW<<"\tKO_DISS_SIGMA :"<<nlsm::KO_DISS_SIGMA<<NRM<<std::endl;
+            sout<<YLW<<"\tNLSM_ID_TYPE:"<<nlsm::NLSM_ID_TYPE<<NRM<<std::endl;
+            sout<<YLW<<"\tNLSM_ID_AMP1:"<<nlsm::NLSM_ID_AMP1<<NRM<<std::endl;
+            sout<<YLW<<"\tNLSM_ID_AMP2:"<<nlsm::NLSM_ID_AMP2<<NRM<<std::endl;
+            sout<<YLW<<"\tNLSM_ID_DELTA1:"<<nlsm::NLSM_ID_DELTA1<<NRM<<std::endl;
+            sout<<YLW<<"\tNLSM_ID_DELTA2:"<<nlsm::NLSM_ID_DELTA2<<NRM<<std::endl;
+            sout<<YLW<<"\tNLSM_ID_XC1:"<<nlsm::NLSM_ID_XC1<<NRM<<std::endl;
+            sout<<YLW<<"\tNLSM_ID_YC1:"<<nlsm::NLSM_ID_YC1<<NRM<<std::endl;
+            sout<<YLW<<"\tNLSM_ID_ZC1:"<<nlsm::NLSM_ID_ZC1<<NRM<<std::endl;
+            sout<<YLW<<"\tNLSM_ID_XC2:"<<nlsm::NLSM_ID_XC2<<NRM<<std::endl;
+            sout<<YLW<<"\tNLSM_ID_YC2:"<<nlsm::NLSM_ID_YC2<<NRM<<std::endl;
+            sout<<YLW<<"\tNLSM_ID_ZC2:"<<nlsm::NLSM_ID_ZC2<<NRM<<std::endl;
+            sout<<YLW<<"\tNLSM_ID_EPSX1:"<<nlsm::NLSM_ID_EPSX1<<NRM<<std::endl;
+            sout<<YLW<<"\tNLSM_ID_EPSY1:"<<nlsm::NLSM_ID_EPSY1<<NRM<<std::endl;
+            sout<<YLW<<"\tNLSM_ID_EPSZ1:"<<nlsm::NLSM_ID_EPSY1<<NRM<<std::endl;
+            sout<<YLW<<"\tNLSM_ID_EPSX2:"<<nlsm::NLSM_ID_EPSX2<<NRM<<std::endl;
+            sout<<YLW<<"\tNLSM_ID_EPSY2:"<<nlsm::NLSM_ID_EPSY2<<NRM<<std::endl;
+            sout<<YLW<<"\tNLSM_ID_EPSZ2:"<<nlsm::NLSM_ID_EPSY2<<NRM<<std::endl;
+            sout<<YLW<<"\tNLSM_ID_R1:"<<nlsm::NLSM_ID_R1<<NRM<<std::endl;
+            sout<<YLW<<"\tNLSM_ID_R2:"<<nlsm::NLSM_ID_R2<<NRM<<std::endl;
+            sout<<YLW<<"\tNLSM_ID_NU1:"<<nlsm::NLSM_ID_NU1<<NRM<<std::endl;
+            sout<<YLW<<"\tNLSM_ID_NU2:"<<nlsm::NLSM_ID_NU2<<NRM<<std::endl;
+            sout<<YLW<<"\tNLSM_ID_OMEGA:"<<nlsm::NLSM_ID_OMEGA<<NRM<<std::endl;
+            
+            sout<<YLW<<"\tNLSM_DIM :"<<nlsm::NLSM_DIM<<NRM<<std::endl;
+            sout<<YLW<<"\tNLSM_MAXDEPTH :"<<nlsm::NLSM_MAXDEPTH<<NRM<<std::endl;
+            sout<<YLW<<"\tNLSM_MINDEPTH :"<<nlsm::NLSM_MINDEPTH<<NRM<<std::endl;
+
+            sout<<YLW<<"\tNLSM_NUM_REFINE_VARS :"<<nlsm::NLSM_NUM_REFINE_VARS<<NRM<<std::endl;
+            sout<<YLW<<"\tNLSM_REFINE_VARIABLE_INDICES :[";
+            for(unsigned int i=0;i<nlsm::NLSM_NUM_REFINE_VARS-1;i++)
+                sout<<nlsm::NLSM_REFINE_VARIABLE_INDICES[i]<<", ";
+            sout<<nlsm::NLSM_REFINE_VARIABLE_INDICES[nlsm::NLSM_NUM_REFINE_VARS-1]<<"]"<<NRM<<std::endl;
+
+            sout<<YLW<<"\tNLSM_NUM_EVOL_VARS_VTU_OUTPUT :"<<nlsm::NLSM_NUM_EVOL_VARS_VTU_OUTPUT<<NRM<<std::endl;
+            sout<<YLW<<"\tNLSM_VTU_OUTPUT_EVOL_INDICES :[";
+            for(unsigned int i=0;i<nlsm::NLSM_NUM_EVOL_VARS_VTU_OUTPUT-1;i++)
+                sout<<nlsm::NLSM_VTU_OUTPUT_EVOL_INDICES[i]<<", ";
+            sout<<nlsm::NLSM_VTU_OUTPUT_EVOL_INDICES[nlsm::NLSM_NUM_EVOL_VARS_VTU_OUTPUT-1]<<"]"<<NRM<<std::endl;
+
+        }
+
+    }
 
     void initData(const double xx1,const double yy1,const double zz1, double *var)
     {

@@ -1530,6 +1530,16 @@ public:
     T* createCGVector(T initVal=0, unsigned int dof =1) const;
 
     /**
+     * @brief create a CG nodal vector and initialize it to func
+     * @tparam T vector type
+     * @param func: function f(x,y,z,val)
+     * @param dof : dof for the vector
+     * @return T* 
+     */
+    template<typename T>
+    T* createCGVector(std::function<void(T,T,T,T*)> func, unsigned int dof =1) const;
+
+    /**
      * @brief Create a Element Vector 
      * 
      * @tparam T vector data type. 
@@ -1548,6 +1558,16 @@ public:
      */
     template <typename T>
     T* createDGVector(T initVal=0, unsigned int dof=1) const;
+    
+    /**
+     * @brief create a CG nodal vector and initialize it to func
+     * @tparam T vector type
+     * @param func: function f(x,y,z,val)
+     * @param dof : dof for the vector
+     * @return T* 
+     */
+    template<typename T>
+    T* createDGVector(std::function<void(T,T,T,T*)> func, unsigned int dof =1) const;
 
     /**@brief allocate memory for variable array based on the adaptive mesh.*/
     template <typename T>

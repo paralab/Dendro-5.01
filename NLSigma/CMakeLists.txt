@@ -4,6 +4,32 @@ project(NLSM)
 # options for nlsm
 option(NLSM_NONLINEAR "enable nonlinear version" OFF)
 option(NLSM_COMPARE_WITH_ANALYTICAL_SOL "compare with the analytical sol. of the linear wave equation" OFF)
+option(NLSM_USE_4TH_ORDER_DERIVS "4th order derivs" OFF)
+option(NLSM_USE_6TH_ORDER_DERIVS "6th order derivs" ON)
+option(NLSM_USE_8TH_ORDER_DERIVS "8th order derivs" OFF)
+
+if(NLSM_USE_4TH_ORDER_DERIVS)
+    set(NLSM_USE_6TH_ORDER_DERIVS OFF)
+    set(NLSM_USE_8TH_ORDER_DERIVS OFF)
+elseif(NLSM_USE_6TH_ORDER_DERIVS)
+    set(NLSM_USE_4TH_ORDER_DERIVS OFF)
+    set(NLSM_USE_8TH_ORDER_DERIVS OFF)
+elseif(NLSM_USE_8TH_ORDER_DERIVS)
+    set(NLSM_USE_4TH_ORDER_DERIVS OFF)
+    set(NLSM_USE_6TH_ORDER_DERIVS OFF)
+endif()
+
+if(NLSM_USE_4TH_ORDER_DERIVS)
+    add_definitions(-DNLSM_USE_4TH_ORDER_DERIVS)
+endif()
+
+if(NLSM_USE_6TH_ORDER_DERIVS)
+    add_definitions(-DNLSM_USE_6TH_ORDER_DERIVS)
+endif()
+
+if(NLSM_USE_8TH_ORDER_DERIVS)
+    add_definitions(-DNLSM_USE_8TH_ORDER_DERIVS)
+endif()
 
 if(NLSM_COMPARE_WITH_ANALYTICAL_SOL)
     set(NLSM_NONLINEAR OFF)

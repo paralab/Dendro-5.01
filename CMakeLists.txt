@@ -323,6 +323,7 @@ set(ODE_INC ODE/include/fdCoefficient.h
             ODE/include/ctx.h
             ODE/include/ets.h
             ODE/include/enuts.h
+            ODE/include/enutsUtils.tcc
             ODE/include/asyncCtxByLev.h
             ODE/include/subSM.h
             ODE/include/enutsOp.h
@@ -586,6 +587,21 @@ target_include_directories(stencilExample PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/IO
 target_include_directories(stencilExample PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/IO/zlib/inc)
 target_include_directories(stencilExample PRIVATE ${MPI_INCLUDE_PATH})
 target_include_directories(stencilExample PRIVATE ${GSL_INCLUDE_DIRS})
+
+
+set(SOURCE_FILES ODE/examples/testLTSBlkVec.cpp)
+add_executable(testLTSBlkVec ${SOURCE_FILES})
+target_link_libraries(testLTSBlkVec dendro5  ${LAPACK_LIBRARIES} ${MPI_LIBRARIES} m)
+target_include_directories(testLTSBlkVec PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_include_directories(testLTSBlkVec PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test/include)
+target_include_directories(testLTSBlkVec PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/examples/include)
+target_include_directories(testLTSBlkVec PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/FEM/include)
+target_include_directories(testLTSBlkVec PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/ODE/include)
+target_include_directories(testLTSBlkVec PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/LinAlg/include)
+target_include_directories(testLTSBlkVec PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/IO/vtk/include)
+target_include_directories(testLTSBlkVec PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/IO/zlib/inc)
+target_include_directories(testLTSBlkVec PRIVATE ${MPI_INCLUDE_PATH})
+target_include_directories(testLTSBlkVec PRIVATE ${GSL_INCLUDE_DIRS})
 
 
 set(SOURCE_FILES FEM/examples/src/dgVecTest.cpp)

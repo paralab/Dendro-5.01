@@ -136,6 +136,7 @@ namespace nlsm
         
         const Point pt_min(nlsm::NLSM_COMPD_MIN[0],nlsm::NLSM_COMPD_MIN[1],nlsm::NLSM_COMPD_MIN[2]);
         const Point pt_max(nlsm::NLSM_COMPD_MAX[0],nlsm::NLSM_COMPD_MAX[1],nlsm::NLSM_COMPD_MAX[2]);
+        const unsigned int PW=nlsm::NLSM_PADDING_WIDTH;
 
         for(unsigned int blk =0; blk < numBlocks; blk++)
         {
@@ -150,13 +151,13 @@ namespace nlsm
             dy=blkList[blk].computeDy(pt_min,pt_max);
             dz=blkList[blk].computeDz(pt_min,pt_max);
 
-            ptmin[0]=GRIDX_TO_X(blkList[blk].getBlockNode().minX())-3*dx;
-            ptmin[1]=GRIDY_TO_Y(blkList[blk].getBlockNode().minY())-3*dy;
-            ptmin[2]=GRIDZ_TO_Z(blkList[blk].getBlockNode().minZ())-3*dz;
+            ptmin[0]=GRIDX_TO_X(blkList[blk].getBlockNode().minX())-PW*dx;
+            ptmin[1]=GRIDY_TO_Y(blkList[blk].getBlockNode().minY())-PW*dy;
+            ptmin[2]=GRIDZ_TO_Z(blkList[blk].getBlockNode().minZ())-PW*dz;
 
-            ptmax[0]=GRIDX_TO_X(blkList[blk].getBlockNode().maxX())+3*dx;
-            ptmax[1]=GRIDY_TO_Y(blkList[blk].getBlockNode().maxY())+3*dy;
-            ptmax[2]=GRIDZ_TO_Z(blkList[blk].getBlockNode().maxZ())+3*dz;
+            ptmax[0]=GRIDX_TO_X(blkList[blk].getBlockNode().maxX())+PW*dx;
+            ptmax[1]=GRIDY_TO_Y(blkList[blk].getBlockNode().maxY())+PW*dy;
+            ptmax[2]=GRIDZ_TO_Z(blkList[blk].getBlockNode().maxZ())+PW*dz;
 
             #ifdef __PROFILE_CTX__
                 m_uiCtxpt[ts::CTXPROFILE::RHS].start();
@@ -219,6 +220,7 @@ namespace nlsm
         
         const Point pt_min(nlsm::NLSM_COMPD_MIN[0],nlsm::NLSM_COMPD_MIN[1],nlsm::NLSM_COMPD_MIN[2]);
         const Point pt_max(nlsm::NLSM_COMPD_MAX[0],nlsm::NLSM_COMPD_MAX[1],nlsm::NLSM_COMPD_MAX[2]);
+        const unsigned int PW=nlsm::NLSM_PADDING_WIDTH;
 
 
         offset=blkList[blk].getOffset();
@@ -241,13 +243,13 @@ namespace nlsm
         dy=blkList[blk].computeDy(pt_min,pt_max);
         dz=blkList[blk].computeDz(pt_min,pt_max);
 
-        ptmin[0]=GRIDX_TO_X(blkList[blk].getBlockNode().minX())-3*dx;
-        ptmin[1]=GRIDY_TO_Y(blkList[blk].getBlockNode().minY())-3*dy;
-        ptmin[2]=GRIDZ_TO_Z(blkList[blk].getBlockNode().minZ())-3*dz;
+        ptmin[0]=GRIDX_TO_X(blkList[blk].getBlockNode().minX())-PW*dx;
+        ptmin[1]=GRIDY_TO_Y(blkList[blk].getBlockNode().minY())-PW*dy;
+        ptmin[2]=GRIDZ_TO_Z(blkList[blk].getBlockNode().minZ())-PW*dz;
 
-        ptmax[0]=GRIDX_TO_X(blkList[blk].getBlockNode().maxX())+3*dx;
-        ptmax[1]=GRIDY_TO_Y(blkList[blk].getBlockNode().maxY())+3*dy;
-        ptmax[2]=GRIDZ_TO_Z(blkList[blk].getBlockNode().maxZ())+3*dz;
+        ptmax[0]=GRIDX_TO_X(blkList[blk].getBlockNode().maxX())+PW*dx;
+        ptmax[1]=GRIDY_TO_Y(blkList[blk].getBlockNode().maxY())+PW*dy;
+        ptmax[2]=GRIDZ_TO_Z(blkList[blk].getBlockNode().maxZ())+PW*dz;
 
         // note that the offset zero is important since it is the block vector. 
         nlsmRhs(unzipOut,(const DendroScalar**)unzipIn, 0, ptmin, ptmax, lsz, bflag);
@@ -666,7 +668,7 @@ namespace nlsm
        
         m_uiEUnzip[0] = m_uiEvolutionUnzipVar[0];
         m_uiEUnzip[1] = m_uiEvolutionUnzipVar[1];
-        
+        return 0;
     }
 
     DVec NLSMCtx::get_evolution_vars()

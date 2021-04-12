@@ -296,8 +296,15 @@ namespace ts
             /**@brief: store the partial step id for the latest evolution. */
             unsigned int m_uiPt;
 
-            /**@brief: store the active block IDs evolved by the partial blocks*/
+            /**@brief: store the active block IDs evolved by the partial blocks (unzip independent block ids)*/
+            std::vector<unsigned int> m_uiIndependentActiveBlkIDs;
+            
+            /**@brief: store the active block IDs evolved by the partial blocks (unzip dependent block ids)*/
+            std::vector<unsigned int> m_uiDependentActiveBlkIDs;
+
+            /**@brief: The union of block independent and dependent block ids. */
             std::vector<unsigned int> m_uiActiveBlkIDs;
+
 
             /**@brief : if true weighted partition is used*/
             bool m_uiUseWeightedPart;
@@ -353,6 +360,8 @@ namespace ts
              */
             void partial_evolve(unsigned int pt);
 
+            void gts_evolve(unsigned int pt);
+
             /**@brief: compute the evolution with remesh triggered at partial steps. */
             void evolve_with_remesh(unsigned int remesh_freq=5);
             
@@ -386,7 +395,7 @@ namespace ts
             void  dump_load_statistics(std::ostream & sout);
 
             /**@brief: computes the estimated speedup for a given mesh. */
-            void  dump_est_speedup(std::ostream & sout);
+            void  dump_est_speedup(std::ostream & sout, bool verbose=false);
 
             /**@brief : perform blk time step vector to vec CG zip operation. 
              * @param blkVec : pointer to the block vector. 
@@ -479,7 +488,7 @@ namespace ts
     }
 
     template<typename T, typename Ctx>
-    void ExplicitNUTS<T,Ctx>::dump_est_speedup(std::ostream & sout)  
+    void ExplicitNUTS<T,Ctx>::dump_est_speedup(std::ostream & sout, bool verbose)  
     {
         const ot::Mesh* pMesh =  m_uiAppCtx->get_mesh();
 
@@ -509,7 +518,8 @@ namespace ts
             for(unsigned int blk =0; blk < blkList.size(); blk++)
             {
                 double nnx = (blkList[blk].getAllocationSzX() -2*blkList[blk].get1DPadWidth() );
-                localSz += nnx*nnx*nnx;  //(blkList[blk].getLocalElementEnd() - blkList[blk].getLocalElementBegin());
+                //localSz += (nnx*nnx*nnx);  //(blkList[blk].getLocalElementEnd() - blkList[blk].getLocalElementBegin());
+                localSz += (blkList[blk].getLocalElementEnd() - blkList[blk].getLocalElementBegin());
             }
 
             double globalESz;
@@ -518,6 +528,28 @@ namespace ts
             double globalBlkSz;
             localSz = pMesh->getLocalBlockList().size();
             par::Mpi_Reduce(&localSz,&globalBlkSz,1,MPI_SUM,0, comm);
+
+
+            std::vector<DendroIntL> octByLev;
+            std::vector<DendroIntL> octByLev_g;
+            octByLev.resize(m_uiMaxDepth+1,0);
+            octByLev_g.resize(m_uiMaxDepth+1,0);
+
+            for(unsigned int ele=pMesh->getElementLocalBegin(); ele < pMesh->getElementLocalEnd(); ele ++)
+                octByLev[pNodes[ele].getLevel()]++;
+            
+
+            par::Mpi_Reduce(octByLev.data(),octByLev_g.data(),m_uiMaxDepth,MPI_SUM,0,comm);
+
+            if(!rank)
+            {
+                sout<<"level\t num_elements\t\n"<<std::endl;
+                for(int l = octByLev_g.size()-1; l >=0; l--)
+                    sout<<l<<"\t"<<octByLev_g[l]<<std::endl;
+            }
+
+            if(verbose && !rank)
+                sout<<"partial_step\t active_elements\t all_elements\n"<<std::endl;
 
             double totalW=0;
             for(unsigned int pt=0; pt< coarset_t; pt ++)
@@ -536,7 +568,11 @@ namespace ts
                     double nnx = (blkList[blk].getAllocationSzX() -2*blkList[blk].get1DPadWidth() );
                     //std::cout<<"pt: "<<pt<<" blk id : "<<blk<<" blklevel : "<<bLev<<" is now at btime : "<<BLK_T<<" dt: "<<BLK_DT<<std::endl;
 
-                    numBlkEvolved += nnx*nnx*nnx;  //(blkList[blk].getLocalElementEnd() - blkList[blk].getLocalElementBegin());
+                    //numBlkEvolved += (nnx*nnx*nnx);  //(blkList[blk].getLocalElementEnd() - blkList[blk].getLocalElementBegin());
+                    numBlkEvolved += (blkList[blk].getLocalElementEnd() - blkList[blk].getLocalElementBegin());
+                    
+                    m_uiBVec[blk]._time += BLK_DT; 
+                    m_uiBVec[blk]._rks=0;
 
                 }
 
@@ -546,34 +582,37 @@ namespace ts
 
                 totalW += red_stat[1];
 
-                if(!rank)
-                    std::cout<<" partial step : "<<pt<< " number of dof evolved (min, sum, max): ("<<red_stat[0]<<",\t "<<red_stat[1]<<",\t "<<red_stat[2]<<") out of  "<<globalESz<<std::endl;
+                if(verbose && !rank)
+                    sout<<pt<<"\t"<<red_stat[1]<<"\t"<<globalESz<<"\t"<<(red_stat[1]/globalESz)<<std::endl;
+                    // std::cout<<" partial step : "<<pt<< " number of dof evolved (min, sum, max): ("<<red_stat[0]<<",\t "<<red_stat[1]<<",\t "<<red_stat[2]<<") out of  "<<globalESz<<std::endl;
 
 
 
                 // compute the time step vector and increment time. 
-                for(unsigned int blk =0; blk < blkList.size(); blk++)
-                {
+                // for(unsigned int blk =0; blk < blkList.size(); blk++)
+                // {
 
-                    const unsigned int BLK_T = m_uiBVec[blk]._time;
-                    const unsigned int NN   =  m_uiBVec[blk]._vec[0].getSz();
-                    const unsigned int bLev =  pNodes[blkList[blk].getLocalElementBegin()].getLevel();
-                    const unsigned int BLK_DT = m_uiAppCtx->getBlkTimestepFac(bLev,m_uiLevMin,m_uiLevMax);
-                    if( pt% BLK_DT !=0 )
-                        continue;
+                //     const unsigned int BLK_T = m_uiBVec[blk]._time;
+                //     const unsigned int NN   =  m_uiBVec[blk]._vec[0].getSz();
+                //     const unsigned int bLev =  pNodes[blkList[blk].getLocalElementBegin()].getLevel();
+                //     const unsigned int BLK_DT = m_uiAppCtx->getBlkTimestepFac(bLev,m_uiLevMin,m_uiLevMax);
+                //     if( pt% BLK_DT !=0 )
+                //         continue;
 
-                    m_uiBVec[blk]._time += BLK_DT; 
-                    m_uiBVec[blk]._rks=0;
-                    
+                //     m_uiBVec[blk]._time += BLK_DT; 
+                //     m_uiBVec[blk]._rks=0;
                 
-                }
+                // }
+
 
             }
 
             if(!rank)
             {   
-                std::cout<<"nuts W : "<<totalW<<" uts: "<<globalESz*coarset_t<<std::endl;
-                std::cout<<" ets. speedup : "<<(globalESz*coarset_t/(double)(totalW))<<std::endl;
+                sout<<"number of LTS partial timesteps "<<coarset_t<<std::endl;
+                sout<<"LTS Work : "<<totalW<<" GTS Work: "<<globalESz*coarset_t<<std::endl;
+                sout<<" ets. speedup : "<<(globalESz*coarset_t/(double)(totalW))<<std::endl;
+                
             }
                 
 
@@ -613,9 +652,7 @@ namespace ts
 
         }
 
-        
-
-
+        return ;
 
     }
 
@@ -686,7 +723,10 @@ namespace ts
         m_uiECOp = new ENUTSOp(m_uiType);
         m_uiIsInternalAlloc=true;
         m_uiBlkTimeLevMinMax.resize(2*m_uiMaxDepth,0);
+
         m_uiActiveBlkIDs.reserve(pMesh->getLocalBlockList().size());
+        m_uiDependentActiveBlkIDs.reserve(pMesh->getLocalBlockList().size());
+        m_uiIndependentActiveBlkIDs.reserve(pMesh->getLocalBlockList().size());
         return 0;
 
         
@@ -728,7 +768,10 @@ namespace ts
         m_uiBVec.clear();
 
         m_uiBlkTimeLevMinMax.clear();
+        
         m_uiActiveBlkIDs.clear();
+        m_uiIndependentActiveBlkIDs.clear();
+        m_uiDependentActiveBlkIDs.clear();
 
         delete m_uiECOp;
         m_uiIsInternalAlloc = false;
@@ -839,6 +882,50 @@ namespace ts
         m_uiAppCtx->initialize();
         m_uiTimeInfo = m_uiAppCtx->get_ts_info();
         allocate_internal_vars();
+        m_uiAppCtx->compute_lts_ts_offset();
+
+        if(m_uiUseWeightedPart)
+        {
+            ot::Mesh* pMesh = m_uiAppCtx->get_mesh();
+            pMesh->computeMinMaxLevel(m_uiLevMin,m_uiLevMax);
+
+            update_wpart_metadata();
+
+            if(!m_uiAppCtx->is_wpart_func_set())
+                m_uiAppCtx->set_wpart_function(getOctWeight);
+         
+            ot::Mesh* newMesh = m_uiAppCtx->remesh();
+            
+            {
+                DendroIntL oldElements=pMesh->getNumLocalMeshElements();
+                DendroIntL newElements=newMesh->getNumLocalMeshElements();
+
+                DendroIntL oldElements_g, newElements_g;
+
+                par::Mpi_Reduce(&oldElements,&oldElements_g,1,MPI_SUM,0,pMesh->getMPIGlobalCommunicator());
+                par::Mpi_Reduce(&newElements,&newElements_g,1,MPI_SUM,0,newMesh->getMPIGlobalCommunicator());
+
+                if(!(pMesh->getMPIRankGlobal()))
+                    std::cout<<GRN<<"[LTS Init(Wpart)]: \told mesh: "<<oldElements_g<<"\tnew mesh:"<<newElements_g<<NRM<<std::endl;
+            }
+
+            DVec eVar = m_uiAppCtx->get_evolution_vars();
+            unsigned int DOF= eVar.GetDof();
+
+            pMesh->readFromGhostBegin(eVar.GetVecArray(),DOF);
+            pMesh->readFromGhostEnd(eVar.GetVecArray(),DOF);
+            
+            m_uiAppCtx->grid_transfer(newMesh,true,false,false);
+            m_uiAppCtx->update_app_vars();   
+
+            std::swap(pMesh,newMesh);
+            delete newMesh;
+            m_uiAppCtx->set_mesh(pMesh);
+        }
+
+        //Ctx initialize might have changed the mesh i.e. converge untill mesh adapted to the initial data. 
+        m_uiAppCtx->set_ets_synced(false);
+        this->sync_with_mesh();
 
     }
 
@@ -1632,6 +1719,7 @@ namespace ts
 
         assert(blkList.size() > 0);
 
+        // note that this is needed if we are planing to perform parital remesh. 
         for(unsigned int blk=0; blk < blkList.size(); blk++)
         {
             const unsigned int bLev =  pNodes[blkList[blk].getLocalElementBegin()].getLevel();
@@ -1652,6 +1740,9 @@ namespace ts
         }
 
         m_uiActiveBlkIDs.clear();
+        m_uiIndependentActiveBlkIDs.clear();
+        m_uiDependentActiveBlkIDs.clear();
+
         // compute the active block list for this partial timestep. 
         for(unsigned int blk =0; blk < blkList.size(); blk++)
         {
@@ -1673,12 +1764,46 @@ namespace ts
                 continue;
 
             m_uiActiveBlkIDs.push_back(blk);
+
+            // 02/12/2021 : The overlapped ghost exchange has a bug. 
+            // if(blkList[blk].getBlockType()==ot::BlockType::UNZIP_INDEPENDENT)
+            // {
+            //     m_uiIndependentActiveBlkIDs.push_back(blk);
+            // }else
+            // {
+            //     m_uiDependentActiveBlkIDs.push_back(blk);
+            // }
                 
         }
 
         //std::cout<<"rank: "<<pMesh->getMPIRank()<<"pt: "<<pt<<" active block size: "<<m_uiActiveBlkIDs.size()<<std::endl;
 
-        
+        // 10/07/2020 (Milinda): Synchronize data u(x,t)
+        // for(unsigned int bb=0; bb < m_uiActiveBlkIDs.size(); bb++)
+        // {
+        //     const unsigned int blk = m_uiActiveBlkIDs[bb];
+        //     m_uiBVec[blk]._vec[0].zipDG(pMesh,m_uiEvarDG.GetVecArray(),DOF);
+        // }
+
+        // // Now need to synchronize the out vector just to smooth out solution between refinement boundaries. 
+        // pMesh->readFromGhostBeginEleDGVec(m_uiEvarDG.GetVecArray(),DOF);
+        // pMesh->readFromGhostEndEleDGVec(m_uiEvarDG.GetVecArray(),DOF);
+
+            
+        // for(unsigned int bb=0; bb < m_uiActiveBlkIDs.size(); bb++)
+        // {
+        //     const unsigned int blk = m_uiActiveBlkIDs[bb]; 
+        //     const unsigned int BLK_T = m_uiBVec[blk]._time;
+        //     const unsigned int NN   =  m_uiBVec[blk]._vec[0].getSz();
+        //     const unsigned int bLev =  pNodes[blkList[blk].getLocalElementBegin()].getLevel();
+        //     const unsigned int BLK_DT = m_uiAppCtx->getBlkTimestepFac(bLev,m_uiLevMin,m_uiLevMax);
+
+        //     m_uiBVec[blk]._vec[0].mark_unsynced();
+        //     sync_blk_timestep(blk,0);
+        //     m_uiBVec[blk]._vec[0].mark_synced();
+            
+        // }
+
         for(unsigned int rk=1; rk <= m_uiNumStages; rk++ )
         {
             const unsigned int BLK_S = rk;
@@ -1692,19 +1817,8 @@ namespace ts
 
                 const T blk_dt = m_uiTimeInfo._m_uiTh * BLK_DT;
                 
-                // bool isBlkSynced = true;
-                // if(m_uiBlkTimeLevMinMax[2*bLev+0] !=  m_uiBlkTimeLevMinMax[2*bLev+1] )
-                //     isBlkSynced = false;
-
-                // if(!isBlkSynced)                    
-                //     std::cout<<"isBlkSynced : "<<isBlkSynced<<" blk min : "<<m_uiBlkTimeLevMinMax[2*bLev+0]<<" blk max "<< m_uiBlkTimeLevMinMax[2*bLev+1]<<std::endl;
-                // skip blocks is they are not synced, and the time is equal to the max time. 
-                // if( (!isBlkSynced && BLK_T == m_uiBlkTimeLevMinMax[2*bLev+1]) || (pt % BLK_DT !=0) )
-                //     continue;
-
-                //std::cout<<"[NUTS]: pt: "<<pt<<" blk: "<<blk<<" rk : "<<rk<<" step size: "<<BLK_DT<<" time : "<<BLK_T<<std::endl;
-
                 assert(m_uiBVec[blk]._vec[rk-1].isSynced());
+                m_uiAppCtx->pre_timestep_blk((T*)m_uiBVec[blk]._vec[0].data(),DOF,blk,current_t + dt_finest*BLK_T);
 
                 m_uiBVec[blk]._vec[m_uiNumStages+1].vecCopy(m_uiBVec[blk]._vec[0]); // copy the in vector. 
                 T* out_ptr = (T*)m_uiBVec[blk]._vec[m_uiNumStages+1].data();
@@ -1719,6 +1833,7 @@ namespace ts
                     }
                 }
 
+                m_uiAppCtx->pre_stage_blk((T*)m_uiBVec[blk]._vec[m_uiNumStages+1].data(),DOF,blk,current_t + dt_finest*BLK_T);
                 m_uiBVec[blk]._vec[BLK_S].computeVec(m_uiAppCtx, m_uiBVec[blk]._vec[m_uiNumStages+1], current_t + dt_finest*BLK_T);
                 m_uiBVec[blk]._vec[BLK_S].mark_unsynced();
                 // std::cout<<"rk:"<<rk<<std::endl;
@@ -1737,11 +1852,238 @@ namespace ts
 
             }
 
-            
-            // do the DG vec ghost sync. 
             pMesh->readFromGhostBeginEleDGVec(m_uiStVec[BLK_S-1].GetVecArray(),DOF);
             pMesh->readFromGhostEndEleDGVec(m_uiStVec[BLK_S-1].GetVecArray(),DOF);
 
+            for(unsigned int bb=0; bb < m_uiActiveBlkIDs.size(); bb++)
+            {
+                const unsigned int blk = m_uiActiveBlkIDs[bb]; 
+                const unsigned int BLK_T = m_uiBVec[blk]._time;
+                const unsigned int NN   =  m_uiBVec[blk]._vec[0].getSz();
+                const unsigned int bLev =  pNodes[blkList[blk].getLocalElementBegin()].getLevel();
+                const unsigned int BLK_DT = m_uiAppCtx->getBlkTimestepFac(bLev,m_uiLevMin,m_uiLevMax);
+
+                sync_blk_timestep(blk,BLK_S);
+                m_uiAppCtx->post_stage_blk((T*)m_uiBVec[blk]._vec[BLK_S].data(),DOF,blk,current_t + dt_finest*BLK_T);
+                m_uiBVec[blk]._vec[BLK_S].mark_synced();
+                //std::cout<<"[NUTS]: pt :  "<<pt<<" blk : "<<blk<<" rk : "<<rk<<" step size: "<<BLK_DT<<" is synced: "<<m_uiBVec[blk]._vec[BLK_S].isSynced()<<std::endl;
+
+            }
+
+            // 02/12/2021 : The overlapped ghost exchange has a bug. - look at line 1768 when uncommenting
+            /*
+            // do the DG vec ghost sync. 
+            pMesh->readFromGhostBeginEleDGVec(m_uiStVec[BLK_S-1].GetVecArray(),DOF);
+            
+
+            
+            for(unsigned int bb=0; bb < m_uiIndependentActiveBlkIDs.size(); bb++)
+            {
+                const unsigned int blk = m_uiIndependentActiveBlkIDs[bb]; 
+                const unsigned int BLK_T = m_uiBVec[blk]._time;
+                const unsigned int NN   =  m_uiBVec[blk]._vec[0].getSz();
+                const unsigned int bLev =  pNodes[blkList[blk].getLocalElementBegin()].getLevel();
+                const unsigned int BLK_DT = m_uiAppCtx->getBlkTimestepFac(bLev,m_uiLevMin,m_uiLevMax);
+
+                sync_blk_timestep(blk,BLK_S);
+                m_uiAppCtx->post_stage_blk((T*)m_uiBVec[blk]._vec[BLK_S].data(),DOF,blk,current_t + dt_finest*BLK_T);
+                m_uiBVec[blk]._vec[BLK_S].mark_synced();
+                //std::cout<<"[NUTS]: pt :  "<<pt<<" blk : "<<blk<<" rk : "<<rk<<" step size: "<<BLK_DT<<" is synced: "<<m_uiBVec[blk]._vec[BLK_S].isSynced()<<std::endl;
+
+            }
+
+            pMesh->readFromGhostEndEleDGVec(m_uiStVec[BLK_S-1].GetVecArray(),DOF);
+
+            for(unsigned int bb=0; bb < m_uiDependentActiveBlkIDs.size(); bb++)
+            {
+                const unsigned int blk = m_uiDependentActiveBlkIDs[bb]; 
+                const unsigned int BLK_T = m_uiBVec[blk]._time;
+                const unsigned int NN   =  m_uiBVec[blk]._vec[0].getSz();
+                const unsigned int bLev =  pNodes[blkList[blk].getLocalElementBegin()].getLevel();
+                const unsigned int BLK_DT = m_uiAppCtx->getBlkTimestepFac(bLev,m_uiLevMin,m_uiLevMax);
+
+                sync_blk_timestep(blk,BLK_S);
+                m_uiAppCtx->post_stage_blk((T*)m_uiBVec[blk]._vec[BLK_S].data(),DOF,blk,current_t + dt_finest*BLK_T);
+                m_uiBVec[blk]._vec[BLK_S].mark_synced();
+                //std::cout<<"[NUTS]: pt :  "<<pt<<" blk : "<<blk<<" rk : "<<rk<<" step size: "<<BLK_DT<<" is synced: "<<m_uiBVec[blk]._vec[BLK_S].isSynced()<<std::endl;
+
+            }
+            */
+
+                
+            
+        }
+
+        // compute the time step vector and increment time. 
+        for(unsigned int bb=0; bb < m_uiActiveBlkIDs.size(); bb++)
+        {
+            const unsigned int blk = m_uiActiveBlkIDs[bb];
+            const unsigned int BLK_T = m_uiBVec[blk]._time;
+            const unsigned int NN   =  m_uiBVec[blk]._vec[0].getSz();
+            const unsigned int bLev =  pNodes[blkList[blk].getLocalElementBegin()].getLevel();
+            const unsigned int BLK_DT = m_uiAppCtx->getBlkTimestepFac(bLev,m_uiLevMin,m_uiLevMax);
+            const T blk_dt = m_uiTimeInfo._m_uiTh * BLK_DT;
+            
+            T* out_ptr = (T*)m_uiBVec[blk]._vec[0].data();
+            for(unsigned int s=1;  s <= m_uiNumStages; s++)
+            {
+                assert(m_uiBVec[blk]._vec[s].isSynced());
+                const T* stage_ptr = m_uiBVec[blk]._vec[s].data();
+                for(unsigned int n =0; n < DOF*NN; n++)
+                    out_ptr[n] += (blk_dt * m_uiBi[(s-1)]*stage_ptr[n]);
+            }
+
+            m_uiBVec[blk]._time += BLK_DT; 
+            m_uiBVec[blk]._rks=0;
+            m_uiAppCtx->post_timestep_blk((T*)m_uiBVec[blk]._vec[0].data(),DOF,blk,current_t + dt_finest*BLK_T);
+            m_uiBVec[blk]._vec[0].mark_synced();
+
+            // zipDG to the stVec[0]
+            // mark the stage vars as junck. 
+            for(unsigned int s=1;  s <= m_uiNumStages; s++)
+                m_uiBVec[blk]._vec[s].mark_unsynced();
+
+        }
+
+
+        update_ele_timestep();
+        
+        pMesh->readFromGhostBeginElementVec(m_uiEleTime.data(),1);
+        pMesh->readFromGhostEndElementVec(m_uiEleTime.data(),1);
+
+        pMesh->readFromGhostBeginElementVec(m_uiEleDT.data(),1);
+        pMesh->readFromGhostEndElementVec(m_uiEleDT.data(),1);
+
+        pMesh->waitActive();
+        
+
+
+        
+        
+    }
+    
+
+    template<typename T, typename Ctx>
+    void ExplicitNUTS<T,Ctx>::gts_evolve(unsigned int pt)
+    {
+        
+        ot::Mesh* pMesh = m_uiAppCtx->get_mesh();
+        
+        if(!(pMesh->isActive()))
+            return;
+        
+        const std::vector<ot::Block>& blkList = pMesh->getLocalBlockList();
+        const ot::TreeNode* pNodes = pMesh->getAllElements().data();
+        const double current_t= m_uiTimeInfo._m_uiT;
+        const unsigned int DOF = m_uiEVar.GetDof();
+        
+        double current_t_adv=current_t;
+        
+        const unsigned int  finest_t = m_uiAppCtx->getBlkTimestepFac(m_uiLevMax,m_uiLevMin,m_uiLevMax); // finest  time level.
+        const unsigned int coarset_t = m_uiAppCtx->getBlkTimestepFac(m_uiLevMin,m_uiLevMin,m_uiLevMax);
+
+        const double dt_finest  = m_uiTimeInfo._m_uiTh;
+        const double dt_coarset = coarset_t * m_uiTimeInfo._m_uiTh;
+
+
+        assert(blkList.size() > 0);
+        m_uiActiveBlkIDs.clear();
+        for(unsigned int blk=0; blk < blkList.size(); blk++)
+        {
+            m_uiActiveBlkIDs.push_back(blk);
+            
+            if(blkList[blk].getBlockType()==ot::BlockType::UNZIP_INDEPENDENT)
+            {
+                m_uiIndependentActiveBlkIDs.push_back(blk);
+            }else
+            {
+                m_uiDependentActiveBlkIDs.push_back(blk);
+            }
+
+        }
+
+        //std::cout<<"rank: "<<pMesh->getMPIRank()<<"pt: "<<pt<<" active block size: "<<m_uiActiveBlkIDs.size()<<std::endl;
+
+        // 10/07/2020 (Milinda): Synchronize data u(x,t)
+        // for(unsigned int bb=0; bb < m_uiActiveBlkIDs.size(); bb++)
+        // {
+        //     const unsigned int blk = m_uiActiveBlkIDs[bb];
+        //     m_uiBVec[blk]._vec[0].zipDG(pMesh,m_uiEvarDG.GetVecArray(),DOF);
+        // }
+
+        // // Now need to synchronize the out vector just to smooth out solution between refinement boundaries. 
+        // pMesh->readFromGhostBeginEleDGVec(m_uiEvarDG.GetVecArray(),DOF);
+        // pMesh->readFromGhostEndEleDGVec(m_uiEvarDG.GetVecArray(),DOF);
+
+            
+        // for(unsigned int bb=0; bb < m_uiActiveBlkIDs.size(); bb++)
+        // {
+        //     const unsigned int blk = m_uiActiveBlkIDs[bb]; 
+        //     const unsigned int BLK_T = m_uiBVec[blk]._time;
+        //     const unsigned int NN   =  m_uiBVec[blk]._vec[0].getSz();
+        //     const unsigned int bLev =  pNodes[blkList[blk].getLocalElementBegin()].getLevel();
+        //     const unsigned int BLK_DT = m_uiAppCtx->getBlkTimestepFac(bLev,m_uiLevMin,m_uiLevMax);
+
+        //     m_uiBVec[blk]._vec[0].mark_unsynced();
+        //     sync_blk_timestep(blk,0);
+        //     m_uiBVec[blk]._vec[0].mark_synced();
+            
+        // }
+
+        for(unsigned int rk=1; rk <= m_uiNumStages; rk++ )
+        {
+            const unsigned int BLK_S = rk;
+            for(unsigned int bb =0; bb < m_uiActiveBlkIDs.size(); bb++)
+            {
+                const unsigned int blk = m_uiActiveBlkIDs[bb];
+                const unsigned int BLK_T = m_uiBVec[blk]._time;
+                const unsigned int NN   =  m_uiBVec[blk]._vec[0].getSz();
+                const unsigned int bLev =  pNodes[blkList[blk].getLocalElementBegin()].getLevel();
+                const unsigned int BLK_DT = m_uiAppCtx->getBlkTimestepFac(bLev,m_uiLevMin,m_uiLevMax);
+
+                const T blk_dt = m_uiTimeInfo._m_uiTh * BLK_DT;
+                
+                assert(m_uiBVec[blk]._vec[rk-1].isSynced());
+                m_uiAppCtx->pre_timestep_blk((T*)m_uiBVec[blk]._vec[0].data(),DOF,blk,current_t + dt_finest*BLK_T);
+
+                m_uiBVec[blk]._vec[m_uiNumStages+1].vecCopy(m_uiBVec[blk]._vec[0]); // copy the in vector. 
+                T* out_ptr = (T*)m_uiBVec[blk]._vec[m_uiNumStages+1].data();
+                
+                for(unsigned int s=1;  s < BLK_S; s++)
+                {
+                    const T* stage_ptr = m_uiBVec[blk]._vec[s].data();
+                    for(unsigned int n =0; n < DOF*NN; n++){
+                        out_ptr[n] += ( blk_dt * m_uiAij[ (BLK_S-1) * m_uiNumStages + (s-1)] * stage_ptr[n]);
+                        //printf("s[%d]: %f\n", n, out_ptr[n]);
+                        //printf("s: %d : stage[%d]: %f\n", s,  n, stage_ptr[n]);
+                    }
+                }
+
+                m_uiAppCtx->pre_stage_blk((T*)m_uiBVec[blk]._vec[m_uiNumStages+1].data(),DOF,blk,current_t + dt_finest*BLK_T);
+                m_uiBVec[blk]._vec[BLK_S].computeVec(m_uiAppCtx, m_uiBVec[blk]._vec[m_uiNumStages+1], current_t + dt_finest*BLK_T);
+                m_uiBVec[blk]._vec[BLK_S].mark_unsynced();
+                // std::cout<<"rk:"<<rk<<std::endl;
+                // m_uiBVec[blk]._vec[BLK_S].dump_vec(std::cout);
+
+                #ifdef __PROFILE_ENUTS__
+                    m_uiPt[ENUTSPROFILE::ENUTS_BLK_ZIP].start();
+                #endif
+
+                m_uiBVec[blk]._vec[BLK_S].zip(pMesh,m_uiStVec[BLK_S-1].GetVecArray(),DOF);
+                m_uiBVec[blk]._rks = rk;
+
+                #ifdef __PROFILE_ENUTS__
+                    m_uiPt[ENUTSPROFILE::ENUTS_BLK_ZIP].stop();
+                #endif
+
+            }
+
+            
+            // do the DG vec ghost sync. 
+            pMesh->readFromGhostBegin(m_uiStVec[BLK_S-1].GetVecArray(),DOF);
+            pMesh->readFromGhostEnd(m_uiStVec[BLK_S-1].GetVecArray(),DOF);
+
+            pMesh->unzip(m_uiStVec[BLK_S-1].GetVecArray(),m_uiEvarUzip.GetVecArray(),DOF);
             
             for(unsigned int bb=0; bb < m_uiActiveBlkIDs.size(); bb++)
             {
@@ -1751,15 +2093,9 @@ namespace ts
                 const unsigned int bLev =  pNodes[blkList[blk].getLocalElementBegin()].getLevel();
                 const unsigned int BLK_DT = m_uiAppCtx->getBlkTimestepFac(bLev,m_uiLevMin,m_uiLevMax);
 
-                // bool isBlkSynced = true;
-                // if(m_uiBlkTimeLevMinMax[2*bLev+0] !=  m_uiBlkTimeLevMinMax[2*bLev+1] )
-                //     isBlkSynced = false;
-
-                // // skip blocks is they are not synced, and the time is equal to the max time. 
-                // if( (!isBlkSynced && BLK_T == m_uiBlkTimeLevMinMax[2*bLev+1]) || (pt % BLK_DT !=0) )
-                //     continue;
-
-                sync_blk_timestep(blk,BLK_S);
+                m_uiBVec[blk]._vec[BLK_S].copyFromUnzip(pMesh,m_uiEvarUzip.GetVecArray(), true, DOF);
+                //sync_blk_timestep(blk,BLK_S);
+                m_uiAppCtx->post_stage_blk((T*)m_uiBVec[blk]._vec[BLK_S].data(),DOF,blk,current_t + dt_finest*BLK_T);
                 m_uiBVec[blk]._vec[BLK_S].mark_synced();
                 //std::cout<<"[NUTS]: pt :  "<<pt<<" blk : "<<blk<<" rk : "<<rk<<" step size: "<<BLK_DT<<" is synced: "<<m_uiBVec[blk]._vec[BLK_S].isSynced()<<std::endl;
 
@@ -1778,14 +2114,6 @@ namespace ts
             const unsigned int BLK_DT = m_uiAppCtx->getBlkTimestepFac(bLev,m_uiLevMin,m_uiLevMax);
             const T blk_dt = m_uiTimeInfo._m_uiTh * BLK_DT;
             
-            // bool isBlkSynced = true;
-            // if(m_uiBlkTimeLevMinMax[2*bLev+0] !=  m_uiBlkTimeLevMinMax[2*bLev+1] )
-            //     isBlkSynced = false;
-
-            // // skip blocks is they are not synced, and the time is equal to the max time. 
-            // if( (!isBlkSynced && BLK_T == m_uiBlkTimeLevMinMax[2*bLev+1]) || (pt % BLK_DT !=0) )
-            //     continue;
-
             T* out_ptr = (T*)m_uiBVec[blk]._vec[0].data();
             for(unsigned int s=1;  s <= m_uiNumStages; s++)
             {
@@ -1797,8 +2125,11 @@ namespace ts
 
             m_uiBVec[blk]._time += BLK_DT; 
             m_uiBVec[blk]._rks=0;
+            m_uiAppCtx->post_timestep_blk((T*)m_uiBVec[blk]._vec[0].data(),DOF,blk,current_t + dt_finest*BLK_T);
             m_uiBVec[blk]._vec[0].mark_synced();
 
+            // zipDG to the stVec[0]
+            // mark the stage vars as junck. 
             for(unsigned int s=1;  s <= m_uiNumStages; s++)
                 m_uiBVec[blk]._vec[s].mark_unsynced();
 
@@ -1912,6 +2243,7 @@ namespace ts
 
                 // std::cout<<"[ENUTS] : pt: "<<pt<<" number of blocks evolved : "<<numBlkEvolved<<" out of "<<blkList.size()<<std::endl;
                 this->partial_evolve(pt);
+                //this->gts_evolve(pt);
                 m_uiPt=pt;
                 const unsigned int pt_freq = std::min(10u,coarset_t);
                 if( m_uiPt % pt_freq == 0) 
@@ -2537,3 +2869,21 @@ namespace ts
 }
 
 
+
+
+
+namespace ts
+{
+     // utility functions
+    /**
+     * @brief Perform block padding synchronization for a block vector.
+     * 
+     * @tparam T vector type. 
+     * @param pMesh :  underlying mesh bVec is created and allocated for. 
+     * @param bVec  : list of block vectors, 
+     * @param blk   : block id to synchronize the padding regions.  
+     * @param bVecIndex : bVec[blk]._vec[bVecIndex] will be synchronized. 
+     */
+    template<typename T>
+    void sync_blk_padding(const ot::Mesh* pMesh, const T* const dgWVec,std::vector<ts::BlockTimeStep<T>>& bVec,  unsigned int blk, unsigned int bVecIndex,unsigned int dof=1);
+}

@@ -53,6 +53,14 @@ namespace nlsm
   * */
   void readParamFile(const char * fName,MPI_Comm comm);
 
+  /**
+   * @brief Dump the read parameters to verify. 
+   * 
+   * @param sout stream to output read parameters. 
+   * @param root rank to output read parameters
+   * @param comm MPI communicator. 
+   */
+  void dumpParamFile(std::ostream& sout, int root, MPI_Comm comm);
 
 /**
  * @brief Initialize all the variables for a given point in space.

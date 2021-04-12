@@ -38,6 +38,9 @@ namespace nlsm
     /**@brief element order*/
     extern unsigned int NLSM_ELE_ORDER;
 
+    /**@brief: padding width for NLSM, Set to element order /2 */
+    extern unsigned int NLSM_PADDING_WIDTH;
+
     /**@brief number of variables*/
     static const unsigned int NLSM_NUM_VARS=2;
 
@@ -181,6 +184,9 @@ namespace nlsm
 
     /**@brief: max refinement level*/
     extern unsigned int NLSM_MAXDEPTH;
+
+    /**@brief: min refinement level*/
+    extern unsigned int NLSM_MINDEPTH;
 
     /**@brief: Kreiss-Oliger dissipation */
     extern double KO_DISS_SIGMA;

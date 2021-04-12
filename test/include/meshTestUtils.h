@@ -319,7 +319,7 @@ bool ot::test::isUnzipValid(ot::Mesh* pMesh, T* unzipVec,std::function<T(T,T,T)>
     unsigned int regLev;
     unsigned int lx,ly,lz;
     double hx,hy,hz;
-    const unsigned int pW=3;
+    
     unsigned int bflag;
     unsigned int offset;
     unsigned int ib,ie,jb,je,kb,ke;
@@ -328,12 +328,12 @@ bool ot::test::isUnzipValid(ot::Mesh* pMesh, T* unzipVec,std::function<T(T,T,T)>
 
     for(unsigned int blk=0;blk<blkList.size();blk++)
     {
-
         blkNode=blkList[blk].getBlockNode();
         regLev=blkList[blk].getRegularGridLev();
         lx=blkList[blk].getAllocationSzX();
         ly=blkList[blk].getAllocationSzY();
         lz=blkList[blk].getAllocationSzZ();
+        const unsigned int pW = blkList[blk].get1DPadWidth();
 
         hx=blkList[blk].computeGridDx();
         hy=blkList[blk].computeGridDy();

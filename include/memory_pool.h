@@ -103,7 +103,7 @@ namespace mem
       unsigned long len = sz;//(sz+m_uiPadding)*(sz+m_uiPadding)*(sz+m_uiPadding);
   
       // todo @hari @milinda allocate properly to be aligned in 3d
-      posix_memalign((void **)&buf, m_uiAlignment, (len)*sizeof(T)); 
+      const int st=posix_memalign((void **)&buf, m_uiAlignment, (len)*sizeof(T)); 
       blk.data = buf;
       blk.free = false;
       m_vecBlocks.push_back(blk);

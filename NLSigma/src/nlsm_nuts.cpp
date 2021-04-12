@@ -41,6 +41,40 @@ int main (int argc, char** argv)
     MPI_Comm_rank(comm,&rank);
     MPI_Comm_size(comm,&npes);
 
+    if (!rank) {
+      
+      #ifdef NLSM_NONLINEAR
+        std::cout<<GRN<<"Compiled with NLSM_NONLINEAR"<<NRM<<std::endl;
+      #else
+        std::cout<<RED<<"Compiled without NLSM_NONLINEAR"<<NRM<<std::endl;
+      #endif
+
+      #ifdef NLSM_COMPARE_WITH_ANALYTICAL_SOL
+        std::cout<<GRN<<"Compiled with NLSM_COMPARE_WITH_ANALYTICAL_SOL"<<NRM<<std::endl;
+      #else
+        std::cout<<RED<<"Compiled without NLSM_COMPARE_WITH_ANALYTICAL_SOL"<<NRM<<std::endl;
+      #endif
+
+      #ifdef NLSM_USE_4TH_ORDER_DERIVS
+        std::cout<<GRN<<"Compiled with NLSM_USE_4TH_ORDER_DERIVS"<<NRM<<std::endl;
+      #else
+        std::cout<<RED<<"Compiled without NLSM_USE_4TH_ORDER_DERIVS"<<NRM<<std::endl;
+      #endif
+
+      #ifdef NLSM_USE_6TH_ORDER_DERIVS
+        std::cout<<GRN<<"Compiled with NLSM_USE_6TH_ORDER_DERIVS"<<NRM<<std::endl;
+      #else
+        std::cout<<RED<<"Compiled without NLSM_USE_6TH_ORDER_DERIVS"<<NRM<<std::endl;
+      #endif
+
+      #ifdef NLSM_USE_8TH_ORDER_DERIVS
+        std::cout<<GRN<<"Compiled with NLSM_USE_8TH_ORDER_DERIVS"<<NRM<<std::endl;
+      #else
+        std::cout<<RED<<"Compiled without NLSM_USE_8TH_ORDER_DERIVS"<<NRM<<std::endl;
+      #endif
+
+    }
+
     nlsm::timer::initFlops();
 
     nlsm::timer::total_runtime.start();
@@ -49,86 +83,8 @@ int main (int argc, char** argv)
     //1 . read the parameter file.
     if(!rank) std::cout<<" reading parameter file :"<<argv[1]<<std::endl;
     nlsm::readParamFile(argv[1],comm);
-
-
-
-    if(rank==1|| npes==1)
-    {
-        std::cout<<"parameters read: "<<std::endl;
-
-        std::cout<<YLW<<"\tnpes :"<<npes<<NRM<<std::endl;
-        std::cout<<YLW<<"\tNLSM_ELE_ORDER :"<<nlsm::NLSM_ELE_ORDER<<NRM<<std::endl;
-        std::cout<<YLW<<"\tNLSM_DIM :"<<nlsm::NLSM_DIM<<NRM<<std::endl;
-        std::cout<<YLW<<"\tNLSM_IO_OUTPUT_FREQ :"<<nlsm::NLSM_IO_OUTPUT_FREQ<<NRM<<std::endl;
-        std::cout<<YLW<<"\tNLSM_REMESH_TEST_FREQ :"<<nlsm::NLSM_REMESH_TEST_FREQ<<NRM<<std::endl;
-        std::cout<<YLW<<"\tNLSM_CHECKPT_FREQ :"<<nlsm::NLSM_CHECKPT_FREQ<<NRM<<std::endl;
-        std::cout<<YLW<<"\tNLSM_RESTORE_SOLVER :"<<nlsm::NLSM_RESTORE_SOLVER<<NRM<<std::endl;
-        std::cout<<YLW<<"\tNLSM_ENABLE_BLOCK_ADAPTIVITY :"<<nlsm::NLSM_ENABLE_BLOCK_ADAPTIVITY<<NRM<<std::endl;
-        std::cout<<YLW<<"\tNLSM_VTU_FILE_PREFIX :"<<nlsm::NLSM_VTU_FILE_PREFIX<<NRM<<std::endl;
-        std::cout<<YLW<<"\tNLSM_CHKPT_FILE_PREFIX :"<<nlsm::NLSM_CHKPT_FILE_PREFIX<<NRM<<std::endl;
-        std::cout<<YLW<<"\tNLSM_PROFILE_FILE_PREFIX :"<<nlsm::NLSM_PROFILE_FILE_PREFIX<<NRM<<std::endl;
-        std::cout<<YLW<<"\tNLSM_IO_OUTPUT_GAP :"<<nlsm::NLSM_IO_OUTPUT_GAP<<NRM<<std::endl;
-        std::cout<<YLW<<"\tNLSM_DENDRO_GRAIN_SZ :"<<nlsm::NLSM_DENDRO_GRAIN_SZ<<NRM<<std::endl;
-        std::cout<<YLW<<"\tNLSM_ASYNC_COMM_K :"<<nlsm::NLSM_ASYNC_COMM_K<<NRM<<std::endl;
-        std::cout<<YLW<<"\tNLSM_DENDRO_AMR_FAC :"<<nlsm::NLSM_DENDRO_AMR_FAC<<NRM<<std::endl;
-        std::cout<<YLW<<"\tNLSM_CFL_FACTOR:"<<nlsm::NLSM_CFL_FACTOR<<NRM<<std::endl;
-        std::cout<<YLW<<"\tNLSM_WAVELET_TOL :"<<nlsm::NLSM_WAVELET_TOL<<NRM<<std::endl;
-        std::cout<<YLW<<"\tNLSM_LOAD_IMB_TOL :"<<nlsm::NLSM_LOAD_IMB_TOL<<NRM<<std::endl;
-        std::cout<<YLW<<"\tNLSM_RK45_TIME_BEGIN :"<<nlsm::NLSM_RK45_TIME_BEGIN<<NRM<<std::endl;
-        std::cout<<YLW<<"\tNLSM_RK45_TIME_END :"<<nlsm::NLSM_RK45_TIME_END<<NRM<<std::endl;
-        std::cout<<YLW<<"\tNLSM_RK45_TIME_STEP_SIZE :"<<nlsm::NLSM_RK45_TIME_STEP_SIZE<<NRM<<std::endl;
-        std::cout<<YLW<<"\tNLSM_RK45_DESIRED_TOL :"<<nlsm::NLSM_RK45_DESIRED_TOL<<NRM<<std::endl;
-        std::cout<<YLW<<"\tNLSM_COMPD_MIN : ( :"<<nlsm::NLSM_COMPD_MIN[0]<<" ,"<<nlsm::NLSM_COMPD_MIN[1]<<","<<nlsm::NLSM_COMPD_MIN[2]<<" )"<<NRM<<std::endl;
-        std::cout<<YLW<<"\tNLSM_COMPD_MAX : ( :"<<nlsm::NLSM_COMPD_MAX[0]<<" ,"<<nlsm::NLSM_COMPD_MAX[1]<<","<<nlsm::NLSM_COMPD_MAX[2]<<" )"<<NRM<<std::endl;
-        std::cout<<YLW<<"\tNLSM_BLK_MIN : ( :"<<nlsm::NLSM_BLK_MIN_X<<" ,"<<nlsm::NLSM_BLK_MIN_Y<<","<<nlsm::NLSM_BLK_MIN_Z<<" )"<<NRM<<std::endl;
-        std::cout<<YLW<<"\tNLSM_BLK_MAX : ( :"<<nlsm::NLSM_BLK_MAX_X<<" ,"<<nlsm::NLSM_BLK_MAX_Y<<","<<nlsm::NLSM_BLK_MAX_Z<<" )"<<NRM<<std::endl;
-        std::cout<<YLW<<"\tNLSM_OCTREE_MIN : ( :"<<nlsm::NLSM_OCTREE_MIN[0]<<" ,"<<nlsm::NLSM_OCTREE_MIN[1]<<","<<nlsm::NLSM_OCTREE_MIN[2]<<" )"<<NRM<<std::endl;
-        std::cout<<YLW<<"\tNLSM_OCTREE_MAX : ( :"<<nlsm::NLSM_OCTREE_MAX[0]<<" ,"<<nlsm::NLSM_OCTREE_MAX[1]<<","<<nlsm::NLSM_OCTREE_MAX[2]<<" )"<<NRM<<std::endl;
-        std::cout<<YLW<<"\tKO_DISS_SIGMA :"<<nlsm::KO_DISS_SIGMA<<NRM<<std::endl;
-        std::cout<<YLW<<"\tNLSM_ID_TYPE:"<<nlsm::NLSM_ID_TYPE<<NRM<<std::endl;
-        std::cout<<YLW<<"\tNLSM_ID_AMP1:"<<nlsm::NLSM_ID_AMP1<<NRM<<std::endl;
-        std::cout<<YLW<<"\tNLSM_ID_AMP2:"<<nlsm::NLSM_ID_AMP2<<NRM<<std::endl;
-        std::cout<<YLW<<"\tNLSM_ID_DELTA1:"<<nlsm::NLSM_ID_DELTA1<<NRM<<std::endl;
-        std::cout<<YLW<<"\tNLSM_ID_DELTA2:"<<nlsm::NLSM_ID_DELTA2<<NRM<<std::endl;
-        std::cout<<YLW<<"\tNLSM_ID_XC1:"<<nlsm::NLSM_ID_XC1<<NRM<<std::endl;
-        std::cout<<YLW<<"\tNLSM_ID_YC1:"<<nlsm::NLSM_ID_YC1<<NRM<<std::endl;
-        std::cout<<YLW<<"\tNLSM_ID_ZC1:"<<nlsm::NLSM_ID_ZC1<<NRM<<std::endl;
-        std::cout<<YLW<<"\tNLSM_ID_XC2:"<<nlsm::NLSM_ID_XC2<<NRM<<std::endl;
-        std::cout<<YLW<<"\tNLSM_ID_YC2:"<<nlsm::NLSM_ID_YC2<<NRM<<std::endl;
-        std::cout<<YLW<<"\tNLSM_ID_ZC2:"<<nlsm::NLSM_ID_ZC2<<NRM<<std::endl;
-        std::cout<<YLW<<"\tNLSM_ID_EPSX1:"<<nlsm::NLSM_ID_EPSX1<<NRM<<std::endl;
-        std::cout<<YLW<<"\tNLSM_ID_EPSY1:"<<nlsm::NLSM_ID_EPSY1<<NRM<<std::endl;
-        std::cout<<YLW<<"\tNLSM_ID_EPSZ1:"<<nlsm::NLSM_ID_EPSY1<<NRM<<std::endl;
-        std::cout<<YLW<<"\tNLSM_ID_EPSX2:"<<nlsm::NLSM_ID_EPSX2<<NRM<<std::endl;
-        std::cout<<YLW<<"\tNLSM_ID_EPSY2:"<<nlsm::NLSM_ID_EPSY2<<NRM<<std::endl;
-        std::cout<<YLW<<"\tNLSM_ID_EPSZ2:"<<nlsm::NLSM_ID_EPSY2<<NRM<<std::endl;
-        std::cout<<YLW<<"\tNLSM_ID_R1:"<<nlsm::NLSM_ID_R1<<NRM<<std::endl;
-        std::cout<<YLW<<"\tNLSM_ID_R2:"<<nlsm::NLSM_ID_R2<<NRM<<std::endl;
-        std::cout<<YLW<<"\tNLSM_ID_NU1:"<<nlsm::NLSM_ID_NU1<<NRM<<std::endl;
-        std::cout<<YLW<<"\tNLSM_ID_NU2:"<<nlsm::NLSM_ID_NU2<<NRM<<std::endl;
-        std::cout<<YLW<<"\tNLSM_ID_OMEGA:"<<nlsm::NLSM_ID_OMEGA<<NRM<<std::endl;
-        
-        
-
-        std::cout<<YLW<<"\tNLSM_DIM :"<<nlsm::NLSM_DIM<<NRM<<std::endl;
-        std::cout<<YLW<<"\tNLSM_MAXDEPTH :"<<nlsm::NLSM_MAXDEPTH<<NRM<<std::endl;
-
-        std::cout<<YLW<<"\tNLSM_NUM_REFINE_VARS :"<<nlsm::NLSM_NUM_REFINE_VARS<<NRM<<std::endl;
-        std::cout<<YLW<<"\tNLSM_REFINE_VARIABLE_INDICES :[";
-        for(unsigned int i=0;i<nlsm::NLSM_NUM_REFINE_VARS-1;i++)
-            std::cout<<nlsm::NLSM_REFINE_VARIABLE_INDICES[i]<<", ";
-        std::cout<<nlsm::NLSM_REFINE_VARIABLE_INDICES[nlsm::NLSM_NUM_REFINE_VARS-1]<<"]"<<NRM<<std::endl;
-
-        std::cout<<YLW<<"\tNLSM_NUM_EVOL_VARS_VTU_OUTPUT :"<<nlsm::NLSM_NUM_EVOL_VARS_VTU_OUTPUT<<NRM<<std::endl;
-        std::cout<<YLW<<"\tNLSM_VTU_OUTPUT_EVOL_INDICES :[";
-        for(unsigned int i=0;i<nlsm::NLSM_NUM_EVOL_VARS_VTU_OUTPUT-1;i++)
-            std::cout<<nlsm::NLSM_VTU_OUTPUT_EVOL_INDICES[i]<<", ";
-        std::cout<<nlsm::NLSM_VTU_OUTPUT_EVOL_INDICES[nlsm::NLSM_NUM_EVOL_VARS_VTU_OUTPUT-1]<<"]"<<NRM<<std::endl;
-
-
-
-    }
-
+    nlsm::dumpParamFile(std::cout,1,comm);
+    
     _InitializeHcurve(nlsm::NLSM_DIM);
     m_uiMaxDepth=nlsm::NLSM_MAXDEPTH;
     
@@ -201,6 +157,52 @@ int main (int argc, char** argv)
     ot::Mesh * mesh = ot::createMesh(tmpNodes.data(),tmpNodes.size(),nlsm::NLSM_ELE_ORDER,comm,1,ot::SM_TYPE::FDM,nlsm::NLSM_DENDRO_GRAIN_SZ,nlsm::NLSM_LOAD_IMB_TOL,nlsm::NLSM_SPLIT_FIX);
     mesh->setDomainBounds(Point(nlsm::NLSM_GRID_MIN_X,nlsm::NLSM_GRID_MIN_Y,nlsm::NLSM_GRID_MIN_Z), Point(nlsm::NLSM_GRID_MAX_X, nlsm::NLSM_GRID_MAX_Y,nlsm::NLSM_GRID_MAX_Z));
     
+    bool is_mindepth_refine_g = false;
+    do{
+      
+      if(!rank)
+        std::cout<<"enforce min depth refinement currently only works for block AMR for NLSM"<<std::endl;
+
+      bool is_mindepth_refine = false;
+      std::vector<unsigned int> refine_flag;
+      refine_flag.reserve(mesh->getNumLocalMeshElements());
+      const ot::TreeNode* pNodes = mesh->getAllElements().data();
+      for(unsigned int ele = mesh->getElementLocalBegin(); ele < mesh->getElementLocalEnd(); ele++)
+      {
+        if(pNodes[ele].getLevel() < nlsm::NLSM_MINDEPTH)
+        {
+          refine_flag.push_back(OCT_SPLIT);
+          is_mindepth_refine=true;
+        }else
+        {
+          refine_flag.push_back(OCT_NO_CHANGE);
+        }
+          
+      }
+
+      MPI_Allreduce(&is_mindepth_refine,&is_mindepth_refine_g,1,MPI_C_BOOL,MPI_LOR,comm);
+
+      if(is_mindepth_refine_g){
+        mesh->setMeshRefinementFlags(refine_flag);
+        ot::Mesh* newMesh = mesh->ReMesh();
+
+        DendroIntL localSz = mesh->getNumLocalMeshElements();
+        DendroIntL gSz_new, gSz_old;
+
+        par::Mpi_Reduce(&localSz,&gSz_old,1,MPI_SUM,0,comm);
+        localSz = newMesh->getNumLocalMeshElements();
+        par::Mpi_Reduce(&localSz,&gSz_new,1,MPI_SUM,0,comm);
+
+        if(!rank)
+            std::cout<<"old mesh size: "<<gSz_old<<" new mesh size: "<<gSz_new<<std::endl;
+
+        std::swap(newMesh,mesh);
+        delete newMesh;
+
+      }
+
+    }while(is_mindepth_refine_g);
+    
     mesh->computeMinMaxLevel(lmin,lmax);
     nlsm::NLSM_RK45_TIME_STEP_SIZE=nlsm::NLSM_CFL_FACTOR*((nlsm::NLSM_COMPD_MAX[0]-nlsm::NLSM_COMPD_MIN[0])*((1u<<(m_uiMaxDepth-lmax))/((double) nlsm::NLSM_ELE_ORDER))/((double)(1u<<(m_uiMaxDepth))));
     par::Mpi_Bcast(&nlsm::NLSM_RK45_TIME_STEP_SIZE,1,0,comm);
@@ -256,8 +258,8 @@ int main (int argc, char** argv)
         const unsigned int rank_global = enuts->get_global_rank();
         const unsigned int pt_remesh_freq = 5;//(1u<<(lmax-lmin-3))
         
-        //for(enuts->init(); enuts->curr_time() < nlsm::NLSM_RK45_TIME_END ; enuts->evolve())
-        for(enuts->init(); enuts->curr_time() < nlsm::NLSM_RK45_TIME_END ; enuts->evolve_with_remesh(pt_remesh_freq))
+        for(enuts->init(); enuts->curr_time() < nlsm::NLSM_RK45_TIME_END ; enuts->evolve())
+        //for(enuts->init(); enuts->curr_time() < nlsm::NLSM_RK45_TIME_END ; enuts->evolve_with_remesh(pt_remesh_freq))
         {
             const DendroIntL step = enuts->curr_step();
             const DendroScalar time = enuts->curr_time();    
@@ -572,7 +574,7 @@ int main (int argc, char** argv)
         nlsm::NLSMCtx *  appCtx_enuts = new nlsm::NLSMCtx(mesh); 
         nlsm::NLSMCtx *  appCtx_ets = new nlsm::NLSMCtx(mesh); 
 
-        ts::ExplicitNUTS<DendroScalar,nlsm::NLSMCtx>*  enuts = new ts::ExplicitNUTS<DendroScalar,nlsm::NLSMCtx>(appCtx_enuts);
+        ts::ExplicitNUTS<DendroScalar,nlsm::NLSMCtx>*  enuts = new ts::ExplicitNUTS<DendroScalar,nlsm::NLSMCtx>(appCtx_enuts,false);
         ts::ETS<DendroScalar,nlsm::NLSMCtx>*           ets   = new ts::ETS<DendroScalar,nlsm::NLSMCtx>(appCtx_ets);
 
 
@@ -596,6 +598,7 @@ int main (int argc, char** argv)
         DendroIntL cg_sz = mesh->getDegOfFreedom();
         DendroIntL cg_sz_g; 
         par::Mpi_Reduce(&cg_sz,&cg_sz_g,1,MPI_SUM,0,comm);
+        char fName[200];
 
         while(enuts->curr_time() < nlsm::NLSM_RK45_TIME_END)
         {
@@ -614,7 +617,8 @@ int main (int argc, char** argv)
           std::ofstream diffFile;
           if(!rank_global)
           {
-              diffFile.open("diff.dat",std::fstream::app);
+              sprintf(fName,"%s_diff_lts_gts_.dat",nlsm::NLSM_PROFILE_FILE_PREFIX.c_str());
+              diffFile.open(fName,std::fstream::app);
               
               if(diffFile.fail()) {std::cout<<" diff.dat file open failed "<<std::endl;
                MPI_Abort(comm,0);
@@ -636,7 +640,7 @@ int main (int argc, char** argv)
             double min,max;
             evar_diff.VecMinMax(mesh, min, max, v);
 
-            double l2 = normL2(evar_diff.GetVecArray()+ v*cg_sz, cg_sz, comm);
+            double l2 = normL2(evar_diff.GetVecArray()+ v*cg_sz + mesh->getNodeLocalBegin(), mesh->getNumLocalMeshNodes(), comm);
             
             if(!rank_global)
             {
@@ -658,8 +662,7 @@ int main (int argc, char** argv)
           double ** eVec;
           evar_diff.Get2DArray(eVec,false);
 
-          char fName[200];
-          sprintf(fName,"%s_%d","diff_nlsm",enuts_step);
+          sprintf(fName,"%s_diff_lts_gts_%d",nlsm::NLSM_VTU_FILE_PREFIX.c_str(),enuts_step);
 
           io::vtk::mesh2vtuFine(mesh,fName, 0, NULL, NULL, nlsm::NLSM_NUM_VARS, nlsm::NLSM_VAR_NAMES, (const double**) eVec);
           evar_diff.VecDestroy();

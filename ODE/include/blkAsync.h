@@ -238,6 +238,7 @@ namespace ts
 
             /**
              * @brief perform zip operation for the block
+             * @note: !!! only copy the owned elemental indices. 
              * @param pMesh : octree Mesh object.
              * @param zipVec : zipped vector
              * @param dof : number of dof. 
@@ -248,8 +249,9 @@ namespace ts
                 if(!(pMesh->isActive()))
                     return;
 
-                const ot::Block* blkList = pMesh->getLocalBlockList().data();
-                const unsigned int * e2n = pMesh->getE2NMapping().data();
+                const ot::Block* blkList    = pMesh->getLocalBlockList().data();
+                const unsigned int * e2n    = pMesh->getE2NMapping().data();
+                const unsigned int * e2n_dg = pMesh->getE2NMapping_DG().data(); 
                 const unsigned int lx = m_uiSz[0];
                 const unsigned int ly = m_uiSz[1];
                 const unsigned int lz = m_uiSz[2];
@@ -266,6 +268,8 @@ namespace ts
                 
                 const ot::TreeNode blkNode =  blkList[m_uiBlkID].getBlockNode();
                 const unsigned int regLev  =  blkList[m_uiBlkID].getRegularGridLev();
+
+                unsigned int oEid, oXi, oYj, oZk;
                 
                 if(m_uiMode == BLK_ASYNC_VEC_MODE::BLK_UNZIP)
                 {
@@ -283,20 +287,27 @@ namespace ts
                             for(unsigned int i=0; i < (eOrder+1); i++)
                             {
 
-                                const bool isHanging = pMesh->isNodeHanging(elem,i,j,k);
-                                if(!isHanging)
+                                if((e2n_dg[elem*nPe + k*(eOrder+1)*(eOrder+1)+j*(eOrder+1)+i ] / nPe)==elem)
                                     zipVec[ (v*vsz_cg) + e2n[elem*nPe + k*(eOrder+1)*(eOrder+1) + j* (eOrder+1)+ i]] = m_uiVec[ (v*lx*ly*lz) + (ek*eOrder+k+paddWidth)*(ly*lx)+(ej*eOrder+j+paddWidth)*(lx)+(ei*eOrder+i+paddWidth)];
-                                else
-                                {
-                                    const unsigned int cnum=pNodes[(elem)].getMortonIndex();
-                                    const unsigned int iix = eOrder * (int) (cnum & 1u)  +  i;
-                                    const unsigned int jjy = eOrder * (int) ((cnum & 2u)>>1u)  +  j;
-                                    const unsigned int kkz = eOrder * (int) ((cnum & 4u)>>2u)  +  k;
 
-                                    if( (iix %2 ==0) && (jjy%2 ==0) && (kkz%2==0))
-                                        zipVec[(v*vsz_cg) + e2n[elem*nPe + (kkz>>1u)*(eOrder+1)*(eOrder+1) + (jjy>>1u) * (eOrder+1)+ (iix>>1u)]] = m_uiVec[ (v*lx*ly*lz)  +   (ek*eOrder+k+paddWidth)*(ly*lx)+(ej*eOrder+j+paddWidth)*(lx)+(ei*eOrder+i+paddWidth)];
+                                // Note 10/28/2020 : The below zip is wrong you copy the nodal values in the wrong place for non hanging case, 
+                                // node index mapping is not that simple.
+                                // const unsigned int node_dg = e2n_dg[elem*nPe + k*(eOrder+1)*(eOrder+1)+j*(eOrder+1)+i ];
+                                // pMesh->dg2eijk(node_dg,oEid,oXi,oYj,oZk);
+                                // const bool isHanging = pMesh->isNodeHanging(elem,i,j,k);
+                                // if(!isHanging)
+                                //     zipVec[ (v*vsz_cg) + e2n[elem*nPe + k*(eOrder+1)*(eOrder+1) + j* (eOrder+1)+ i]] = m_uiVec[ (v*lx*ly*lz) + (ek*eOrder+k+paddWidth)*(ly*lx)+(ej*eOrder+j+paddWidth)*(lx)+(ei*eOrder+i+paddWidth)];
+                                // else
+                                // {
+                                //     const unsigned int cnum=pNodes[(elem)].getMortonIndex();
+                                //     const unsigned int iix = eOrder * (int) (cnum & 1u)  +  i;
+                                //     const unsigned int jjy = eOrder * (int) ((cnum & 2u)>>1u)  +  j;
+                                //     const unsigned int kkz = eOrder * (int) ((cnum & 4u)>>2u)  +  k;
 
-                                }
+                                //     if( (iix %2 ==0) && (jjy%2 ==0) && (kkz%2==0))
+                                //         zipVec[(v*vsz_cg) + e2n[elem*nPe + (kkz>>1u)*(eOrder+1)*(eOrder+1) + (jjy>>1u) * (eOrder+1)+ (iix>>1u)]] = m_uiVec[ (v*lx*ly*lz)  +   (ek*eOrder+k+paddWidth)*(ly*lx)+(ej*eOrder+j+paddWidth)*(lx)+(ei*eOrder+i+paddWidth)];
+
+                                // }
                                 
                             }
             

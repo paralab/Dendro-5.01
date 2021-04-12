@@ -53,6 +53,66 @@ namespace ot
         return vec;
     }
 
+    template<typename T>
+    T* Mesh::createCGVector(std::function<void(T,T,T,T*)> func, unsigned int dof) const
+    {
+        if(!m_uiIsActive) return NULL;
+
+        T* vec =NULL;
+        try
+        {
+            vec=new T[m_uiNumActualNodes*dof];
+
+        }catch (const std::bad_alloc& e) {
+            std::cout<<" rank: "<<m_uiActiveRank<<" func: "<<__func__<<" bad allocation error "<<std::endl;
+            MPI_Abort(m_uiCommGlobal,0);
+	    }
+
+        for(unsigned int i=0; i < m_uiNumActualNodes*dof; i++)
+            vec[i] = (T)0;
+        
+        // initialize the vector to the function. 
+        T* fvar =new T[dof];
+        
+        const ot::TreeNode * pNodes=&(*(m_uiAllElements.begin()));
+        for(unsigned int elem=m_uiElementLocalBegin;elem<m_uiElementLocalEnd;elem++)
+        {
+
+            for(unsigned int k=0;k<(m_uiElementOrder+1);k++)
+                for(unsigned int j=0;j<(m_uiElementOrder+1);j++ )
+                    for(unsigned int i=0;i<(m_uiElementOrder+1);i++)
+                    {
+                        const unsigned int nodeLookUp_CG=m_uiE2NMapping_CG[elem*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
+                        if(nodeLookUp_CG>=m_uiNodeLocalBegin && nodeLookUp_CG<m_uiNodeLocalEnd)
+                        {
+                            unsigned int ownerID,ii_x,jj_y,kk_z;
+                            const unsigned int nodeLookUp_DG=m_uiE2NMapping_DG[elem*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
+                            dg2eijk(nodeLookUp_DG,ownerID,ii_x,jj_y,kk_z);
+                            const unsigned int len=1u<<(m_uiMaxDepth-pNodes[ownerID].getLevel());
+                            
+                            const double x=pNodes[ownerID].getX()+ ii_x*(len/((double)m_uiElementOrder));
+                            const double y=pNodes[ownerID].getY()+ jj_y*(len/((double)m_uiElementOrder));
+                            const double z=pNodes[ownerID].getZ()+ kk_z*(len/((double)m_uiElementOrder));
+                            
+                            Point physical_coord;
+                            this->octCoordToDomainCoord(Point(x,y,z),physical_coord);
+                            func(physical_coord.x(),physical_coord.y(),physical_coord.z(),fvar);
+
+
+                            for(unsigned int v=0; v < dof; v++)
+                                vec[v*m_uiNumActualNodes + nodeLookUp_CG]=fvar[v];
+                        }
+
+                    }
+
+        }
+
+
+        delete [] fvar;
+        return vec;
+
+    }
+
     template <typename T>
     T* Mesh::createElementVector(T initVal, unsigned int dof) const
     {
@@ -76,7 +136,7 @@ namespace ot
         return vec;
     }
 
-     template <typename T>
+    template <typename T>
     T* Mesh::createDGVector(T initVal, unsigned int dof) const
     {
         if(!m_uiIsActive) return NULL;
@@ -96,6 +156,57 @@ namespace ot
 
         return vec;
     }
+
+    template <typename T>
+    T* Mesh::createDGVector(std::function<void(T,T,T,T*)> func, unsigned int dof) const
+    {
+        if(!m_uiIsActive) return NULL;
+        
+        T* vec=NULL;
+        try
+        {
+            vec = new T[m_uiNumTotalElements*m_uiNpE*dof];
+
+        }catch (const std::bad_alloc& e) {
+            std::cout<<" rank: "<<m_uiActiveRank<<" func: "<<__func__<<" bad allocation error "<<std::endl;
+            MPI_Abort(m_uiCommGlobal,0);
+	    }
+
+        for(unsigned int i=0; i < m_uiNumTotalElements*m_uiNpE*dof; i++)
+            vec[i] = (T)0;
+
+        T* fvar =new T[dof];
+        const ot::TreeNode * pNodes=&(*(m_uiAllElements.begin()));
+        for(unsigned int elem=m_uiElementLocalBegin;elem<m_uiElementLocalEnd;elem++)
+        {
+
+            for(unsigned int k=0;k<(m_uiElementOrder+1);k++)
+                for(unsigned int j=0;j<(m_uiElementOrder+1);j++ )
+                    for(unsigned int i=0;i<(m_uiElementOrder+1);i++)
+                    {
+                        const unsigned int dg_index = elem * m_uiNpE + k*(m_uiElementOrder+1)*(m_uiElementOrder+1) + j*(m_uiElementOrder+1) + i;
+                        const unsigned int len=1u<<(m_uiMaxDepth-pNodes[elem].getLevel());
+
+                        const double x=pNodes[elem].getX()+ i*(len/((double)m_uiElementOrder));
+                        const double y=pNodes[elem].getY()+ j*(len/((double)m_uiElementOrder));
+                        const double z=pNodes[elem].getZ()+ k*(len/((double)m_uiElementOrder));
+                        
+                        Point physical_coord;
+                        this->octCoordToDomainCoord(Point(x,y,z),physical_coord);
+                        func(physical_coord.x(),physical_coord.y(),physical_coord.z(),fvar);
+
+
+                        for(unsigned int v=0; v < dof; v++)
+                            vec[ v*m_uiNumTotalElements*m_uiNpE + dg_index] = fvar[v];
+
+                    }
+        }
+
+        delete [] fvar;
+        return vec;
+
+    }
+
 
     template <typename T>
     T* Mesh::createVector(const T initValue) const
@@ -3819,67 +3930,6 @@ namespace ot
         }
 
     }
-
-    template<typename T>
-    void Mesh::zip(const T *unzippedVec, T *zippedVec, const unsigned int *blkIDs, unsigned int numblks, unsigned int ll)
-    {
-        if(!m_uiIsActive)
-            return ;
-
-        //std::cout<<"partial zip\n";
-
-        ot::TreeNode blkNode;
-        unsigned int ei,ej,ek;
-        unsigned int regLev;
-        const ot::TreeNode * pNodes=&(*(m_uiAllElements.begin()));
-        unsigned int lx,ly,lz,offset,paddWidth;
-
-        for(unsigned int b=0; b < numblks; b++)
-        {
-
-            const unsigned int blk = blkIDs[b];
-
-            blkNode=m_uiLocalBlockList[blk].getBlockNode();
-            regLev=m_uiLocalBlockList[blk].getRegularGridLev();
-
-            lx=m_uiLocalBlockList[blk].getAllocationSzX();
-            ly=m_uiLocalBlockList[blk].getAllocationSzY();
-            lz=m_uiLocalBlockList[blk].getAllocationSzZ();
-            offset=m_uiLocalBlockList[blk].getOffset();
-            paddWidth=m_uiLocalBlockList[blk].get1DPadWidth();
-
-            for(unsigned int elem=m_uiLocalBlockList[blk].getLocalElementBegin();elem<m_uiLocalBlockList[blk].getLocalElementEnd();elem++)
-            {
-                ei=(pNodes[elem].getX()-blkNode.getX())>>(m_uiMaxDepth-regLev);
-                ej=(pNodes[elem].getY()-blkNode.getY())>>(m_uiMaxDepth-regLev);
-                ek=(pNodes[elem].getZ()-blkNode.getZ())>>(m_uiMaxDepth-regLev);
-
-
-                assert(pNodes[elem].getLevel()==regLev); // this is enforced by block construction
-
-                // todo : note here we copy values directly if it is hanging or not to the corresponding non hanging nodes. 
-                for(unsigned int k=0;k<m_uiElementOrder+1;k++)
-                    for(unsigned int j=0;j<m_uiElementOrder+1;j++)
-                        for(unsigned int i=0;i<m_uiElementOrder+1;i++)
-                        {
-                            // if(unzippedVec[offset+(ek*m_uiElementOrder+k+paddWidth)*(ly*lx)+(ej*m_uiElementOrder+j+paddWidth)*(lx)+(ei*m_uiElementOrder+i+paddWidth)] == 0)
-                            //     std::cout<<" ele "<<elem<<" of: "<<blk<<" write zero "<<std::endl;
-                            // else
-                            //     std::cout<<" ele "<<elem<<" of: "<<blk<<" writes "<<unzippedVec[offset+(ek*m_uiElementOrder+k+paddWidth)*(ly*lx)+(ej*m_uiElementOrder+j+paddWidth)*(lx)+(ei*m_uiElementOrder+i+paddWidth)]<<std::endl;
-                            // const unsigned int ownerID = (m_uiE2NMapping_DG[elem*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]/m_uiNpE);
-                            // if(m_uiAllElements[ownerID].getLevel() >= (ll-1))
-                                zippedVec[m_uiE2NMapping_CG[elem*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]]=unzippedVec[offset+(ek*m_uiElementOrder+k+paddWidth)*(ly*lx)+(ej*m_uiElementOrder+j+paddWidth)*(lx)+(ei*m_uiElementOrder+i+paddWidth)];
-                            //std::cout<<"zipped value: "<<zippedVec[m_uiE2NMapping_CG[elem*m_uiNpE+k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i]]<<std::endl;
-                        }
-
-            }
-
-        }
-        
-        return;
-        
-    }
-
 
     template<typename T>
     void Mesh::OCT_DIR_LEFT_DOWN_Unzip(const ot::Block & blk,const T* zippedVec, T* unzippedVec)

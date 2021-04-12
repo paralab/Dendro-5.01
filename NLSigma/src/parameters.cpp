@@ -13,6 +13,7 @@ namespace nlsm
 {
     
     unsigned int NLSM_ELE_ORDER =4;
+    unsigned int NLSM_PADDING_WIDTH = NLSM_ELE_ORDER>>1u;
     unsigned int NLSM_IO_OUTPUT_FREQ=10;
     unsigned int NLSM_TIME_STEP_OUTPUT_FREQ=10;
     unsigned int NLSM_REMESH_TEST_FREQ=10;
@@ -40,6 +41,7 @@ namespace nlsm
 
     unsigned int NLSM_DIM=3;
     unsigned int NLSM_MAXDEPTH=8;
+    unsigned int NLSM_MINDEPTH=3;
 
     unsigned int NLSM_ID_TYPE=0;
     double NLSM_CFL_FACTOR=0.1;

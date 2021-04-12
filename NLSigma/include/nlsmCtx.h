@@ -77,6 +77,21 @@ namespace nlsm
              * @return int 
              */
             int rhs_blk(const DendroScalar* in, DendroScalar* out, unsigned int dof, unsigned int local_blk_id, DendroScalar  blk_time) ;
+
+            /**@brief : block wise pre_stage computations goes here*/
+            int pre_stage_blk(DendroScalar* in, unsigned int dof, unsigned int local_blk_id, DendroScalar  blk_time) const {return 0;}
+            
+            /**@brief : block wise post stage computations goes here*/
+            int post_stage_blk(DendroScalar* in, unsigned int dof, unsigned int local_blk_id, DendroScalar  blk_time) const {return 0;}
+
+            /**@brief : block wise pre timestep computations goes here*/
+            int pre_timestep_blk(DendroScalar* in, unsigned int dof, unsigned int local_blk_id, DendroScalar  blk_time) const {return 0;}
+
+            /**@brief : block wise post timestep computations goes here*/
+            int post_timestep_blk(DendroScalar* in, unsigned int dof, unsigned int local_blk_id, DendroScalar  blk_time) const {return 0;}
+
+            /**@brief : compute LTS offset base on application specifics. */
+            unsigned int compute_lts_ts_offset() { return 0;};
             
             /**@brief: function execute before each stage
              * @param sIn: stage var in. 
