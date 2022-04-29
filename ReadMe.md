@@ -28,7 +28,7 @@ You need CMake to build dendro. Create a build directory using 'mkdir build'. Th
 
 ## Simple simulation: Nonlinear Sigma Model (NLSigma)
 
-NlSigma folder consists of simple, non lineat wave equation with adaptive mesh refinement (AMR). You can copy the parameter file from `NLSigma/par` folder and simply run `mpirun -np 8 ./NLSigma/nlsmSolver nlsm.par.json`, on  your lattop to large supercomputer with higher resolution. 
+NlSigma folder consists of simple, non lineat wave equation with adaptive mesh refinement (AMR). You can copy the parameter file from `NLSigma/par` folder and simply run `mpirun -np 8 ./NLSigma/nlsmSolver nlsmB.par.json`, on  your lattop to large supercomputer with higher resolution. 
 
 
 
