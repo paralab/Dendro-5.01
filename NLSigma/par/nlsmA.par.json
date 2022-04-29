@@ -9,7 +9,7 @@
             "           " : "frequency for VTU output",
             "NLSM_IO_OUTPUT_FREQ": 10,
             "           " : "frequency for remeshing test based on wavelets",
-            "NLSM_REMESH_TEST_FREQ": 1,
+            "NLSM_REMESH_TEST_FREQ": 5,
             "           " : "frequency for checkpoint output",
             "NLSM_CHECKPT_FREQ": 10000,
             "           " : "VTU file output gap. (Not currently used. Might be usefull in adaptive timestepping)",
