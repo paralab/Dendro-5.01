@@ -7,7 +7,7 @@
             "           " : "Set to 1 restore solver from a checkpoint",
             "NLSM_RESTORE_SOLVER":0,
             "           " : "frequency for VTU output",
-            "NLSM_IO_OUTPUT_FREQ": 1,
+            "NLSM_IO_OUTPUT_FREQ": 10,
             "           " : "frequency for remeshing test based on wavelets",
             "NLSM_REMESH_TEST_FREQ": 1,
             "           " : "frequency for checkpoint output",
