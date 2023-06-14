@@ -225,14 +225,28 @@ public:
     /**@brief: derivative of the basis functions evaluated at the nodal locations points  */
     inline const double * getDr1d()const {return &(*(Dr.begin()));}
     
+    /**@brief: intermediate vectors for elemental mat computations. */
     inline double * getImVec1() {return &(*(im_vec1.begin()));}
+
+    /**@brief: intermediate vectors for elemental mat computations. */
     inline double * getImVec2() {return &(*(im_vec2.begin()));}
 
+    /**@brief: weights for the Gauss quadrature */
     inline const double * getWgq()const {return &(*(w.begin()));}
+    
+    /**@brief: Gauss quadrature points.  */
+    inline const double * getQgq() const {return &(*(g.begin()));}
+
+    /**@brief: Gauss-Labatto quadrature points.  */
+    inline const double * getQgll() const {return &(*(r.begin()));}
+    
+    /**@brief: Gauss-Labatto quadrature weights */
     inline const double * getWgll()const {return &(*(wgll.begin()));}
 
+    /**@brief: Reference element size. */
     inline double getElementSz()const {return (u.back()-u.front());}
 
+    /**@brief: Get elememt order.  */
     inline unsigned int getElementOrder() const { return m_uiOrder;}
 
 

@@ -57,13 +57,28 @@ namespace ot
          * @param[in] in : input vector (zipped) version defined on the mesh.
          * @param[in] domain_coords: pointer to the list of coordinates in the domain reference.  (specified in the global coords, coords that are not in the local parition will be ignored)
          * @param[in] length: input length of the coordinates
-         * @param[in] : grid_limit : size 2 array of points for min and max point on the grid.
-         * @param[in] : domain_limit : size 2 array of points for min and max point on the domain.
+         * @param[in] grid_limit : size 2 array of points for min and max point on the grid.
+         * @param[in] domain_limit : size 2 array of points for min and max point on the domain.
          * @param[out] out: interpolated values.
-         * @param[out] out_size: output size (based on how many coords in local partition of the octree)
+         * @param[out] valid_index: indices of out that are found in the current rank
          * */
         template<typename T, typename CoordT>
         void interpolateToCoords(const ot::Mesh * mesh, const T* in, const CoordT* domain_coords, unsigned int length, const Point* const grid_limit, const Point* const domain_limit, T* out,std::vector<unsigned int >& validIndices);
+
+        /**
+         * @brief interpolates a given input vector to given coordinate values.
+         * @assumption: This routine assumes that, it transforms the octree cube domain to the physical domain of cube.  
+         * @param[in] mesh : input mesh
+         * @param[in] in : input vector (zipped) version defined on the mesh.
+         * @param[in] domain_coords: pointer to the list of coordinates in the domain reference.  (specified in the global coords, coords that are not in the local parition will be ignored)
+         * @param[in] length: input length of the coordinates
+         * @param[in] grid_limit : size 2 array of points for min and max point on the grid.
+         * @param[in] domain_limit : size 2 array of points for min and max point on the domain.
+         * @param[out] out: interpolated values (only need to allocated in the root).
+         * @param[in] root: root rank to gather the nodes. 
+         * */
+        template<typename T, typename CoordT>
+        void interpolateToCoordsAndGather(const ot::Mesh * mesh, const T* in, const CoordT* domain_coords, unsigned int length, const Point* const grid_limit, const Point* const domain_limit, T* out,unsigned int root,unsigned int dof);
 
     } // end of namespace da
 }// end of namespace ot

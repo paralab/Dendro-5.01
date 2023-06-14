@@ -18,9 +18,7 @@
 
 //
 
-#ifndef SFCSORTBENCH_MESH_H
-#define SFCSORTBENCH_MESH_H
-
+#pragma once
 #include <vector>
 #include "mpi.h"
 #include "octUtils.h"
@@ -547,7 +545,7 @@ private:
     std::vector<unsigned int> m_uiE2BlkMap;
 
     /**@brief: coarset block level allowed. (this is used in perform block set up) */
-    unsigned int m_uiCoarsetBlkLev=0;
+    unsigned int m_uiCoarsetBlkLev=OCT2BLK_COARSEST_LEV;
 
     /**@brief: domain min point*/
     Point m_uiDMinPt=Point(0,0,0);
@@ -573,6 +571,14 @@ private:
     /**@brief: true if IGT data strucutures are setup. false otherwise*/
     bool m_uiIsIGTSetup = false;
 
+    /**@brief element to block map for element wise scatter for unzip operation. */
+    std::vector<unsigned int> m_e2b_unzip_map;
+
+    /**@brief element to block map offset, look at the  buildE2BlockMap function to see how this is used. */
+    std::vector<unsigned int> m_e2b_unzip_offset;
+    
+    /**@brief element to block map count, if ele has no dependence then count will be zero. */
+    std::vector<unsigned int> m_e2b_unzip_counts;
 
 
 private:
@@ -639,6 +645,13 @@ private:
      * (No hanging node consideration)
     */
     void buildE2N_DG();
+
+    /**@brief : elements contribution to the unzip block representation.
+     * for i in e2b_count[e]:
+     *    b=e2block_map[offset[e] + i] 
+     *    block b has some unzip nodes coming from elemental nodes of e. 
+    */
+    void buildE2BlockMap();
 
     /**
      * @author Milinda Fernando
@@ -833,7 +846,7 @@ private:
      * @param[out] unzippedVec: updated unzip vec.
      * */
     template <typename T>
-    void blockDiagonalUnZip(const ot::Block &blk, const T *zippedVec, T *unzippedVec);
+    void blockDiagonalUnZip(const ot::Block &blk, const T *zippedVec, T *unzippedVec, T* eleDGVec, bool* eleDGValid);
 
     /**@brief: Performs block padding along the vertex direction.
      * @param[in] blk: block to perform diagonal direction padding.
@@ -841,7 +854,7 @@ private:
      * @param[out] unzippedVec: updated unzip vec.
      * */
     template <typename T>
-    void blockVertexUnZip(const ot::Block &blk, const T *zippedVec, T *unzippedVec);
+    void blockVertexUnZip(const ot::Block &blk, const T *zippedVec, T *unzippedVec,T* eleDGVec, bool* eleDGValid);
 
     /**@brief: Performs block padding along the OCT_DIR_LEFT_DOWN direction.
      * @param[in] blk: block to perform diagonal direction padding.
@@ -849,7 +862,7 @@ private:
      * @param[out] unzippedVec: updated unzip vec.
      * */
     template <typename T>
-    void OCT_DIR_LEFT_DOWN_Unzip(const ot::Block &blk, const T *zippedVec, T *unzippedVec);
+    void OCT_DIR_LEFT_DOWN_Unzip(const ot::Block &blk, const T *zippedVec, T *unzippedVec,T* eleDGVec, bool* eleDGValid);
 
     /**@brief: Performs block padding along the OCT_DIR_LEFT_UP direction.
      * @param[in] blk: block to perform diagonal direction padding.
@@ -857,7 +870,7 @@ private:
      * @param[out] unzippedVec: updated unzip vec.
      * */
     template <typename T>
-    void OCT_DIR_LEFT_UP_Unzip(const ot::Block &blk, const T *zippedVec, T *unzippedVec);
+    void OCT_DIR_LEFT_UP_Unzip(const ot::Block &blk, const T *zippedVec, T *unzippedVec,T* eleDGVec, bool* eleDGValid);
 
     /**@brief: Performs block padding along the OCT_DIR_LEFT_BACK direction.
      * @param[in] blk: block to perform diagonal direction padding.
@@ -865,7 +878,7 @@ private:
      * @param[out] unzippedVec: updated unzip vec.
      * */
     template <typename T>
-    void OCT_DIR_LEFT_BACK_Unzip(const ot::Block &blk, const T *zippedVec, T *unzippedVec);
+    void OCT_DIR_LEFT_BACK_Unzip(const ot::Block &blk, const T *zippedVec, T *unzippedVec,T* eleDGVec, bool* eleDGValid);
 
     /**@brief: Performs block padding along the OCT_DIR_LEFT_FRONT direction.
      * @param[in] blk: block to perform diagonal direction padding.
@@ -873,7 +886,7 @@ private:
      * @param[out] unzippedVec: updated unzip vec.
      * */
     template <typename T>
-    void OCT_DIR_LEFT_FRONT_Unzip(const ot::Block &blk, const T *zippedVec, T *unzippedVec);
+    void OCT_DIR_LEFT_FRONT_Unzip(const ot::Block &blk, const T *zippedVec, T *unzippedVec,T* eleDGVec, bool* eleDGValid);
 
     /**@brief: Performs block padding along the OCT_DIR_RIGHT_DOWN direction.
      * @param[in] blk: block to perform diagonal direction padding.
@@ -881,7 +894,7 @@ private:
      * @param[out] unzippedVec: updated unzip vec.
      * */
     template <typename T>
-    void OCT_DIR_RIGHT_DOWN_Unzip(const ot::Block &blk, const T *zippedVec, T *unzippedVec);
+    void OCT_DIR_RIGHT_DOWN_Unzip(const ot::Block &blk, const T *zippedVec, T *unzippedVec,T* eleDGVec, bool* eleDGValid);
 
     /**@brief: Performs block padding along the OCT_DIR_RIGHT_UP direction.
      * @param[in] blk: block to perform diagonal direction padding.
@@ -889,7 +902,7 @@ private:
      * @param[out] unzippedVec: updated unzip vec.
      * */
     template <typename T>
-    void OCT_DIR_RIGHT_UP_Unzip(const ot::Block &blk, const T *zippedVec, T *unzippedVec);
+    void OCT_DIR_RIGHT_UP_Unzip(const ot::Block &blk, const T *zippedVec, T *unzippedVec,T* eleDGVec, bool* eleDGValid);
 
     /**@brief: Performs block padding along the OCT_DIR_RIGHT_BACK direction.
      * @param[in] blk: block to perform diagonal direction padding.
@@ -897,7 +910,7 @@ private:
      * @param[out] unzippedVec: updated unzip vec.
      * */
     template <typename T>
-    void OCT_DIR_RIGHT_BACK_Unzip(const ot::Block &blk, const T *zippedVec, T *unzippedVec);
+    void OCT_DIR_RIGHT_BACK_Unzip(const ot::Block &blk, const T *zippedVec, T *unzippedVec,T* eleDGVec, bool* eleDGValid);
 
     /**@brief: Performs block padding along the OCT_DIR_RIGHT_FRONT direction.
      * @param[in] blk: block to perform diagonal direction padding.
@@ -905,7 +918,7 @@ private:
      * @param[out] unzippedVec: updated unzip vec.
      * */
     template <typename T>
-    void OCT_DIR_RIGHT_FRONT_Unzip(const ot::Block &blk, const T *zippedVec, T *unzippedVec);
+    void OCT_DIR_RIGHT_FRONT_Unzip(const ot::Block &blk, const T *zippedVec, T *unzippedVec,T* eleDGVec, bool* eleDGValid);
 
     /**@brief: Performs block padding along the OCT_DIR_UP_BACK direction.
      * @param[in] blk: block to perform diagonal direction padding.
@@ -913,7 +926,7 @@ private:
      * @param[out] unzippedVec: updated unzip vec.
      * */
     template <typename T>
-    void OCT_DIR_UP_BACK_Unzip(const ot::Block &blk, const T *zippedVec, T *unzippedVec);
+    void OCT_DIR_UP_BACK_Unzip(const ot::Block &blk, const T *zippedVec, T *unzippedVec,T* eleDGVec, bool* eleDGValid);
 
     /**@brief: Performs block padding along the OCT_DIR_UP_FRONT direction.
      * @param[in] blk: block to perform diagonal direction padding.
@@ -921,7 +934,7 @@ private:
      * @param[out] unzippedVec: updated unzip vec.
      * */
     template <typename T>
-    void OCT_DIR_UP_FRONT_Unzip(const ot::Block &blk, const T *zippedVec, T *unzippedVec);
+    void OCT_DIR_UP_FRONT_Unzip(const ot::Block &blk, const T *zippedVec, T *unzippedVec,T* eleDGVec, bool* eleDGValid);
 
     /**@brief: Performs block padding along the OCT_DIR_DOWN_BACK direction.
      * @param[in] blk: block to perform diagonal direction padding.
@@ -929,7 +942,7 @@ private:
      * @param[out] unzippedVec: updated unzip vec.
      * */
     template <typename T>
-    void OCT_DIR_DOWN_BACK_Unzip(const ot::Block &blk, const T *zippedVec, T *unzippedVec);
+    void OCT_DIR_DOWN_BACK_Unzip(const ot::Block &blk, const T *zippedVec, T *unzippedVec,T* eleDGVec, bool* eleDGValid);
 
     /**@brief: Performs block padding along the OCT_DIR_DOWN_FRONT direction.
      * @param[in] blk: block to perform diagonal direction padding.
@@ -937,7 +950,7 @@ private:
      * @param[out] unzippedVec: updated unzip vec.
      * */
     template <typename T>
-    void OCT_DIR_DOWN_FRONT_Unzip(const ot::Block &blk, const T *zippedVec, T *unzippedVec);
+    void OCT_DIR_DOWN_FRONT_Unzip(const ot::Block &blk, const T *zippedVec, T *unzippedVec,T* eleDGVec, bool* eleDGValid);
 
     /**@brief: Performs block padding along the OCT_DIR_LEFT_DOWN_BACK direction.
      * @param[in] blk: block to perform diagonal direction padding.
@@ -945,7 +958,7 @@ private:
      * @param[out] unzippedVec: updated unzip vec.
      * */
     template <typename T>
-    void OCT_DIR_LEFT_DOWN_BACK_Unzip(const ot::Block &blk, const T *zippedVec, T *unzippedVec);
+    void OCT_DIR_LEFT_DOWN_BACK_Unzip(const ot::Block &blk, const T *zippedVec, T *unzippedVec, T* eleDGVec, bool* eleDGValid);
 
     /**@brief: Performs block padding along the OCT_DIR_RIGHT_DOWN_BACK direction.
      * @param[in] blk: block to perform diagonal direction padding.
@@ -953,7 +966,7 @@ private:
      * @param[out] unzippedVec: updated unzip vec.
      * */
     template <typename T>
-    void OCT_DIR_RIGHT_DOWN_BACK_Unzip(const ot::Block &blk, const T *zippedVec, T *unzippedVec);
+    void OCT_DIR_RIGHT_DOWN_BACK_Unzip(const ot::Block &blk, const T *zippedVec, T *unzippedVec, T* eleDGVec, bool* eleDGValid);
 
     /**@brief: Performs block padding along the OCT_DIR_LEFT_UP_BACK direction.
      * @param[in] blk: block to perform diagonal direction padding.
@@ -961,7 +974,7 @@ private:
      * @param[out] unzippedVec: updated unzip vec.
      * */
     template <typename T>
-    void OCT_DIR_LEFT_UP_BACK_Unzip(const ot::Block &blk, const T *zippedVec, T *unzippedVec);
+    void OCT_DIR_LEFT_UP_BACK_Unzip(const ot::Block &blk, const T *zippedVec, T *unzippedVec, T* eleDGVec, bool* eleDGValid);
 
     /**@brief: Performs block padding along the OCT_DIR_RIGHT_UP_BACK direction.
      * @param[in] blk: block to perform diagonal direction padding.
@@ -969,7 +982,7 @@ private:
      * @param[out] unzippedVec: updated unzip vec.
      * */
     template <typename T>
-    void OCT_DIR_RIGHT_UP_BACK_Unzip(const ot::Block &blk, const T *zippedVec, T *unzippedVec);
+    void OCT_DIR_RIGHT_UP_BACK_Unzip(const ot::Block &blk, const T *zippedVec, T *unzippedVec, T* eleDGVec, bool* eleDGValid);
 
     /**@brief: Performs block padding along the OCT_DIR_LEFT_DOWN_FRONT direction.
      * @param[in] blk: block to perform diagonal direction padding.
@@ -977,7 +990,7 @@ private:
      * @param[out] unzippedVec: updated unzip vec.
      * */
     template <typename T>
-    void OCT_DIR_LEFT_DOWN_FRONT_Unzip(const ot::Block &blk, const T *zippedVec, T *unzippedVec);
+    void OCT_DIR_LEFT_DOWN_FRONT_Unzip(const ot::Block &blk, const T *zippedVec, T *unzippedVec, T* eleDGVec, bool* eleDGValid);
 
     /**@brief: Performs block padding along the OCT_DIR_RIGHT_DOWN_FRONT direction.
      * @param[in] blk: block to perform diagonal direction padding.
@@ -985,7 +998,7 @@ private:
      * @param[out] unzippedVec: updated unzip vec.
      * */
     template <typename T>
-    void OCT_DIR_RIGHT_DOWN_FRONT_Unzip(const ot::Block &blk, const T *zippedVec, T *unzippedVec);
+    void OCT_DIR_RIGHT_DOWN_FRONT_Unzip(const ot::Block &blk, const T *zippedVec, T *unzippedVec,T* eleDGVec, bool* eleDGValid);
 
     /**@brief: Performs block padding along the OCT_DIR_LEFT_UP_FRONT direction.
      * @param[in] blk: block to perform diagonal direction padding.
@@ -993,7 +1006,7 @@ private:
      * @param[out] unzippedVec: updated unzip vec.
      * */
     template <typename T>
-    void OCT_DIR_LEFT_UP_FRONT_Unzip(const ot::Block &blk, const T *zippedVec, T *unzippedVec);
+    void OCT_DIR_LEFT_UP_FRONT_Unzip(const ot::Block &blk, const T *zippedVec, T *unzippedVec, T* eleDGVec, bool* eleDGValid);
 
     /**@brief: Performs block padding along the OCT_DIR_RIGHT_UP_FRONT direction.
      * @param[in] blk: block to perform diagonal direction padding.
@@ -1001,7 +1014,7 @@ private:
      * @param[out] unzippedVec: updated unzip vec.
      * */
     template <typename T>
-    void OCT_DIR_RIGHT_UP_FRONT_Unzip(const ot::Block &blk, const T *zippedVec, T *unzippedVec);
+    void OCT_DIR_RIGHT_UP_FRONT_Unzip(const ot::Block &blk, const T *zippedVec, T *unzippedVec, T* eleDGVec, bool* eleDGValid);
 
     /***
      * @brief: computes the block boundary parent containing elements of two levels of refinement. 
@@ -1162,6 +1175,15 @@ public:
     /**@brief returns const list of local blocks (regular grids) for the consdering mesh. */
     inline const std::vector<ot::Block> &getLocalBlockList() const { return m_uiLocalBlockList; }
 
+    /**@biref get element to block unzip map. */
+    inline const std::vector<unsigned int> &getE2BUnzipMap() const { return m_e2b_unzip_map; }
+    
+    /**@biref get element to block unzip map counts. */
+    inline const std::vector<unsigned int> &getE2BUnzipMapCounts() const { return m_e2b_unzip_counts; }
+
+    /**@biref get element to block unzip map offsets. */
+    inline const std::vector<unsigned int> &getE2BUnzipMapOffsets() const { return m_e2b_unzip_offset; }
+
     /**@brief return the number of directions in the E2E mapping. */
     inline unsigned int getNumDirections() const { return m_uiNumDirections; }
 
@@ -1292,7 +1314,7 @@ public:
 
     /**@brief: Destroy an allocated vector using the createVectorXX */
     template<typename T>
-    inline void destroyVector(T*& vec) const { delete [] vec; vec=NULL; }; 
+    inline void destroyVector(T*& vec) const { delete [] vec; vec=NULL; } 
 
     /**@brief set refinement flags for the octree.
      * This is non const function
@@ -1642,7 +1664,7 @@ public:
      * @return T* 
      */
     template <typename T>
-    void CG2DGVec(T* cg_vec, T*& dg_vec, bool isAllocated, bool gsynced, unsigned int dof=1);
+    void CG2DGVec(T* cg_vec, T* dg_vec, bool gsynced, unsigned int dof=1);
 
 
     /**
@@ -1657,7 +1679,7 @@ public:
      * @return T* 
      */
     template <typename T>
-    void DG2CGVec(const T* dg_vec, T*& cg_vec, bool isAllocated, unsigned int dof=1) const;
+    void DG2CGVec(const T* dg_vec, T* cg_vec, unsigned int dof=1) const;
 
     /**
      * @brief performs partial DG to CG vec conversion. 
@@ -1728,6 +1750,18 @@ public:
     template<typename T>
     void unzip(const T* in, T* out, const unsigned int *blkIDs, unsigned int numblks,unsigned int dof=1);
 
+    /**
+     * @brief performs unzip operation for all the blocks, each element scatters the unzip data to its corresponding blocks. 
+     * Note : This cannot be used to unzip only a one block, which is not supported (can be MODIFIED to get it done but would be ineffient).
+     * @tparam T type of the vector. 
+     * @param in : zipped vector
+     * @param out : unzipped vector. 
+     * @param blk :pointer to list of block ids, for the unzip. 
+     * @param numblks: number of block ids specified. 
+     */
+    template<typename T>
+    void unzip_scatter(const T* in, T* out, unsigned int dof=1);
+
 
     /**
      * @brief performs unzip operation for a given block id. 
@@ -1741,6 +1775,21 @@ public:
     template<typename T>
     void unzipDG(const T* in, T* out, const unsigned int *blkIDs, unsigned int numblks,unsigned int dof=1);
 
+
+    /**
+     * @brief Unzip with local scatter communication patterm, not duplicate interplolations. 
+    * @tparam T type of the vector. 
+     * @param in : DG vector
+     * @param out : unzipped vector. 
+     * @param blk :pointer to list of block ids, for the unzip. 
+     * @param numblks: number of block ids specified. 
+     * 
+     * Note :  this cannot be used to unzip only paticular blocks, unzips to all the blocks, 
+     * each element scatters its data to the corresponding block.
+     */
+    template<typename T>
+    void unzipDG_scatter(const T* in, T* out, unsigned int dof=1);
+
     /**
      * @brief Creates the decomposition of adaptive octree variables into blocklist variables that we computed.
      * @param [in] in : adaptive representation of the variable array. (created by createVec function)
@@ -1749,7 +1798,7 @@ public:
      * */
     template <typename T>
     void unzipDG(const T *in, T *out, unsigned int dof=1);
-    
+
 
     /**@author Milinda Fernando
      * @brief Performs the compression frrom regular block grid varable list to adaptive representation.
@@ -1835,7 +1884,25 @@ public:
      * @param dof : degrees of freedoms 
      */
     template<typename T>
-    void readFromGhostEnd(T* vec, unsigned int dof =1);    
+    void readFromGhostEnd(T* vec, unsigned int dof =1);  
+
+    /**
+     * @brief Aysnc ghost exchange with Ctx, assumes that ctx bufferes are already allocated. 
+     * @tparam T type of the vector
+     * @param ctx async ctx
+     * @param dof number of dofs to exchange
+     */
+    template<typename T>
+    void readFromGhostBegin(AsyncExchangeContex& ctx, T* vec, unsigned int dof =1);
+
+    /**
+     * @brief Aysnc ghost exchange with Ctx, assumes that ctx bufferes are already allocated. 
+     * @tparam T type of the vector
+     * @param ctx async ctx
+     * @param dof number of dofs to exchange
+     */
+    template<typename T>
+    void readFromGhostEnd(AsyncExchangeContex& ctx, T* vec, unsigned int dof =1);  
 
     /**
      * @brief : ghost read begin. 
@@ -2410,5 +2477,3 @@ inline bool Mesh::computeOveralppingNodes(const ot::TreeNode &parent, const ot::
 
 #include "mesh.tcc"
 #include "meshE2NUtils.tcc"
-
-#endif //SFCSORTBENCH_MESH_H

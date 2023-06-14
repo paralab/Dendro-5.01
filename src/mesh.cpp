@@ -13,10 +13,9 @@
  * 2). Assumes that there is no duplicate nodes.
  *
  *
- * Communicator swithch assumptions.
- *
- ** global rank=0 is always active.
- ** communicator split should be always contigous.
+ * Communicator switch assumptions.
+ * 1). global rank=0 is always active.
+ * 2). communicator split should be always contigious.
  *
  *
  *
@@ -195,31 +194,18 @@ namespace ot {
             {
                 performBlocksSetup(m_uiCoarsetBlkLev,NULL,0);
                 //computeSMSpecialPts();
+                buildE2BlockMap();
             }
                 
             double t_blk_end = MPI_Wtime();
             t_blk = t_blk_end - t_blk_begin;
 
-
-            par::Mpi_Reduce(&t_e2e, t_e2e_g, 1, MPI_MIN, 0, m_uiCommActive);
-            par::Mpi_Reduce(&t_e2e, t_e2e_g + 1, 1, MPI_SUM, 0, m_uiCommActive);
-            par::Mpi_Reduce(&t_e2e, t_e2e_g + 2, 1, MPI_MAX, 0, m_uiCommActive);
-            t_e2e_g[1] /= (double) m_uiActiveNpes;
-
-            par::Mpi_Reduce(&t_e2n, t_e2n_g, 1, MPI_MIN, 0, m_uiCommActive);
-            par::Mpi_Reduce(&t_e2n, t_e2n_g + 1, 1, MPI_SUM, 0, m_uiCommActive);
-            par::Mpi_Reduce(&t_e2n, t_e2n_g + 2, 1, MPI_MAX, 0, m_uiCommActive);
-            t_e2n_g[1] /= (double) m_uiActiveNpes;
-
-            par::Mpi_Reduce(&t_sm, t_sm_g, 1, MPI_MIN, 0, m_uiCommActive);
-            par::Mpi_Reduce(&t_sm, t_sm_g + 1, 1, MPI_SUM, 0, m_uiCommActive);
-            par::Mpi_Reduce(&t_sm, t_sm_g + 2, 1, MPI_MAX, 0, m_uiCommActive);
-            t_sm_g[1] /= (double) m_uiActiveNpes;
-
-            par::Mpi_Reduce(&t_blk, t_blk_g, 1, MPI_MIN, 0, m_uiCommActive);
-            par::Mpi_Reduce(&t_blk, t_blk_g + 1, 1, MPI_SUM, 0, m_uiCommActive);
-            par::Mpi_Reduce(&t_blk, t_blk_g + 2, 1, MPI_MAX, 0, m_uiCommActive);
-            t_blk_g[1] /= (double) m_uiActiveNpes;
+            #ifdef __PROFILE_MESH__
+                par::computeOverallStats(&t_e2e,t_e2e_g,m_uiCommActive,"mesh e2e ");
+                par::computeOverallStats(&t_e2n,t_e2n_g,m_uiCommActive,"mesh e2n (+ sm for fdm type) ");
+                par::computeOverallStats(&t_sm,t_sm_g,m_uiCommActive,"mesh sm (DG type) ");
+                par::computeOverallStats(&t_blk,t_blk_g,m_uiCommActive,"block setup ");
+            #endif
             
             if(m_uiActiveNpes>1)
             {
@@ -287,7 +273,8 @@ namespace ot {
         m_uiIsBlockSetup=pBlockSetup;
         m_uiScatterMapType= smType;
         m_uiIsF2ESetup=false;
-        m_uiCoarsetBlkLev = 0;
+        // now m_uiCoarsetBlkLev set by the cmake;
+        //m_uiCoarsetBlkLev = 0;
         MPI_Comm_rank(m_uiCommGlobal,&m_uiGlobalRank);
         MPI_Comm_size(m_uiCommGlobal,&m_uiGlobalNpes);
 
@@ -457,35 +444,19 @@ namespace ot {
             {
                 performBlocksSetup(m_uiCoarsetBlkLev,blk_tags,blk_tags_sz);
                 //computeSMSpecialPts();
+                buildE2BlockMap();
             }
                 
 
             double t_blk_end=MPI_Wtime();
             t_blk=t_blk_end-t_blk_begin;
 
-
-            par::Mpi_Reduce(&t_e2e,t_e2e_g,1,MPI_MIN,0,m_uiCommActive);
-            par::Mpi_Reduce(&t_e2e,t_e2e_g+1,1,MPI_SUM,0,m_uiCommActive);
-            par::Mpi_Reduce(&t_e2e,t_e2e_g+2,1,MPI_MAX,0,m_uiCommActive);
-            t_e2e_g[1]/=(double)m_uiActiveNpes;
-
-            par::Mpi_Reduce(&t_e2n,t_e2n_g,1,MPI_MIN,0,m_uiCommActive);
-            par::Mpi_Reduce(&t_e2n,t_e2n_g+1,1,MPI_SUM,0,m_uiCommActive);
-            par::Mpi_Reduce(&t_e2n,t_e2n_g+2,1,MPI_MAX,0,m_uiCommActive);
-            t_e2n_g[1]/=(double)m_uiActiveNpes;
-
-            par::Mpi_Reduce(&t_sm,t_sm_g,1,MPI_MIN,0,m_uiCommActive);
-            par::Mpi_Reduce(&t_sm,t_sm_g+1,1,MPI_SUM,0,m_uiCommActive);
-            par::Mpi_Reduce(&t_sm,t_sm_g+2,1,MPI_MAX,0,m_uiCommActive);
-            t_sm_g[1]/=(double)m_uiActiveNpes;
-
-            par::Mpi_Reduce(&t_blk,t_blk_g,1,MPI_MIN,0,m_uiCommActive);
-            par::Mpi_Reduce(&t_blk,t_blk_g+1,1,MPI_SUM,0,m_uiCommActive);
-            par::Mpi_Reduce(&t_blk,t_blk_g+2,1,MPI_MAX,0,m_uiCommActive);
-            t_blk_g[1]/=(double)m_uiActiveNpes;
-
-
-            
+            #ifdef __PROFILE_MESH__
+                par::computeOverallStats(&t_e2e,t_e2e_g,m_uiCommActive,"mesh e2e ");
+                par::computeOverallStats(&t_e2n,t_e2n_g,m_uiCommActive,"mesh e2n (+ sm for fdm type) ");
+                par::computeOverallStats(&t_sm,t_sm_g,m_uiCommActive,"mesh sm (DG type) ");
+                par::computeOverallStats(&t_blk,t_blk_g,m_uiCommActive,"block setup ");
+            #endif
             
             if(m_uiActiveNpes>1)
             {
@@ -4312,6 +4283,67 @@ namespace ot {
 
     }
 
+    void Mesh::buildE2BlockMap()
+    {   
+        if(!m_uiIsActive)
+            return;
+
+        //clear all the maps. 
+        const unsigned int num_all_elements=m_uiAllElements.size();
+        m_e2b_unzip_counts.resize(num_all_elements,0);
+        m_e2b_unzip_offset.resize(num_all_elements,0);
+        
+
+        std::vector<unsigned int> eid;
+        eid.reserve((NUM_CHILDREN + NUM_EDGES + NUM_FACES + 1)*4);
+        
+        for(unsigned int blk=0; blk < m_uiLocalBlockList.size(); blk++)
+        {
+            this->blkUnzipElementIDs(blk,eid);
+            const unsigned int eLocalB = m_uiLocalBlockList[blk].getLocalElementBegin();
+            const unsigned int eLocalE = m_uiLocalBlockList[blk].getLocalElementEnd();
+            for(unsigned int elem = eLocalB ; elem < eLocalE; elem++)
+                m_e2b_unzip_counts[elem]++;
+
+            for(unsigned int i = 0 ; i < eid.size(); i++)
+            {
+                const unsigned int elem =  eid[i];
+                m_e2b_unzip_counts[elem]++;
+            }
+                
+        }
+        m_e2b_unzip_offset[0]=0;
+        omp_par::scan(m_e2b_unzip_counts.data(),m_e2b_unzip_offset.data(),m_e2b_unzip_counts.size());
+
+        const unsigned int e2b_map_size= m_e2b_unzip_offset[num_all_elements-1] + m_e2b_unzip_counts[num_all_elements-1];
+        m_e2b_unzip_map.resize(e2b_map_size,LOOK_UP_TABLE_DEFAULT);
+        
+        for(unsigned int i=0; i < m_e2b_unzip_counts.size();i++)
+            m_e2b_unzip_counts[i]=0;
+        
+        for(unsigned int blk=0; blk < m_uiLocalBlockList.size(); blk++)
+        {
+            this->blkUnzipElementIDs(blk,eid);
+            const unsigned int eLocalB = m_uiLocalBlockList[blk].getLocalElementBegin();
+            const unsigned int eLocalE = m_uiLocalBlockList[blk].getLocalElementEnd();
+            for(unsigned int elem = eLocalB ; elem < eLocalE; elem++)
+            {   
+                m_e2b_unzip_map[m_e2b_unzip_offset[elem]+ m_e2b_unzip_counts[elem]] = blk;
+                m_e2b_unzip_counts[elem]++;
+            }
+                
+
+            for(unsigned int i = 0 ; i < eid.size(); i++)
+            {   
+                const unsigned int elem =  eid[i];
+                m_e2b_unzip_map[m_e2b_unzip_offset[elem]+ m_e2b_unzip_counts[elem]] = blk;
+                m_e2b_unzip_counts[elem]++;
+            }
+                
+        }
+        
+        return;
+    }
 
     void Mesh::computeNodalScatterMapDG(MPI_Comm comm)
     {

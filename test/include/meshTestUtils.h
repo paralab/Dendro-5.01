@@ -14,7 +14,7 @@
 #include <iostream>
 #include <functional>
 #include "daUtils.h"
-#include "lebedev.h"
+#include "../../BSSN_GR/include/lebedev.h"
 #include "meshUtils.h"
 #include "subSM.h"
 
@@ -126,7 +126,8 @@ namespace ot
         template<typename T>
         bool isSubScatterMapValid( ot::Mesh* const pMesh , ot::SubScatterMap * const subSM, T* const vec);
 
-
+        template<typename T>
+        bool isDGGhostValid(ot::Mesh* pMesh, T* vec, std::function<void(T,T,T,T*)> fn, T tol);
         
         
     }
@@ -2584,6 +2585,52 @@ bool ot::test::isSubScatterMapValid( ot::Mesh* const pMesh , ot::SubScatterMap *
 
 }
 
+template<typename T>
+bool isDGGhostValid(ot::Mesh* pMesh, T* vec, std::function<void(T,T,T,T*)> fn, T tol)
+{
+    bool valid=true;
+    if(pMesh->getMPICommSizeGlobal() > 1 && pMesh->isActive())
+    {
+        const std::vector<unsigned int> recvEleOffset = pMesh->getElementRecvOffsets();
+        const std::vector<unsigned int> recvEleCounts = pMesh->getElementRecvCounts();
+        const std::vector<unsigned int> recvESM       = pMesh->getRecvElementSM();
+        const unsigned int dg_sz  = pMesh->getDegOfFreedomDG(); 
+        const unsigned int eOrder = pMesh->getElementOrder();
+        const unsigned int nPe    = pMesh->getNumNodesPerElement(); 
+        T val=0;
+        const unsigned int rank = pMesh->getMPIRank();
+        const ot::TreeNode* const pNodes = pMesh->getAllElements().data();
+        
+        for(unsigned int p=0; p < pMesh->getMPICommSize(); p++)
+        {
+            for(unsigned int ee=recvEleOffset[p]; ee < (recvEleOffset[p]+ recvEleCounts[p]); ee++)
+            {   
+                
+                const unsigned int ele = recvESM[ee];
+                for(unsigned int k=0; k < eOrder+1 ; k++)
+                for(unsigned int j=0; j < eOrder+1; j++)
+                for(unsigned int i=0; i < eOrder+1; i++)
+                {
+                    const double x = pNodes[ele].minX() + i*((1u<<m_uiMaxDepth - pNodes[ele].getLevel())/eOrder);
+                    const double y = pNodes[ele].minY() + j*((1u<<m_uiMaxDepth - pNodes[ele].getLevel())/eOrder);
+                    const double z = pNodes[ele].minZ() + k*((1u<<m_uiMaxDepth - pNodes[ele].getLevel())/eOrder);
+                    fn(x,y,z,&val);
+                    const double diff = std::fabs((vec + 0*dg_sz)[ele*nPe + k*(eOrder+1)*(eOrder+1) + j*(eOrder+1) + i ] - val);
+                    
+                    if(diff > 1e-3)
+                    {
+                        std::cout<<"rank: "<<rank<<" ele: "<<ele<<" DG vec:"<<(vec + 0*dg_sz)[ele*nPe + k*(eOrder+1)*(eOrder+1) + j*(eOrder+1) + i ]<<" func: "<<val<<" diff : "<<diff<<std::endl;
+                        valid=false;
+                    }
+                        
+                
+                }
+            }   
+        }
+
+    }
+    return valid;
+}
 
 
 

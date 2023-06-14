@@ -18,13 +18,16 @@
  #include "ts.h"
  #include <functional>
  #include "mathUtils.h"
+ #ifdef __CUDACC__
+    #include "mesh_gpu.cuh"
+ #endif
 namespace ts
 {
     /**@brief: different variable types. */
     enum CTXVType {EVOLUTION=0, CONSTRAINT, PRIMITIVE};
 
     #ifdef __PROFILE_CTX__
-        enum CTXPROFILE {IS_REMESH=0, REMESH, GRID_TRASFER, RHS, RHS_BLK, UNZIP, ZIP, CTX_LAST};
+        enum CTXPROFILE {IS_REMESH=0, REMESH, GRID_TRASFER, RHS, RHS_BLK, UNZIP_WCOMM, UNZIP, ZIP_WCOMM,ZIP, H2D, D2H, CTX_LAST};
     #endif
 
     template<typename DerivedCtx, typename T, typename I>
@@ -34,7 +37,7 @@ namespace ts
             public:
         
                 std::vector<profiler_t> m_uiCtxpt = std::vector<profiler_t>(static_cast<int>(CTXPROFILE::CTX_LAST));
-                const char *CTXPROFILE_NAMES[static_cast<int>(CTXPROFILE::CTX_LAST)] = {"is_remesh","remesh","GT","rhs", "rhs_blk", "unzip", "zip"};
+                const char *CTXPROFILE_NAMES[static_cast<int>(CTXPROFILE::CTX_LAST)] = {"is_remesh","remesh","GT","rhs", "rhs_blk", "unzip", "zip", "h2d", "d2h"};
 
                 void init_pt()
                 {
@@ -71,7 +74,9 @@ namespace ts
                         "rhs_min\t rhs_mean\t rhs_max\t"<<\
                         "rhs_blk_min\t rhs_blk_mean\t rhs_blk_max\t"<<\
                         "unzip_min\t unzip_mean\t unzip_max\t"<<\
-                        "zip_min\t zip_mean\t zip_max\t"<<std::endl;
+                        "zip_min\t zip_mean\t zip_max\t"\
+                        "h2d_min\t h2d_mean\t h2d_max\t"\
+                        "d2h_min\t d2h_mean\t d2h_max\t"<<std::endl;
 
                     }
 
@@ -141,6 +146,14 @@ namespace ts
                     min_mean_max(&t_stat,t_stat_g,comm);
                     if(!rank) outfile<<t_stat_g[0]<<"\t "<<t_stat_g[1]<<"\t "<<t_stat_g[2]<<"\t ";
 
+                    t_stat=m_uiCtxpt[CTXPROFILE::H2D].snap;
+                    min_mean_max(&t_stat,t_stat_g,comm);
+                    if(!rank) outfile<<t_stat_g[0]<<"\t "<<t_stat_g[1]<<"\t "<<t_stat_g[2]<<"\t ";
+
+                    t_stat=m_uiCtxpt[CTXPROFILE::D2H].snap;
+                    min_mean_max(&t_stat,t_stat_g,comm);
+                    if(!rank) outfile<<t_stat_g[0]<<"\t "<<t_stat_g[1]<<"\t "<<t_stat_g[2]<<"\t ";
+
                     if(!rank) outfile<<std::endl;
                     
                 }
@@ -158,25 +171,6 @@ namespace ts
 
             /**@brief : Mesh object  */
             ot::Mesh * m_uiMesh; 
-
-            /**@brief: variable list related to the application*/
-            std::vector< ot::DVector<T,I> > m_uiEvolutionVar;
-
-            /**@brief: variable list related to the application*/
-            std::vector< ot::DVector<T,I> > m_uiConstrainedVar;
-
-            /**@brief: variable list related to the application*/
-            std::vector< ot::DVector<T,I> > m_uiPrimitiveVar;
-
-            /**@brief: Evolution unzip variable*/
-            std::vector< ot::DVector<T,I> > m_uiEvolutionUnzipVar;
-            
-            /**@brief: Constraint unzip variables*/
-            std::vector< ot::DVector<T,I> > m_uiConstraintUnzipVar;
-
-            /**@brief: primitive unzip variables. */
-            std::vector< ot::DVector<T,I> > m_uiPrimitiveUnzipVar;
-
 
             /**@brief: Total memory allocated for time stepper in B */
             DendroIntL m_uiMemAlloc;
@@ -202,6 +196,13 @@ namespace ts
             /**@brief: weight function to perform advanced weighted partitioning. */
             unsigned int (*m_getWeight)(const ot::TreeNode *)=NULL;
 
+            /**@brief: MPI resources for host communication, i.e., buffers are allocated on the host*/
+            std::vector<ot::AsyncExchangeContex> m_mpi_ctx;
+
+            /**@brief: MPI resources for device communication, i.e., buffers are allocated on the device*/
+            std::vector<ot::AsyncExchangeContex> m_mpi_ctx_device;
+
+
             
         public: 
         
@@ -212,7 +213,7 @@ namespace ts
             ~Ctx(){};
             
             /**@brief: derived class static cast*/            
-            DerivedCtx &asLeaf() { return static_cast<DerivedCtx &>(*this); }
+            inline DerivedCtx &asLeaf() { return static_cast<DerivedCtx &>(*this); }
 
             /**@brief: update the mesh data strucutre. */
             void set_mesh(ot::Mesh* pMesh) 
@@ -243,6 +244,9 @@ namespace ts
             
             /**@brief: returns the time stamp info, related to ets*/
             inline ts::TSInfo get_ts_info() const {return m_uiTinfo; }
+
+            /**@brief: returns the time stamp info, related to ets*/
+            inline void set_ts_info(ts::TSInfo ts_info) {m_uiTinfo = ts_info; }
             
             /**@breif: returns the ETS synced status*/
             inline bool is_ets_synced() const { return m_uiIsETSSynced;} 
@@ -254,7 +258,6 @@ namespace ts
             int initialize() {
                 return asLeaf().initialize(); 
             }
-            
             /**@brief: right hand side computation v= F(u,t);
              * @param [in] in : input (u vector) for the evolution variables. 
              * @param [out] out: output (v vector) computed rhs. 
@@ -325,16 +328,6 @@ namespace ts
                 return asLeaf().post_timestep_blk(in,dof,local_blk_id,blk_time);
             }
 
-            /**@brief: compute constraints. */
-            int compute_constraints(){
-                return asLeaf().compute_constraints();
-            }
-
-            /**@brief: compute primitive variables. */
-            int compute_primitives(){
-                return asLeaf().compute_primitives();
-            }
-            
             /**@brief: function execute before each stage
              * @param sIn: stage var in. 
             */
@@ -372,7 +365,7 @@ namespace ts
              * @param sf_k : splitter fix k
              * @return ot::Mesh* : pointer to the new mesh. 
              */
-            virtual ot::Mesh* remesh(unsigned int grain_sz = DENDRO_DEFAULT_GRAIN_SZ, double ld_tol = DENDRO_DEFAULT_LB_TOL, unsigned int sf_k = DENDRO_DEFAULT_SF_K);
+            ot::Mesh* remesh(unsigned int grain_sz = DENDRO_DEFAULT_GRAIN_SZ, double ld_tol = DENDRO_DEFAULT_LB_TOL, unsigned int sf_k = DENDRO_DEFAULT_SF_K);
 
             /**
              * @brief performs remesh if the remesh flags are true. 
@@ -384,17 +377,38 @@ namespace ts
              * @param transferPrimitive : if true transform the primitive variables. 
              * @return int : return 0 if success. 
              */
-            virtual int remesh_and_gridtransfer(unsigned int grain_sz = DENDRO_DEFAULT_GRAIN_SZ, double ld_tol = DENDRO_DEFAULT_LB_TOL, unsigned int sf_k = DENDRO_DEFAULT_SF_K ,bool transferEvolution = true, bool transferConstraint = false, bool transferPrimitive = false ); 
+            int remesh_and_gridtransfer(unsigned int grain_sz = DENDRO_DEFAULT_GRAIN_SZ, double ld_tol = DENDRO_DEFAULT_LB_TOL, unsigned int sf_k = DENDRO_DEFAULT_SF_K);
 
             /**
-             * @brief performs intergrid transfer for a given mesh variable. 
-             * @param newMesh : Mesh object the variables needed to be transfered.
-             * @param transferEvolution : if true transform the evolution variables.  
-             * @param transferConstraint : if true transform the constraint variales. 
-             * @param transferPrimitive : if true transform the primitive variables. 
-             * @return int 
+             * @brief performs unzip operation, 
+             * 
+             * @param in : input zip vector. 
+             * @param out : output unzip vector. 
+             * @param async_k : async communicator. 
              */
-            virtual int grid_transfer(ot::Mesh* newMesh, bool transferEvolution = true, bool transferConstraint = false, bool transferPrimitive = false);
+            void unzip(ot::DVector<T,I>& in , ot::DVector<T,I>& out, unsigned int async_k = 1);
+
+            /**
+             * @brief performs zip operation
+             * 
+             * @param in : unzip vector
+             * @param out : zip vector. 
+             */
+            void zip(ot::DVector<T,I>& in , ot::DVector<T,I>& out);
+
+            /**
+             * @brief: only do the sync without communication sync
+             * @param in : unzip vector
+             * @param out : zip vector. 
+             * */
+            //void zip_without_ghost_sync(ot::DVector<T,I>& in , ot::DVector<T,I>& out);
+
+            /**
+             * @brief performs intergrid transfer for a given appCtx
+             */
+            inline int grid_transfer(const ot::Mesh* m_new) {
+                return asLeaf().grid_transfer(m_new);
+            }
 
             /**@brief: write vtu files and output related stuff. */
             int write_vtu() {
@@ -416,49 +430,18 @@ namespace ts
                 return asLeaf().finalize();
             }
 
-            /**@brief: Add variables to the time stepper*/
-            ot::DVector<T,I> create_vec(CTXVType type, bool isGhosted = false, bool isUnzip =false, bool isElemental = false, unsigned int dof=1);
-
-            /**@brief: destroy a vector 
-             * @param vec: DVector object 
-             * @param type: DVector type. 
-            */
-            void destroy_vec(ot::DVector<T,I>& vec, CTXVType type);
-
-            /**@brief: destroy vector 
-             * @param vec: DVector object
-            */
-            void destroy_vec(ot::DVector<T,I>& vec);
-
-            /**
-             * @brief performs unzip operation, 
-             * 
-             * @param in : input zip vector. 
-             * @param out : output unzip vector. 
-             * @param async_k : async communicator. 
-             */
-            void unzip(ot::DVector<T,I>& in , ot::DVector<T,I>& out, unsigned int async_k = 1);
-
-            /**
-             * @brief performs zip operation
-             * 
-             * @param in : unzip vector
-             * @param out : zip vector. 
-             */
-            void zip(ot::DVector<T,I>& in , ot::DVector<T,I>& out, unsigned int async_k = 1);
-
             /**@brief: pack and returns the evolution variables to one DVector*/
-            ot::DVector<T,I> get_evolution_vars() { 
+            inline ot::DVector<T,I>& get_evolution_vars() { 
                 return asLeaf().get_evolution_vars();
             }
 
             /**@brief: pack and returns the constraint variables to one DVector*/
-            ot::DVector<T,I> get_constraint_vars(){ 
+            inline ot::DVector<T,I>& get_constraint_vars(){ 
                 return asLeaf().get_constraint_vars();
             }
 
             /**@brief: pack and returns the primitive variables to one DVector*/
-            ot::DVector<T,I> get_primitive_vars(){ 
+            inline ot::DVector<T,I>& get_primitive_vars(){ 
                 return asLeaf().get_primitive_vars();
             }
 
@@ -470,13 +453,8 @@ namespace ts
                 return 0;
             }
             
-            /**@brief: updates the application variables from the variable list. */
-            int update_app_vars() {
-                return asLeaf().update_app_vars();
-            }
-
             /**@brief: prints any messages to the terminal output. */
-            int terminal_output() {
+            inline int terminal_output() {
                 return asLeaf().terminal_output();
             }
 
@@ -506,6 +484,15 @@ namespace ts
                 return asLeaf().compute_lts_ts_offset();
             }
 
+            #ifdef __CUDACC__
+            device::MeshGPU*& get_meshgpu_device_ptr() {
+                return asLeaf().get_meshgpu_device_ptr();
+            }
+
+            device::MeshGPU* get_meshgpu_host_handle() {
+                return asLeaf().get_meshgpu_host_handle();
+            }
+            #endif
 
             /**@brief: retunrs time step size factor for the  specified block*/
             static unsigned int getBlkTimestepFac(unsigned int blev, unsigned int lmin, unsigned int lmax){
@@ -515,371 +502,117 @@ namespace ts
             
     };
 
-    template<typename DerivedCtx, typename T, typename I>
-    ot::DVector<T,I> Ctx<DerivedCtx,T,I>::create_vec(CTXVType type, bool isGhosted, bool isUnzip, bool isElemental, unsigned int dof)
-    {
-        ot::DVector<T,I> tmp;
-        tmp.VecCreate(m_uiMesh,isGhosted,isUnzip,isElemental,dof);
-
-        if(type == CTXVType::EVOLUTION)
-            (isUnzip) ? m_uiEvolutionUnzipVar.push_back(tmp) : m_uiEvolutionVar.push_back(tmp);
-        else if(type == CTXVType::CONSTRAINT)
-            (isUnzip) ? m_uiConstraintUnzipVar.push_back(tmp) : m_uiConstrainedVar.push_back(tmp);
-        else if(type == CTXVType::PRIMITIVE)
-            (isUnzip) ? m_uiPrimitiveUnzipVar.push_back(tmp) : m_uiPrimitiveVar.push_back(tmp);
-        
-        return tmp;
-    }
-
-    template<typename DerivedCtx, typename T, typename I>
-    void Ctx<DerivedCtx,T,I>::destroy_vec(ot::DVector<T,I>& vec, CTXVType type)
-    {
-        int index=-1;
-        bool isdealloc = false;
-        if(type == CTXVType::EVOLUTION)
-        {
-            for(unsigned int i=0; i< m_uiEvolutionVar.size(); i++)
-            {
-                if(m_uiEvolutionVar[i].GetVecArray() == vec.GetVecArray())
-                {
-                    index =i;
-                    break;
-                }
-            }
-
-            if(index >=0)
-            {
-                m_uiEvolutionVar[index].VecDestroy();
-                m_uiEvolutionVar.erase( m_uiEvolutionVar.begin() + index);
-                isdealloc=true;
-            }
-                
-            if(isdealloc)
-                return;
-
-            index=-1;
-            for(unsigned int i=0; i< m_uiEvolutionUnzipVar.size(); i++)
-            {
-                if(m_uiEvolutionUnzipVar[i].GetVecArray() == vec.GetVecArray())
-                {
-                    index =i;
-                    break;
-                }
-            }
-
-            if(index >=0)
-            {
-                m_uiEvolutionUnzipVar[index].VecDestroy();
-                m_uiEvolutionUnzipVar.erase(m_uiEvolutionUnzipVar.begin() + index);
-                isdealloc=true;
-            }
-                
-            if(isdealloc)
-                return;
-
-            
-        }
-        else if(type == CTXVType::CONSTRAINT)
-        {
-            for(unsigned int i=0; i< m_uiConstrainedVar.size(); i++)
-            {
-                if(m_uiConstrainedVar[i].GetVecArray() == vec.GetVecArray())
-                {
-                    index =i;
-                    break;
-                }
-            }
-
-            if(index >=0)
-            {
-                m_uiConstrainedVar[index].VecDestroy();
-                m_uiConstrainedVar.erase(m_uiConstrainedVar.begin()+index);
-                isdealloc=true;
-            }
-
-            if(isdealloc)
-                return;
-                
-
-            // unzip
-            index=-1;
-            for(unsigned int i=0; i< m_uiConstraintUnzipVar.size(); i++)
-            {
-                if(m_uiConstraintUnzipVar[i].GetVecArray() == vec.GetVecArray())
-                {
-                    index =i;
-                    break;
-                }
-            }
-
-            if(index >=0)
-            {
-                m_uiConstraintUnzipVar[index].VecDestroy();
-                m_uiConstraintUnzipVar.erase(m_uiConstraintUnzipVar.begin()+index);
-                isdealloc=true;
-            }
-            
-            if(isdealloc)
-                return;
-
-
-            
-        }
-        else if(type == CTXVType::PRIMITIVE)
-        {
-            for(unsigned int i=0; i< m_uiPrimitiveVar.size(); i++)
-            {
-                if(m_uiPrimitiveVar[i].GetVecArray() == vec.GetVecArray())
-                {
-                    index =i;
-                    break;
-                }
-            }
-
-            if(index >=0)
-            {
-                m_uiPrimitiveVar[index].VecDestroy();
-                m_uiPrimitiveVar.erase(m_uiPrimitiveVar.begin()+index);
-                isdealloc=true;
-            }
-
-            if(isdealloc)
-             return;
-            
-
-            index=-1;
-            for(unsigned int i=0; i< m_uiPrimitiveUnzipVar.size(); i++)
-            {
-                if(m_uiPrimitiveUnzipVar[i].GetVecArray() == vec.GetVecArray())
-                {
-                    index =i;
-                    break;
-                }
-            }
-            if(index >=0)
-            {
-                m_uiPrimitiveUnzipVar[index].VecDestroy();
-                m_uiPrimitiveUnzipVar.erase(m_uiPrimitiveUnzipVar.begin()+index);
-                isdealloc=true;
-            }
-
-            if(isdealloc)
-             return;
-            
-
-        }
-
-        if(!isdealloc)
-        {
-            std::cout<<"[ctx]: memory dealloc faliure "<<__LINE__<<std::endl;
-            return ;
-        }
-        
-    }
-
-    template<typename DerivedCtx, typename T, typename I>
-    void Ctx<DerivedCtx,T,I>::destroy_vec(ot::DVector<T,I>& vec)
-    {
-        int index=-1;
-        bool isdealloc = false;
-        for(unsigned int i=0; i< m_uiEvolutionVar.size(); i++)
-        {
-            if(m_uiEvolutionVar[i].GetVecArray() == vec.GetVecArray())
-            {
-                index =i;
-                break;
-            }
-        }
-
-        if(index >=0)
-        {
-            m_uiEvolutionVar[index].VecDestroy();
-            m_uiEvolutionVar.erase(m_uiEvolutionVar.begin() +  index);
-            isdealloc=true;
-        }
-            
-        if(isdealloc)
-            return;
-
-        
-        index=-1;
-        for(unsigned int i=0; i< m_uiEvolutionUnzipVar.size(); i++)
-        {
-            if(m_uiEvolutionUnzipVar[i].GetVecArray() == vec.GetVecArray())
-            {
-                index =i;
-                break;
-            }
-        }
-
-        if(index >=0)
-        {
-            m_uiEvolutionUnzipVar[index].VecDestroy();
-            m_uiEvolutionUnzipVar.erase(m_uiEvolutionUnzipVar.begin() + index);
-            isdealloc=true;
-        }
-
-        if(isdealloc)
-            return;
-
-
-        index =-1;
-        for(unsigned int i=0; i< m_uiConstrainedVar.size(); i++)
-        {
-            if(m_uiConstrainedVar[i].GetVecArray() == vec.GetVecArray())
-            {
-                index =i;
-                break;
-            }
-        }
-
-        if(index >=0)
-        {
-            m_uiConstrainedVar[index].VecDestroy();
-            m_uiConstrainedVar.erase(m_uiConstrainedVar.begin() + index);
-            isdealloc=true;
-        }
-        
-        if(isdealloc)
-            return;
-
-        // unzip
-        index=-1;
-        for(unsigned int i=0; i< m_uiConstraintUnzipVar.size(); i++)
-        {
-            if(m_uiConstraintUnzipVar[i].GetVecArray() == vec.GetVecArray())
-            {
-                index =i;
-                break;
-            }
-        }
-        if(index >=0)
-        {
-            m_uiConstraintUnzipVar[index].VecDestroy();
-            m_uiConstraintUnzipVar.erase(m_uiConstraintUnzipVar.begin()+index);
-            isdealloc=true;
-        }
-        
-        if(isdealloc)
-            return;
-
-        index=-1;
-        for(unsigned int i=0; i< m_uiPrimitiveVar.size(); i++)
-        {
-            if(m_uiPrimitiveVar[i].GetVecArray() == vec.GetVecArray())
-            {
-                index =i;
-                break;
-            }
-        }
-        if(index >=0)
-        {
-            m_uiPrimitiveVar[index].VecDestroy();
-            m_uiPrimitiveVar.erase( m_uiPrimitiveVar.begin() +  index);
-            isdealloc=true;
-        }
-        
-        if(isdealloc)
-            return;
-
-
-        index=-1;
-        for(unsigned int i=0; i< m_uiPrimitiveUnzipVar.size(); i++)
-        {
-            if(m_uiPrimitiveUnzipVar[i].GetVecArray() == vec.GetVecArray())
-            {
-                index =i;
-                break;
-            }
-        }
-        if(index >=0)
-        {
-            m_uiPrimitiveUnzipVar[index].VecDestroy();
-            m_uiPrimitiveUnzipVar.erase(m_uiPrimitiveUnzipVar.begin()+index);
-            isdealloc=true;
-        }
-            
-        if(!isdealloc)
-        {
-            std::cout<<"[ctx]: memory dealloc faliure "<<__LINE__<<std::endl;
-            return ;
-        }
-    
-
-
-        
-    }
     
     template<typename DerivedCtx, typename T, typename I>
     void Ctx<DerivedCtx,T,I>::unzip(ot::DVector<T,I>& in , ot::DVector<T,I>& out, unsigned int async_k)
     {
+        if(!m_uiMesh->isActive())
+            return;
         
         #ifdef __PROFILE_CTX__
-            m_uiCtxpt[CTXPROFILE::UNZIP].start();
+            m_uiCtxpt[CTXPROFILE::UNZIP_WCOMM].start();
         #endif
-
-        assert( (in.IsUnzip() == false) && (in.GetDof()== out.GetDof()) && (out.IsUnzip()==true) && (in.IsGhosted()==true) && async_k <= in.GetDof());
         
-        const unsigned int dof = in.GetDof();
-        T* in_ptr  = in.GetVecArray();
-        T* out_ptr = out.GetVecArray();
+        // assert( (in.IsUnzip() == false) && (in.get_dof()== out.get_dof()) && (out.IsUnzip()==true) && (in.IsGhosted()==true) && async_k <= in.get_dof());
+        const unsigned int dof = in.get_dof();
+        T* in_ptr  = in.get_vec_ptr();
+        T* out_ptr = out.get_vec_ptr();
+        
+        const unsigned int sz_per_dof_zip  = in.get_size()/dof;
+        const unsigned int sz_per_dof_uzip = out.get_size()/dof;
 
-        //std::cout<<" dof: "<<in.GetDof()<<std::endl;
-
-        const unsigned int sz_per_dof_zip  = in.GetSizePerDof();
-        const unsigned int sz_per_dof_uzip = out.GetSizePerDof();
         assert(sz_per_dof_uzip == m_uiMesh->getDegOfFreedomUnZip());
         assert(sz_per_dof_zip == m_uiMesh->getDegOfFreedom());
 
-        for(unsigned int i=0 ; i < async_k; i++)
+        if(in.get_loc()==ot::DVEC_LOC::HOST)
         {
-
-            const unsigned int v_begin = ((i*dof)/async_k);
-            const unsigned int v_end   = (((i+1)*dof)/async_k);
-
-            for(unsigned int j=v_begin; j < v_end; j++)   
-                m_uiMesh->readFromGhostBegin(in_ptr + j*sz_per_dof_zip, 1);
-
-            
-            if(i>0)
+            // unzip on the host. 
+            for(unsigned int i=0 ; i < async_k; i++)
             {
-                const unsigned int vb_prev = (((i-1)*dof)/async_k);
-                const unsigned int ve_prev = ((i*dof)/async_k);
+                const unsigned int v_begin  = ((i*dof)/async_k);
+                const unsigned int v_end    = (((i+1)*dof)/async_k);
+                const unsigned int batch_sz = (v_end-v_begin);
 
-                for(unsigned int j=vb_prev; j < ve_prev; j++ )
-                    m_uiMesh->unzip(in_ptr + j*sz_per_dof_zip, out_ptr + j*sz_per_dof_uzip);
-
+                m_uiMesh->readFromGhostBegin(m_mpi_ctx[i],in_ptr + v_begin * sz_per_dof_zip, batch_sz);
             }
 
-            for(unsigned int j=v_begin; j < v_end; j++)
-                m_uiMesh->readFromGhostEnd(in_ptr + j*sz_per_dof_zip, 1);
+            for(unsigned int i=0 ; i < async_k; i++)
+            {
+                const unsigned int v_begin  = ((i*dof)/async_k);
+                const unsigned int v_end    = (((i+1)*dof)/async_k);
+                const unsigned int batch_sz = (v_end-v_begin);
 
+                m_uiMesh->readFromGhostEnd(m_mpi_ctx[i],in_ptr + v_begin *sz_per_dof_zip, batch_sz);
+                
+                #ifdef __PROFILE_CTX__
+                        m_uiCtxpt[CTXPROFILE::UNZIP].start();
+                #endif
+
+                m_uiMesh->unzip(in_ptr + v_begin * sz_per_dof_zip, out_ptr +  v_begin * sz_per_dof_uzip, batch_sz);      
+
+                #ifdef __PROFILE_CTX__
+                    m_uiCtxpt[CTXPROFILE::UNZIP].stop();
+                #endif
+            }
+
+        }else if (in.get_loc() == ot::DVEC_LOC::DEVICE)
+        {
+            #ifdef __CUDACC__
+
+                device::MeshGPU* dptr_mesh   = this->get_meshgpu_device_ptr();
+                device::MeshGPU* mesh_gpu    = this->get_meshgpu_host_handle();
+                
+                for(unsigned int i=0 ; i < async_k; i++)
+                {
+                    const unsigned int v_begin  = ((i*dof)/async_k);
+                    const unsigned int v_end    = (((i+1)*dof)/async_k);
+                    const unsigned int batch_sz = (v_end-v_begin);
+                    mesh_gpu->read_from_ghost_cg_begin<DEVICE_REAL,cudaStream_t>(m_mpi_ctx[i], m_mpi_ctx_device[i], m_uiMesh,dptr_mesh, in_ptr + v_begin * sz_per_dof_zip, batch_sz,0);
+                }
+
+                for(unsigned int i=0 ; i < async_k; i++)
+                {
+                    const unsigned int v_begin  = ((i*dof)/async_k);
+                    const unsigned int v_end    = (((i+1)*dof)/async_k);
+                    const unsigned int batch_sz = (v_end-v_begin);
+                    mesh_gpu->read_from_ghost_cg_end<DEVICE_REAL,cudaStream_t>(m_mpi_ctx[i], m_mpi_ctx_device[i], m_uiMesh, dptr_mesh, in_ptr + v_begin * sz_per_dof_zip, batch_sz,0);
+
+                    #ifdef __PROFILE_CTX__
+                        m_uiCtxpt[CTXPROFILE::UNZIP].start();
+                    #endif
+                    mesh_gpu->unzip_cg<DEVICE_REAL, cudaStream_t>(m_uiMesh, dptr_mesh, in_ptr + v_begin * sz_per_dof_zip, out_ptr + v_begin * sz_per_dof_uzip, batch_sz, 0);
+                    GPUDevice::device_synchronize();
+                    #ifdef __PROFILE_CTX__
+                        m_uiCtxpt[CTXPROFILE::UNZIP].stop();
+                    #endif
+                
+                }
+            #endif
+            
         }
-
-        for(unsigned int j= (((async_k-1)*dof)/async_k); j < ((async_k*dof)/async_k); j++ )
-            m_uiMesh->unzip(in_ptr + j*sz_per_dof_zip, out_ptr + j*sz_per_dof_uzip);
-
+        
+        
         #ifdef __PROFILE_CTX__
-            m_uiCtxpt[CTXPROFILE::UNZIP].stop();
+            m_uiCtxpt[CTXPROFILE::UNZIP_WCOMM].stop();
         #endif
         
     }
 
-    template<typename DerivedCtx, typename T, typename I>
+    /*template<typename DerivedCtx, typename T, typename I>
     void Ctx<DerivedCtx,T,I>::zip(ot::DVector<T,I>& in , ot::DVector<T,I>& out, unsigned int async_k)
     {
 
         #ifdef __PROFILE_CTX__
-            m_uiCtxpt[CTXPROFILE::ZIP].start();
+            m_uiCtxpt[CTXPROFILE::ZIP_WCOMM].start();
         #endif
 
-        assert( (in.IsUnzip() == true) && (in.GetDof()== out.GetDof()) && (out.IsUnzip()==false) && (out.IsGhosted()==true));
-        const unsigned int dof = in.GetDof();
-        const unsigned int sz_per_dof_uzip = in.GetSizePerDof();
-        const unsigned int sz_per_dof_zip = out.GetSizePerDof();
+        // assert( (in.IsUnzip() == true) && (in.get_dof()== out.get_dof()) && (out.IsUnzip()==false) && (out.IsGhosted()==true));
+        const unsigned int dof = in.get_dof();
+        const unsigned int sz_per_dof_uzip = in.get_size()/dof;
+        const unsigned int sz_per_dof_zip = out.get_size()/dof;
 
-        T* in_ptr = in.GetVecArray();
-        T* out_ptr = out.GetVecArray();
+        T* in_ptr = in.get_vec_ptr();
+        T* out_ptr = out.get_vec_ptr();
 
         assert(sz_per_dof_uzip == m_uiMesh->getDegOfFreedomUnZip());
         assert(sz_per_dof_zip == m_uiMesh->getDegOfFreedom());
@@ -889,10 +622,18 @@ namespace ts
             const unsigned int v_begin = ((i*dof)/async_k);
             const unsigned int v_end   = (((i+1)*dof)/async_k);
             
+            #ifdef __PROFILE_CTX__
+                m_uiCtxpt[CTXPROFILE::ZIP].start();
+            #endif
+
             for(unsigned int j=v_begin; j < v_end; j++)   
             {
                 m_uiMesh->zip(in_ptr + j*sz_per_dof_uzip,out_ptr + j*sz_per_dof_zip);
             }
+
+            #ifdef __PROFILE_CTX__
+                m_uiCtxpt[CTXPROFILE::ZIP].stop();
+            #endif
                
             
             if(i>0)
@@ -915,12 +656,59 @@ namespace ts
             
         
         #ifdef __PROFILE_CTX__
-            m_uiCtxpt[CTXPROFILE::ZIP].stop();
+            m_uiCtxpt[CTXPROFILE::ZIP_WCOMM].stop();
         #endif
 
         return;
 
+    }*/
+
+    template<typename DerivedCtx, typename T, typename I>
+    void Ctx<DerivedCtx,T,I>::zip(ot::DVector<T,I>& in , ot::DVector<T,I>& out)
+    {
+        if(!m_uiMesh->isActive())
+            return;
+
+        // assert( (in.IsUnzip() == true) && (in.get_dof()== out.get_dof()) && (out.IsUnzip()==false) && (out.IsGhosted()==true));
+        const unsigned int dof = in.get_dof();
+        const unsigned int sz_per_dof_uzip = (dof!=0) ? in.get_size()/dof : 0;
+        const unsigned int sz_per_dof_zip  = (dof!=0) ? out.get_size()/dof : 0;
+        
+
+        T* in_ptr = in.get_vec_ptr();
+        T* out_ptr = out.get_vec_ptr();
+
+        assert(sz_per_dof_uzip == m_uiMesh->getDegOfFreedomUnZip());
+        assert(sz_per_dof_zip == m_uiMesh->getDegOfFreedom());
+
+        #ifdef __PROFILE_CTX__
+                m_uiCtxpt[CTXPROFILE::ZIP].start();
+        #endif
+        if(in.get_loc() == ot::DVEC_LOC::HOST)
+        {
+            for(unsigned int j=0; j < dof; j++)
+                m_uiMesh->zip(in_ptr + j*sz_per_dof_uzip,out_ptr + j*sz_per_dof_zip);
+
+        }else if(in.get_loc() == ot::DVEC_LOC::DEVICE)
+        {
+            #ifdef __CUDACC__
+                device::MeshGPU* dptr_mesh   = this->get_meshgpu_device_ptr();
+                device::MeshGPU* mesh_gpu    = this->get_meshgpu_host_handle();
+                mesh_gpu->zip_cg<DEVICE_REAL, cudaStream_t>(m_uiMesh,dptr_mesh,in_ptr,out_ptr,out.get_dof(),0);
+                GPUDevice::device_synchronize();
+            #endif
+
+        }
+
+        
+        
+        #ifdef __PROFILE_CTX__
+            m_uiCtxpt[CTXPROFILE::ZIP].stop();
+        #endif
+
+
     }
+
 
     template<typename DerivedCtx, typename T, typename I>
     ot::Mesh* Ctx<DerivedCtx,T,I>::remesh(unsigned int grain_sz, double ld_tol, unsigned int sf_k) 
@@ -1006,7 +794,7 @@ namespace ts
     }
     
     template<typename DerivedCtx, typename T, typename I>
-    int Ctx<DerivedCtx,T,I>::remesh_and_gridtransfer(unsigned int grain_sz, double ld_tol, unsigned int sf_k, bool transferEvolution, bool transferConstraint, bool transferPrimitive)
+    int Ctx<DerivedCtx,T,I>::remesh_and_gridtransfer(unsigned int grain_sz, double ld_tol, unsigned int sf_k)
     {
 
         ot::Mesh* newMesh = remesh(grain_sz,ld_tol,sf_k);
@@ -1022,185 +810,24 @@ namespace ts
         if(!(m_uiMesh->getMPIRankGlobal()))
             std::cout<<"[Ctx]: step : "<<m_uiTinfo._m_uiStep<<"\ttime : "<<m_uiTinfo._m_uiT<<"\told mesh: "<<oldElements_g<<"\tnew mesh:"<<newElements_g<<std::endl;
 
-        this-> grid_transfer(newMesh,transferEvolution, transferConstraint, transferPrimitive);
-        this-> update_app_vars();
-
-
+        this->grid_transfer(newMesh);
+        
         std::swap(newMesh,m_uiMesh);
         delete newMesh;
+
+        #ifdef __CUDACC__
+            device::MeshGPU*& dptr_mesh  = this->get_meshgpu_device_ptr();
+            device::MeshGPU* mesh_gpu    = this->get_meshgpu_host_handle();
+
+            mesh_gpu->dealloc_mesh_on_device(dptr_mesh);
+            dptr_mesh = mesh_gpu->alloc_mesh_on_device(m_uiMesh);
+        #endif
 
         m_uiIsETSSynced = false;
 
         
         return 0; 
 
-    }
-
-    template<typename DerivedCtx, typename T, typename I>
-    int Ctx<DerivedCtx,T,I>::grid_transfer(ot::Mesh* newMesh, bool transferEvolution, bool transferConstraint, bool transferPrimitive)
-    {
-
-        #ifdef __PROFILE_CTX__
-            m_uiCtxpt[CTXPROFILE::GRID_TRASFER].start();
-        #endif
-
-
-
-        std::vector< ot::DVector<T,I> > eVars;
-        std::vector< ot::DVector<T,I> > cVars;
-        std::vector< ot::DVector<T,I> > pVars;
-
-        std::vector< ot::DVector<T,I> > eVarsUnzip;
-        std::vector< ot::DVector<T,I> > cVarsUnzip;
-        std::vector< ot::DVector<T,I> > pVarsUnzip;
-
-        const unsigned int numEVars = m_uiEvolutionVar.size();
-        const unsigned int numCVars = m_uiConstrainedVar.size();
-        const unsigned int numPVars = m_uiPrimitiveVar.size();
-
-        for(unsigned int i=0; i< m_uiEvolutionVar.size(); i++)
-        {
-            ot::DVector < T,I > v1;
-            v1.VecCreate(newMesh,m_uiEvolutionVar[i].IsGhosted(),m_uiEvolutionVar[i].IsUnzip(), m_uiEvolutionVar[i].IsElemental(),m_uiEvolutionVar[i].GetDof());
-            eVars.push_back(v1);
-        }
-
-        for(unsigned int i=0; i< m_uiConstrainedVar.size(); i++)
-        {
-            ot::DVector < T,I > v1;
-            v1.VecCreate(newMesh,m_uiConstrainedVar[i].IsGhosted(),m_uiConstrainedVar[i].IsUnzip(), m_uiConstrainedVar[i].IsElemental(),m_uiConstrainedVar[i].GetDof());
-            cVars.push_back(v1);
-        }
-
-        for(unsigned int i=0; i< m_uiPrimitiveVar.size(); i++)
-        {
-            ot::DVector < T,I > v1;
-            v1.VecCreate(newMesh,m_uiPrimitiveVar[i].IsGhosted(),m_uiPrimitiveVar[i].IsUnzip(), m_uiPrimitiveVar[i].IsElemental(),m_uiPrimitiveVar[i].GetDof());
-            pVars.push_back(v1);
-        }
-
-        for(unsigned int i=0; i< m_uiEvolutionUnzipVar.size(); i++)
-        {
-            ot::DVector < T,I > v1;
-            v1.VecCreate(newMesh,m_uiEvolutionUnzipVar[i].IsGhosted(),m_uiEvolutionUnzipVar[i].IsUnzip(), m_uiEvolutionUnzipVar[i].IsElemental(),m_uiEvolutionUnzipVar[i].GetDof());
-            eVarsUnzip.push_back(v1);
-        }
-
-        for(unsigned int i=0; i< m_uiConstraintUnzipVar.size(); i++)
-        {
-            ot::DVector < T,I > v1;
-            v1.VecCreate(newMesh,m_uiConstraintUnzipVar[i].IsGhosted(),m_uiConstraintUnzipVar[i].IsUnzip(), m_uiConstraintUnzipVar[i].IsElemental(),m_uiConstraintUnzipVar[i].GetDof());
-            cVarsUnzip.push_back(v1);
-        }
-
-        for(unsigned int i=0; i< m_uiPrimitiveUnzipVar.size(); i++)
-        {
-            ot::DVector < T,I > v1;
-            v1.VecCreate(newMesh,m_uiPrimitiveUnzipVar[i].IsGhosted(),m_uiPrimitiveUnzipVar[i].IsUnzip(), m_uiPrimitiveUnzipVar[i].IsElemental(),m_uiPrimitiveUnzipVar[i].GetDof());
-            pVarsUnzip.push_back(v1);
-        }
-
-
-        if(transferEvolution)
-        {
-            for(unsigned int i=0; i< m_uiEvolutionVar.size(); i++)
-            {
-                assert(m_uiEvolutionVar[i].IsUnzip() == false && m_uiEvolutionVar[i].IsGhosted()==true);
-                const unsigned int dof = m_uiEvolutionVar[i].GetDof();
-                T* in  = m_uiEvolutionVar[i].GetVecArray();
-                T* out = eVars[i].GetVecArray(); 
-                
-                const unsigned int nPDOF_old = m_uiEvolutionVar[i].GetSizePerDof();
-                const unsigned int nPDOF_new = eVars[i].GetSizePerDof();
-
-                for(unsigned int v=0; v < dof; v++)
-                    m_uiMesh->interGridTransfer( (in + v*nPDOF_old) , (out + v*nPDOF_new) , newMesh);
-            
-            }
-            
-        }
-
-        if(transferConstraint)
-        {
-            for(unsigned int i=0; i< m_uiConstrainedVar.size(); i++)
-            {
-                assert(m_uiConstrainedVar[i].IsUnzip() == false && m_uiConstrainedVar[i].IsGhosted()==true);
-                const unsigned int dof = m_uiConstrainedVar[i].GetDof();
-                T* in = m_uiConstrainedVar[i].GetVecArray();
-                T* out = cVars[i].GetVecArray();
-                
-                const unsigned int nPDOF_old = m_uiConstrainedVar[i].GetSizePerDof();
-                const unsigned int nPDOF_new = cVars[i].GetSizePerDof();
-
-                for(unsigned int v=0; v < dof; v++)
-                    m_uiMesh->interGridTransfer(in + v*nPDOF_old , out + v*nPDOF_new ,newMesh);
-            
-            }
-
-            
-        }
-
-        if(transferPrimitive)
-        {
-            for(unsigned int i=0; i< m_uiPrimitiveVar.size(); i++)
-            {
-                assert(m_uiPrimitiveVar[i].IsUnzip() == false && m_uiPrimitiveVar[i].IsGhosted()==true);
-                const unsigned int dof = m_uiPrimitiveVar[i].GetDof();
-                T* in = m_uiPrimitiveVar[i].GetVecArray();
-                T* out = pVars[i].GetVecArray();
-                
-                const unsigned int nPDOF_old = m_uiPrimitiveVar[i].GetSizePerDof();
-                const unsigned int nPDOF_new = pVars[i].GetSizePerDof();
-
-                for(unsigned int v=0; v < dof; v++)
-                    m_uiMesh->interGridTransfer(in + v*nPDOF_old , out + v*nPDOF_new ,newMesh);
-                
-            }
-
-        }
-
-        std::swap(m_uiEvolutionVar,eVars);
-        std::swap(m_uiConstrainedVar,cVars);
-        std::swap(m_uiPrimitiveVar,pVars);
-        std::swap(m_uiEvolutionUnzipVar,eVarsUnzip);
-        std::swap(m_uiConstraintUnzipVar,cVarsUnzip);
-        std::swap(m_uiPrimitiveUnzipVar,pVarsUnzip);
-
-        for(unsigned int i=0; i< eVars.size(); i++)
-            eVars[i].VecDestroy();
-        
-        for(unsigned int i=0; i< pVars.size(); i++)
-            pVars[i].VecDestroy();
-
-        for(unsigned int i=0; i< cVars.size(); i++)
-            cVars[i].VecDestroy();
-
-
-        for(unsigned int i=0; i< eVarsUnzip.size(); i++)
-            eVarsUnzip[i].VecDestroy();
-        
-        for(unsigned int i=0; i< cVarsUnzip.size(); i++)
-            cVarsUnzip[i].VecDestroy();
-
-        for(unsigned int i=0; i< pVarsUnzip.size(); i++)
-            pVarsUnzip[i].VecDestroy();
-
-
-        
-        eVars.clear();
-        pVars.clear();
-        cVars.clear();
-        
-        eVarsUnzip.clear();
-        pVarsUnzip.clear();
-        cVarsUnzip.clear();
-
-        #ifdef __PROFILE_CTX__
-            m_uiCtxpt[CTXPROFILE::GRID_TRASFER].stop();
-        #endif
-
-        return 0;
-       
     }
 
     

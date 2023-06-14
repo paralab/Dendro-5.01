@@ -157,6 +157,20 @@ inline int Mpi_Gather(T *sendBuffer, T *recvBuffer, int count, int root, MPI_Com
 }
 
 template <typename T>
+inline int Mpi_Gatherv(T *sendBuffer, int sendcnts, T *recvBuffer, int* recvcnts, int* rdispls, int root, MPI_Comm comm)
+{
+  #ifdef __PROFILE_WITH_BARRIER__
+    MPI_Barrier(comm);
+  #endif
+  PROF_PAR_GATHER_BEGIN
+
+  error_code = MPI_Gatherv(sendBuffer, sendcnts, par::Mpi_datatype<T>::value(), recvBuffer, recvcnts, rdispls, par::Mpi_datatype<T>::value(), root, comm);
+
+  PROF_PAR_GATHER_END
+
+}
+
+template <typename T>
 inline int Mpi_Bcast(T *buffer, int count, int root, MPI_Comm comm)
 {
   #ifdef __PROFILE_WITH_BARRIER__
@@ -388,7 +402,7 @@ int Mpi_Alltoallv_sparse(T *sendbuf, int *sendcnts, int *sdispls, T *recvbuf, in
     
     error_code = MPI_Waitall(commCnt, requests, statuses);
     // 27/05/20(Milinda) : A2A_sparse was crashing on impi19 in frontera. I put a barrier here since all2all v should be a blocking call, otherwise repeated calls might cause problems. 
-    MPI_Barrier(comm); 
+    //MPI_Barrier(comm); 
 
     delete[] requests;
     delete[] statuses;
@@ -2581,5 +2595,24 @@ void parallel_rank(const T *in, unsigned int sz, DendroIntL *out, MPI_Comm comm)
   delete[] sorted_couts;
   delete[] sorted_offset;
 }
+
+
+template<typename T>
+void computeOverallStats(T *stat, T *stat_g, MPI_Comm comm, const char* const prefix)
+{
+    int rank,npes;
+    MPI_Comm_size(comm,&npes);
+    MPI_Comm_rank(comm,&rank);
+
+    par::Mpi_Reduce(stat,stat_g,1,MPI_MIN,0,comm);
+    par::Mpi_Reduce(stat,stat_g+1,1,MPI_SUM,0,comm);
+    par::Mpi_Reduce(stat,stat_g+2,1,MPI_MAX,0,comm);
+    stat_g[1]/=(npes);
+
+    if(!rank)
+        printf("--- %s time(s) [min mean max]--- \n%.8E\t%.8E\t%.8E\n",prefix, stat_g[0],stat_g[1],stat_g[2]);
+
+}
+
 
 } // namespace par

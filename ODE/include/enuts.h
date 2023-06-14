@@ -468,9 +468,8 @@ namespace ts
          
             ot::Mesh* newMesh = m_uiAppCtx->remesh();
 
-            m_uiAppCtx->grid_transfer(newMesh,false,false,false);
-            m_uiAppCtx->update_app_vars();   
-
+            m_uiAppCtx->grid_transfer(newMesh);
+            
             std::swap(pMesh,newMesh);
             delete newMesh;
             m_uiAppCtx->set_mesh(pMesh);
@@ -684,7 +683,7 @@ namespace ts
     {
 
         assert(m_uiNumStages>0);
-        const unsigned int DOF = m_uiEVar.GetDof();
+        const unsigned int DOF = m_uiEVar.get_dof();
 
         if(m_uiIsInternalAlloc)
             return 0; // no need to allocated again if the internal vars are allocated. 
@@ -692,16 +691,16 @@ namespace ts
         m_uiStVec.resize(m_uiNumStages);
         
         for(unsigned int i=0; i < m_uiNumStages; i++)
-            m_uiStVec[i].VecCreateDG(m_uiAppCtx->get_mesh(), true, m_uiEVar.GetDof());
+            m_uiStVec[i].create_vector(m_uiAppCtx->get_mesh(), ot::DVEC_TYPE::OCT_LOCAL_NODES, ot::DVEC_LOC::HOST,m_uiEVar.get_dof(),true);
 
-        m_uiEVecTmp[0].VecCreate(m_uiAppCtx->get_mesh(), m_uiEVar.IsGhosted() , m_uiEVar.IsUnzip(), m_uiEVar.IsElemental() , m_uiEVar.GetDof());
-        m_uiEVecTmp[1].VecCreate(m_uiAppCtx->get_mesh(), m_uiEVar.IsGhosted() , m_uiEVar.IsUnzip(), m_uiEVar.IsElemental() , m_uiEVar.GetDof());
+        m_uiEVecTmp[0].create_vector(m_uiAppCtx->get_mesh(), ot::DVEC_TYPE::OCT_SHARED_NODES, ot::DVEC_LOC::HOST,m_uiEVar.get_dof(),true);
+        m_uiEVecTmp[1].create_vector(m_uiAppCtx->get_mesh(), ot::DVEC_TYPE::OCT_SHARED_NODES, ot::DVEC_LOC::HOST,m_uiEVar.get_dof(),true);
 
         // allocate tmp DG vectors
-        m_uiDGTmp0.VecCreateDG(m_uiAppCtx->get_mesh(), true, m_uiEVar.GetDof());
+        m_uiDGTmp0.create_vector(m_uiAppCtx->get_mesh(), ot::DVEC_TYPE::OCT_LOCAL_NODES, ot::DVEC_LOC::HOST,m_uiEVar.get_dof(),true);
 
-        m_uiEvarUzip.VecCreate(m_uiAppCtx->get_mesh(), false , true, false ,m_uiEVar.GetDof());
-        m_uiEvarDG.VecCreateDG(m_uiAppCtx->get_mesh(), true, m_uiEVar.GetDof());
+        m_uiEvarUzip.create_vector(m_uiAppCtx->get_mesh(), ot::DVEC_TYPE::OCT_LOCAL_WITH_PADDING, ot::DVEC_LOC::HOST,m_uiEVar.get_dof(),true);
+        m_uiEvarDG.create_vector(m_uiAppCtx->get_mesh(), ot::DVEC_TYPE::OCT_LOCAL_NODES, ot::DVEC_LOC::HOST,m_uiEVar.get_dof(),true);
 
         const ot::Mesh* pMesh = m_uiAppCtx->get_mesh();
         if(pMesh->isActive())
@@ -741,18 +740,18 @@ namespace ts
 
         for(unsigned int i=0; i < m_uiNumStages; i++)
         {
-            this->m_uiStVec[i].VecDestroy();
+            this->m_uiStVec[i].destroy_vector();
         }
 
         this->m_uiStVec.clear();
-        this->m_uiEVecTmp[0].VecDestroy();
-        this->m_uiEVecTmp[1].VecDestroy();
+        this->m_uiEVecTmp[0].destroy_vector();
+        this->m_uiEVecTmp[1].destroy_vector();
 
         //deallocate DG tmp. 
-        m_uiDGTmp0.VecDestroy();
+        m_uiDGTmp0.destroy_vector();
 
-        m_uiEvarUzip.VecDestroy();
-        m_uiEvarDG.VecDestroy();
+        m_uiEvarUzip.destroy_vector();
+        m_uiEvarDG.destroy_vector();
 
         m_uiEleTime.clear();
         m_uiEleDT.clear();
@@ -784,10 +783,10 @@ namespace ts
     {
         ot::Mesh* pMesh = m_uiAppCtx->get_mesh();
         const std::vector<ot::Block>& blkList = pMesh->getLocalBlockList();
-        const unsigned int DOF = vecCG.GetDof();
+        const unsigned int DOF = vecCG.get_dof();
         
         for(unsigned int blk =0; blk < blkList.size(); blk++)
-            blkVec[blk]._vec[s].zip(pMesh, vecCG.GetVecArray(), DOF);
+            blkVec[blk]._vec[s].zip(pMesh, vecCG.get_vec_ptr(), DOF);
         
         return;
 
@@ -798,10 +797,10 @@ namespace ts
     {
         ot::Mesh* pMesh = m_uiAppCtx->get_mesh();
         const std::vector<ot::Block>& blkList = pMesh->getLocalBlockList();
-        const unsigned int DOF = vecDG.GetDof();
+        const unsigned int DOF = vecDG.get_dof();
         
         for(unsigned int blk =0; blk < blkList.size(); blk++)
-            blkVec[blk]._vec[s].zipDG(pMesh, vecDG.GetVecArray(), DOF);
+            blkVec[blk]._vec[s].zipDG(pMesh, vecDG.get_vec_ptr(), DOF);
         
         return;
     }
@@ -811,11 +810,11 @@ namespace ts
     {
         ot::Mesh* pMesh = m_uiAppCtx->get_mesh();
         const std::vector<ot::Block>& blkList = pMesh->getLocalBlockList();
-        const unsigned int DOF = vecUzip.GetDof();
+        const unsigned int DOF = vecUzip.get_dof();
 
         for(unsigned int v=0; v < DOF; v++)
         {
-            T * d_ptr = vecUzip.GetVecArray() + v * pMesh->getDegOfFreedomUnZip();
+            T * d_ptr = vecUzip.get_vec_ptr() + v * pMesh->getDegOfFreedomUnZip();
             
             for(unsigned int blk=0; blk < blkList.size(); blk++)
             {   
@@ -841,12 +840,12 @@ namespace ts
     {
         ot::Mesh* pMesh = m_uiAppCtx->get_mesh();
         const std::vector<ot::Block>& blkList = pMesh->getLocalBlockList();
-        const unsigned int DOF = vecDG.GetDof();
+        const unsigned int DOF = vecDG.get_dof();
         
 
         for(unsigned int blk =0; blk < blkList.size(); blk++)
         {
-            blkVec[blk]._vec[s].copyFromVecDG(pMesh,vecDG.GetVecArray(),DOF);
+            blkVec[blk]._vec[s].copyFromVecDG(pMesh,vecDG.get_vec_ptr(),DOF);
             blkVec[blk]._vec[s].mark_unsynced();
         }
             
@@ -864,10 +863,10 @@ namespace ts
         this->deallocate_internal_vars();
         this->free_data_structures();
 
+        m_uiEVar = m_uiAppCtx->get_evolution_vars();
         this->init_data_structures();
         this->allocate_internal_vars();
 
-        m_uiEVar = m_uiAppCtx->get_evolution_vars();
         m_uiAppCtx->set_ets_synced(true);
 
         return 0;
@@ -910,14 +909,13 @@ namespace ts
             }
 
             DVec eVar = m_uiAppCtx->get_evolution_vars();
-            unsigned int DOF= eVar.GetDof();
+            unsigned int DOF= eVar.get_dof();
 
-            pMesh->readFromGhostBegin(eVar.GetVecArray(),DOF);
-            pMesh->readFromGhostEnd(eVar.GetVecArray(),DOF);
+            pMesh->readFromGhostBegin(eVar.get_vec_ptr(),DOF);
+            pMesh->readFromGhostEnd(eVar.get_vec_ptr(),DOF);
             
-            m_uiAppCtx->grid_transfer(newMesh,true,false,false);
-            m_uiAppCtx->update_app_vars();   
-
+            m_uiAppCtx->grid_transfer(newMesh);
+            
             std::swap(pMesh,newMesh);
             delete newMesh;
             m_uiAppCtx->set_mesh(pMesh);
@@ -986,25 +984,25 @@ namespace ts
         unsigned int fchild[4];
         unsigned int echild[2];
 
-        const unsigned int dof = m_uiEVar.GetDof();
+        const unsigned int dof = m_uiEVar.get_dof();
         std::vector<T> cVec;
         cVec.resize(dof*nPe*(m_uiNumStages+1));
 
         T* cVin[(m_uiNumStages+1)*dof];  // correction vec. pointer in,
         T* cVout[(m_uiNumStages+1)*dof]; // correction vec. pointer out,
         
-        T * dgWVec = m_uiDGTmp0.GetVecArray();
-        //T * cgWVec = m_uiEVecTmp[0].GetVecArray();
-        T * uzWVec = m_uiEvarUzip.GetVecArray();
+        T * dgWVec = m_uiDGTmp0.get_vec_ptr();
+        //T * cgWVec = m_uiEVecTmp[0].get_vec_ptr();
+        T * uzWVec = m_uiEvarUzip.get_vec_ptr();
         
 
         T* m_uiVec = (T*) m_uiBVec[blk]._vec[rk_s].data();
 
         T * dgStages[m_uiNumStages];
         for(unsigned int i=0; i < m_uiNumStages; i++)
-            dgStages[i] = m_uiStVec[i].GetVecArray();
+            dgStages[i] = m_uiStVec[i].get_vec_ptr();
 
-        T * dgEVar = m_uiEvarDG.GetVecArray();
+        T * dgEVar = m_uiEvarDG.get_vec_ptr();
 
         std::vector<unsigned int> eid;
         computeBlockUnzipDepElements(pMesh, blk, eid);
@@ -1706,7 +1704,7 @@ namespace ts
         const std::vector<ot::Block>& blkList = pMesh->getLocalBlockList();
         const ot::TreeNode* pNodes = pMesh->getAllElements().data();
         const double current_t= m_uiTimeInfo._m_uiT;
-        const unsigned int DOF = m_uiEVar.GetDof();
+        const unsigned int DOF = m_uiEVar.get_dof();
         
         double current_t_adv=current_t;
         
@@ -1782,12 +1780,12 @@ namespace ts
         // for(unsigned int bb=0; bb < m_uiActiveBlkIDs.size(); bb++)
         // {
         //     const unsigned int blk = m_uiActiveBlkIDs[bb];
-        //     m_uiBVec[blk]._vec[0].zipDG(pMesh,m_uiEvarDG.GetVecArray(),DOF);
+        //     m_uiBVec[blk]._vec[0].zipDG(pMesh,m_uiEvarDG.get_vec_ptr(),DOF);
         // }
 
         // // Now need to synchronize the out vector just to smooth out solution between refinement boundaries. 
-        // pMesh->readFromGhostBeginEleDGVec(m_uiEvarDG.GetVecArray(),DOF);
-        // pMesh->readFromGhostEndEleDGVec(m_uiEvarDG.GetVecArray(),DOF);
+        // pMesh->readFromGhostBeginEleDGVec(m_uiEvarDG.get_vec_ptr(),DOF);
+        // pMesh->readFromGhostEndEleDGVec(m_uiEvarDG.get_vec_ptr(),DOF);
 
             
         // for(unsigned int bb=0; bb < m_uiActiveBlkIDs.size(); bb++)
@@ -1843,7 +1841,7 @@ namespace ts
                     m_uiPt[ENUTSPROFILE::ENUTS_BLK_ZIP].start();
                 #endif
 
-                m_uiBVec[blk]._vec[BLK_S].zipDG(pMesh,m_uiStVec[BLK_S-1].GetVecArray(),DOF);
+                m_uiBVec[blk]._vec[BLK_S].zipDG(pMesh,m_uiStVec[BLK_S-1].get_vec_ptr(),DOF);
                 m_uiBVec[blk]._rks = rk;
 
                 #ifdef __PROFILE_ENUTS__
@@ -1852,8 +1850,8 @@ namespace ts
 
             }
 
-            pMesh->readFromGhostBeginEleDGVec(m_uiStVec[BLK_S-1].GetVecArray(),DOF);
-            pMesh->readFromGhostEndEleDGVec(m_uiStVec[BLK_S-1].GetVecArray(),DOF);
+            pMesh->readFromGhostBeginEleDGVec(m_uiStVec[BLK_S-1].get_vec_ptr(),DOF);
+            pMesh->readFromGhostEndEleDGVec(m_uiStVec[BLK_S-1].get_vec_ptr(),DOF);
 
             for(unsigned int bb=0; bb < m_uiActiveBlkIDs.size(); bb++)
             {
@@ -1873,7 +1871,7 @@ namespace ts
             // 02/12/2021 : The overlapped ghost exchange has a bug. - look at line 1768 when uncommenting
             /*
             // do the DG vec ghost sync. 
-            pMesh->readFromGhostBeginEleDGVec(m_uiStVec[BLK_S-1].GetVecArray(),DOF);
+            pMesh->readFromGhostBeginEleDGVec(m_uiStVec[BLK_S-1].get_vec_ptr(),DOF);
             
 
             
@@ -1892,7 +1890,7 @@ namespace ts
 
             }
 
-            pMesh->readFromGhostEndEleDGVec(m_uiStVec[BLK_S-1].GetVecArray(),DOF);
+            pMesh->readFromGhostEndEleDGVec(m_uiStVec[BLK_S-1].get_vec_ptr(),DOF);
 
             for(unsigned int bb=0; bb < m_uiDependentActiveBlkIDs.size(); bb++)
             {
@@ -1975,7 +1973,7 @@ namespace ts
         const std::vector<ot::Block>& blkList = pMesh->getLocalBlockList();
         const ot::TreeNode* pNodes = pMesh->getAllElements().data();
         const double current_t= m_uiTimeInfo._m_uiT;
-        const unsigned int DOF = m_uiEVar.GetDof();
+        const unsigned int DOF = m_uiEVar.get_dof();
         
         double current_t_adv=current_t;
         
@@ -2008,12 +2006,12 @@ namespace ts
         // for(unsigned int bb=0; bb < m_uiActiveBlkIDs.size(); bb++)
         // {
         //     const unsigned int blk = m_uiActiveBlkIDs[bb];
-        //     m_uiBVec[blk]._vec[0].zipDG(pMesh,m_uiEvarDG.GetVecArray(),DOF);
+        //     m_uiBVec[blk]._vec[0].zipDG(pMesh,m_uiEvarDG.get_vec_ptr(),DOF);
         // }
 
         // // Now need to synchronize the out vector just to smooth out solution between refinement boundaries. 
-        // pMesh->readFromGhostBeginEleDGVec(m_uiEvarDG.GetVecArray(),DOF);
-        // pMesh->readFromGhostEndEleDGVec(m_uiEvarDG.GetVecArray(),DOF);
+        // pMesh->readFromGhostBeginEleDGVec(m_uiEvarDG.get_vec_ptr(),DOF);
+        // pMesh->readFromGhostEndEleDGVec(m_uiEvarDG.get_vec_ptr(),DOF);
 
             
         // for(unsigned int bb=0; bb < m_uiActiveBlkIDs.size(); bb++)
@@ -2069,7 +2067,7 @@ namespace ts
                     m_uiPt[ENUTSPROFILE::ENUTS_BLK_ZIP].start();
                 #endif
 
-                m_uiBVec[blk]._vec[BLK_S].zip(pMesh,m_uiStVec[BLK_S-1].GetVecArray(),DOF);
+                m_uiBVec[blk]._vec[BLK_S].zip(pMesh,m_uiStVec[BLK_S-1].get_vec_ptr(),DOF);
                 m_uiBVec[blk]._rks = rk;
 
                 #ifdef __PROFILE_ENUTS__
@@ -2080,10 +2078,10 @@ namespace ts
 
             
             // do the DG vec ghost sync. 
-            pMesh->readFromGhostBegin(m_uiStVec[BLK_S-1].GetVecArray(),DOF);
-            pMesh->readFromGhostEnd(m_uiStVec[BLK_S-1].GetVecArray(),DOF);
+            pMesh->readFromGhostBegin(m_uiStVec[BLK_S-1].get_vec_ptr(),DOF);
+            pMesh->readFromGhostEnd(m_uiStVec[BLK_S-1].get_vec_ptr(),DOF);
 
-            pMesh->unzip(m_uiStVec[BLK_S-1].GetVecArray(),m_uiEvarUzip.GetVecArray(),DOF);
+            pMesh->unzip(m_uiStVec[BLK_S-1].get_vec_ptr(),m_uiEvarUzip.get_vec_ptr(),DOF);
             
             for(unsigned int bb=0; bb < m_uiActiveBlkIDs.size(); bb++)
             {
@@ -2093,7 +2091,7 @@ namespace ts
                 const unsigned int bLev =  pNodes[blkList[blk].getLocalElementBegin()].getLevel();
                 const unsigned int BLK_DT = m_uiAppCtx->getBlkTimestepFac(bLev,m_uiLevMin,m_uiLevMax);
 
-                m_uiBVec[blk]._vec[BLK_S].copyFromUnzip(pMesh,m_uiEvarUzip.GetVecArray(), true, DOF);
+                m_uiBVec[blk]._vec[BLK_S].copyFromUnzip(pMesh,m_uiEvarUzip.get_vec_ptr(), true, DOF);
                 //sync_blk_timestep(blk,BLK_S);
                 m_uiAppCtx->post_stage_blk((T*)m_uiBVec[blk]._vec[BLK_S].data(),DOF,blk,current_t + dt_finest*BLK_T);
                 m_uiBVec[blk]._vec[BLK_S].mark_synced();
@@ -2180,10 +2178,10 @@ namespace ts
             const unsigned int rank = pMesh->getMPIRank();
             const unsigned int npes = pMesh->getMPICommSize();
             
-            assert (m_uiEVar.GetDof()== m_uiEVecTmp[0].GetDof());
-            assert (m_uiEVar.GetDof()== m_uiEVecTmp[1].GetDof());
+            assert (m_uiEVar.get_dof()== m_uiEVecTmp[0].get_dof());
+            assert (m_uiEVar.get_dof()== m_uiEVecTmp[1].get_dof());
             
-            const unsigned int DOF = m_uiEVar.GetDof();
+            const unsigned int DOF = m_uiEVar.get_dof();
             MPI_Comm comm = pMesh->getMPICommunicator();
 
             const ot::TreeNode* const pNodes = pMesh->getAllElements().data();
@@ -2201,7 +2199,7 @@ namespace ts
             {
                 m_uiBVec[blk]._time = 0;
                 m_uiBVec[blk]._rks  = 0;
-                m_uiBVec[blk]._vec[0].copyFromUnzip(pMesh,m_uiEvarUzip.GetVecArray(), true, DOF);
+                m_uiBVec[blk]._vec[0].copyFromUnzip(pMesh,m_uiEvarUzip.get_vec_ptr(), true, DOF);
                 m_uiBVec[blk]._vec[0].mark_synced();
 
                 for(unsigned int s=1;  s <= m_uiNumStages; s++)
@@ -2266,7 +2264,7 @@ namespace ts
                 const unsigned int bLev =  pNodes[blkList[blk].getLocalElementBegin()].getLevel();
                 const unsigned int BLK_DT = m_uiAppCtx->getBlkTimestepFac(bLev,m_uiLevMin,m_uiLevMax);
 
-                m_uiBVec[blk]._vec[0].zip(pMesh, m_uiEVar.GetVecArray(),DOF);
+                m_uiBVec[blk]._vec[0].zip(pMesh, m_uiEVar.get_vec_ptr(),DOF);
 
             }
 
@@ -2316,7 +2314,7 @@ namespace ts
             //printf("[LTS]: old number of blocks %d new mesh number of blocks :  %d \n",pMesh->getLocalBlockList().size(), newMesh->getLocalBlockList().size());
         }
 
-        const unsigned int DOF = m_uiEvarDG.GetDof();    
+        const unsigned int DOF = m_uiEvarDG.get_dof();    
 
 
         //0 : synced vector
@@ -2327,7 +2325,7 @@ namespace ts
         nMeshVec.resize(m_uiNumStages+1);
 
         for(unsigned int i=0; i < (m_uiNumStages+1); i++)
-            nMeshVec[i].VecCreateDG(newMesh,true,DOF); 
+            nMeshVec[i].create_vector(newMesh,ot::DVEC_TYPE::OCT_LOCAL_NODES,ot::DVEC_LOC::HOST,DOF,true); 
 
 
         // element time vector. 
@@ -2354,16 +2352,16 @@ namespace ts
         for(unsigned int v=0; v< DOF; v++)
         {
 
-            double vmin = vecMin(pMesh,m_uiEvarDG.GetVecArray() + v * pMesh->getDegOfFreedomDG(), ot::VEC_TYPE::DG_NODAL,true);
-            double vmax = vecMax(pMesh,m_uiEvarDG.GetVecArray() + v * pMesh->getDegOfFreedomDG(), ot::VEC_TYPE::DG_NODAL,true);
+            double vmin = vecMin(pMesh,m_uiEvarDG.get_vec_ptr() + v * pMesh->getDegOfFreedomDG(), ot::VEC_TYPE::DG_NODAL,true);
+            double vmax = vecMax(pMesh,m_uiEvarDG.get_vec_ptr() + v * pMesh->getDegOfFreedomDG(), ot::VEC_TYPE::DG_NODAL,true);
 
             if(!pMesh->getMPIRankGlobal())
                 std::cout<<" Evar before IGT var: "<<v<< " vmin: "<<vmin<<" vmax: "<<vmax<<std::endl;
 
             for(unsigned int s=0; s < m_uiNumStages; s++)
             {
-                double vmin = vecMin(pMesh,m_uiStVec[s].GetVecArray() + v * pMesh->getDegOfFreedomDG(), ot::VEC_TYPE::DG_NODAL,true);
-                double vmax = vecMax(pMesh,m_uiStVec[s].GetVecArray() + v * pMesh->getDegOfFreedomDG(), ot::VEC_TYPE::DG_NODAL,true);
+                double vmin = vecMin(pMesh,m_uiStVec[s].get_vec_ptr() + v * pMesh->getDegOfFreedomDG(), ot::VEC_TYPE::DG_NODAL,true);
+                double vmax = vecMax(pMesh,m_uiStVec[s].get_vec_ptr() + v * pMesh->getDegOfFreedomDG(), ot::VEC_TYPE::DG_NODAL,true);
 
                 if(!pMesh->getMPIRankGlobal())
                     std::cout<<" stage: "<<s<<" before IGT var: "<<v<< " vmin: "<<vmin<<" vmax: "<<vmax<<std::endl;
@@ -2373,9 +2371,9 @@ namespace ts
         }
         #endif
 
-        pMesh->interGridTransfer_DG(m_uiEvarDG.GetVecArray(), nMeshVec[0].GetVecArray(), newMesh, DOF);
+        pMesh->interGridTransfer_DG(m_uiEvarDG.get_vec_ptr(), nMeshVec[0].get_vec_ptr(), newMesh, DOF);
         for(unsigned int i=0; i < (m_uiNumStages); i++)
-            pMesh->interGridTransfer_DG(m_uiStVec[i].GetVecArray(),nMeshVec[i+1].GetVecArray(),newMesh,DOF);
+            pMesh->interGridTransfer_DG(m_uiStVec[i].get_vec_ptr(),nMeshVec[i+1].get_vec_ptr(),newMesh,DOF);
 
          // intergrid transfer for the elemental vector. 
         pMesh->interGridTransferCellVec(m_uiEleTime.data(),eleTimeVec.data(),newMesh,1,ot::INTERGRID_TRANSFER_MODE::CELLVEC_CPY);
@@ -2395,7 +2393,7 @@ namespace ts
         //             eleT[ele] = eleTimeVec[ele];//std::cout<<"ele : "<<ele<<" time : "<<m_uiEleTime[ele]<<std::endl;
 
         //         const char*  pVarNames []  = {"CHI","PHI"};
-        //         const double* pVarData []  = {nMeshVec[0].GetVecArray() , nMeshVec[0].GetVecArray() + newMesh->getDegOfFreedomDG()};
+        //         const double* pVarData []  = {nMeshVec[0].get_vec_ptr() , nMeshVec[0].get_vec_ptr() + newMesh->getDegOfFreedomDG()};
         //         const char*  cVarNames []  = {"time_level"};
         //         const double* cVarData []  = {eleT.data()}; 
                 
@@ -2408,9 +2406,8 @@ namespace ts
 
 
 
-        m_uiAppCtx->grid_transfer(newMesh,true,false,false);
-        m_uiAppCtx->update_app_vars();
-
+        m_uiAppCtx->grid_transfer(newMesh);
+        
         std::swap(pMesh,newMesh);
         delete newMesh;
 
@@ -2445,21 +2442,21 @@ namespace ts
         eleTimeLev.clear();
 
         for(unsigned int i=0; i < (m_uiNumStages+1); i++)
-            nMeshVec[i].VecDestroy();
+            nMeshVec[i].destroy_vector();
 
         // ghost sync begin. 
-        pMesh->readFromGhostBeginEleDGVec(m_uiEvarDG.GetVecArray(),m_uiEvarDG.GetDof());
+        pMesh->readFromGhostBeginEleDGVec(m_uiEvarDG.get_vec_ptr(),m_uiEvarDG.get_dof());
         
         for(unsigned int i=0; i < m_uiNumStages; i++)
-            pMesh->readFromGhostBeginEleDGVec(m_uiStVec[i].GetVecArray(),m_uiStVec[i].GetDof());
+            pMesh->readFromGhostBeginEleDGVec(m_uiStVec[i].get_vec_ptr(),m_uiStVec[i].get_dof());
         
         pMesh->readFromGhostBeginElementVec(m_uiEleTime.data(),1);
         pMesh->readFromGhostBeginElementVec(m_uiEleDT.data(),1);
 
-        pMesh->readFromGhostEndEleDGVec(m_uiEvarDG.GetVecArray(),m_uiEvarDG.GetDof());
+        pMesh->readFromGhostEndEleDGVec(m_uiEvarDG.get_vec_ptr(),m_uiEvarDG.get_dof());
 
         for(unsigned int i=0; i < m_uiNumStages; i++)
-            pMesh->readFromGhostEndEleDGVec(m_uiStVec[i].GetVecArray(),m_uiStVec[i].GetDof());
+            pMesh->readFromGhostEndEleDGVec(m_uiStVec[i].get_vec_ptr(),m_uiStVec[i].get_dof());
         
         pMesh->readFromGhostEndElementVec(m_uiEleTime.data(),1);
         pMesh->readFromGhostEndElementVec(m_uiEleDT.data(),1);
@@ -2470,16 +2467,16 @@ namespace ts
         for(unsigned int v=0; v< DOF; v++)
         {
 
-            double vmin = vecMin(pMesh,m_uiEvarDG.GetVecArray() + v * pMesh->getDegOfFreedomDG(), ot::VEC_TYPE::DG_NODAL,true);
-            double vmax = vecMax(pMesh,m_uiEvarDG.GetVecArray() + v * pMesh->getDegOfFreedomDG(), ot::VEC_TYPE::DG_NODAL,true);
+            double vmin = vecMin(pMesh,m_uiEvarDG.get_vec_ptr() + v * pMesh->getDegOfFreedomDG(), ot::VEC_TYPE::DG_NODAL,true);
+            double vmax = vecMax(pMesh,m_uiEvarDG.get_vec_ptr() + v * pMesh->getDegOfFreedomDG(), ot::VEC_TYPE::DG_NODAL,true);
 
             if(!pMesh->getMPIRankGlobal())
                 std::cout<<" Evar after IGT var: "<<v<< " vmin: "<<vmin<<" vmax: "<<vmax<<std::endl;
 
             for(unsigned int s=0; s < m_uiNumStages; s++)
             {
-                double vmin = vecMin(pMesh,m_uiStVec[s].GetVecArray() + v * pMesh->getDegOfFreedomDG(), ot::VEC_TYPE::DG_NODAL,true);
-                double vmax = vecMax(pMesh,m_uiStVec[s].GetVecArray() + v * pMesh->getDegOfFreedomDG(), ot::VEC_TYPE::DG_NODAL,true);
+                double vmin = vecMin(pMesh,m_uiStVec[s].get_vec_ptr() + v * pMesh->getDegOfFreedomDG(), ot::VEC_TYPE::DG_NODAL,true);
+                double vmax = vecMax(pMesh,m_uiStVec[s].get_vec_ptr() + v * pMesh->getDegOfFreedomDG(), ot::VEC_TYPE::DG_NODAL,true);
 
                 if(!pMesh->getMPIRankGlobal())
                     std::cout<<" stage: "<<s<<" after IGT var: "<<v<< " vmin: "<<vmin<<" vmax: "<<vmax<<std::endl;
@@ -2555,7 +2552,7 @@ namespace ts
             const unsigned int eOrder = pMesh->getElementOrder();
 
             const unsigned int unz_ele = (2*eOrder+1)*(2*eOrder+1)*(2*eOrder+1);
-            const unsigned int DOF = m_uiEVar.GetDof();
+            const unsigned int DOF = m_uiEVar.get_dof();
 
             std::vector<T> uEleVec;
             uEleVec.resize(unz_ele*DOF);
@@ -2683,10 +2680,10 @@ namespace ts
             const unsigned int rank = pMesh->getMPIRank();
             const unsigned int npes = pMesh->getMPICommSize();
             
-            assert (m_uiEVar.GetDof()== m_uiEVecTmp[0].GetDof());
-            assert (m_uiEVar.GetDof()== m_uiEVecTmp[1].GetDof());
+            assert (m_uiEVar.get_dof()== m_uiEVecTmp[0].get_dof());
+            assert (m_uiEVar.get_dof()== m_uiEVecTmp[1].get_dof());
             
-            const unsigned int DOF = m_uiEVar.GetDof();
+            const unsigned int DOF = m_uiEVar.get_dof();
             MPI_Comm comm = pMesh->getMPICommunicator();
 
             const ot::TreeNode* const pNodes = pMesh->getAllElements().data();
@@ -2704,7 +2701,7 @@ namespace ts
             {
                 m_uiBVec[blk]._time = 0;
                 m_uiBVec[blk]._rks  = 0;
-                m_uiBVec[blk]._vec[0].copyFromUnzip(pMesh,m_uiEvarUzip.GetVecArray(), true, DOF);
+                m_uiBVec[blk]._vec[0].copyFromUnzip(pMesh,m_uiEvarUzip.get_vec_ptr(), true, DOF);
                 m_uiBVec[blk]._vec[0].mark_synced();
 
                 for(unsigned int s=1;  s <= m_uiNumStages; s++)
@@ -2762,7 +2759,7 @@ namespace ts
             //         eleT[ele] = m_uiEleTime[ele];//std::cout<<"ele : "<<ele<<" time : "<<m_uiEleTime[ele]<<std::endl;
 
             //     const char*  pVarNames []  = {"CHI","PHI"};
-            //     const double* pVarData []  = {m_uiEvarDG.GetVecArray() ,  m_uiEvarDG.GetVecArray() + pMesh->getDegOfFreedomDG()};
+            //     const double* pVarData []  = {m_uiEvarDG.get_vec_ptr() ,  m_uiEvarDG.get_vec_ptr() + pMesh->getDegOfFreedomDG()};
             //     const char*  cVarNames []  = {"time_level"};
             //     const double* cVarData []  = {eleT.data()}; 
                 
@@ -2794,14 +2791,14 @@ namespace ts
                 }
 
                 // blk_vec_to_zipDG(m_uiBVec.data(),m_uiEvarDG,0);
-                // pMesh->readFromGhostBeginEleDGVec(m_uiEvarDG.GetVecArray(),m_uiEvarDG.GetDof());
-                // pMesh->readFromGhostEndEleDGVec(m_uiEvarDG.GetVecArray(),m_uiEvarDG.GetDof());
+                // pMesh->readFromGhostBeginEleDGVec(m_uiEvarDG.get_vec_ptr(),m_uiEvarDG.get_dof());
+                // pMesh->readFromGhostEndEleDGVec(m_uiEvarDG.get_vec_ptr(),m_uiEvarDG.get_dof());
 
                 // const std::vector<ot::Block>& blkList = pMesh->getLocalBlockList();
                 // for(unsigned int blk=0; blk< blkList.size(); blk++)
                 // {
                 //     // T* tmp = (T*) m_uiBVec[blk]._vec[0].data();
-                //     // for(unsigned int w=0; w <  m_uiBVec[blk]._vec[0].getDOF()* m_uiBVec[blk]._vec[0].getSz(); w++)
+                //     // for(unsigned int w=0; w <  m_uiBVec[blk]._vec[0].get_dof()* m_uiBVec[blk]._vec[0].getSz(); w++)
                 //     //     tmp[w]=0;
                     
                 //     m_uiBVec[blk]._vec[0].mark_unsynced();
@@ -2833,14 +2830,14 @@ namespace ts
                 m_uiPt[ENUTSPROFILE::ENUTS_BLK_ZIP].start();
             #endif
 
-            const unsigned int DOF = m_uiEVar.GetDof();
+            const unsigned int DOF = m_uiEVar.get_dof();
             for(unsigned int blk =0; blk < blkList.size(); blk++)
             {
                 //const unsigned int BLK_T = m_uiBVec[blk]._time;
                 //const unsigned int NN   =  m_uiBVec[blk]._vec[0].getSz();
                 //const unsigned int bLev =  pNodes[blkList[blk].getLocalElementBegin()].getLevel();
                 //const unsigned int BLK_DT = m_uiAppCtx->getBlkTimestepFac(bLev,m_uiLevMin,m_uiLevMax);
-                m_uiBVec[blk]._vec[0].zip(pMesh, m_uiEVar.GetVecArray(),DOF);
+                m_uiBVec[blk]._vec[0].zip(pMesh, m_uiEVar.get_vec_ptr(),DOF);
             }
 
             #ifdef __PROFILE_ENUTS__

@@ -1,10 +1,13 @@
-//
-// Created by milinda on 2/8/16.
-//
-
-#ifndef SFCSORTBENCH_DENDRO_H
-#define SFCSORTBENCH_DENDRO_H
-
+/**
+ * @file dendro.h
+ * @brief Basic dendro data types and definitions. 
+ * @version 0.1
+ * @date 2016-02-08
+ * 
+ * @copyright Copyright (c) 2022
+ * 
+ */
+#pragma once
 #include <climits>
 #include <complex>
 #include <stdio.h>
@@ -12,6 +15,7 @@
 #include <signal.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <iostream>
 
 
 
@@ -44,8 +48,11 @@
 //#define DendroIntL unsigned int
 typedef unsigned __int128 DendroUInt_128;
 
-
-
+#define DEVICE_REAL double
+#define DEVICE_INT int
+#define DEVICE_UINT unsigned int
+#define DEVICE_FLOAT32 float
+#define DEVICE_BOOL bool
 
 // mesh.h # defines.
 #define LOOK_UP_TABLE_DEFAULT UINT_MAX
@@ -182,4 +189,9 @@ extern unsigned int MAXDEAPTH_LEVEL_DIFF;
 
 void __handler(int sig);
 
-#endif //SFCSORTBENCH_DENDRO_H
+inline int dendro_error(const char* const file, int line, const std::string& msg){
+   std::cout<< "[" << file << "] : "<<line<<" "<< msg <<std::endl;
+   return 0;
+}
+
+#define dendro_log(msg) dendro_error(__FILE__, __LINE__, msg)

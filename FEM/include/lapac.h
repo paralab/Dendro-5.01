@@ -22,6 +22,9 @@
 extern "C" void dgesv_( int* n, int* nrhs, double* a, int* lda, int* ipiv,double* b, int* ldb, int* info );
 extern "C" void dsyev_( char* jobz, char* uplo, int* n, double* a, int* lda,double* w, double* work, int* lwork, int* info);
 
+// double banded matrix vector multiplication. 
+extern "C" void dgbmv_(char* trans, int * m, int * n, int * kl, int * ku, double * alpha,  double * A, int * lda, double * X,  int * incx, double * beta, double * y, int * incy); 	
+
 // LU decomoposition of a general matrix
 extern "C" void dgetrf_(int* M, int *N, double* A, int* lda, int* IPIV, int* INFO);
 
@@ -189,8 +192,8 @@ inline void inverse(double* A, int N)
     dgetrf_(&N,&N,A,&N,IPIV,&INFO);
     dgetri_(&N,A,&N,IPIV,WORK,&LWORK,&INFO);
 
-    delete IPIV;
-    delete WORK;
+    delete [] IPIV;
+    delete [] WORK;
 }
 
 

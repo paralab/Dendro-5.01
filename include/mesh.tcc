@@ -393,14 +393,11 @@ namespace ot
     }
 
     template <typename T>
-    void Mesh::CG2DGVec(T* cg_vec, T*& dg_vec, bool isAllocated, bool gsynced, unsigned int dof) 
+    void Mesh::CG2DGVec(T* cg_vec, T* dg_vec, bool gsynced, unsigned int dof) 
     {
         if(!m_uiIsActive)
             return;
 
-        if(!isAllocated)
-            dg_vec = this->createDGVector((T)0 , dof);
-        
         if(!gsynced)
         {
             this->readFromGhostBegin(cg_vec,dof);
@@ -408,39 +405,24 @@ namespace ot
 
         }
 
-        std::vector<T> nodalVals;
-        nodalVals.resize(m_uiNpE);
-
         const unsigned int vsz_dg = m_uiNumTotalElements * m_uiNpE; 
         const unsigned int vsz_cg = m_uiNumActualNodes;
 
         for(unsigned int v=0; v < dof; v++ )
-        {
-
             for(unsigned int ele = m_uiElementLocalBegin; ele < m_uiElementLocalEnd; ele++)
-            {
-                this->getElementNodalValues(cg_vec + v*vsz_cg , nodalVals.data(), ele );
-                
-                for(unsigned int n=0; n < m_uiNpE; n++)
-                    dg_vec[v * vsz_dg + ele*m_uiNpE + n] = nodalVals[n];
-            }
-
-        }
-
+                this->getElementNodalValues(cg_vec + v*vsz_cg , dg_vec + v * vsz_dg + ele*m_uiNpE, ele);
+        
         return ;
 
         
     }
     
     template <typename T>
-    void Mesh::DG2CGVec(const T* dg_vec, T*& cg_vec, bool isAllocated, unsigned int dof) const
+    void Mesh::DG2CGVec(const T* dg_vec, T* cg_vec, unsigned int dof) const
     {
         if(!m_uiIsActive)
             return;
 
-        if(!isAllocated)
-            cg_vec = this->createCGVector((T)0 , dof);
-        
         const unsigned int vsz_dg = m_uiNumTotalElements * m_uiNpE; 
         const unsigned int vsz_cg = m_uiNumActualNodes;
 
@@ -841,6 +823,148 @@ namespace ot
             m_uiMPIContexts.erase(m_uiMPIContexts.begin() + ctxIndex);
 
 
+        }
+
+        return;
+    }
+
+
+    template<typename T>
+    void Mesh::readFromGhostBegin(AsyncExchangeContex& ctx, T* vec, unsigned int dof)
+    {
+        if(this->getMPICommSizeGlobal()==1 || (!m_uiIsActive))
+            return;
+
+        // send recv buffers.
+        T* sendB = NULL;
+        T* recvB = NULL;
+        
+
+        if(this->isActive())
+        {
+            const std::vector<unsigned int>& nodeSendCount=this->getNodalSendCounts();
+            const std::vector<unsigned int>& nodeSendOffset=this->getNodalSendOffsets();
+
+            const std::vector<unsigned int>& nodeRecvCount=this->getNodalRecvCounts();
+            const std::vector<unsigned int>& nodeRecvOffset=this->getNodalRecvOffsets();
+
+            const std::vector<unsigned int>& sendProcList=this->getSendProcList();
+            const std::vector<unsigned int>& recvProcList=this->getRecvProcList();
+
+            const std::vector<unsigned int>& sendNodeSM=this->getSendNodeSM();
+            const std::vector<unsigned int>& recvNodeSM=this->getRecvNodeSM();
+
+
+            const unsigned int activeNpes=this->getMPICommSize();
+
+            const unsigned int sendBSz=nodeSendOffset[activeNpes-1] + nodeSendCount[activeNpes-1];
+            const unsigned int recvBSz=nodeRecvOffset[activeNpes-1] + nodeRecvCount[activeNpes-1];
+            unsigned int proc_id;
+
+            MPI_Comm commActive=this->getMPICommunicator();
+
+
+            if(recvBSz)
+            {
+                recvB=(T*)ctx.getRecvBuffer();
+
+                // active recv procs
+                for(unsigned int recv_p=0;recv_p<recvProcList.size();recv_p++)
+                {
+                    proc_id=recvProcList[recv_p];
+                    par::Mpi_Irecv((recvB+dof*nodeRecvOffset[proc_id]),dof*nodeRecvCount[proc_id],proc_id,m_uiCommTag,commActive,&ctx.m_recv_req[recv_p]);
+                }
+
+            }
+
+            if(sendBSz)
+            {
+                sendB=(T*)ctx.getSendBuffer();
+                for(unsigned int send_p=0;send_p<sendProcList.size();send_p++) {
+                    proc_id=sendProcList[send_p];
+
+                    for(unsigned int var=0;var<dof;var++)
+                    {
+                        for (unsigned int k = nodeSendOffset[proc_id]; k < (nodeSendOffset[proc_id] + nodeSendCount[proc_id]); k++)
+                        {
+                            sendB[dof*(nodeSendOffset[proc_id]) + (var*nodeSendCount[proc_id])+(k-nodeSendOffset[proc_id])] = (vec+var*m_uiNumActualNodes)[sendNodeSM[k]];
+                        }
+
+                    }
+                }
+
+                // active send procs
+                for(unsigned int send_p=0;send_p<sendProcList.size();send_p++)
+                {
+                    proc_id=sendProcList[send_p];
+                    par::Mpi_Isend(sendB+dof*nodeSendOffset[proc_id],dof*nodeSendCount[proc_id],proc_id,m_uiCommTag,commActive,&ctx.m_send_req[send_p]);
+
+                }
+            
+            }
+
+            m_uiCommTag++;
+            
+        }
+
+        return;
+    }
+
+    template<typename T>
+    void Mesh::readFromGhostEnd(AsyncExchangeContex& ctx, T* vec, unsigned int dof)
+    {
+        if(this->getMPICommSizeGlobal()==1 || (!m_uiIsActive))
+            return;
+
+        // send recv buffers.
+        T* sendB = NULL;
+        T* recvB = NULL;
+
+        if(this->isActive())
+        {
+            const std::vector<unsigned int>& nodeSendCount=this->getNodalSendCounts();
+            const std::vector<unsigned int>& nodeSendOffset=this->getNodalSendOffsets();
+
+            const std::vector<unsigned int>& nodeRecvCount=this->getNodalRecvCounts();
+            const std::vector<unsigned int>& nodeRecvOffset=this->getNodalRecvOffsets();
+
+            const std::vector<unsigned int>& sendProcList=this->getSendProcList();
+            const std::vector<unsigned int>& recvProcList=this->getRecvProcList();
+
+            const std::vector<unsigned int>& sendNodeSM=this->getSendNodeSM();
+            const std::vector<unsigned int>& recvNodeSM=this->getRecvNodeSM();
+
+
+            const unsigned int activeNpes=this->getMPICommSize();
+
+            const unsigned int sendBSz=nodeSendOffset[activeNpes-1] + nodeSendCount[activeNpes-1];
+            const unsigned int recvBSz=nodeRecvOffset[activeNpes-1] + nodeRecvCount[activeNpes-1];
+            unsigned int proc_id;
+
+            MPI_Status status;
+            // need to wait for the commns to finish ...
+            MPI_Waitall(sendProcList.size(),ctx.m_send_req.data(),MPI_STATUSES_IGNORE);
+            MPI_Waitall(recvProcList.size(),ctx.m_recv_req.data(),MPI_STATUSES_IGNORE);
+            
+            if(recvBSz)
+            {
+                // copy the recv data to the vec
+                recvB=(T*)ctx.getRecvBuffer();
+
+                for(unsigned int recv_p=0;recv_p<recvProcList.size();recv_p++){
+                    proc_id=recvProcList[recv_p];
+
+                    for(unsigned int var=0;var<dof;var++)
+                    {
+                        for (unsigned int k = nodeRecvOffset[proc_id]; k < (nodeRecvOffset[proc_id] + nodeRecvCount[proc_id]); k++)
+                        {
+                            (vec+var*m_uiNumActualNodes)[recvNodeSM[k]]=recvB[dof*(nodeRecvOffset[proc_id]) + (var*nodeRecvCount[proc_id])+(k-nodeRecvOffset[proc_id])];
+                        }
+                    }
+
+                }
+
+            }
         }
 
         return;
@@ -3932,7 +4056,7 @@ namespace ot
     }
 
     template<typename T>
-    void Mesh::OCT_DIR_LEFT_DOWN_Unzip(const ot::Block & blk,const T* zippedVec, T* unzippedVec)
+    void Mesh::OCT_DIR_LEFT_DOWN_Unzip(const ot::Block & blk,const T* zippedVec, T* unzippedVec, T* eleDGVec, bool* eleDGValid)
     {
 
         const unsigned int * blk2diagMap=blk.getBlk2DiagMap();
@@ -4005,13 +4129,17 @@ namespace ot
             assert(lookUp!=LOOK_UP_TABLE_DEFAULT);
             if(pNodes[lookUp].getLevel()==regLev)
             {
-
-                getElementNodalValues(zippedVec,&(*(interpOut.begin())),lookUp);
+                T* lookUpVec = &eleDGVec[lookUp*m_uiNpE];
+                if(!eleDGValid[lookUp])
+                {
+                    getElementNodalValues(zippedVec,lookUpVec,lookUp);
+                    eleDGValid[lookUp]=true;    
+                }
                 for(unsigned int k=kb;k<ke;k++)
                     for(unsigned int j=jb;j<je;j++)
                         for(unsigned int i=ib;i<ie;i++)
                         {
-                            unzippedVec[offset+(ek*m_uiElementOrder+k+k_offset)*(ly*lx)+(ej*m_uiElementOrder+j+j_offset)*(lx)+(ei*m_uiElementOrder+i+i_offset)]=interpOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
+                            unzippedVec[offset+(ek*m_uiElementOrder+k+k_offset)*(ly*lx)+(ej*m_uiElementOrder+j+j_offset)*(lx)+(ei*m_uiElementOrder+i+i_offset)]=lookUpVec[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
 
                         }
 
@@ -4023,10 +4151,15 @@ namespace ot
                 if((pNodes[lookUp].getLevel()+1)!=regLev)
                     std::cout<<"LEFT_DOWN_DIAG_UNIZIP ERROR: 2:1 balance error "<<std::endl;
 
-                getElementNodalValues(zippedVec,&(*(interpIn.begin())),lookUp);
+                T* lookUpVec = &eleDGVec[lookUp*m_uiNpE];
+                if(!eleDGValid[lookUp])
+                {
+                    getElementNodalValues(zippedVec,lookUpVec,lookUp);
+                    eleDGValid[lookUp]=true;    
+                }
                 // note this might not be the cnum1 cnum2.
                 cnum=ot::TreeNode(blkNode.minX()-sz,blkNode.minY()-sz,blkNode.minZ()+ek*sz,regLev,m_uiDim,m_uiMaxDepth).getMortonIndex();
-                parent2ChildInterpolation(&(*(interpIn.begin())),&(*(interpOut.begin())),cnum,3);
+                parent2ChildInterpolation(lookUpVec,&(*(interpOut.begin())),cnum,3);
                 for(unsigned int k=kb;k<ke;k++)
                     for(unsigned int j=jb;j<je;j++)
                         for(unsigned int i=ib;i<ie;i++)
@@ -4038,7 +4171,7 @@ namespace ot
                 if(ek<blkElem_1D)
                 {
                     cnum=ot::TreeNode(blkNode.minX()-sz,blkNode.minY()-sz,blkNode.minZ()+ek*sz,regLev,m_uiDim,m_uiMaxDepth).getMortonIndex();
-                    parent2ChildInterpolation(&(*(interpIn.begin())),&(*(interpOut.begin())),cnum,3);
+                    parent2ChildInterpolation(lookUpVec,&(*(interpOut.begin())),cnum,3);
                     for(unsigned int k=kb;k<ke;k++)
                         for(unsigned int j=jb;j<je;j++)
                             for(unsigned int i=ib;i<ie;i++)
@@ -4137,7 +4270,7 @@ namespace ot
     }
 
     template<typename T>
-    void Mesh::OCT_DIR_LEFT_UP_Unzip(const ot::Block & blk,const T* zippedVec, T* unzippedVec)
+    void Mesh::OCT_DIR_LEFT_UP_Unzip(const ot::Block & blk,const T* zippedVec, T* unzippedVec, T* eleDGVec, bool* eleDGValid)
     {
 
         const unsigned int * blk2diagMap=blk.getBlk2DiagMap();
@@ -4207,12 +4340,17 @@ namespace ot
             assert(lookUp!=LOOK_UP_TABLE_DEFAULT);
             if(pNodes[lookUp].getLevel()==regLev)
             {
-                getElementNodalValues(zippedVec,&(*(interpOut.begin())),lookUp);
+                T* lookUpVec = &eleDGVec[lookUp*m_uiNpE];
+                if(!eleDGValid[lookUp])
+                {
+                    getElementNodalValues(zippedVec,lookUpVec,lookUp);
+                    eleDGValid[lookUp]=true;    
+                }
                 for(unsigned int k=kb;k<ke;k++)
                     for(unsigned int j=jb;j<je;j++)
                         for(unsigned int i=ib;i<ie;i++)
                         {
-                            unzippedVec[offset+(ek*m_uiElementOrder+k+k_offset)*(ly*lx)+(ej*m_uiElementOrder+j+j_offset)*(lx)+(ei*m_uiElementOrder+i+i_offset)]=interpOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
+                            unzippedVec[offset+(ek*m_uiElementOrder+k+k_offset)*(ly*lx)+(ej*m_uiElementOrder+j+j_offset)*(lx)+(ei*m_uiElementOrder+i+i_offset)]=lookUpVec[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
                         }
 
                 edgeCount+=1;
@@ -4223,9 +4361,14 @@ namespace ot
                 if((pNodes[lookUp].getLevel()+1)!=regLev)
                     std::cout<<"LEFT_UP_DIAG_UNIZIP ERROR: 2:1 balance error "<<std::endl;
 
-                getElementNodalValues(zippedVec,&(*(interpIn.begin())),lookUp);
+                T* lookUpVec = &eleDGVec[lookUp*m_uiNpE];
+                if(!eleDGValid[lookUp])
+                {
+                    getElementNodalValues(zippedVec,lookUpVec,lookUp);
+                    eleDGValid[lookUp]=true;    
+                }
                 cnum=ot::TreeNode(blkNode.minX()-sz,blkNode.maxY(),blkNode.minZ()+ek*sz,regLev,m_uiDim,m_uiMaxDepth).getMortonIndex();
-                parent2ChildInterpolation(&(*(interpIn.begin())),&(*(interpOut.begin())),cnum,3);
+                parent2ChildInterpolation(lookUpVec,&(*(interpOut.begin())),cnum,3);
                 for(unsigned int k=kb;k<ke;k++)
                     for(unsigned int j=jb;j<je;j++)
                         for(unsigned int i=ib;i<ie;i++)
@@ -4238,7 +4381,7 @@ namespace ot
                 if(ek<blkElem_1D)
                 {
                     cnum=ot::TreeNode(blkNode.minX()-sz,blkNode.maxY(),blkNode.minZ()+ek*sz,regLev,m_uiDim,m_uiMaxDepth).getMortonIndex();
-                    parent2ChildInterpolation(&(*(interpIn.begin())),&(*(interpOut.begin())),cnum,3);
+                    parent2ChildInterpolation(lookUpVec,&(*(interpOut.begin())),cnum,3);
                     for(unsigned int k=kb;k<ke;k++)
                         for(unsigned int j=jb;j<je;j++)
                             for(unsigned int i=ib;i<ie;i++)
@@ -4343,7 +4486,7 @@ namespace ot
 
 
     template<typename T>
-    void Mesh::OCT_DIR_LEFT_BACK_Unzip(const ot::Block & blk,const T* zippedVec, T* unzippedVec)
+    void Mesh::OCT_DIR_LEFT_BACK_Unzip(const ot::Block & blk,const T* zippedVec, T* unzippedVec, T* eleDGVec, bool* eleDGValid)
     {
         const unsigned int * blk2diagMap=blk.getBlk2DiagMap();
         unsigned int lookUp; // first OCT_DIR_LEFT_DOWN element.
@@ -4414,12 +4557,17 @@ namespace ot
             assert(lookUp!=LOOK_UP_TABLE_DEFAULT);
             if(pNodes[lookUp].getLevel()==regLev)
             {
-                getElementNodalValues(zippedVec,&(*(interpOut.begin())),lookUp);
+                T* lookUpVec = &eleDGVec[lookUp*m_uiNpE];
+                if(!eleDGValid[lookUp])
+                {
+                    getElementNodalValues(zippedVec,lookUpVec,lookUp);
+                    eleDGValid[lookUp]=true;    
+                }
                 for(unsigned int k=kb;k<ke;k++)
                     for(unsigned int j=jb;j<je;j++)
                         for(unsigned int i=ib;i<ie;i++)
                         {
-                            unzippedVec[offset+(ek*m_uiElementOrder+k+k_offset)*(ly*lx)+(ej*m_uiElementOrder+j+j_offset)*(lx)+(ei*m_uiElementOrder+i+i_offset)]=interpOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
+                            unzippedVec[offset+(ek*m_uiElementOrder+k+k_offset)*(ly*lx)+(ej*m_uiElementOrder+j+j_offset)*(lx)+(ei*m_uiElementOrder+i+i_offset)]=lookUpVec[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
                         }
 
                 edgeCount+=1;
@@ -4430,9 +4578,14 @@ namespace ot
                 if((pNodes[lookUp].getLevel()+1)!=regLev)
                     std::cout<<"LEFT_BACK_DIAG_UNIZIP ERROR: 2:1 balance error "<<std::endl;
 
-                getElementNodalValues(zippedVec,&(*(interpIn.begin())),lookUp);
+                T* lookUpVec = &eleDGVec[lookUp*m_uiNpE];
+                if(!eleDGValid[lookUp])
+                {
+                    getElementNodalValues(zippedVec,lookUpVec,lookUp);
+                    eleDGValid[lookUp]=true;    
+                }
                 cnum=ot::TreeNode(blkNode.minX()-sz,blkNode.minY()+ej*sz,blkNode.minZ()-sz,regLev,m_uiDim,m_uiMaxDepth).getMortonIndex();
-                parent2ChildInterpolation(&(*(interpIn.begin())),&(*(interpOut.begin())),cnum,3);
+                parent2ChildInterpolation(lookUpVec,&(*(interpOut.begin())),cnum,3);
                 for(unsigned int k=kb;k<ke;k++)
                     for(unsigned int j=jb;j<je;j++)
                         for(unsigned int i=ib;i<ie;i++)
@@ -4444,7 +4597,7 @@ namespace ot
                 if(ej<blkElem_1D)
                 {
                     cnum=ot::TreeNode(blkNode.minX()-sz,blkNode.minY()+ej*sz,blkNode.minZ()-sz,regLev,m_uiDim,m_uiMaxDepth).getMortonIndex();
-                    parent2ChildInterpolation(&(*(interpIn.begin())),&(*(interpOut.begin())),cnum,3);
+                    parent2ChildInterpolation(lookUpVec,&(*(interpOut.begin())),cnum,3);
                     for(unsigned int k=kb;k<ke;k++)
                         for(unsigned int j=jb;j<je;j++)
                             for(unsigned int i=ib;i<ie;i++)
@@ -4543,7 +4696,7 @@ namespace ot
     }
 
     template<typename T>
-    void Mesh::OCT_DIR_LEFT_FRONT_Unzip(const ot::Block & blk,const T* zippedVec, T* unzippedVec)
+    void Mesh::OCT_DIR_LEFT_FRONT_Unzip(const ot::Block & blk,const T* zippedVec, T* unzippedVec, T* eleDGVec, bool* eleDGValid)
     {
 
         const unsigned int * blk2diagMap=blk.getBlk2DiagMap();
@@ -4614,12 +4767,17 @@ namespace ot
             assert(lookUp!=LOOK_UP_TABLE_DEFAULT);
             if(pNodes[lookUp].getLevel()==regLev)
             {
-                getElementNodalValues(zippedVec,&(*(interpOut.begin())),lookUp);
+                T* lookUpVec = &eleDGVec[lookUp*m_uiNpE];
+                if(!eleDGValid[lookUp])
+                {
+                    getElementNodalValues(zippedVec,lookUpVec,lookUp);
+                    eleDGValid[lookUp]=true;    
+                }
                 for(unsigned int k=kb;k<ke;k++)
                     for(unsigned int j=jb;j<je;j++)
                         for(unsigned int i=ib;i<ie;i++)
                         {
-                            unzippedVec[offset+(ek*m_uiElementOrder+k+k_offset)*(ly*lx)+(ej*m_uiElementOrder+j+j_offset)*(lx)+(ei*m_uiElementOrder+i+i_offset)]=interpOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
+                            unzippedVec[offset+(ek*m_uiElementOrder+k+k_offset)*(ly*lx)+(ej*m_uiElementOrder+j+j_offset)*(lx)+(ei*m_uiElementOrder+i+i_offset)]=lookUpVec[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
                         }
 
                 edgeCount+=1;
@@ -4630,9 +4788,14 @@ namespace ot
                 if((pNodes[lookUp].getLevel()+1)!=regLev)
                     std::cout<<"LEFT_FRONT_DIAG_UNIZIP ERROR: 2:1 balance error "<<std::endl;
 
-                getElementNodalValues(zippedVec,&(*(interpIn.begin())),lookUp);
+                T* lookUpVec = &eleDGVec[lookUp*m_uiNpE];
+                if(!eleDGValid[lookUp])
+                {
+                    getElementNodalValues(zippedVec,lookUpVec,lookUp);
+                    eleDGValid[lookUp]=true;    
+                }
                 cnum=ot::TreeNode(blkNode.minX()-sz,blkNode.minY()+ej*sz,blkNode.maxZ(),regLev,m_uiDim,m_uiMaxDepth).getMortonIndex();
-                parent2ChildInterpolation(&(*(interpIn.begin())),&(*(interpOut.begin())),cnum,3);
+                parent2ChildInterpolation(lookUpVec,&(*(interpOut.begin())),cnum,3);
                 for(unsigned int k=kb;k<ke;k++)
                     for(unsigned int j=jb;j<je;j++)
                         for(unsigned int i=ib;i<ie;i++)
@@ -4645,7 +4808,7 @@ namespace ot
                 if(ej<blkElem_1D)
                 {
                     cnum=ot::TreeNode(blkNode.minX()-sz,blkNode.minY()+ej*sz,blkNode.maxZ(),regLev,m_uiDim,m_uiMaxDepth).getMortonIndex();
-                    parent2ChildInterpolation(&(*(interpIn.begin())),&(*(interpOut.begin())),cnum,3);
+                    parent2ChildInterpolation(lookUpVec,&(*(interpOut.begin())),cnum,3);
                     for(unsigned int k=kb;k<ke;k++)
                         for(unsigned int j=jb;j<je;j++)
                             for(unsigned int i=ib;i<ie;i++)
@@ -4747,7 +4910,7 @@ namespace ot
 
 
     template<typename T>
-    void Mesh::OCT_DIR_RIGHT_DOWN_Unzip(const ot::Block & blk,const T* zippedVec, T* unzippedVec)
+    void Mesh::OCT_DIR_RIGHT_DOWN_Unzip(const ot::Block & blk,const T* zippedVec, T* unzippedVec, T* eleDGVec, bool* eleDGValid)
     {
 
         const unsigned int * blk2diagMap=blk.getBlk2DiagMap();
@@ -4821,12 +4984,17 @@ namespace ot
             if(pNodes[lookUp].getLevel()==regLev)
             {
 
-                getElementNodalValues(zippedVec,&(*(interpOut.begin())),lookUp);
+                T* lookUpVec = &eleDGVec[lookUp*m_uiNpE];
+                if(!eleDGValid[lookUp])
+                {
+                    getElementNodalValues(zippedVec,lookUpVec,lookUp);
+                    eleDGValid[lookUp]=true;    
+                }
                 for(unsigned int k=kb;k<ke;k++)
                     for(unsigned int j=jb;j<je;j++)
                         for(unsigned int i=ib;i<ie;i++)
                         {
-                            unzippedVec[offset+(ek*m_uiElementOrder+k+k_offset)*(ly*lx)+(ej*m_uiElementOrder+j+j_offset)*(lx)+(ei*m_uiElementOrder+i+i_offset)]=interpOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
+                            unzippedVec[offset+(ek*m_uiElementOrder+k+k_offset)*(ly*lx)+(ej*m_uiElementOrder+j+j_offset)*(lx)+(ei*m_uiElementOrder+i+i_offset)]=lookUpVec[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
 
                         }
 
@@ -4838,9 +5006,14 @@ namespace ot
                 if((pNodes[lookUp].getLevel()+1)!=regLev)
                     std::cout<<"RIGHT_DOWN_DIAG_UNIZIP ERROR: 2:1 balance error "<<std::endl;
 
-                getElementNodalValues(zippedVec,&(*(interpIn.begin())),lookUp);
+                T* lookUpVec = &eleDGVec[lookUp*m_uiNpE];
+                if(!eleDGValid[lookUp])
+                {
+                    getElementNodalValues(zippedVec,lookUpVec,lookUp);
+                    eleDGValid[lookUp]=true;    
+                }
                 cnum=ot::TreeNode(blkNode.maxX(),blkNode.minY()-sz,blkNode.minZ()+ek*sz,regLev,m_uiDim,m_uiMaxDepth).getMortonIndex();
-                parent2ChildInterpolation(&(*(interpIn.begin())),&(*(interpOut.begin())),cnum,3);
+                parent2ChildInterpolation(lookUpVec,&(*(interpOut.begin())),cnum,3);
                 for(unsigned int k=kb;k<ke;k++)
                     for(unsigned int j=jb;j<je;j++)
                         for(unsigned int i=ib;i<ie;i++)
@@ -4852,7 +5025,7 @@ namespace ot
                 if(ek<blkElem_1D)
                 {
                     cnum=ot::TreeNode(blkNode.maxX(),blkNode.minY()-sz,blkNode.minZ()+ek*sz,regLev,m_uiDim,m_uiMaxDepth).getMortonIndex();
-                    parent2ChildInterpolation(&(*(interpIn.begin())),&(*(interpOut.begin())),cnum,3);
+                    parent2ChildInterpolation(lookUpVec,&(*(interpOut.begin())),cnum,3);
                     for(unsigned int k=kb;k<ke;k++)
                         for(unsigned int j=jb;j<je;j++)
                             for(unsigned int i=ib;i<ie;i++)
@@ -4954,7 +5127,7 @@ namespace ot
 
 
     template<typename T>
-    void Mesh::OCT_DIR_RIGHT_UP_Unzip(const ot::Block & blk,const T* zippedVec, T* unzippedVec)
+    void Mesh::OCT_DIR_RIGHT_UP_Unzip(const ot::Block & blk,const T* zippedVec, T* unzippedVec, T* eleDGVec, bool* eleDGValid)
     {
 
         const unsigned int * blk2diagMap=blk.getBlk2DiagMap();
@@ -5024,12 +5197,17 @@ namespace ot
             assert(lookUp!=LOOK_UP_TABLE_DEFAULT);
             if(pNodes[lookUp].getLevel()==regLev)
             {
-                getElementNodalValues(zippedVec,&(*(interpOut.begin())),lookUp);
+                T* lookUpVec = &eleDGVec[lookUp*m_uiNpE];
+                if(!eleDGValid[lookUp])
+                {
+                    getElementNodalValues(zippedVec,lookUpVec,lookUp);
+                    eleDGValid[lookUp]=true;    
+                }
                 for(unsigned int k=kb;k<ke;k++)
                     for(unsigned int j=jb;j<je;j++)
                         for(unsigned int i=ib;i<ie;i++)
                         {
-                            unzippedVec[offset+(ek*m_uiElementOrder+k+k_offset)*(ly*lx)+(ej*m_uiElementOrder+j+j_offset)*(lx)+(ei*m_uiElementOrder+i+i_offset)]=interpOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
+                            unzippedVec[offset+(ek*m_uiElementOrder+k+k_offset)*(ly*lx)+(ej*m_uiElementOrder+j+j_offset)*(lx)+(ei*m_uiElementOrder+i+i_offset)]=lookUpVec[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
                         }
 
                 edgeCount+=1;
@@ -5040,9 +5218,14 @@ namespace ot
                 if((pNodes[lookUp].getLevel()+1)!=regLev)
                     std::cout<<"RIGHT_UP_DIAG_UNIZIP ERROR: 2:1 balance error "<<std::endl;
 
-                getElementNodalValues(zippedVec,&(*(interpIn.begin())),lookUp);
+                T* lookUpVec = &eleDGVec[lookUp*m_uiNpE];
+                if(!eleDGValid[lookUp])
+                {
+                    getElementNodalValues(zippedVec,lookUpVec,lookUp);
+                    eleDGValid[lookUp]=true;    
+                }
                 cnum=ot::TreeNode(blkNode.maxX(),blkNode.maxY(),blkNode.minZ()+ek*sz,regLev,m_uiDim,m_uiMaxDepth).getMortonIndex();
-                parent2ChildInterpolation(&(*(interpIn.begin())),&(*(interpOut.begin())),cnum,3);
+                parent2ChildInterpolation(lookUpVec,&(*(interpOut.begin())),cnum,3);
                 for(unsigned int k=kb;k<ke;k++)
                     for(unsigned int j=jb;j<je;j++)
                         for(unsigned int i=ib;i<ie;i++)
@@ -5054,7 +5237,7 @@ namespace ot
                 if(ek<blkElem_1D)
                 {
                     cnum=ot::TreeNode(blkNode.maxX(),blkNode.maxY(),blkNode.minZ()+ek*sz,regLev,m_uiDim,m_uiMaxDepth).getMortonIndex();
-                    parent2ChildInterpolation(&(*(interpIn.begin())),&(*(interpOut.begin())),cnum,3);
+                    parent2ChildInterpolation(lookUpVec,&(*(interpOut.begin())),cnum,3);
                     for(unsigned int k=kb;k<ke;k++)
                         for(unsigned int j=jb;j<je;j++)
                             for(unsigned int i=ib;i<ie;i++)
@@ -5156,7 +5339,7 @@ namespace ot
     }
 
     template<typename T>
-    void Mesh::OCT_DIR_RIGHT_BACK_Unzip(const ot::Block & blk,const T* zippedVec, T* unzippedVec)
+    void Mesh::OCT_DIR_RIGHT_BACK_Unzip(const ot::Block & blk,const T* zippedVec, T* unzippedVec, T* eleDGVec, bool* eleDGValid)
     {
         const unsigned int * blk2diagMap=blk.getBlk2DiagMap();
         unsigned int lookUp; // first OCT_DIR_LEFT_DOWN element.
@@ -5226,12 +5409,17 @@ namespace ot
             assert(lookUp!=LOOK_UP_TABLE_DEFAULT);
             if(pNodes[lookUp].getLevel()==regLev)
             {
-                getElementNodalValues(zippedVec,&(*(interpOut.begin())),lookUp);
+                T* lookUpVec = &eleDGVec[lookUp*m_uiNpE];
+                if(!eleDGValid[lookUp])
+                {
+                    getElementNodalValues(zippedVec,lookUpVec,lookUp);
+                    eleDGValid[lookUp]=true;    
+                }
                 for(unsigned int k=kb;k<ke;k++)
                     for(unsigned int j=jb;j<je;j++)
                         for(unsigned int i=ib;i<ie;i++)
                         {
-                            unzippedVec[offset+(ek*m_uiElementOrder+k+k_offset)*(ly*lx)+(ej*m_uiElementOrder+j+j_offset)*(lx)+(ei*m_uiElementOrder+i+i_offset)]=interpOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
+                            unzippedVec[offset+(ek*m_uiElementOrder+k+k_offset)*(ly*lx)+(ej*m_uiElementOrder+j+j_offset)*(lx)+(ei*m_uiElementOrder+i+i_offset)]=lookUpVec[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
 
                         }
 
@@ -5243,9 +5431,14 @@ namespace ot
                 if((pNodes[lookUp].getLevel()+1)!=regLev)
                     std::cout<<"LEFT_BACK_DIAG_UNIZIP ERROR: 2:1 balance error "<<std::endl;
 
-                getElementNodalValues(zippedVec,&(*(interpIn.begin())),lookUp);
+                T* lookUpVec = &eleDGVec[lookUp*m_uiNpE];
+                if(!eleDGValid[lookUp])
+                {
+                    getElementNodalValues(zippedVec,lookUpVec,lookUp);
+                    eleDGValid[lookUp]=true;    
+                }
                 cnum=ot::TreeNode(blkNode.maxX(),blkNode.minY()+ej*sz,blkNode.minZ()-sz,regLev,m_uiDim,m_uiMaxDepth).getMortonIndex();
-                parent2ChildInterpolation(&(*(interpIn.begin())),&(*(interpOut.begin())),cnum,3);
+                parent2ChildInterpolation(lookUpVec,&(*(interpOut.begin())),cnum,3);
                 for(unsigned int k=kb;k<ke;k++)
                     for(unsigned int j=jb;j<je;j++)
                         for(unsigned int i=ib;i<ie;i++)
@@ -5257,7 +5450,7 @@ namespace ot
                 if(ej<blkElem_1D)
                 {
                     cnum=ot::TreeNode(blkNode.maxX(),blkNode.minY()+ej*sz,blkNode.minZ()-sz,regLev,m_uiDim,m_uiMaxDepth).getMortonIndex();
-                    parent2ChildInterpolation(&(*(interpIn.begin())),&(*(interpOut.begin())),cnum,3);
+                    parent2ChildInterpolation(lookUpVec,&(*(interpOut.begin())),cnum,3);
                     for(unsigned int k=kb;k<ke;k++)
                         for(unsigned int j=jb;j<je;j++)
                             for(unsigned int i=ib;i<ie;i++)
@@ -5359,7 +5552,7 @@ namespace ot
 
 
     template<typename T>
-    void Mesh::OCT_DIR_RIGHT_FRONT_Unzip(const ot::Block & blk,const T* zippedVec, T* unzippedVec)
+    void Mesh::OCT_DIR_RIGHT_FRONT_Unzip(const ot::Block & blk,const T* zippedVec, T* unzippedVec, T* eleDGVec, bool* eleDGValid)
     {
 
         const unsigned int * blk2diagMap=blk.getBlk2DiagMap();
@@ -5431,12 +5624,17 @@ namespace ot
             assert(lookUp!=LOOK_UP_TABLE_DEFAULT);
             if(pNodes[lookUp].getLevel()==regLev)
             {
-                getElementNodalValues(zippedVec,&(*(interpOut.begin())),lookUp);
+                T* lookUpVec = &eleDGVec[lookUp*m_uiNpE];
+                if(!eleDGValid[lookUp])
+                {
+                    getElementNodalValues(zippedVec,lookUpVec,lookUp);
+                    eleDGValid[lookUp]=true;    
+                }
                 for(unsigned int k=kb;k<ke;k++)
                     for(unsigned int j=jb;j<je;j++)
                         for(unsigned int i=ib;i<ie;i++)
                         {
-                            unzippedVec[offset+(ek*m_uiElementOrder+k+k_offset)*(ly*lx)+(ej*m_uiElementOrder+j+j_offset)*(lx)+(ei*m_uiElementOrder+i+i_offset)]=interpOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
+                            unzippedVec[offset+(ek*m_uiElementOrder+k+k_offset)*(ly*lx)+(ej*m_uiElementOrder+j+j_offset)*(lx)+(ei*m_uiElementOrder+i+i_offset)]=lookUpVec[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
                         }
 
                 edgeCount+=1;
@@ -5447,9 +5645,14 @@ namespace ot
                 if((pNodes[lookUp].getLevel()+1)!=regLev)
                     std::cout<<"LEFT_FRONT_DIAG_UNIZIP ERROR: 2:1 balance error "<<std::endl;
 
-                getElementNodalValues(zippedVec,&(*(interpIn.begin())),lookUp);
+                T* lookUpVec = &eleDGVec[lookUp*m_uiNpE];
+                if(!eleDGValid[lookUp])
+                {
+                    getElementNodalValues(zippedVec,lookUpVec,lookUp);
+                    eleDGValid[lookUp]=true;    
+                }
                 cnum=ot::TreeNode(blkNode.maxX(),blkNode.minY()+ej*sz,blkNode.maxZ(),regLev,m_uiDim,m_uiMaxDepth).getMortonIndex();
-                parent2ChildInterpolation(&(*(interpIn.begin())),&(*(interpOut.begin())),cnum,3);
+                parent2ChildInterpolation(lookUpVec,&(*(interpOut.begin())),cnum,3);
                 for(unsigned int k=kb;k<ke;k++)
                     for(unsigned int j=jb;j<je;j++)
                         for(unsigned int i=ib;i<ie;i++)
@@ -5461,7 +5664,7 @@ namespace ot
                 if(ej<blkElem_1D)
                 {
                     cnum=ot::TreeNode(blkNode.maxX(),blkNode.minY()+ej*sz,blkNode.maxZ(),regLev,m_uiDim,m_uiMaxDepth).getMortonIndex();
-                    parent2ChildInterpolation(&(*(interpIn.begin())),&(*(interpOut.begin())),cnum,3);
+                    parent2ChildInterpolation(lookUpVec,&(*(interpOut.begin())),cnum,3);
                     for(unsigned int k=kb;k<ke;k++)
                         for(unsigned int j=jb;j<je;j++)
                             for(unsigned int i=ib;i<ie;i++)
@@ -5562,7 +5765,7 @@ namespace ot
     }
 
     template<typename T>
-    void Mesh::OCT_DIR_DOWN_BACK_Unzip(const ot::Block & blk,const T* zippedVec, T* unzippedVec)
+    void Mesh::OCT_DIR_DOWN_BACK_Unzip(const ot::Block & blk,const T* zippedVec, T* unzippedVec, T* eleDGVec, bool* eleDGValid)
     {
 
         const unsigned int * blk2diagMap=blk.getBlk2DiagMap();
@@ -5636,12 +5839,17 @@ namespace ot
             assert(lookUp!=LOOK_UP_TABLE_DEFAULT);
             if(pNodes[lookUp].getLevel()==regLev)
             {
-                getElementNodalValues(zippedVec,&(*(interpOut.begin())),lookUp);
+                T* lookUpVec = &eleDGVec[lookUp*m_uiNpE];
+                if(!eleDGValid[lookUp])
+                {
+                    getElementNodalValues(zippedVec,lookUpVec,lookUp);
+                    eleDGValid[lookUp]=true;    
+                }
                 for(unsigned int k=kb;k<ke;k++)
                     for(unsigned int j=jb;j<je;j++)
                         for(unsigned int i=ib;i<ie;i++)
                         {
-                            unzippedVec[offset+(ek*m_uiElementOrder+k+k_offset)*(ly*lx)+(ej*m_uiElementOrder+j+j_offset)*(lx)+(ei*m_uiElementOrder+i+i_offset)]=interpOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
+                            unzippedVec[offset+(ek*m_uiElementOrder+k+k_offset)*(ly*lx)+(ej*m_uiElementOrder+j+j_offset)*(lx)+(ei*m_uiElementOrder+i+i_offset)]=lookUpVec[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
                         }
 
                 edgeCount+=1;
@@ -5652,9 +5860,14 @@ namespace ot
                 if((pNodes[lookUp].getLevel()+1)!=regLev)
                     std::cout<<"DOWN_BACK_DIAG_UNIZIP ERROR: 2:1 balance error "<<std::endl;
 
-                getElementNodalValues(zippedVec,&(*(interpIn.begin())),lookUp);
+                T* lookUpVec = &eleDGVec[lookUp*m_uiNpE];
+                if(!eleDGValid[lookUp])
+                {
+                    getElementNodalValues(zippedVec,lookUpVec,lookUp);
+                    eleDGValid[lookUp]=true;    
+                }
                 cnum=ot::TreeNode(blkNode.minX()+ei*sz,blkNode.minY()-sz,blkNode.minZ()-sz,regLev,m_uiDim,m_uiMaxDepth).getMortonIndex();
-                parent2ChildInterpolation(&(*(interpIn.begin())),&(*(interpOut.begin())),cnum,3);
+                parent2ChildInterpolation(lookUpVec,&(*(interpOut.begin())),cnum,3);
                 for(unsigned int k=kb;k<ke;k++)
                     for(unsigned int j=jb;j<je;j++)
                         for(unsigned int i=ib;i<ie;i++)
@@ -5666,7 +5879,7 @@ namespace ot
                 if(ei<blkElem_1D)
                 {
                     cnum=ot::TreeNode(blkNode.minX()+ei*sz,blkNode.minY()-sz,blkNode.minZ()-sz,regLev,m_uiDim,m_uiMaxDepth).getMortonIndex();
-                    parent2ChildInterpolation(&(*(interpIn.begin())),&(*(interpOut.begin())),cnum,3);
+                    parent2ChildInterpolation(lookUpVec,&(*(interpOut.begin())),cnum,3);
                     for(unsigned int k=kb;k<ke;k++)
                         for(unsigned int j=jb;j<je;j++)
                             for(unsigned int i=ib;i<ie;i++)
@@ -5768,7 +5981,7 @@ namespace ot
 
 
     template<typename T>
-    void Mesh::OCT_DIR_DOWN_FRONT_Unzip(const ot::Block & blk,const T* zippedVec, T* unzippedVec)
+    void Mesh::OCT_DIR_DOWN_FRONT_Unzip(const ot::Block & blk,const T* zippedVec, T* unzippedVec, T* eleDGVec, bool* eleDGValid)
     {
 
         const unsigned int * blk2diagMap=blk.getBlk2DiagMap();
@@ -5840,12 +6053,17 @@ namespace ot
             assert(lookUp!=LOOK_UP_TABLE_DEFAULT);
             if(pNodes[lookUp].getLevel()==regLev)
             {
-                getElementNodalValues(zippedVec,&(*(interpOut.begin())),lookUp);
+                T* lookUpVec = &eleDGVec[lookUp*m_uiNpE];
+                if(!eleDGValid[lookUp])
+                {
+                    getElementNodalValues(zippedVec,lookUpVec,lookUp);
+                    eleDGValid[lookUp]=true;    
+                }
                 for(unsigned int k=kb;k<ke;k++)
                     for(unsigned int j=jb;j<je;j++)
                         for(unsigned int i=ib;i<ie;i++)
                         {
-                            unzippedVec[offset+(ek*m_uiElementOrder+k+k_offset)*(ly*lx)+(ej*m_uiElementOrder+j+j_offset)*(lx)+(ei*m_uiElementOrder+i+i_offset)]=interpOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
+                            unzippedVec[offset+(ek*m_uiElementOrder+k+k_offset)*(ly*lx)+(ej*m_uiElementOrder+j+j_offset)*(lx)+(ei*m_uiElementOrder+i+i_offset)]=lookUpVec[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
                         }
 
                 edgeCount+=1;
@@ -5856,9 +6074,14 @@ namespace ot
                 if((pNodes[lookUp].getLevel()+1)!=regLev)
                     std::cout<<"DOWN_FRONT_DIAG_UNIZIP ERROR: 2:1 balance error "<<std::endl;
 
-                getElementNodalValues(zippedVec,&(*(interpIn.begin())),lookUp);
+                T* lookUpVec = &eleDGVec[lookUp*m_uiNpE];
+                if(!eleDGValid[lookUp])
+                {
+                    getElementNodalValues(zippedVec,lookUpVec,lookUp);
+                    eleDGValid[lookUp]=true;    
+                }
                 cnum=ot::TreeNode(blkNode.minX()+ei*sz,blkNode.minY()-sz,blkNode.maxZ(),regLev,m_uiDim,m_uiMaxDepth).getMortonIndex();
-                parent2ChildInterpolation(&(*(interpIn.begin())),&(*(interpOut.begin())),cnum,3);
+                parent2ChildInterpolation(lookUpVec,&(*(interpOut.begin())),cnum,3);
                 for(unsigned int k=kb;k<ke;k++)
                     for(unsigned int j=jb;j<je;j++)
                         for(unsigned int i=ib;i<ie;i++)
@@ -5870,7 +6093,7 @@ namespace ot
                 if(ei<blkElem_1D)
                 {
                     cnum=ot::TreeNode(blkNode.minX()+ei*sz,blkNode.minY()-sz,blkNode.maxZ(),regLev,m_uiDim,m_uiMaxDepth).getMortonIndex();
-                    parent2ChildInterpolation(&(*(interpIn.begin())),&(*(interpOut.begin())),cnum,3);
+                    parent2ChildInterpolation(lookUpVec,&(*(interpOut.begin())),cnum,3);
                     for(unsigned int k=kb;k<ke;k++)
                         for(unsigned int j=jb;j<je;j++)
                             for(unsigned int i=ib;i<ie;i++)
@@ -5972,7 +6195,7 @@ namespace ot
 
 
     template<typename T>
-    void Mesh::OCT_DIR_UP_BACK_Unzip(const ot::Block & blk,const T* zippedVec, T* unzippedVec)
+    void Mesh::OCT_DIR_UP_BACK_Unzip(const ot::Block & blk,const T* zippedVec, T* unzippedVec, T* eleDGVec, bool* eleDGValid)
     {
 
         const unsigned int * blk2diagMap=blk.getBlk2DiagMap();
@@ -6044,12 +6267,17 @@ namespace ot
             assert(lookUp!=LOOK_UP_TABLE_DEFAULT);
             if(pNodes[lookUp].getLevel()==regLev)
             {
-                getElementNodalValues(zippedVec,&(*(interpOut.begin())),lookUp);
+                T* lookUpVec = &eleDGVec[lookUp*m_uiNpE];
+                if(!eleDGValid[lookUp])
+                {
+                    getElementNodalValues(zippedVec,lookUpVec,lookUp);
+                    eleDGValid[lookUp]=true;    
+                }
                 for(unsigned int k=kb;k<ke;k++)
                     for(unsigned int j=jb;j<je;j++)
                         for(unsigned int i=ib;i<ie;i++)
                         {
-                            unzippedVec[offset+(ek*m_uiElementOrder+k+k_offset)*(ly*lx)+(ej*m_uiElementOrder+j+j_offset)*(lx)+(ei*m_uiElementOrder+i+i_offset)]=interpOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
+                            unzippedVec[offset+(ek*m_uiElementOrder+k+k_offset)*(ly*lx)+(ej*m_uiElementOrder+j+j_offset)*(lx)+(ei*m_uiElementOrder+i+i_offset)]=lookUpVec[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
                         }
 
                 edgeCount+=1;
@@ -6060,9 +6288,14 @@ namespace ot
                 if((pNodes[lookUp].getLevel()+1)!=regLev)
                     std::cout<<"UP_BACK_DIAG_UNIZIP ERROR: 2:1 balance error "<<std::endl;
 
-                getElementNodalValues(zippedVec,&(*(interpIn.begin())),lookUp);
+                T* lookUpVec = &eleDGVec[lookUp*m_uiNpE];
+                if(!eleDGValid[lookUp])
+                {
+                    getElementNodalValues(zippedVec,lookUpVec,lookUp);
+                    eleDGValid[lookUp]=true;    
+                }
                 cnum=ot::TreeNode(blkNode.minX()+ei*sz,blkNode.maxY(),blkNode.minZ()-sz,regLev,m_uiDim,m_uiMaxDepth).getMortonIndex();
-                parent2ChildInterpolation(&(*(interpIn.begin())),&(*(interpOut.begin())),cnum,3);
+                parent2ChildInterpolation(lookUpVec,&(*(interpOut.begin())),cnum,3);
                 for(unsigned int k=kb;k<ke;k++)
                     for(unsigned int j=jb;j<je;j++)
                         for(unsigned int i=ib;i<ie;i++)
@@ -6074,7 +6307,7 @@ namespace ot
                 if(ei<blkElem_1D)
                 {
                     cnum=ot::TreeNode(blkNode.minX()+ei*sz,blkNode.maxY(),blkNode.minZ()-sz,regLev,m_uiDim,m_uiMaxDepth).getMortonIndex();
-                    parent2ChildInterpolation(&(*(interpIn.begin())),&(*(interpOut.begin())),cnum,3);
+                    parent2ChildInterpolation(lookUpVec,&(*(interpOut.begin())),cnum,3);
                     for(unsigned int k=kb;k<ke;k++)
                         for(unsigned int j=jb;j<je;j++)
                             for(unsigned int i=ib;i<ie;i++)
@@ -6176,7 +6409,7 @@ namespace ot
 
 
     template<typename T>
-    void Mesh::OCT_DIR_UP_FRONT_Unzip(const ot::Block & blk,const T* zippedVec, T* unzippedVec)
+    void Mesh::OCT_DIR_UP_FRONT_Unzip(const ot::Block & blk,const T* zippedVec, T* unzippedVec, T* eleDGVec, bool* eleDGValid)
     {
 
         const unsigned int * blk2diagMap=blk.getBlk2DiagMap();
@@ -6247,12 +6480,17 @@ namespace ot
             assert(lookUp!=LOOK_UP_TABLE_DEFAULT);
             if(pNodes[lookUp].getLevel()==regLev)
             {
-                getElementNodalValues(zippedVec,&(*(interpOut.begin())),lookUp);
+                T* lookUpVec = &eleDGVec[lookUp*m_uiNpE];
+                if(!eleDGValid[lookUp])
+                {
+                    getElementNodalValues(zippedVec,lookUpVec,lookUp);
+                    eleDGValid[lookUp]=true;    
+                }
                 for(unsigned int k=kb;k<ke;k++)
                     for(unsigned int j=jb;j<je;j++)
                         for(unsigned int i=ib;i<ie;i++)
                         {
-                            unzippedVec[offset+(ek*m_uiElementOrder+k+k_offset)*(ly*lx)+(ej*m_uiElementOrder+j+j_offset)*(lx)+(ei*m_uiElementOrder+i+i_offset)]=interpOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
+                            unzippedVec[offset+(ek*m_uiElementOrder+k+k_offset)*(ly*lx)+(ej*m_uiElementOrder+j+j_offset)*(lx)+(ei*m_uiElementOrder+i+i_offset)]=lookUpVec[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
                         }
 
                 edgeCount+=1;
@@ -6263,9 +6501,14 @@ namespace ot
                 if((pNodes[lookUp].getLevel()+1)!=regLev)
                     std::cout<<"UP_FRONT_DIAG_UNIZIP ERROR: 2:1 balance error "<<std::endl;
 
-                getElementNodalValues(zippedVec,&(*(interpIn.begin())),lookUp);
+                T* lookUpVec = &eleDGVec[lookUp*m_uiNpE];
+                if(!eleDGValid[lookUp])
+                {
+                    getElementNodalValues(zippedVec,lookUpVec,lookUp);
+                    eleDGValid[lookUp]=true;    
+                }
                 cnum=ot::TreeNode(blkNode.minX()+ei*sz,blkNode.maxY(),blkNode.maxZ(),regLev,m_uiDim,m_uiMaxDepth).getMortonIndex();
-                parent2ChildInterpolation(&(*(interpIn.begin())),&(*(interpOut.begin())),cnum,3);
+                parent2ChildInterpolation(lookUpVec,&(*(interpOut.begin())),cnum,3);
                 for(unsigned int k=kb;k<ke;k++)
                     for(unsigned int j=jb;j<je;j++)
                         for(unsigned int i=ib;i<ie;i++)
@@ -6277,7 +6520,7 @@ namespace ot
                 if(ei<blkElem_1D)
                 {
                     cnum=ot::TreeNode(blkNode.minX()+ei*sz,blkNode.maxY(),blkNode.maxZ(),regLev,m_uiDim,m_uiMaxDepth).getMortonIndex();
-                    parent2ChildInterpolation(&(*(interpIn.begin())),&(*(interpOut.begin())),cnum,3);
+                    parent2ChildInterpolation(lookUpVec,&(*(interpOut.begin())),cnum,3);
                     for(unsigned int k=kb;k<ke;k++)
                         for(unsigned int j=jb;j<je;j++)
                             for(unsigned int i=ib;i<ie;i++)
@@ -6380,7 +6623,7 @@ namespace ot
 
 
     template<typename T>
-    void Mesh::OCT_DIR_LEFT_DOWN_BACK_Unzip(const ot::Block & blk,const T* zippedVec, T* unzippedVec)
+    void Mesh::OCT_DIR_LEFT_DOWN_BACK_Unzip(const ot::Block & blk,const T* zippedVec, T* unzippedVec, T* eleDGVec, bool* eleDGValid)
     {
         const unsigned int rank=getMPIRank();
         const unsigned int dir=OCT_DIR_LEFT_DOWN_BACK;
@@ -6432,22 +6675,32 @@ namespace ot
 
         if(pNodes[lookUp].getLevel()==regLev)
         {
-            getElementNodalValues(zippedVec,&(*(interpOut.begin())),lookUp);
+            T* lookUpVec = &eleDGVec[lookUp*m_uiNpE];
+            if(!eleDGValid[lookUp])
+            {
+                getElementNodalValues(zippedVec,lookUpVec,lookUp);
+                eleDGValid[lookUp]=true;    
+            }
             for(unsigned int k=kb;k<ke;k++)
                 for(unsigned int j=jb;j<je;j++)
                     for(unsigned int i=ib;i<ie;i++)
                     {
-                        unzippedVec[offset+(ek*m_uiElementOrder+k+k_offset)*(ly*lx)+(ej*m_uiElementOrder+j+j_offset)*(lx)+(ei*m_uiElementOrder+i+i_offset)]=interpOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
+                        unzippedVec[offset+(ek*m_uiElementOrder+k+k_offset)*(ly*lx)+(ej*m_uiElementOrder+j+j_offset)*(lx)+(ei*m_uiElementOrder+i+i_offset)]=lookUpVec[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
                     }
 
         }else if(pNodes[lookUp].getLevel()<regLev)
         {
             if(pNodes[lookUp].getLevel()!=(regLev-1)) {std::cout<<"rank: "<<rank<<" [LEFT_DOWN_BACK Unzip]: 2:1 balance violation blk node: "<<blkNode<<" lookup : "<<pNodes[lookUp]<<std::endl; exit(0);}
             assert(pNodes[lookUp].getLevel()==(regLev-1));
-            getElementNodalValues(zippedVec,&(*(interpIn.begin())),lookUp);
+            T* lookUpVec = &eleDGVec[lookUp*m_uiNpE];
+            if(!eleDGValid[lookUp])
+            {
+                getElementNodalValues(zippedVec,lookUpVec,lookUp);
+                eleDGValid[lookUp]=true;    
+            }
             cnum=ot::TreeNode(blkNode.minX()-sz,blkNode.minY()-sz,blkNode.minZ()-sz,regLev,m_uiDim,m_uiMaxDepth).getMortonIndex();
 
-            parent2ChildInterpolation(&(*(interpIn.begin())),&(*(interpOut.begin())),cnum,3);
+            parent2ChildInterpolation(lookUpVec,&(*(interpOut.begin())),cnum,3);
             for(unsigned int k=kb;k<ke;k++)
                 for(unsigned int j=jb;j<je;j++)
                     for(unsigned int i=ib;i<ie;i++)
@@ -6507,7 +6760,7 @@ namespace ot
 
 
     template<typename T>
-    void Mesh::OCT_DIR_RIGHT_DOWN_BACK_Unzip(const ot::Block & blk,const T* zippedVec, T* unzippedVec)
+    void Mesh::OCT_DIR_RIGHT_DOWN_BACK_Unzip(const ot::Block & blk,const T* zippedVec, T* unzippedVec, T* eleDGVec, bool* eleDGValid)
     {
         const unsigned int rank=getMPIRank();
         const unsigned int dir=OCT_DIR_RIGHT_DOWN_BACK;
@@ -6560,22 +6813,32 @@ namespace ot
 
         if(pNodes[lookUp].getLevel()==regLev)
         {
-            getElementNodalValues(zippedVec,&(*(interpOut.begin())),lookUp);
+            T* lookUpVec = &eleDGVec[lookUp*m_uiNpE];
+            if(!eleDGValid[lookUp])
+            {
+                getElementNodalValues(zippedVec,lookUpVec,lookUp);
+                eleDGValid[lookUp]=true;    
+            }
             for(unsigned int k=kb;k<ke;k++)
                 for(unsigned int j=jb;j<je;j++)
                     for(unsigned int i=ib;i<ie;i++)
                     {
-                        unzippedVec[offset+(ek*m_uiElementOrder+k+k_offset)*(ly*lx)+(ej*m_uiElementOrder+j+j_offset)*(lx)+(ei*m_uiElementOrder+i+i_offset)]=interpOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
+                        unzippedVec[offset+(ek*m_uiElementOrder+k+k_offset)*(ly*lx)+(ej*m_uiElementOrder+j+j_offset)*(lx)+(ei*m_uiElementOrder+i+i_offset)]=lookUpVec[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
                     }
 
         }else if(pNodes[lookUp].getLevel()<regLev)
         {
             if(pNodes[lookUp].getLevel()!=(regLev-1)) {std::cout<<"rank: "<<rank<<" [RIGHT_DOWN_BACK Unzip]: 2:1 balance violation blk node: "<<blkNode<<" lookup : "<<pNodes[lookUp]<<std::endl; exit(0);}
             assert(pNodes[lookUp].getLevel()==(regLev-1));
-            getElementNodalValues(zippedVec,&(*(interpIn.begin())),lookUp);
+            T* lookUpVec = &eleDGVec[lookUp*m_uiNpE];
+            if(!eleDGValid[lookUp])
+            {
+                getElementNodalValues(zippedVec,lookUpVec,lookUp);
+                eleDGValid[lookUp]=true;    
+            }
             cnum=ot::TreeNode(blkNode.maxX(),blkNode.minY()-sz,blkNode.minZ()-sz,regLev,m_uiDim,m_uiMaxDepth).getMortonIndex();
 
-            parent2ChildInterpolation(&(*(interpIn.begin())),&(*(interpOut.begin())),cnum,3);
+            parent2ChildInterpolation(lookUpVec,&(*(interpOut.begin())),cnum,3);
             for(unsigned int k=kb;k<ke;k++)
                 for(unsigned int j=jb;j<je;j++)
                     for(unsigned int i=ib;i<ie;i++)
@@ -6635,7 +6898,7 @@ namespace ot
     }
 
     template<typename T>
-    void Mesh::OCT_DIR_LEFT_UP_BACK_Unzip(const ot::Block & blk,const T* zippedVec, T* unzippedVec)
+    void Mesh::OCT_DIR_LEFT_UP_BACK_Unzip(const ot::Block & blk,const T* zippedVec, T* unzippedVec, T* eleDGVec, bool* eleDGValid)
     {
         const unsigned int rank=getMPIRank();
         const unsigned int dir=OCT_DIR_LEFT_UP_BACK;
@@ -6688,22 +6951,32 @@ namespace ot
 
         if(pNodes[lookUp].getLevel()==regLev)
         {
-            getElementNodalValues(zippedVec,&(*(interpOut.begin())),lookUp);
+            T* lookUpVec = &eleDGVec[lookUp*m_uiNpE];
+            if(!eleDGValid[lookUp])
+            {
+                getElementNodalValues(zippedVec,lookUpVec,lookUp);
+                eleDGValid[lookUp]=true;    
+            }
             for(unsigned int k=kb;k<ke;k++)
                 for(unsigned int j=jb;j<je;j++)
                     for(unsigned int i=ib;i<ie;i++)
                     {
-                        unzippedVec[offset+(ek*m_uiElementOrder+k+k_offset)*(ly*lx)+(ej*m_uiElementOrder+j+j_offset)*(lx)+(ei*m_uiElementOrder+i+i_offset)]=interpOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
+                        unzippedVec[offset+(ek*m_uiElementOrder+k+k_offset)*(ly*lx)+(ej*m_uiElementOrder+j+j_offset)*(lx)+(ei*m_uiElementOrder+i+i_offset)]=lookUpVec[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
                     }
 
         }else if(pNodes[lookUp].getLevel()<regLev)
         {
             if(pNodes[lookUp].getLevel()!=(regLev-1)) {std::cout<<"rank: "<<rank<<" [LEFT_UP_BACK Unzip]: 2:1 balance violation blk node: "<<blkNode<<" lookup : "<<pNodes[lookUp]<<std::endl; exit(0);}
             assert(pNodes[lookUp].getLevel()==(regLev-1));
-            getElementNodalValues(zippedVec,&(*(interpIn.begin())),lookUp);
+            T* lookUpVec = &eleDGVec[lookUp*m_uiNpE];
+            if(!eleDGValid[lookUp])
+            {
+                getElementNodalValues(zippedVec,lookUpVec,lookUp);
+                eleDGValid[lookUp]=true;    
+            }
             cnum=ot::TreeNode(blkNode.minX()-sz,blkNode.maxY(),blkNode.minZ()-sz,regLev,m_uiDim,m_uiMaxDepth).getMortonIndex();
 
-            parent2ChildInterpolation(&(*(interpIn.begin())),&(*(interpOut.begin())),cnum,3);
+            parent2ChildInterpolation(lookUpVec,&(*(interpOut.begin())),cnum,3);
             for(unsigned int k=kb;k<ke;k++)
                 for(unsigned int j=jb;j<je;j++)
                     for(unsigned int i=ib;i<ie;i++)
@@ -6764,7 +7037,7 @@ namespace ot
 
 
     template<typename T>
-    void Mesh::OCT_DIR_RIGHT_UP_BACK_Unzip(const ot::Block & blk,const T* zippedVec, T* unzippedVec)
+    void Mesh::OCT_DIR_RIGHT_UP_BACK_Unzip(const ot::Block & blk,const T* zippedVec, T* unzippedVec, T* eleDGVec, bool* eleDGValid)
     {
         const unsigned int rank=getMPIRank();
         const unsigned int dir=OCT_DIR_RIGHT_UP_BACK;
@@ -6817,22 +7090,32 @@ namespace ot
 
         if(pNodes[lookUp].getLevel()==regLev)
         {
-            getElementNodalValues(zippedVec,&(*(interpOut.begin())),lookUp);
+            T* lookUpVec = &eleDGVec[lookUp*m_uiNpE];
+            if(!eleDGValid[lookUp])
+            {
+                getElementNodalValues(zippedVec,lookUpVec,lookUp);
+                eleDGValid[lookUp]=true;    
+            }
             for(unsigned int k=kb;k<ke;k++)
                 for(unsigned int j=jb;j<je;j++)
                     for(unsigned int i=ib;i<ie;i++)
                     {
-                        unzippedVec[offset+(ek*m_uiElementOrder+k+k_offset)*(ly*lx)+(ej*m_uiElementOrder+j+j_offset)*(lx)+(ei*m_uiElementOrder+i+i_offset)]=interpOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
+                        unzippedVec[offset+(ek*m_uiElementOrder+k+k_offset)*(ly*lx)+(ej*m_uiElementOrder+j+j_offset)*(lx)+(ei*m_uiElementOrder+i+i_offset)]=lookUpVec[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
                     }
 
         }else if(pNodes[lookUp].getLevel()<regLev)
         {
             if(pNodes[lookUp].getLevel()!=(regLev-1)) {std::cout<<"rank: "<<rank<<" [RIGHT_UP_BACK Unzip]: 2:1 balance violation blk node: "<<blkNode<<" lookup : "<<pNodes[lookUp]<<std::endl; exit(0);}
             assert(pNodes[lookUp].getLevel()==(regLev-1));
-            getElementNodalValues(zippedVec,&(*(interpIn.begin())),lookUp);
+            T* lookUpVec = &eleDGVec[lookUp*m_uiNpE];
+            if(!eleDGValid[lookUp])
+            {
+                getElementNodalValues(zippedVec,lookUpVec,lookUp);
+                eleDGValid[lookUp]=true;    
+            }
             cnum=ot::TreeNode(blkNode.maxX(),blkNode.maxY(),blkNode.minZ()-sz,regLev,m_uiDim,m_uiMaxDepth).getMortonIndex();
 
-            parent2ChildInterpolation(&(*(interpIn.begin())),&(*(interpOut.begin())),cnum,3);
+            parent2ChildInterpolation(lookUpVec,&(*(interpOut.begin())),cnum,3);
             for(unsigned int k=kb;k<ke;k++)
                 for(unsigned int j=jb;j<je;j++)
                     for(unsigned int i=ib;i<ie;i++)
@@ -6893,7 +7176,7 @@ namespace ot
 
 
     template<typename T>
-    void Mesh::OCT_DIR_LEFT_DOWN_FRONT_Unzip(const ot::Block & blk,const T* zippedVec, T* unzippedVec)
+    void Mesh::OCT_DIR_LEFT_DOWN_FRONT_Unzip(const ot::Block & blk,const T* zippedVec, T* unzippedVec, T* eleDGVec, bool* eleDGValid)
     {
         const unsigned int rank=getMPIRank();
         const unsigned int dir=OCT_DIR_LEFT_DOWN_FRONT;
@@ -6947,22 +7230,32 @@ namespace ot
 
         if(pNodes[lookUp].getLevel()==regLev)
         {
-            getElementNodalValues(zippedVec,&(*(interpOut.begin())),lookUp);
+            T* lookUpVec = &eleDGVec[lookUp*m_uiNpE];
+            if(!eleDGValid[lookUp])
+            {
+                getElementNodalValues(zippedVec,lookUpVec,lookUp);
+                eleDGValid[lookUp]=true;    
+            }
             for(unsigned int k=kb;k<ke;k++)
                 for(unsigned int j=jb;j<je;j++)
                     for(unsigned int i=ib;i<ie;i++)
                     {
-                        unzippedVec[offset+(ek*m_uiElementOrder+k+k_offset)*(ly*lx)+(ej*m_uiElementOrder+j+j_offset)*(lx)+(ei*m_uiElementOrder+i+i_offset)]=interpOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
+                        unzippedVec[offset+(ek*m_uiElementOrder+k+k_offset)*(ly*lx)+(ej*m_uiElementOrder+j+j_offset)*(lx)+(ei*m_uiElementOrder+i+i_offset)]=lookUpVec[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
                     }
 
         }else if(pNodes[lookUp].getLevel()<regLev)
         {
             if(pNodes[lookUp].getLevel()!=(regLev-1)) {std::cout<<"rank: "<<rank<<" [LEFT_DOWN_FRONT Unzip]: 2:1 balance violation blk node: "<<blkNode<<" lookup : "<<pNodes[lookUp]<<std::endl; exit(0);}
             assert(pNodes[lookUp].getLevel()==(regLev-1));
-            getElementNodalValues(zippedVec,&(*(interpIn.begin())),lookUp);
+            T* lookUpVec = &eleDGVec[lookUp*m_uiNpE];
+            if(!eleDGValid[lookUp])
+            {
+                getElementNodalValues(zippedVec,lookUpVec,lookUp);
+                eleDGValid[lookUp]=true;    
+            }
             cnum=ot::TreeNode(blkNode.minX()-sz,blkNode.minY()-sz,blkNode.maxZ(),regLev,m_uiDim,m_uiMaxDepth).getMortonIndex();
 
-            parent2ChildInterpolation(&(*(interpIn.begin())),&(*(interpOut.begin())),cnum,3);
+            parent2ChildInterpolation(lookUpVec,&(*(interpOut.begin())),cnum,3);
             for(unsigned int k=kb;k<ke;k++)
                 for(unsigned int j=jb;j<je;j++)
                     for(unsigned int i=ib;i<ie;i++)
@@ -7023,7 +7316,7 @@ namespace ot
 
 
     template<typename T>
-    void Mesh::OCT_DIR_RIGHT_DOWN_FRONT_Unzip(const ot::Block & blk,const T* zippedVec, T* unzippedVec)
+    void Mesh::OCT_DIR_RIGHT_DOWN_FRONT_Unzip(const ot::Block & blk,const T* zippedVec, T* unzippedVec, T* eleDGVec, bool* eleDGValid)
     {
         const unsigned int rank=getMPIRank();
         const unsigned int dir=OCT_DIR_RIGHT_DOWN_FRONT;
@@ -7076,22 +7369,32 @@ namespace ot
 
         if(pNodes[lookUp].getLevel()==regLev)
         {
-            getElementNodalValues(zippedVec,&(*(interpOut.begin())),lookUp);
+            T* lookUpVec = &eleDGVec[lookUp*m_uiNpE];
+            if(!eleDGValid[lookUp])
+            {
+                getElementNodalValues(zippedVec,lookUpVec,lookUp);
+                eleDGValid[lookUp]=true;    
+            }
             for(unsigned int k=kb;k<ke;k++)
                 for(unsigned int j=jb;j<je;j++)
                     for(unsigned int i=ib;i<ie;i++)
                     {
-                        unzippedVec[offset+(ek*m_uiElementOrder+k+k_offset)*(ly*lx)+(ej*m_uiElementOrder+j+j_offset)*(lx)+(ei*m_uiElementOrder+i+i_offset)]=interpOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
+                        unzippedVec[offset+(ek*m_uiElementOrder+k+k_offset)*(ly*lx)+(ej*m_uiElementOrder+j+j_offset)*(lx)+(ei*m_uiElementOrder+i+i_offset)]=lookUpVec[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
                     }
 
         }else if(pNodes[lookUp].getLevel()<regLev)
         {
             if(pNodes[lookUp].getLevel()!=(regLev-1)) {std::cout<<"rank: "<<rank<<" [RIGHT_DOWN_FRONT Unzip]: 2:1 balance violation blk node: "<<blkNode<<" lookup : "<<pNodes[lookUp]<<std::endl; exit(0);}
             assert(pNodes[lookUp].getLevel()==(regLev-1));
-            getElementNodalValues(zippedVec,&(*(interpIn.begin())),lookUp);
+            T* lookUpVec = &eleDGVec[lookUp*m_uiNpE];
+            if(!eleDGValid[lookUp])
+            {
+                getElementNodalValues(zippedVec,lookUpVec,lookUp);
+                eleDGValid[lookUp]=true;    
+            }
             cnum=ot::TreeNode(blkNode.maxX(),blkNode.minY()-sz,blkNode.maxZ(),regLev,m_uiDim,m_uiMaxDepth).getMortonIndex();
 
-            parent2ChildInterpolation(&(*(interpIn.begin())),&(*(interpOut.begin())),cnum,3);
+            parent2ChildInterpolation(lookUpVec,&(*(interpOut.begin())),cnum,3);
             for(unsigned int k=kb;k<ke;k++)
                 for(unsigned int j=jb;j<je;j++)
                     for(unsigned int i=ib;i<ie;i++)
@@ -7151,7 +7454,7 @@ namespace ot
     }
 
     template<typename T>
-    void Mesh::OCT_DIR_LEFT_UP_FRONT_Unzip(const ot::Block & blk,const T* zippedVec, T* unzippedVec)
+    void Mesh::OCT_DIR_LEFT_UP_FRONT_Unzip(const ot::Block & blk,const T* zippedVec, T* unzippedVec, T* eleDGVec, bool* eleDGValid)
     {
         const unsigned int rank=getMPIRank();
         const unsigned int dir=OCT_DIR_LEFT_UP_FRONT;
@@ -7204,22 +7507,32 @@ namespace ot
 
         if(pNodes[lookUp].getLevel()==regLev)
         {
-            getElementNodalValues(zippedVec,&(*(interpOut.begin())),lookUp);
+            T* lookUpVec = &eleDGVec[lookUp*m_uiNpE];
+            if(!eleDGValid[lookUp])
+            {
+                getElementNodalValues(zippedVec,lookUpVec,lookUp);
+                eleDGValid[lookUp]=true;    
+            }
             for(unsigned int k=kb;k<ke;k++)
                 for(unsigned int j=jb;j<je;j++)
                     for(unsigned int i=ib;i<ie;i++)
                     {
-                        unzippedVec[offset+(ek*m_uiElementOrder+k+k_offset)*(ly*lx)+(ej*m_uiElementOrder+j+j_offset)*(lx)+(ei*m_uiElementOrder+i+i_offset)]=interpOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
+                        unzippedVec[offset+(ek*m_uiElementOrder+k+k_offset)*(ly*lx)+(ej*m_uiElementOrder+j+j_offset)*(lx)+(ei*m_uiElementOrder+i+i_offset)]=lookUpVec[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
                     }
 
         }else if(pNodes[lookUp].getLevel()<regLev)
         {
             if(pNodes[lookUp].getLevel()!=(regLev-1)) {std::cout<<"rank: "<<rank<<" [LEFT_UP_FRONT Unzip]: 2:1 balance violation blk node: "<<blkNode<<" lookup : "<<pNodes[lookUp]<<std::endl; exit(0);}
             assert(pNodes[lookUp].getLevel()==(regLev-1));
-            getElementNodalValues(zippedVec,&(*(interpIn.begin())),lookUp);
+            T* lookUpVec = &eleDGVec[lookUp*m_uiNpE];
+            if(!eleDGValid[lookUp])
+            {
+                getElementNodalValues(zippedVec,lookUpVec,lookUp);
+                eleDGValid[lookUp]=true;    
+            }
             cnum=ot::TreeNode(blkNode.minX()-sz,blkNode.maxY(),blkNode.maxZ(),regLev,m_uiDim,m_uiMaxDepth).getMortonIndex();
 
-            parent2ChildInterpolation(&(*(interpIn.begin())),&(*(interpOut.begin())),cnum,3);
+            parent2ChildInterpolation(lookUpVec,&(*(interpOut.begin())),cnum,3);
             for(unsigned int k=kb;k<ke;k++)
                 for(unsigned int j=jb;j<je;j++)
                     for(unsigned int i=ib;i<ie;i++)
@@ -7280,7 +7593,7 @@ namespace ot
 
 
     template<typename T>
-    void Mesh::OCT_DIR_RIGHT_UP_FRONT_Unzip(const ot::Block & blk,const T* zippedVec, T* unzippedVec)
+    void Mesh::OCT_DIR_RIGHT_UP_FRONT_Unzip(const ot::Block & blk,const T* zippedVec, T* unzippedVec, T* eleDGVec, bool* eleDGValid)
     {
         const unsigned int rank=getMPIRank();
         const unsigned int dir=OCT_DIR_RIGHT_UP_FRONT;
@@ -7333,22 +7646,32 @@ namespace ot
 
         if(pNodes[lookUp].getLevel()==regLev)
         {
-            getElementNodalValues(zippedVec,&(*(interpOut.begin())),lookUp);
+            T* lookUpVec = &eleDGVec[lookUp*m_uiNpE];
+            if(!eleDGValid[lookUp])
+            {
+                getElementNodalValues(zippedVec,lookUpVec,lookUp);
+                eleDGValid[lookUp]=true;    
+            }
             for(unsigned int k=kb;k<ke;k++)
                 for(unsigned int j=jb;j<je;j++)
                     for(unsigned int i=ib;i<ie;i++)
                     {
-                        unzippedVec[offset+(ek*m_uiElementOrder+k+k_offset)*(ly*lx)+(ej*m_uiElementOrder+j+j_offset)*(lx)+(ei*m_uiElementOrder+i+i_offset)]=interpOut[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
+                        unzippedVec[offset+(ek*m_uiElementOrder+k+k_offset)*(ly*lx)+(ej*m_uiElementOrder+j+j_offset)*(lx)+(ei*m_uiElementOrder+i+i_offset)]=lookUpVec[k*(m_uiElementOrder+1)*(m_uiElementOrder+1)+j*(m_uiElementOrder+1)+i];
                     }
 
         }else if(pNodes[lookUp].getLevel()<regLev)
         {
             if(pNodes[lookUp].getLevel()!=(regLev-1)) {std::cout<<"rank: "<<rank<<" [RIGHT_UP_FRONT Unzip]: 2:1 balance violation blk node: "<<blkNode<<" lookup : "<<pNodes[lookUp]<<std::endl; exit(0);}
             assert(pNodes[lookUp].getLevel()==(regLev-1));
-            getElementNodalValues(zippedVec,&(*(interpIn.begin())),lookUp);
+            T* lookUpVec = &eleDGVec[lookUp*m_uiNpE];
+            if(!eleDGValid[lookUp])
+            {
+                getElementNodalValues(zippedVec,lookUpVec,lookUp);
+                eleDGValid[lookUp]=true;    
+            }
             cnum=ot::TreeNode(blkNode.maxX(),blkNode.maxY(),blkNode.maxZ(),regLev,m_uiDim,m_uiMaxDepth).getMortonIndex();
 
-            parent2ChildInterpolation(&(*(interpIn.begin())),&(*(interpOut.begin())),cnum,3);
+            parent2ChildInterpolation(lookUpVec,&(*(interpOut.begin())),cnum,3);
             for(unsigned int k=kb;k<ke;k++)
                 for(unsigned int j=jb;j<je;j++)
                     for(unsigned int i=ib;i<ie;i++)
@@ -7409,40 +7732,38 @@ namespace ot
 
 
     template<typename T>
-    void Mesh::blockDiagonalUnZip(const ot::Block & blk,const T* zippedVec, T* unzippedVec)
+    void Mesh::blockDiagonalUnZip(const ot::Block & blk,const T* zippedVec, T* unzippedVec, T* eleDGVec, bool* eleDGValid)
     {
 
-        // NOTE!!!!!: When copying the diagnal padding skip the first and last point of the block padding. Since they contains the advective derivterm.
-        // This is not the correct value when at the case 3 of diagonal padding in all edge directions.
-        OCT_DIR_LEFT_DOWN_Unzip(blk,zippedVec,unzippedVec);
-        OCT_DIR_LEFT_UP_Unzip(blk,zippedVec,unzippedVec);
-        OCT_DIR_LEFT_BACK_Unzip(blk,zippedVec,unzippedVec);
-        OCT_DIR_LEFT_FRONT_Unzip(blk,zippedVec,unzippedVec);
-        OCT_DIR_RIGHT_DOWN_Unzip(blk,zippedVec,unzippedVec);
-        OCT_DIR_RIGHT_UP_Unzip(blk,zippedVec,unzippedVec);
-        OCT_DIR_RIGHT_BACK_Unzip(blk,zippedVec,unzippedVec);
-        OCT_DIR_RIGHT_FRONT_Unzip(blk,zippedVec,unzippedVec);
-        OCT_DIR_DOWN_BACK_Unzip(blk,zippedVec,unzippedVec);
-        OCT_DIR_DOWN_FRONT_Unzip(blk,zippedVec,unzippedVec);
-        OCT_DIR_UP_BACK_Unzip(blk,zippedVec,unzippedVec);
-        OCT_DIR_UP_FRONT_Unzip(blk,zippedVec,unzippedVec);
+        OCT_DIR_LEFT_DOWN_Unzip(blk,zippedVec,unzippedVec, eleDGVec, eleDGValid);
+        OCT_DIR_LEFT_UP_Unzip(blk,zippedVec,unzippedVec, eleDGVec, eleDGValid);
+        OCT_DIR_LEFT_BACK_Unzip(blk,zippedVec,unzippedVec, eleDGVec, eleDGValid);
+        OCT_DIR_LEFT_FRONT_Unzip(blk,zippedVec,unzippedVec, eleDGVec, eleDGValid);
+        OCT_DIR_RIGHT_DOWN_Unzip(blk,zippedVec,unzippedVec, eleDGVec, eleDGValid);
+        OCT_DIR_RIGHT_UP_Unzip(blk,zippedVec,unzippedVec, eleDGVec, eleDGValid);
+        OCT_DIR_RIGHT_BACK_Unzip(blk,zippedVec,unzippedVec, eleDGVec, eleDGValid);
+        OCT_DIR_RIGHT_FRONT_Unzip(blk,zippedVec,unzippedVec, eleDGVec, eleDGValid);
+        OCT_DIR_DOWN_BACK_Unzip(blk,zippedVec,unzippedVec, eleDGVec, eleDGValid);
+        OCT_DIR_DOWN_FRONT_Unzip(blk,zippedVec,unzippedVec, eleDGVec, eleDGValid);
+        OCT_DIR_UP_BACK_Unzip(blk,zippedVec,unzippedVec, eleDGVec, eleDGValid);
+        OCT_DIR_UP_FRONT_Unzip(blk,zippedVec,unzippedVec, eleDGVec, eleDGValid);
 
 
     }
 
     template<typename T>
-    void Mesh::blockVertexUnZip(const ot::Block & blk,const T* zippedVec, T* unzippedVec)
+    void Mesh::blockVertexUnZip(const ot::Block & blk,const T* zippedVec, T* unzippedVec, T* eleDGVec, bool* eleDGValid)
     {
 
-        OCT_DIR_LEFT_DOWN_BACK_Unzip(blk,zippedVec,unzippedVec);
-        OCT_DIR_RIGHT_DOWN_BACK_Unzip(blk,zippedVec,unzippedVec);
-        OCT_DIR_LEFT_UP_BACK_Unzip(blk,zippedVec,unzippedVec);
-        OCT_DIR_RIGHT_UP_BACK_Unzip(blk,zippedVec,unzippedVec);
+        OCT_DIR_LEFT_DOWN_BACK_Unzip(blk,zippedVec,unzippedVec,eleDGVec, eleDGValid);
+        OCT_DIR_RIGHT_DOWN_BACK_Unzip(blk,zippedVec,unzippedVec,eleDGVec, eleDGValid);
+        OCT_DIR_LEFT_UP_BACK_Unzip(blk,zippedVec,unzippedVec,eleDGVec, eleDGValid);
+        OCT_DIR_RIGHT_UP_BACK_Unzip(blk,zippedVec,unzippedVec,eleDGVec, eleDGValid);
 
-        OCT_DIR_LEFT_DOWN_FRONT_Unzip(blk,zippedVec,unzippedVec);
-        OCT_DIR_RIGHT_DOWN_FRONT_Unzip(blk,zippedVec,unzippedVec);
-        OCT_DIR_LEFT_UP_FRONT_Unzip(blk,zippedVec,unzippedVec);
-        OCT_DIR_RIGHT_UP_FRONT_Unzip(blk,zippedVec,unzippedVec);
+        OCT_DIR_LEFT_DOWN_FRONT_Unzip(blk,zippedVec,unzippedVec, eleDGVec, eleDGValid);
+        OCT_DIR_RIGHT_DOWN_FRONT_Unzip(blk,zippedVec,unzippedVec, eleDGVec, eleDGValid);
+        OCT_DIR_LEFT_UP_FRONT_Unzip(blk,zippedVec,unzippedVec, eleDGVec, eleDGValid);
+        OCT_DIR_RIGHT_UP_FRONT_Unzip(blk,zippedVec,unzippedVec, eleDGVec, eleDGValid);
     }
 
     template<typename T>
@@ -7515,10 +7836,6 @@ namespace ot
         std::vector<T> faceInterpIn;
         std::vector<T> faceInterpOut;
 
-        std::vector<T> lookUpElementVec;
-        std::vector<T> parentEleInterpIn;
-        std::vector<T> parentEleInterpOut;
-
         std::vector<unsigned int> edgeIndex;
         std::vector<unsigned int > faceIndex;
         std::vector<unsigned int > child;
@@ -7539,10 +7856,6 @@ namespace ot
 
         faceInterpIn.resize((m_uiElementOrder+1)*(m_uiElementOrder+1));
         faceInterpOut.resize((m_uiElementOrder+1)*(m_uiElementOrder+1));
-
-        lookUpElementVec.resize(m_uiNpE);
-        parentEleInterpIn.resize(m_uiNpE);
-        parentEleInterpOut.resize(m_uiNpE);
 
         unsigned int mid_bit=0;
         unsigned int sz;
@@ -7581,14 +7894,18 @@ namespace ot
        
         assert(numblks<=m_uiLocalBlockList.size());
 
+        std::vector<T> ele_dg_vec;
+        ele_dg_vec.resize(m_uiNumTotalElements*m_uiNpE,(T)0);
+        bool* eleVec_valid = new bool[m_uiAllElements.size()];
+
         for(unsigned int v=0; v < dof; v++)
         {
             const T* zippedVec = in  + v * m_uiNumActualNodes;
             T* unzippedVec = out + v* m_uiUnZippedVecSz; 
 
-            //if(m_uiElementOrder ==4 && paddWidth==3)
-                //readSpecialPtsBegin(zippedVec);
-        
+            for(unsigned int ii=0; ii <m_uiAllElements.size();ii++)
+                eleVec_valid[ii]=false;
+            
             for(unsigned int b = 0; b < numblks; b++ )
             {
                 const unsigned int blk = blkIDs[b];
@@ -7620,12 +7937,14 @@ namespace ot
                     #ifdef ENABLE_DENDRO_PROFILE_COUNTERS
                         dendro::timer::t_unzip_sync_internal.start();
                     #endif
-                    this->getElementNodalValues(zippedVec,&(*(lookUpElementVec.begin())),elem);
-                    //this->getElementNodalValues(zippedVec,&(*(parentEleInterpIn.begin())),elem);
-                    // note: do not change the parentInterpIn values. These are used to interpolate the 3rd point in the advective terms.
-                    for(unsigned int w=0;w<m_uiNpE;w++)
-                        parentEleInterpIn[w]=lookUpElementVec[w];
 
+                    T* lookUpElementVec = &ele_dg_vec[elem*m_uiNpE];
+                    if(!eleVec_valid[elem])
+                    {
+                        this->getElementNodalValues(zippedVec,lookUpElementVec,elem);
+                        eleVec_valid[elem]=true;
+                    }
+                    
                     // (1). local nodes copy. Not need to interpolate or inject values. By block construction local octants in the block has is the same level as regular grid.
                     #ifdef ENABLE_DENDRO_PROFILE_COUNTERS
                         dendro::timer::t_unzip_sync_cpy.start();
@@ -7659,7 +7978,14 @@ namespace ot
                                     dendro::timer::t_unzip_sync_f_c1.start();
                                 #endif
                                 assert(paddWidth<(m_uiElementOrder+1));
-                                this->getElementNodalValues(zippedVec,&(*(lookUpElementVec.begin())),lookUp);
+                                
+                                T* lookUpElementVec = &ele_dg_vec[lookUp*m_uiNpE];
+                                if(!eleVec_valid[lookUp])
+                                {
+                                    this->getElementNodalValues(zippedVec,lookUpElementVec,lookUp);
+                                    eleVec_valid[lookUp]=true;
+                                }
+                                
 
                                 #ifdef ENABLE_DENDRO_PROFILE_COUNTERS
                                     dendro::timer::t_unzip_sync_cpy.start();
@@ -7737,8 +8063,14 @@ namespace ot
 
                                     }
                                 #else
-                                    this->getElementNodalValues(zippedVec,&(*(lookUpElementVec.begin())),lookUp);
-                                    this->parent2ChildInterpolation(&(*(lookUpElementVec.begin())),&(*(interpOrInjectionOut.begin())),cnum);
+                                    
+                                    T* lookUpElementVec = &ele_dg_vec[lookUp*m_uiNpE];
+                                    if(!eleVec_valid[lookUp])
+                                    {
+                                        this->getElementNodalValues(zippedVec,lookUpElementVec,lookUp);
+                                        eleVec_valid[lookUp]=true;
+                                    }
+                                    this->parent2ChildInterpolation(lookUpElementVec,&(*(interpOrInjectionOut.begin())),cnum);
 
                                     
                                     assert(paddWidth<(m_uiElementOrder+1));
@@ -7834,8 +8166,14 @@ namespace ot
                                     dendro::timer::t_unzip_sync_f_c1.start();
                                 #endif
                                 assert(paddWidth<(m_uiElementOrder+1));
-                                this->getElementNodalValues(zippedVec,&(*(lookUpElementVec.begin())),lookUp);
-
+                                
+                                T* lookUpElementVec = &ele_dg_vec[lookUp*m_uiNpE];
+                                if(!eleVec_valid[lookUp])
+                                {
+                                    this->getElementNodalValues(zippedVec,lookUpElementVec,lookUp);
+                                    eleVec_valid[lookUp]=true;
+                                }
+                                
                                 #ifdef ENABLE_DENDRO_PROFILE_COUNTERS
                                     dendro::timer::t_unzip_sync_cpy.start();
                                 #endif
@@ -7911,8 +8249,15 @@ namespace ot
 
                                     }
                                 #else
-                                    this->getElementNodalValues(zippedVec,&(*(lookUpElementVec.begin())),lookUp);
-                                    this->parent2ChildInterpolation(&(*(lookUpElementVec.begin())),&(*(interpOrInjectionOut.begin())),cnum);
+                                    
+                                    T* lookUpElementVec = &ele_dg_vec[lookUp*m_uiNpE];
+                                    if(!eleVec_valid[lookUp])
+                                    {
+                                        this->getElementNodalValues(zippedVec,lookUpElementVec,lookUp);
+                                        eleVec_valid[lookUp]=true;
+                                    }
+
+                                    this->parent2ChildInterpolation(lookUpElementVec,&(*(interpOrInjectionOut.begin())),cnum);
                                     assert(paddWidth<(m_uiElementOrder+1));
                                     for(unsigned int k=0;k<(m_uiElementOrder+1);k++)
                                         for(unsigned int j=0;j<(m_uiElementOrder+1);j++)
@@ -8009,7 +8354,12 @@ namespace ot
                                     dendro::timer::t_unzip_sync_f_c1.start();
                                 #endif
                                 assert(paddWidth<(m_uiElementOrder+1));
-                                this->getElementNodalValues(zippedVec,&(*(lookUpElementVec.begin())),lookUp);
+                                T* lookUpElementVec = &ele_dg_vec[lookUp*m_uiNpE];
+                                if(!eleVec_valid[lookUp])
+                                {
+                                    this->getElementNodalValues(zippedVec,lookUpElementVec,lookUp);
+                                    eleVec_valid[lookUp]=true;
+                                }
 
                                 #ifdef ENABLE_DENDRO_PROFILE_COUNTERS
                                     dendro::timer::t_unzip_sync_cpy.start();
@@ -8083,8 +8433,13 @@ namespace ot
 
                                 }
                                 #else
-                                    this->getElementNodalValues(zippedVec,&(*(lookUpElementVec.begin())),lookUp);
-                                    this->parent2ChildInterpolation(&(*(lookUpElementVec.begin())),&(*(interpOrInjectionOut.begin())),cnum);
+                                    T* lookUpElementVec = &ele_dg_vec[lookUp*m_uiNpE];
+                                    if(!eleVec_valid[lookUp])
+                                    {
+                                        this->getElementNodalValues(zippedVec,lookUpElementVec,lookUp);
+                                        eleVec_valid[lookUp]=true;
+                                    }
+                                    this->parent2ChildInterpolation(lookUpElementVec,&(*(interpOrInjectionOut.begin())),cnum);
 
                                     for(unsigned int k=0;k<(m_uiElementOrder+1);k++)
                                     for(unsigned int i=0;i<(m_uiElementOrder+1);i++)
@@ -8175,7 +8530,12 @@ namespace ot
                                     dendro::timer::t_unzip_sync_f_c1.start();
                                 #endif
                                 assert(paddWidth<(m_uiElementOrder+1));
-                                this->getElementNodalValues(zippedVec,&(*(lookUpElementVec.begin())),lookUp);
+                                T* lookUpElementVec = &ele_dg_vec[lookUp*m_uiNpE];
+                                if(!eleVec_valid[lookUp])
+                                {
+                                    this->getElementNodalValues(zippedVec,lookUpElementVec,lookUp);
+                                    eleVec_valid[lookUp]=true;
+                                }
 
                                 #ifdef ENABLE_DENDRO_PROFILE_COUNTERS
                                     dendro::timer::t_unzip_sync_cpy.start();
@@ -8251,8 +8611,13 @@ namespace ot
 
                                 }
                                 #else
-                                this->getElementNodalValues(zippedVec,&(*(lookUpElementVec.begin())),lookUp);
-                                this->parent2ChildInterpolation(&(*(lookUpElementVec.begin())),&(*(interpOrInjectionOut.begin())),cnum);
+                                T* lookUpElementVec = &ele_dg_vec[lookUp*m_uiNpE];
+                                if(!eleVec_valid[lookUp])
+                                {
+                                    this->getElementNodalValues(zippedVec,lookUpElementVec,lookUp);
+                                    eleVec_valid[lookUp]=true;
+                                }
+                                this->parent2ChildInterpolation(lookUpElementVec,&(*(interpOrInjectionOut.begin())),cnum);
 
                                 assert(paddWidth<(m_uiElementOrder+1));
                                 for(unsigned int k=0;k<(m_uiElementOrder+1);k++)
@@ -8351,7 +8716,12 @@ namespace ot
                                     dendro::timer::t_unzip_sync_f_c1.start();
                                 #endif
                                 assert(paddWidth<(m_uiElementOrder+1));
-                                this->getElementNodalValues(zippedVec,&(*(lookUpElementVec.begin())),lookUp);
+                                T* lookUpElementVec = &ele_dg_vec[lookUp*m_uiNpE];
+                                if(!eleVec_valid[lookUp])
+                                {
+                                    this->getElementNodalValues(zippedVec,lookUpElementVec,lookUp);
+                                    eleVec_valid[lookUp]=true;
+                                }
 
                                 #ifdef ENABLE_DENDRO_PROFILE_COUNTERS
                                     dendro::timer::t_unzip_sync_cpy.start();
@@ -8429,8 +8799,13 @@ namespace ot
 
                                 }
                                 #else
-                                this->getElementNodalValues(zippedVec,&(*(lookUpElementVec.begin())),lookUp);
-                                this->parent2ChildInterpolation(&(*(lookUpElementVec.begin())),&(*(interpOrInjectionOut.begin())),cnum);
+                                T* lookUpElementVec = &ele_dg_vec[lookUp*m_uiNpE];
+                                if(!eleVec_valid[lookUp])
+                                {
+                                    this->getElementNodalValues(zippedVec,lookUpElementVec,lookUp);
+                                    eleVec_valid[lookUp]=true;
+                                }
+                                this->parent2ChildInterpolation(lookUpElementVec,&(*(interpOrInjectionOut.begin())),cnum);
 
                                 for(unsigned int j=0;j<(m_uiElementOrder+1);j++)
                                     for(unsigned int i=0;i<(m_uiElementOrder+1);i++)
@@ -8524,7 +8899,12 @@ namespace ot
                                     dendro::timer::t_unzip_sync_f_c1.start();
                                 #endif
                                 assert(paddWidth<(m_uiElementOrder+1));
-                                this->getElementNodalValues(zippedVec,&(*(lookUpElementVec.begin())),lookUp);
+                                T* lookUpElementVec = &ele_dg_vec[lookUp*m_uiNpE];
+                                if(!eleVec_valid[lookUp])
+                                {
+                                    this->getElementNodalValues(zippedVec,lookUpElementVec,lookUp);
+                                    eleVec_valid[lookUp]=true;
+                                }
 
                                 #ifdef ENABLE_DENDRO_PROFILE_COUNTERS
                                     dendro::timer::t_unzip_sync_cpy.start();
@@ -8599,8 +8979,13 @@ namespace ot
                                     
                                 }
                                 #else
-                                this->getElementNodalValues(zippedVec,&(*(lookUpElementVec.begin())),lookUp);
-                                this->parent2ChildInterpolation(&(*(lookUpElementVec.begin())),&(*(interpOrInjectionOut.begin())),cnum);
+                                T* lookUpElementVec = &ele_dg_vec[lookUp*m_uiNpE];
+                                if(!eleVec_valid[lookUp])
+                                {
+                                    this->getElementNodalValues(zippedVec,lookUpElementVec,lookUp);
+                                    eleVec_valid[lookUp]=true;
+                                }
+                                this->parent2ChildInterpolation(lookUpElementVec,&(*(interpOrInjectionOut.begin())),cnum);
                                 assert(paddWidth<(m_uiElementOrder+1));
 
                                 for(unsigned int j=0;j<(m_uiElementOrder+1);j++)
@@ -8683,7 +9068,7 @@ namespace ot
                 #ifdef ENABLE_DENDRO_PROFILE_COUNTERS
                     dendro::timer::t_unzip_sync_edge.start();
                 #endif
-                    blockDiagonalUnZip(m_uiLocalBlockList[blk],zippedVec,unzippedVec);
+                    blockDiagonalUnZip(m_uiLocalBlockList[blk],zippedVec,unzippedVec,ele_dg_vec.data(),eleVec_valid);
 
                 #ifdef ENABLE_DENDRO_PROFILE_COUNTERS
                     dendro::timer::t_unzip_sync_edge.stop();
@@ -8692,7 +9077,7 @@ namespace ot
                 #ifdef ENABLE_DENDRO_PROFILE_COUNTERS
                     dendro::timer::t_unzip_sync_vtex.start();
                 #endif
-                    blockVertexUnZip(m_uiLocalBlockList[blk],zippedVec,unzippedVec);
+                    blockVertexUnZip(m_uiLocalBlockList[blk],zippedVec,unzippedVec,ele_dg_vec.data(),eleVec_valid);
 
                 #ifdef ENABLE_DENDRO_PROFILE_COUNTERS
                     dendro::timer::t_unzip_sync_vtex.stop();
@@ -8700,37 +9085,10 @@ namespace ot
 
             }
 
-
-            /*if(m_uiElementOrder ==4 && paddWidth==3)
-            {
-                //std::cout<<"read spt points : "<<m_uiElementOrder<<" pwidth : "<<paddWidth<<std::endl;
-                std::vector<T> recv_buf;
-                recv_buf.resize(m_uiRecvOffsetRePt[m_uiActiveNpes-1] + m_uiRecvCountRePt[m_uiActiveNpes-1]);
-
-                readSpecialPtsEnd(zippedVec,&(*(recv_buf.begin())));
-                int rCount=0;
-                
-                for(unsigned int i=0;i<m_uiUnzip_3pt_keys.size();i++)
-                {
-                    const std::vector<unsigned int> * ownerList = m_uiUnzip_3pt_keys[i].getOwnerList();
-                    for(unsigned int w=0; w< ownerList->size(); w++)
-                    {
-                        
-                        unzippedVec[(*(ownerList))[w]] = recv_buf[rCount];
-                    }
-
-                    if(m_uiUnzip_3pt_keys[i].getOwnerList()->size()>0)
-                        rCount++;
-
-                        
-                }
-
-            }*/
-
         
         }
 
-
+        delete [] eleVec_valid;
 
         
 
@@ -8741,19 +9099,299 @@ namespace ot
         
     }
 
+    template<typename T>
+    void Mesh::unzip_scatter(const T* in, T* out,unsigned int dof)
+    {
+        if(!m_uiIsActive)
+            return;
+        
+        const ot::TreeNode* pNodes   =   m_uiAllElements.data();
+        const ot::Block* blkList     =   m_uiLocalBlockList.data();
+        const unsigned int eOrder    =   m_uiElementOrder;
+        const unsigned int nPe       =   m_uiNpE;
+
+        const unsigned int cgSz  =  this->getDegOfFreedom();
+        const unsigned int unSz  =  this->getDegOfFreedomUnZip();   
+
+        const unsigned int* e2n  =  this->getE2NMapping().data();
+        const unsigned int* e2e  =  this->getE2EMapping().data();
+
+        
+        const unsigned int dgSz  =  nPe;
+        std::vector<T> dg_ele_vec;
+        dg_ele_vec.resize(dof * dgSz);
+        
+        T * dgWVec = dg_ele_vec.data();
+        T * uzWVec = out;
+
+        std::vector<T> p2cI_all;
+        p2cI_all.resize(NUM_CHILDREN * dof * nPe);
+        bool p2c_interp_valid[NUM_CHILDREN];
+
+        const double d_compar_tol=1e-10;
+
+        std::vector<ot::TreeNode> childOct;
+        childOct.reserve(NUM_CHILDREN);
+
+        for (unsigned int ele=0; ele < m_uiNumTotalElements; ele++)
+        {   
+            if(m_e2b_unzip_counts[ele]==0)
+                continue;
+
+            for(unsigned int ii=0; ii < NUM_CHILDREN; ii++)
+                p2c_interp_valid[ii]=false;
+            
+            //get the elemental_local(dg) values
+            for(unsigned int v=0; v< dof; v++)
+                this->getElementNodalValues(in + v * cgSz, dgWVec + v*dgSz, ele, false);
+
+            for(unsigned int i = 0; i < m_e2b_unzip_counts[ele]; i++)
+            {   
+                const unsigned int e2b_offset = m_e2b_unzip_offset[ele];
+                const unsigned int blk = m_e2b_unzip_map[e2b_offset + i];
+                assert(blk!=LOOK_UP_TABLE_DEFAULT && blk < m_uiLocalBlockList.size());
+                
+                const unsigned int regLevel  =   blkList[blk].getRegularGridLev();
+                const ot::TreeNode blkNode   =   blkList[blk].getBlockNode();
+                const unsigned int PW        =   blkList[blk].get1DPadWidth();
+
+                const unsigned int lx     =  blkList[blk].getAllocationSzX();
+                const unsigned int ly     =  blkList[blk].getAllocationSzY();
+                const unsigned int lz     =  blkList[blk].getAllocationSzZ();
+                const unsigned int offset =  blkList[blk].getOffset(); 
+
+                const unsigned int bLev  =  pNodes[blkList[blk].getLocalElementBegin()].getLevel();
+
+                const double  hx = (1u<<(m_uiMaxDepth-bLev))/(double)eOrder;
+                const double xmin = blkNode.minX() - PW*hx; const double xmax = blkNode.maxX() + PW*hx;
+                const double ymin = blkNode.minY() - PW*hx; const double ymax = blkNode.maxY() + PW*hx;
+                const double zmin = blkNode.minZ() - PW*hx; const double zmax = blkNode.maxZ() + PW*hx;
+
+
+                // no interpolation needed just copy. 
+                if(pNodes[ele].getLevel()==bLev)
+                {
+                    const double hh = (1u<<(m_uiMaxDepth - pNodes[ele].getLevel()))/(double) eOrder;
+                    const double invhh = 1.0/hh;
+                    
+                    for(unsigned int k=0; k < eOrder+1; k++)
+                    {
+                        double zz  = pNodes[ele].minZ() + k*hh;
+                        
+                        if(fabs(zz-zmin)<d_compar_tol) zz=zmin;
+                        if(fabs(zz-zmax)<d_compar_tol) zz=zmax;
+
+                        if(zz < zmin || zz > zmax) 
+                            continue;
+                        const int kkz = std::round((zz-zmin)*invhh);
+                        assert( std::fabs(zz-zmin-kkz*hh) < d_compar_tol);
+                        assert(kkz >= 0 && kkz < lz);
+
+                        for(unsigned int j=0; j < eOrder+1; j++)
+                        {   
+                            double yy  = pNodes[ele].minY() + j*hh;
+
+                            if(fabs(yy-ymin)<d_compar_tol) yy=ymin;
+                            if(fabs(yy-ymax)<d_compar_tol) yy=ymax;
+
+                            if(yy < ymin || yy > ymax) 
+                                continue;
+                            const int jjy = std::round((yy-ymin)*invhh);
+                            //std::cout<<"yy: "<<yy<<" (ymin + hh*jjy): "<<(ymin + hh*jjy)<<std::endl;
+                            assert( std::fabs(yy-ymin-jjy*hh) < d_compar_tol);
+                            assert(jjy>=0 && jjy<ly);
+
+                            for(unsigned int i=0; i < eOrder+1; i++)
+                            {
+                                double xx = pNodes[ele].minX() + i*hh;
+
+                                if(fabs(xx-xmin)<d_compar_tol) xx=xmin;
+                                if(fabs(xx-xmax)<d_compar_tol) xx=xmax;
+                                
+                                if(xx < xmin || xx > xmax) 
+                                    continue;
+                                const int iix = std::round((xx-xmin)*invhh);
+                                assert( std::fabs(xx-xmin-iix*hh) < d_compar_tol);
+                                assert(iix>=0 && iix<lx);
+
+                                //std::cout<<"blk: "<<blk<<" copy : (i,j,k): ("<<kkz<<" , "<<jjy<<", "<<iix<<")"<<" of : "<<lx<<std::endl;
+
+                                for(unsigned int v=0; v < dof; v++)
+                                    uzWVec[v*unSz + offset + kkz*lx*ly + jjy*lx + iix] =  dgWVec[v*dgSz + k*(eOrder+1)*(eOrder+1)+ j*(eOrder+1) + i];
+                                    
+
+                            }
+                        
+                        }
+                    
+                    }
+
+
+                }
+                else if(pNodes[ele].getLevel() > bLev)
+                {
+                    assert((bLev+1) == pNodes[ele].getLevel());
+                    const unsigned int cnum = pNodes[ele].getMortonIndex();
+                    ot::TreeNode tmpParent = pNodes[ele].getParent();
+                    
+                    const double hh = (1u<<(m_uiMaxDepth - pNodes[ele].getLevel()))/(double) eOrder;
+                    const double invhh = 1.0/(2*hh);
+
+                    assert(eOrder>1);
+                    const unsigned int cb =(eOrder%2==0) ? 0 : 1;
+
+                    for(unsigned int k=cb; k < eOrder+1; k+=2)
+                    {
+                        double zz  = (pNodes[ele].minZ() + k*hh);
+                        if(fabs(zz-zmin)<d_compar_tol) zz=zmin;
+                        if(fabs(zz-zmax)<d_compar_tol) zz=zmax;
+
+                        if(zz < zmin || zz > zmax) 
+                            continue;
+                        const int kkz = std::round((zz-zmin)*invhh);
+                        assert(kkz >= 0 && kkz < lz);
+
+                        for(unsigned int j=cb; j < eOrder+1; j+=2)
+                        {   
+                            double yy  = pNodes[ele].minY() + j*hh;
+                            
+                            if(fabs(yy-ymin)<d_compar_tol) yy=ymin;
+                            if(fabs(yy-ymax)<d_compar_tol) yy=ymax;
+
+                            if(yy < ymin || yy > ymax) 
+                                continue;
+
+                            const int jjy = std::round((yy-ymin)*invhh);
+                            assert(jjy>=0 && jjy<ly);
+
+                            for(unsigned int i=cb; i < eOrder+1; i+=2)
+                            {
+                                double xx = pNodes[ele].minX() + i*hh;
+
+                                if(fabs(xx-xmin)<d_compar_tol) xx=xmin;
+                                if(fabs(xx-xmax)<d_compar_tol) xx=xmax;
+                                
+                                if(xx < xmin || xx > xmax) 
+                                    continue;
+                                const int iix = std::round((xx-xmin)*invhh);
+                                assert(iix>=0 && iix<lx);
+
+                                //std::cout<<"blk: "<<blk<<" blk copy : (i,j,k): ("<<iix<<" , "<<jjy<<", "<<kkz<<")"<<" of : "<<lx<<" xx: "<<xx<<" yy: "<<yy<<" zz:"<<zz<<" xmin: "<<xmin<<" ymin: "<<ymin<<" zmin: "<<zmin<<" hh : "<<hh<<" hhx : "<<hx<<std::endl;
+                                for(unsigned int v=0; v < dof; v++)
+                                    uzWVec[v*unSz + offset + kkz*lx*ly + jjy*lx + iix] =  dgWVec[v*dgSz + k*(eOrder+1)*(eOrder+1)+ j*(eOrder+1) + i];
+                                    
+                                
+
+                            }
+                        
+                        }
+                    
+                    }
+
+
+                
+                }
+                else
+                {   
+                    assert((bLev) == (pNodes[ele].getLevel()+1));
+                    childOct.clear();
+                    pNodes[ele].addChildren(childOct); // note this is the ordering of SFC (depends on Hilbert or Morton. )
+
+                    for(unsigned int child = 0; child < NUM_CHILDREN; child++)
+                    {
+
+                        if( (childOct[child].maxX() < xmin || childOct[child].minX() >=xmax)  || (childOct[child].maxY() < ymin || childOct[child].minY() >=ymax) || (childOct[child].maxZ() < zmin || childOct[child].minZ() >=zmax) )
+                            continue;
+
+
+                        //std::cout<<"blk: "<<blk<<" blkNode: "<<blkNode<<" child: "<<child<<" child node "<<childOct[child]<<" parent : "<<pNodes[ele]<<std::endl;
+                        const double hh = (1u<<(m_uiMaxDepth - childOct[child].getLevel()))/(double) eOrder;
+                        const double invhh = 1.0/hh;
+                        
+                        const unsigned int cnum = childOct[child].getMortonIndex();
+                        if(!p2c_interp_valid[cnum])
+                        {
+                            for(unsigned int v=0; v < dof; v++)
+                                this->parent2ChildInterpolation(&dgWVec[v*dgSz], p2cI_all.data() + cnum * dof * nPe + v * nPe , cnum, m_uiDim);
+                            
+                            p2c_interp_valid[cnum]=true;
+                        }
+
+                        for(unsigned int v=0; v < dof; v++)
+                        {
+                            
+                            const T* const p2cI = p2cI_all.data() + cnum * dof * nPe + v * nPe;
+                            for(unsigned int k=0; k < eOrder+1; k++)
+                            {
+                                double zz  = childOct[child].minZ() + k*hh;
+                                
+                                if(fabs(zz-zmin)<d_compar_tol) zz=zmin;
+                                if(fabs(zz-zmax)<d_compar_tol) zz=zmax;
+                                
+                                if(zz < zmin || zz > zmax) 
+                                    continue;
+                                const int kkz = std::round((zz-zmin)*invhh);
+                                assert(kkz >= 0 && kkz < lz);
+
+                                for(unsigned int j=0; j < eOrder+1; j++)
+                                {   
+                                    double yy  = childOct[child].minY() + j*hh;
+                                    
+                                    if(fabs(yy-ymin)<d_compar_tol) yy=ymin;
+                                    if(fabs(yy-ymax)<d_compar_tol) yy=ymax;
+                                    
+                                    if(yy < ymin || yy > ymax) 
+                                        continue;
+
+                                    const int jjy = std::round((yy-ymin)*invhh);
+                                    assert(jjy>=0 && jjy<ly);
+
+                                    for(unsigned int i=0; i < eOrder+1; i++)
+                                    {
+                                        double xx = childOct[child].minX() + i*hh;
+                                        
+                                        if(fabs(xx-xmin)<d_compar_tol) xx=xmin;
+                                        if(fabs(xx-xmax)<d_compar_tol) xx=xmax;
+                                        
+                                        if(xx < xmin || xx > xmax) 
+                                            continue;
+                                        const int iix = std::round((xx-xmin)*invhh);
+                                        assert(iix>=0 && iix<lx);
+
+                                        uzWVec[v*unSz + offset + kkz*lx*ly + jjy*lx + iix] =  p2cI[k*(eOrder+1)*(eOrder+1)+ j*(eOrder+1) + i];
+
+                                    }
+                                
+                                }
+                            
+                            }
+                            
+                        }
+
+                    }
+
+                }
+
+
+            }
+
+        }
+        
+    }
+
     template <typename T>
     void Mesh::unzip(const T* in, T* out, unsigned int dof)
     {
         if( (!m_uiIsActive) || (m_uiLocalBlockList.empty())  ) return;
 
-        std::vector<unsigned int > blkIDs;
-        blkIDs.resize(m_uiLocalBlockList.size());
+        // std::vector<unsigned int > blkIDs;
+        // blkIDs.resize(m_uiLocalBlockList.size());
 
-        for(unsigned int i=0; i< m_uiLocalBlockList.size(); i++)
-            blkIDs[i] = i ; 
-
+        // for(unsigned int i=0; i< m_uiLocalBlockList.size(); i++)
+        //     blkIDs[i] = i ; 
         // unzip all the blocks. 
-        this->unzip(in,out,blkIDs.data(),blkIDs.size(),dof);
+        //this->unzip(in,out,blkIDs.data(),blkIDs.size(),dof);
+        this->unzip_scatter(in,out,dof);
         
 
     }
@@ -9430,6 +10068,7 @@ namespace ot
             const unsigned int bLev  =  pNodes[blkList[blk].getLocalElementBegin()].getLevel();
             
             std::vector<unsigned int> eid;
+            eid.reserve((NUM_CHILDREN+ NUM_FACES + NUM_EDGES + 1) * 4);
             this->blkUnzipElementIDs(blk,eid);
             
             // now need to copy to the block unzip/ block asyncVector 
@@ -9445,7 +10084,7 @@ namespace ot
             std::vector<T> p2cI;
             p2cI.resize(nPe);
 
-            const double d_compar_tol=1e-6;
+            const double d_compar_tol=1e-10;
 
             
 
@@ -9468,8 +10107,8 @@ namespace ot
 
                         if(zz < zmin || zz > zmax) 
                             continue;
-                        const unsigned int kkz = std::round((zz-zmin)*invhh);
-                        assert( std::fabs(zz-zmin-kkz*hh) < 1e-6);
+                        const int kkz = std::round((zz-zmin)*invhh);
+                        assert( std::fabs(zz-zmin-kkz*hh) < d_compar_tol);
                         assert(kkz >= 0 && kkz < lz);
 
                         for(unsigned int j=0; j < eOrder+1; j++)
@@ -9481,9 +10120,9 @@ namespace ot
 
                             if(yy < ymin || yy > ymax) 
                                 continue;
-                            const unsigned int jjy = std::round((yy-ymin)*invhh);
+                            const int jjy = std::round((yy-ymin)*invhh);
                             //std::cout<<"yy: "<<yy<<" (ymin + hh*jjy): "<<(ymin + hh*jjy)<<std::endl;
-                            assert( std::fabs(yy-ymin-jjy*hh) < 1e-6);
+                            assert( std::fabs(yy-ymin-jjy*hh) < d_compar_tol);
                             assert(jjy>=0 && jjy<ly);
 
                             for(unsigned int i=0; i < eOrder+1; i++)
@@ -9495,8 +10134,8 @@ namespace ot
                                 
                                 if(xx < xmin || xx > xmax) 
                                     continue;
-                                const unsigned int iix = std::round((xx-xmin)*invhh);
-                                assert( std::fabs(xx-xmin-iix*hh) < 1e-6);
+                                const int iix = std::round((xx-xmin)*invhh);
+                                assert( std::fabs(xx-xmin-iix*hh) < d_compar_tol);
                                 assert(iix>=0 && iix<lx);
 
                                 //std::cout<<"blk: "<<blk<<" copy : (i,j,k): ("<<kkz<<" , "<<jjy<<", "<<iix<<")"<<" of : "<<lx<<std::endl;
@@ -9533,7 +10172,7 @@ namespace ot
 
                         if(zz < zmin || zz > zmax) 
                             continue;
-                        const unsigned int kkz = std::round((zz-zmin)*invhh);
+                        const int kkz = std::round((zz-zmin)*invhh);
                         assert(kkz >= 0 && kkz < lz);
 
                         for(unsigned int j=cb; j < eOrder+1; j+=2)
@@ -9546,7 +10185,7 @@ namespace ot
                             if(yy < ymin || yy > ymax) 
                                 continue;
 
-                            const unsigned int jjy = std::round((yy-ymin)*invhh);
+                            const int jjy = std::round((yy-ymin)*invhh);
                             assert(jjy>=0 && jjy<ly);
 
                             for(unsigned int i=cb; i < eOrder+1; i+=2)
@@ -9558,7 +10197,7 @@ namespace ot
                                 
                                 if(xx < xmin || xx > xmax) 
                                     continue;
-                                const unsigned int iix = std::round((xx-xmin)*invhh);
+                                const int iix = std::round((xx-xmin)*invhh);
                                 assert(iix>=0 && iix<lx);
 
                                 //std::cout<<"blk: "<<blk<<" blk copy : (i,j,k): ("<<iix<<" , "<<jjy<<", "<<kkz<<")"<<" of : "<<lx<<" xx: "<<xx<<" yy: "<<yy<<" zz:"<<zz<<" xmin: "<<xmin<<" ymin: "<<ymin<<" zmin: "<<zmin<<" hh : "<<hh<<" hhx : "<<hx<<std::endl;
@@ -9607,7 +10246,7 @@ namespace ot
                                 
                                 if(zz < zmin || zz > zmax) 
                                     continue;
-                                const unsigned int kkz = std::round((zz-zmin)*invhh);
+                                const int kkz = std::round((zz-zmin)*invhh);
                                 assert(kkz >= 0 && kkz < lz);
 
                                 for(unsigned int j=0; j < eOrder+1; j++)
@@ -9620,7 +10259,7 @@ namespace ot
                                     if(yy < ymin || yy > ymax) 
                                         continue;
 
-                                    const unsigned int jjy = std::round((yy-ymin)*invhh);
+                                    const int jjy = std::round((yy-ymin)*invhh);
                                     assert(jjy>=0 && jjy<ly);
 
                                     for(unsigned int i=0; i < eOrder+1; i++)
@@ -9632,7 +10271,7 @@ namespace ot
                                         
                                         if(xx < xmin || xx > xmax) 
                                             continue;
-                                        const unsigned int iix = std::round((xx-xmin)*invhh);
+                                        const int iix = std::round((xx-xmin)*invhh);
                                         assert(iix>=0 && iix<lx);
 
                                         uzWVec[v*unSz + offset + kkz*lx*ly + jjy*lx + iix] =  p2cI[k*(eOrder+1)*(eOrder+1)+ j*(eOrder+1) + i];
@@ -9679,6 +10318,277 @@ namespace ot
         }
         
 
+    }
+
+    template<typename T>
+    void Mesh::unzipDG_scatter(const T* in, T* out,unsigned int dof)
+    {
+        if(!m_uiIsActive)
+            return;
+        
+        const ot::TreeNode* pNodes   =   m_uiAllElements.data();
+        const ot::Block* blkList     =   m_uiLocalBlockList.data();
+        const unsigned int eOrder    =   m_uiElementOrder;
+        const unsigned int nPe       =   m_uiNpE;
+
+        const unsigned int dgSz  =  m_uiAllElements.size() * nPe;
+        const unsigned int cgSz  =  this->getDegOfFreedom();
+        const unsigned int unSz  =  this->getDegOfFreedomUnZip();   
+
+        const unsigned int* e2n  =  this->getE2NMapping().data();
+        const unsigned int* e2e  =  this->getE2EMapping().data();
+
+        const T * dgWVec = in;
+        T * uzWVec = out;
+
+        std::vector<T> p2cI_all;
+        p2cI_all.resize(NUM_CHILDREN * dof * nPe);
+        bool p2c_interp_valid[NUM_CHILDREN];
+
+        const double d_compar_tol=1e-10;
+
+        std::vector<ot::TreeNode> childOct;
+        childOct.reserve(NUM_CHILDREN);
+
+        for (unsigned int ele=0; ele < m_uiNumTotalElements; ele++)
+        {   
+            if(m_e2b_unzip_counts[ele]==0)
+                continue;
+            
+            for(unsigned int ii=0; ii < NUM_CHILDREN; ii++)
+                p2c_interp_valid[ii]=false;
+
+            for(unsigned int i = 0; i < m_e2b_unzip_counts[ele]; i++)
+            {   
+                const unsigned int e2b_offset = m_e2b_unzip_offset[ele];
+                const unsigned int blk = m_e2b_unzip_map[e2b_offset + i];
+                assert(blk!=LOOK_UP_TABLE_DEFAULT && blk < m_uiLocalBlockList.size());
+                
+                const unsigned int regLevel  =   blkList[blk].getRegularGridLev();
+                const ot::TreeNode blkNode   =   blkList[blk].getBlockNode();
+                const unsigned int PW        =   blkList[blk].get1DPadWidth();
+
+                const unsigned int lx     =  blkList[blk].getAllocationSzX();
+                const unsigned int ly     =  blkList[blk].getAllocationSzY();
+                const unsigned int lz     =  blkList[blk].getAllocationSzZ();
+                const unsigned int offset =  blkList[blk].getOffset(); 
+
+                const unsigned int bLev  =  pNodes[blkList[blk].getLocalElementBegin()].getLevel();
+
+                const double  hx = (1u<<(m_uiMaxDepth-bLev))/(double)eOrder;
+                const double xmin = blkNode.minX() - PW*hx; const double xmax = blkNode.maxX() + PW*hx;
+                const double ymin = blkNode.minY() - PW*hx; const double ymax = blkNode.maxY() + PW*hx;
+                const double zmin = blkNode.minZ() - PW*hx; const double zmax = blkNode.maxZ() + PW*hx;
+
+
+                // no interpolation needed just copy. 
+                if(pNodes[ele].getLevel()==bLev)
+                {
+                    const double hh = (1u<<(m_uiMaxDepth - pNodes[ele].getLevel()))/(double) eOrder;
+                    const double invhh = 1.0/hh;
+                    
+                    for(unsigned int k=0; k < eOrder+1; k++)
+                    {
+                        double zz  = pNodes[ele].minZ() + k*hh;
+                        
+                        if(fabs(zz-zmin)<d_compar_tol) zz=zmin;
+                        if(fabs(zz-zmax)<d_compar_tol) zz=zmax;
+
+                        if(zz < zmin || zz > zmax) 
+                            continue;
+                        const int kkz = std::round((zz-zmin)*invhh);
+                        assert( std::fabs(zz-zmin-kkz*hh) < d_compar_tol);
+                        assert(kkz >= 0 && kkz < lz);
+
+                        for(unsigned int j=0; j < eOrder+1; j++)
+                        {   
+                            double yy  = pNodes[ele].minY() + j*hh;
+
+                            if(fabs(yy-ymin)<d_compar_tol) yy=ymin;
+                            if(fabs(yy-ymax)<d_compar_tol) yy=ymax;
+
+                            if(yy < ymin || yy > ymax) 
+                                continue;
+                            const int jjy = std::round((yy-ymin)*invhh);
+                            //std::cout<<"yy: "<<yy<<" (ymin + hh*jjy): "<<(ymin + hh*jjy)<<std::endl;
+                            assert( std::fabs(yy-ymin-jjy*hh) < d_compar_tol);
+                            assert(jjy>=0 && jjy<ly);
+
+                            for(unsigned int i=0; i < eOrder+1; i++)
+                            {
+                                double xx = pNodes[ele].minX() + i*hh;
+
+                                if(fabs(xx-xmin)<d_compar_tol) xx=xmin;
+                                if(fabs(xx-xmax)<d_compar_tol) xx=xmax;
+                                
+                                if(xx < xmin || xx > xmax) 
+                                    continue;
+                                const int iix = std::round((xx-xmin)*invhh);
+                                assert( std::fabs(xx-xmin-iix*hh) < d_compar_tol);
+                                assert(iix>=0 && iix<lx);
+
+                                //std::cout<<"blk: "<<blk<<" copy : (i,j,k): ("<<kkz<<" , "<<jjy<<", "<<iix<<")"<<" of : "<<lx<<std::endl;
+
+                                for(unsigned int v=0; v < dof; v++)
+                                    uzWVec[v*unSz + offset + kkz*lx*ly + jjy*lx + iix] =  dgWVec[v*dgSz + ele*nPe + k*(eOrder+1)*(eOrder+1)+ j*(eOrder+1) + i];
+                                    
+
+                            }
+                        
+                        }
+                    
+                    }
+
+
+                }
+                else if(pNodes[ele].getLevel() > bLev)
+                {
+                    assert((bLev+1) == pNodes[ele].getLevel());
+                    const unsigned int cnum = pNodes[ele].getMortonIndex();
+                    ot::TreeNode tmpParent = pNodes[ele].getParent();
+                    
+                    const double hh = (1u<<(m_uiMaxDepth - pNodes[ele].getLevel()))/(double) eOrder;
+                    const double invhh = 1.0/(2*hh);
+
+                    assert(eOrder>1);
+                    const unsigned int cb =(eOrder%2==0) ? 0 : 1;
+
+                    for(unsigned int k=cb; k < eOrder+1; k+=2)
+                    {
+                        double zz  = (pNodes[ele].minZ() + k*hh);
+                        if(fabs(zz-zmin)<d_compar_tol) zz=zmin;
+                        if(fabs(zz-zmax)<d_compar_tol) zz=zmax;
+
+                        if(zz < zmin || zz > zmax) 
+                            continue;
+                        const int kkz = std::round((zz-zmin)*invhh);
+                        assert(kkz >= 0 && kkz < lz);
+
+                        for(unsigned int j=cb; j < eOrder+1; j+=2)
+                        {   
+                            double yy  = pNodes[ele].minY() + j*hh;
+                            
+                            if(fabs(yy-ymin)<d_compar_tol) yy=ymin;
+                            if(fabs(yy-ymax)<d_compar_tol) yy=ymax;
+
+                            if(yy < ymin || yy > ymax) 
+                                continue;
+
+                            const int jjy = std::round((yy-ymin)*invhh);
+                            assert(jjy>=0 && jjy<ly);
+
+                            for(unsigned int i=cb; i < eOrder+1; i+=2)
+                            {
+                                double xx = pNodes[ele].minX() + i*hh;
+
+                                if(fabs(xx-xmin)<d_compar_tol) xx=xmin;
+                                if(fabs(xx-xmax)<d_compar_tol) xx=xmax;
+                                
+                                if(xx < xmin || xx > xmax) 
+                                    continue;
+                                const int iix = std::round((xx-xmin)*invhh);
+                                assert(iix>=0 && iix<lx);
+
+                                //std::cout<<"blk: "<<blk<<" blk copy : (i,j,k): ("<<iix<<" , "<<jjy<<", "<<kkz<<")"<<" of : "<<lx<<" xx: "<<xx<<" yy: "<<yy<<" zz:"<<zz<<" xmin: "<<xmin<<" ymin: "<<ymin<<" zmin: "<<zmin<<" hh : "<<hh<<" hhx : "<<hx<<std::endl;
+                                for(unsigned int v=0; v < dof; v++)
+                                    uzWVec[v*unSz + offset + kkz*lx*ly + jjy*lx + iix] =  dgWVec[v*dgSz + ele*nPe + k*(eOrder+1)*(eOrder+1)+ j*(eOrder+1) + i];
+                                    
+                                
+
+                            }
+                        
+                        }
+                    
+                    }
+
+
+                
+                }
+                else
+                {
+                    assert((bLev) == (pNodes[ele].getLevel()+1));
+                    childOct.clear();
+                    pNodes[ele].addChildren(childOct); // note this is the ordering of SFC (depends on Hilbert or Morton. )
+
+                    for(unsigned int child = 0; child < NUM_CHILDREN; child++)
+                    {
+
+                        if( (childOct[child].maxX() < xmin || childOct[child].minX() >=xmax)  || (childOct[child].maxY() < ymin || childOct[child].minY() >=ymax) || (childOct[child].maxZ() < zmin || childOct[child].minZ() >=zmax) )
+                            continue;
+
+
+                        //std::cout<<"blk: "<<blk<<" blkNode: "<<blkNode<<" child: "<<child<<" child node "<<childOct[child]<<" parent : "<<pNodes[ele]<<std::endl;
+                        const double hh = (1u<<(m_uiMaxDepth - childOct[child].getLevel()))/(double) eOrder;
+                        const double invhh = 1.0/hh;
+
+                        const unsigned int cnum = childOct[child].getMortonIndex();
+                        if(!p2c_interp_valid[cnum])
+                        {
+                            for(unsigned int v=0; v < dof; v++)
+                                this->parent2ChildInterpolation(&dgWVec[v*dgSz + ele*nPe], p2cI_all.data() + cnum * dof * nPe + v * nPe , cnum, m_uiDim);
+                            
+                            p2c_interp_valid[cnum]=true;
+                        }
+                        
+                        for(unsigned int v=0; v < dof; v++)
+                        {
+                            const T* const p2cI = p2cI_all.data() + cnum * dof * nPe + v * nPe;
+                            for(unsigned int k=0; k < eOrder+1; k++)
+                            {
+                                double zz  = childOct[child].minZ() + k*hh;
+                                
+                                if(fabs(zz-zmin)<d_compar_tol) zz=zmin;
+                                if(fabs(zz-zmax)<d_compar_tol) zz=zmax;
+                                
+                                if(zz < zmin || zz > zmax) 
+                                    continue;
+                                const int kkz = std::round((zz-zmin)*invhh);
+                                assert(kkz >= 0 && kkz < lz);
+
+                                for(unsigned int j=0; j < eOrder+1; j++)
+                                {   
+                                    double yy  = childOct[child].minY() + j*hh;
+                                    
+                                    if(fabs(yy-ymin)<d_compar_tol) yy=ymin;
+                                    if(fabs(yy-ymax)<d_compar_tol) yy=ymax;
+                                    
+                                    if(yy < ymin || yy > ymax) 
+                                        continue;
+
+                                    const int jjy = std::round((yy-ymin)*invhh);
+                                    assert(jjy>=0 && jjy<ly);
+
+                                    for(unsigned int i=0; i < eOrder+1; i++)
+                                    {
+                                        double xx = childOct[child].minX() + i*hh;
+                                        
+                                        if(fabs(xx-xmin)<d_compar_tol) xx=xmin;
+                                        if(fabs(xx-xmax)<d_compar_tol) xx=xmax;
+                                        
+                                        if(xx < xmin || xx > xmax) 
+                                            continue;
+                                        const int iix = std::round((xx-xmin)*invhh);
+                                        assert(iix>=0 && iix<lx);
+
+                                        uzWVec[v*unSz + offset + kkz*lx*ly + jjy*lx + iix] =  p2cI[k*(eOrder+1)*(eOrder+1)+ j*(eOrder+1) + i];
+
+                                    }
+                                
+                                }
+                            
+                            }
+                            
+                        }
+
+                    }
+
+                }
+
+
+            }
+
+        }
+        
     }
 
     template <typename T>
