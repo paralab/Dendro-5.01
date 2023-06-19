@@ -42,7 +42,7 @@ int main (int argc, char** argv) {
     if (argc < 4) {
         if (!rank)
             std::cout << "Usage: " << argv[0]
-                      << " maxDepth wavelet_tol partition_tol eleOrder "
+                      << " maxDepth wavelet_tol partition_tol eleOrder maxIter(optional)"
                       << std::endl;
         return 0;
     }
@@ -51,6 +51,12 @@ int main (int argc, char** argv) {
     double wavelet_tol = atof(argv[2]);
     double partition_tol = atof(argv[3]);
     unsigned int eOrder = atoi(argv[4]);
+
+    int maxIter = 1000;
+    
+    if (argc > 5) {
+        maxIter = atoi(argv[5]);
+    }
 
 
     double tBegin = 0, tEnd = 10, th = 0.01;
@@ -233,7 +239,7 @@ int main (int argc, char** argv) {
     const unsigned int nodeLocalBegin=mesh->getNodeLocalBegin();
     const unsigned int nodeLocalEnd=mesh->getNodeLocalEnd();
     const unsigned int local_dof=nodeLocalEnd-nodeLocalBegin;
-    int maxIter=1000;
+    
     double cg_tol=1e-5;
 
 
