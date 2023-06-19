@@ -1,0 +1,35 @@
+name: Dendro-5.01 Testing
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+
+jobs:
+  mpich-full-test-suite:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Setup MPI
+        uses: mpi4py/setup-mpi@v1
+      - name: CMake Configuration
+        run: cmake -S . -B build -D CMAKE_BUILD_TYPE=Release
+      - name: build several targets
+        run: cmake --build build --parallel 10 --target run_all_tests testOctUtils testInterp meshE2NCheck heatEq laplaceEq
+      - name: Test Octree Utilities (rm Dupes)
+        run: cd build ; mpirun -np 10 ./testOctUtils 600 3 8 1e-5 0 1
+      - name: Test Octree Utilities (Construct Octree)
+        run: cd build ; mpirun -np 10 ./testOctUtils 600 3 8 1e-5 0 2
+      - name: Test Octree Utilities (balancedOctree Octree)
+        run: cd build ; mpirun -np 10 ./testOctUtils 600 3 8 1e-5 0 6
+      - name: Test E2N Mapping
+        run: cd build ; mpirun -np 10 ./meshE2NCheck testing 100 3 8 1e-5 0 1 2
+      - name: Test Interpolation
+        run: cd build ; mpirun -np 1 ./testInterp 8 1e-5 1e-5 6 0
+      - name: Run All Tests
+        run: cd build ; mpirun -np 10 ./run_all_tests 8 1e-5 0.1 6
+      - name: Test Heat Equation Solver
+        run: cd build ; mpirun -np 10 ./heatEq 8 1e-5 1e-5 6
+      - name: Test Laplace Equation Solver
+        run: cd build ; mpirun -np 10 ./laplaceEq 8 1e-5 1e-5 6 100
