@@ -39,6 +39,8 @@ int main(int argc, char** argv) {
         if (!rank)
             std::cout << "Usage :" << argv[0] << " numPts numKeys" << " dim " << " maxDepth " << " tol[0.1]  "
                       << " distribution (0- Normal 1- Uniform 2- LogarithmicNormal)" << std::endl;
+        MPI_Finalize();
+        return 0;
     }
 
     DendroIntL numPts = atoll(argv[1]);
@@ -99,7 +101,8 @@ int main(int argc, char** argv) {
 
     if(npes>2)
     {
-        std::cout<<"This is a sequential test"<<std::endl;
+        std::cout<<"This is a sequential test, do not run with more than 1 process."<<std::endl;
+        MPI_Finalize();
         return 0;
     }
 

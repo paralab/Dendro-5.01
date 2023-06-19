@@ -67,6 +67,9 @@ int main(int argc, char** argv) {
     if(argc<3)
     {   if(!rank)
             std::cout<<"Usage :"<<argv[0]<<" numPts "<<" dim "<<" maxDepth "<<" tol  "<<" distribution (0- Normal 1- Uniform 2- LogarithmicNormal) options( 1-Remove duplicates 2- constructOctree 6-balancedOctree)"<<std::endl;
+
+        MPI_Finalize();
+        return 0;
     }
 
     DendroIntL numPts=atoll(argv[1]);

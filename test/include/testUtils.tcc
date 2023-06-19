@@ -19,7 +19,7 @@ namespace seq {
   namespace test {
 
     template <typename T>
-      bool isSorted(const std::vector<T > & nodes) {
+    bool isSorted(const std::vector<T > & nodes) {
         for (unsigned int i = 1; i < nodes.size(); i++) {
           if ( nodes[i] < nodes[i-1] ) {
             std::cout<<"\n Local Sort Check failed for: "<<nodes[i]<<" and "
@@ -30,8 +30,8 @@ namespace seq {
         return true;
       }
 
-      template <typename T>
-      bool isSorted_all_pairs(const std::vector<T > & nodes) {
+    template <typename T>
+    bool isSorted_all_pairs(const std::vector<T > & nodes) {
         for (unsigned int i = 0; i < nodes.size(); i++) {
           for(unsigned int j=i+1;j<nodes.size();j++)
           {
@@ -47,7 +47,7 @@ namespace seq {
 
 
     template <typename T>
-      bool isSorted(T* nodes, unsigned int sz) {
+    bool isSorted(T* nodes, unsigned int sz) {
         for (unsigned int i = 1; i < sz; i++) {
           if ( nodes[i] < nodes[i-1] ) {
             std::cout<<"\n Local Sort Check failed for: "<<nodes[i]<<" and "
@@ -61,8 +61,8 @@ namespace seq {
       }
 
 
-      template<typename T>
-      bool isNAN(const T * in, const unsigned int sz)
+    template<typename T>
+    bool isNAN(const T * in, const unsigned int sz)
       {
           for(unsigned int i=0;i<sz;i++)
               if(std::isnan(in[i]))
@@ -73,8 +73,8 @@ namespace seq {
       }
 
 
-      template<typename T>
-      bool isBlockNAN(const T * in,const unsigned int* sz)
+    template<typename T>
+    bool isBlockNAN(const T * in,const unsigned int* sz)
       {
           for(unsigned int k=3;k<sz[2]-3;k++)
               for(unsigned int j=3;j<sz[1]-3;j++)
@@ -88,8 +88,8 @@ namespace seq {
       }
 
 
-      template<typename T>
-      bool isBlockNAN(const T * in, const unsigned int* sz,unsigned int flag)
+    template<typename T>
+    bool isBlockNAN(const T * in, const unsigned int* sz,unsigned int flag)
       {
 
           if(flag==0)
@@ -112,7 +112,7 @@ namespace seq {
 
 
     template <typename T>
-      bool isUniqueAndSorted(const std::vector<T > & nodes) {
+    bool isUniqueAndSorted(const std::vector<T > & nodes) {
         for (unsigned int i = 1; i < nodes.size(); i++) {
           if ( nodes[i] <= nodes[i-1] ) {
             std::cout<<"\n Local Sort+Unique Check failed for: "<<nodes[i]<<" and "
@@ -126,8 +126,8 @@ namespace seq {
       }
 
 
-      template <typename T>
-      bool containsAncestor(const std::vector<T > & nodes) {
+    template <typename T>
+    bool containsAncestor(const std::vector<T > & nodes) {
         for (unsigned int i = 1; i < nodes.size(); i++) {
           if (nodes[i-1].isAncestor(nodes[i]) ) {
             std::cout<<"\n Local contains ancestors failed for: "<<nodes[i]<<" and "
@@ -142,7 +142,7 @@ namespace seq {
 
 
 
-  template <typename T>
+    template <typename T>
     bool  isComplete (const std::vector<T>& nodes) {
 
     //std::cout<<"size of DendroIntL: "<<sizeof(DendroIntL)<<std::endl;
@@ -189,8 +189,8 @@ namespace seq {
   }
 
 
-      template <typename T>
-      bool checkE2EMapping( const std::vector<unsigned int >&  E2EMap,  const std::vector<T>& allNodes, unsigned int localBegin, unsigned int localEnd ,unsigned int k_s,unsigned numDirections) {
+    template <typename T>
+    bool checkE2EMapping( const std::vector<unsigned int >&  E2EMap,  const std::vector<T>& allNodes, unsigned int localBegin, unsigned int localEnd ,unsigned int k_s,unsigned numDirections) {
           unsigned int domain_max = (1u<<(m_uiMaxDepth-1))+1;
           const ot::TreeNode *inPtr = (&(*(allNodes.begin())));
 
@@ -319,8 +319,8 @@ namespace seq {
 
 
 
-      template <typename T>
-      bool checkE2NMapping( const std::vector<unsigned int >&  E2EMap , const std::vector<unsigned int >& E2NMap, const std::vector<T>& allNodes,unsigned int numDirections,unsigned int elementOrder)
+    template <typename T>
+    bool checkE2NMapping( const std::vector<unsigned int >&  E2EMap , const std::vector<unsigned int >& E2NMap, const std::vector<T>& allNodes,unsigned int numDirections,unsigned int elementOrder)
       {
 
           unsigned int numNpE;
@@ -455,7 +455,7 @@ namespace test {
     }
 
 
-  template <typename T>
+    template <typename T>
     bool isUniqueAndSorted(const std::vector<T > &nodes, MPI_Comm comm) {
 
       bool localPassed = seq::test::isUniqueAndSorted<T>(nodes);
@@ -575,62 +575,59 @@ namespace test {
 
 
 
-//@author: Milinda Fernando
-// School of Computing, University  of Utah
+    template <typename T>
+    bool  isComplete (const std::vector<T>& nodes, MPI_Comm comm) {
 
-        template <typename T>
-        bool  isComplete (const std::vector<T>& nodes, MPI_Comm comm) {
+        DendroIntL vol=0;
 
-          DendroIntL vol=0;
+        int rank,npes;
+        MPI_Comm_rank(comm, &rank);
+        MPI_Comm_size(comm,&npes);
 
-          int rank,npes;
-          MPI_Comm_rank(comm, &rank);
-          MPI_Comm_size(comm,&npes);
+        int maxDepth=0;
+        int maxDepth_g=0;
+        if(nodes.size()!=0) {
 
-          int maxDepth=0;
-          int maxDepth_g=0;
-          if(nodes.size()!=0) {
+        maxDepth = nodes[0].getMaxDepth();
+        int dim = nodes[0].getDim();
 
-            maxDepth = nodes[0].getMaxDepth();
-            int dim = nodes[0].getDim();
+        vol = 0;
+        int len = 0;
 
-            vol = 0;
-            int len = 0;
-
-            for (int i = 0; i < nodes.size(); i++) {
-              len = 1u << (maxDepth - nodes[i].getLevel());
-              if (i < (nodes.size() - 1) && (nodes[i].isAncestor(nodes[i + 1]))) {
-                std::cout<<"Rank:"<<rank<<" contains duplicate nodes."<<std::endl;
-                return false;
-              }
-              vol += len * len * len;
+        for (int i = 0; i < nodes.size(); i++) {
+            len = 1u << (maxDepth - nodes[i].getLevel());
+            if (i < (nodes.size() - 1) && (nodes[i].isAncestor(nodes[i + 1]))) {
+            std::cout<<"Rank:"<<rank<<" contains duplicate nodes."<<std::endl;
+            return false;
             }
-          }else{
-            vol=0;
-          }
-
-
-          DendroIntL g_vol=0;
-          par::Mpi_Reduce(&vol,&g_vol,1,MPI_SUM,0,comm);
-          par::Mpi_Reduce(&maxDepth,&maxDepth_g,1,MPI_MAX,0,comm);
-
-          if(!rank)
-          {
-              std::cout<<"MaxDepth of the Octree:"<<maxDepth_g<<std::endl;
-              assert(maxDepth_g!=0);
-              long long int max_len=1u<<maxDepth_g;
-              if(g_vol==(max_len*max_len*max_len))
-              {
-                return true;
-              }else
-              {
-                std::cout<<"Volume of the Complete Octree:"<<(max_len*max_len*max_len)<<std::endl;
-                std::cout<<"Computed octree volume:"<<g_vol<<std::endl;
-                return false;
-              }
-          }
-
+            vol += len * len * len;
         }
+        }else{
+        vol=0;
+        }
+
+
+        DendroIntL g_vol=0;
+        par::Mpi_Reduce(&vol,&g_vol,1,MPI_SUM,0,comm);
+        par::Mpi_Reduce(&maxDepth,&maxDepth_g,1,MPI_MAX,0,comm);
+
+        if(!rank)
+        {
+            std::cout<<"MaxDepth of the Octree:"<<maxDepth_g<<std::endl;
+            assert(maxDepth_g!=0);
+            long long int max_len=1u<<maxDepth_g;
+            if(g_vol==(max_len*max_len*max_len))
+            {
+            return true;
+            }else
+            {
+            std::cout<<"Volume of the Complete Octree:"<<(max_len*max_len*max_len)<<std::endl;
+            std::cout<<"Computed octree volume:"<<g_vol<<std::endl;
+            return false;
+            }
+        }
+
+    }
 
 
   }//end namespace

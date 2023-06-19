@@ -158,7 +158,7 @@ namespace ot
 
     void meshWAMRConvergence(ot::Mesh*& pMesh, std::function<void(double,double,double,double*)> func,  double wtol, unsigned int numVars, unsigned int eleOrder,unsigned int * refIds, unsigned int sz, unsigned int maxiter)
     {
-        
+        typedef ot::DVector<DendroScalar, unsigned int> DVec;
         MPI_Comm gcomm = pMesh->getMPIGlobalCommunicator();
         int rank, npes;
 
@@ -196,13 +196,14 @@ namespace ot
         {
             DVec vecCG;
             DVec vecUz;
-            vecCG.VecCreate(pMesh,true,false,false,numVars);
-            vecUz.VecCreate(pMesh,false,true,false,numVars);
+            vecCG.create_vector(pMesh,DVEC_TYPE::OCT_SHARED_NODES,DVEC_LOC::HOST,numVars,true);
+            vecCG.create_vector(pMesh,DVEC_TYPE::OCT_LOCAL_WITH_PADDING,DVEC_LOC::HOST,numVars,true);
+            
             DendroScalar* zipIn[numVars];
             DendroScalar* unzipIn[numVars];
 
-            vecCG.Get2DVec(zipIn);
-            vecUz.Get2DVec(unzipIn);
+            vecCG.to_2d(zipIn);
+            vecUz.to_2d(unzipIn);
 
             if(pMesh->isActive())
             {
@@ -249,10 +250,10 @@ namespace ot
                 }
 
 
-                pMesh->readFromGhostBegin(vecCG.GetVecArray(),numVars);
-                pMesh->readFromGhostEnd(vecCG.GetVecArray(),numVars);
+                pMesh->readFromGhostBegin(vecCG.get_vec_ptr(),numVars);
+                pMesh->readFromGhostEnd(vecCG.get_vec_ptr(),numVars);
 
-                pMesh->unzip(vecCG.GetVecArray(), vecUz.GetVecArray(), numVars);
+                pMesh->unzip(vecCG.get_vec_ptr(), vecUz.get_vec_ptr(), numVars);
 
             }
 
@@ -283,8 +284,8 @@ namespace ot
                 iter++; 
             }
 
-            vecCG.VecDestroy();
-            vecUz.VecDestroy();
+            vecCG.destroy_vector();
+            vecUz.destroy_vector();
 
         }while(isRefine1 && iter < maxiter);
         

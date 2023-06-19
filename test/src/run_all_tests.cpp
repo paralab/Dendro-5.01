@@ -3,9 +3,8 @@
 /**
 *@author Milinda Fernando
 *School of Computing, University of Utah
-*@brief Contains code to apply a give stencil for a given octree.
+*@brief Contains collection of test cases, to check the all mesh, interp, ghost sync functionality. 
 */
-//
 
 #include "TreeNode.h"
 #include "mpi.h"

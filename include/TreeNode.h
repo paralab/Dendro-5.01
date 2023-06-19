@@ -511,7 +511,7 @@ namespace ot {
         unsigned int index2=0;
         unsigned int num_children=1u<<dim; // This is basically the hilbert table offset
         unsigned int rot_offset=num_children<<1;
-        char index_temp=0;
+        //char index_temp=0;
         int current_rot=0;
 
         //unsigned int b_x,b_y,b_z;

@@ -528,6 +528,65 @@ namespace ot
 
         }
 
+        template<typename T, typename CoordT>
+        void interpolateToCoordsAndGather(const ot::Mesh * mesh, const T* in, const CoordT* domain_coords, unsigned int length, const Point* const grid_limit, const Point* const domain_limit, T* out,unsigned int root,unsigned int dof)
+        {
+
+            if(mesh->isActive())
+            {
+                MPI_Comm comm_active = mesh->getMPICommunicator();
+                unsigned int rank_active = mesh->getMPIRank();
+                unsigned int npes_active = mesh->getMPICommSize();
+
+                std::vector<unsigned int > v_index;
+                v_index.reserve(length);
+
+                unsigned int in_sz  = mesh->getDegOfFreedom();
+                unsigned int out_sz = length; 
+                
+                interpolateToCoords(mesh,in + 0*in_sz,domain_coords,length,grid_limit,domain_limit,out + 0 * out_sz,v_index);
+                int s_count = v_index.size() * dof;
+                std::vector<int> r_count;
+                std::vector<int> r_offset;
+                
+                if(rank_active == root)
+                {
+                    r_count.resize(npes_active);
+                    r_offset.resize(npes_active);
+                }
+                    
+                par::Mpi_Gather(&s_count,r_count.data(),1,root,comm_active);
+
+                if(rank_active == root)
+                {
+                    r_offset[0]=0;
+                    omp_par::scan(r_count.data(),r_offset.data(),r_count.size());
+                }
+                    
+
+                for(unsigned int v_id =1; v_id < dof; v_id++)
+                {
+                    v_index.clear();
+                    interpolateToCoords(mesh,in + v_id*in_sz,domain_coords,length,grid_limit,domain_limit,out + v_id * out_sz,v_index);
+                }
+
+                std::vector<T> send_buff;
+                send_buff.resize(s_count);
+
+                for(unsigned int w=0; w< v_index.size(); w++)
+                    for(unsigned int v_id =0; v_id < dof; v_id++)
+                        send_buff[w * dof + v_id] = out[v_id * out_sz + v_index[w]];
+                
+
+                par::Mpi_Gatherv(send_buff.data(),s_count,out,r_count.data(),r_offset.data(),root,comm_active);
+
+
+
+            }
+            return;
+
+        }
+
     } // end of namespace da
 
 }// end of namespace ot

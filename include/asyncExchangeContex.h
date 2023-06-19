@@ -32,13 +32,23 @@ namespace ot {
             std::vector<MPI_Request*>  m_uiRequests;
 
         public:
+            /**@brief batched requests for send */
+            std::vector<MPI_Request> m_send_req;
+            
+            /**@brief batched requests for recv */
+            std::vector<MPI_Request> m_recv_req;
+
+            AsyncExchangeContex(){};
+            
             /**@brief creates an async ghost exchange contex*/
             AsyncExchangeContex(const void* var)
             {
                 m_uiBuffer=(void*)var;
-                m_uiSendBuf=NULL;
-                m_uiRecvBuf=NULL;
+                m_uiSendBuf=nullptr;
+                m_uiRecvBuf=nullptr;
                 m_uiRequests.clear();
+                m_send_req.clear();
+                m_recv_req.clear();
             }
 
             /**@brief : defaut destructor*/
@@ -73,11 +83,14 @@ namespace ot {
             inline void* getSendBuffer() { return m_uiSendBuf;}
             inline void* getRecvBuffer() { return m_uiRecvBuf;}
 
+            inline void getSendBuffer(void* ptr) { m_uiSendBuf=ptr;}
+            inline void getRecvBuffer(void* ptr) { m_uiRecvBuf=ptr;}
+
             inline const void* getBuffer() {return m_uiBuffer;}
 
             inline std::vector<MPI_Request*>& getRequestList(){ return m_uiRequests;}
 
-            virtual bool operator== (AsyncExchangeContex other) const{
+            bool operator== (AsyncExchangeContex other) const{
                 return( m_uiBuffer == other.m_uiBuffer );
             }
                

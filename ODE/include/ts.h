@@ -14,6 +14,7 @@
 #include<iostream>
 #include "dendro.h"
 #include "parUtils.h"
+#include "dvec.h"
 namespace ts
 {   
 
@@ -24,7 +25,7 @@ namespace ts
      * @brief default available time integrator methods. 
      */
     enum ETSType {RK3=0, RK4, RK5};
-    
+    typedef ot::DVector<DendroScalar, unsigned int> DVec;
 
     /**@brief data type to store the time stepper level. */
     typedef unsigned int TS_LEV;

@@ -175,9 +175,13 @@ namespace ot
      /**@brief align the total block size*/
      inline unsigned int getAlignedBlockSz() const
      {
-       unsigned int tmp;
-      ((m_uiSzX & ((1u<<DENDRO_BLOCK_ALIGN_FACTOR_LOG)-1))==0)? tmp=m_uiSzX : tmp=((m_uiSzX/(1u<<DENDRO_BLOCK_ALIGN_FACTOR_LOG))+1)*(1u<<DENDRO_BLOCK_ALIGN_FACTOR_LOG);
-      return tmp*m_uiSzY*m_uiSzZ;
+        // unsigned int tmp;
+        // ((m_uiSzX & ((1u<<DENDRO_BLOCK_ALIGN_FACTOR_LOG)-1))==0)? tmp=m_uiSzX : tmp=((m_uiSzX/(1u<<DENDRO_BLOCK_ALIGN_FACTOR_LOG))+1)*(1u<<DENDRO_BLOCK_ALIGN_FACTOR_LOG);
+        return m_uiSzX*m_uiSzY*m_uiSzZ;
+        // unsigned int ax=binOp::getNextHighestPowerOfTwo(m_uiSzX);
+        // unsigned int ay=binOp::getNextHighestPowerOfTwo(m_uiSzY);
+        // unsigned int az=binOp::getNextHighestPowerOfTwo(m_uiSzZ);
+        // return ax * ay * az;
      }
 
 

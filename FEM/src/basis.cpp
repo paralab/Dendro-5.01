@@ -183,7 +183,7 @@ namespace basis {
             }
 
 
-            if(N>2) {
+            if(N>=2) {
                 double * xint=new double [N-2+1];
                 double * wq=new double [N-2+1];
                 //std::cout<<" gauss quad begin "<<std::endl;

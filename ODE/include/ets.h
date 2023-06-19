@@ -95,6 +95,7 @@ namespace ts
                         "remsh_igt_min\t remesh_igt_mean\t remesh_igt_max\t"\
                         "evolve_min\t evolve_mean\t evolve_max\t"\
                         "unzip_async_min\t unzip_async_mean\t unzip_async_max\t"\
+                        "unzip_min\t unzip_mean\t unzip_max\t"\
                         "rhs_min\t rhs_mean\t rhs_max\t"\
                         "zip_async_min\t zip_async_mean\t zip_async_max\t"<<std::endl;
                     }
@@ -144,6 +145,9 @@ namespace ts
                     min_mean_max(&t_stat,t_stat_g,comm);
                     if(!rank) outfile<<t_stat_g[0]<<"\t "<<t_stat_g[1]<<"\t "<<t_stat_g[2]<<"\t ";
 
+                    t_stat = m_uiAppCtx->m_uiCtxpt[CTXPROFILE::UNZIP_WCOMM].snap;
+                    min_mean_max(&t_stat,t_stat_g,comm);
+                    if(!rank) outfile<<t_stat_g[0]<<"\t "<<t_stat_g[1]<<"\t "<<t_stat_g[2]<<"\t ";
 
                     t_stat = m_uiAppCtx->m_uiCtxpt[CTXPROFILE::UNZIP].snap;
                     min_mean_max(&t_stat,t_stat_g,comm);
@@ -354,11 +358,10 @@ namespace ts
 
         m_uiStVec.resize(m_uiNumStages);
         for(unsigned int i=0; i < m_uiNumStages; i++)
-            m_uiStVec[i].VecCreate(m_uiAppCtx->get_mesh(), m_uiEVar.IsGhosted() , m_uiEVar.IsUnzip(), m_uiEVar.IsElemental() , m_uiEVar.GetDof());
+            m_uiStVec[i].create_vector(m_uiAppCtx->get_mesh(),m_uiEVar.get_type(),m_uiEVar.get_loc(),m_uiEVar.get_dof(),m_uiEVar.is_ghost_allocated());
         
-        m_uiEVecTmp[0].VecCreate(m_uiAppCtx->get_mesh(), m_uiEVar.IsGhosted() , m_uiEVar.IsUnzip(), m_uiEVar.IsElemental() , m_uiEVar.GetDof());
-
-        m_uiEVecTmp[1].VecCreate(m_uiAppCtx->get_mesh(), m_uiEVar.IsGhosted() , m_uiEVar.IsUnzip(), m_uiEVar.IsElemental() , m_uiEVar.GetDof());
+        m_uiEVecTmp[0].create_vector(m_uiAppCtx->get_mesh(),m_uiEVar.get_type(),m_uiEVar.get_loc(),m_uiEVar.get_dof(),m_uiEVar.is_ghost_allocated());
+        m_uiEVecTmp[1].create_vector(m_uiAppCtx->get_mesh(),m_uiEVar.get_type(),m_uiEVar.get_loc(),m_uiEVar.get_dof(),m_uiEVar.is_ghost_allocated());
         
         m_uiIsInternalAlloc = true;
         return 0;
@@ -372,12 +375,12 @@ namespace ts
             return 0;
 
         for(unsigned int i=0; i < m_uiNumStages; i++)
-            m_uiStVec[i].VecDestroy();
+            m_uiStVec[i].destroy_vector();
 
         m_uiStVec.clear();
 
-        m_uiEVecTmp[0].VecDestroy();
-        m_uiEVecTmp[1].VecDestroy();
+        m_uiEVecTmp[0].destroy_vector();
+        m_uiEVecTmp[1].destroy_vector();
         
         m_uiIsInternalAlloc=false;
         return 0; 
@@ -480,7 +483,7 @@ namespace ts
 
         m_uiAppCtx->pre_timestep(m_uiEVar);
 
-        const unsigned int DOF = m_uiEVar.GetDof();
+        const unsigned int DOF = m_uiEVar.get_dof();
         const unsigned int szPDof = pMesh->getDegOfFreedom();
 
         if(pMesh->isActive())
@@ -500,43 +503,23 @@ namespace ts
             
             for(int stage=0; stage< m_uiNumStages ; stage++)
             {
-                m_uiEVecTmp[0].VecCopy(m_uiEVar,true);
+                m_uiEVecTmp[0].copy_data(m_uiEVar);
                 
-                const T* eptr = m_uiEVar.GetVecArray();
-                T* tmp  = (T*)m_uiEVecTmp[0].GetVecArray();
-
-
-                for(unsigned int v=0; v < DOF; v++)
-                {
-                    for(unsigned int node=pMesh->getNodeLocalBegin(); node < pMesh->getNodeLocalEnd(); node++)
-                    {
-                        for(int p = 0 ; p < stage;  p++ )
-                        {
-                            const T* sptr = m_uiStVec[p].GetVecArray();
-                            tmp[v*szPDof + node ] += (m_uiAij[(stage)*m_uiNumStages + p] * dt * sptr[v*szPDof + node]);
-                        }
-                    }
-                }
-
-                // 01/09/20 Milinda :  no need to update the ghost zones. 
-                // for(int p = 0 ; p < stage;  p++ )
-                // {
-                //     const T* sptr = m_uiStVec[p].GetVecArray();
-                //     for(unsigned int n=0; n < m_uiEVar.GetSize(); n++)
-                //         tmp[n]+= (m_uiAij[(stage)*m_uiNumStages + p]*dt*sptr[n]);
-                // }
+                for(int p = 0 ; p < stage;  p++ )
+                    DVec::axpy(m_uiAppCtx->get_mesh(), m_uiAij[(stage)*m_uiNumStages + p] * dt, m_uiStVec[p],m_uiEVecTmp[0]);
+                m_uiAppCtx->post_timestep(m_uiEVecTmp[0]);
                 
+
                 current_t_adv=current_t+m_uiCi[stage] * dt;
-
                 m_uiAppCtx -> pre_stage(m_uiStVec[stage]);
                 m_uiAppCtx -> rhs(&m_uiEVecTmp[0], &m_uiStVec[stage], 1, current_t_adv);
                 m_uiAppCtx -> post_stage(m_uiStVec[stage]);
                 
-
             }
 
             for(unsigned int k=0; k< m_uiNumStages; k++)
-                m_uiEVar.VecFMA(m_uiAppCtx->get_mesh(), m_uiStVec[k], 1, m_uiBi[k]*dt, true);
+                DVec::axpy(m_uiAppCtx->get_mesh(),m_uiBi[k]*dt, m_uiStVec[k],m_uiEVar);
+                
             
         }
 
@@ -601,10 +584,9 @@ namespace ts
         if(m_uiAppCtx -> is_ets_synced())
             return 0;
         
-
+        m_uiEVar = m_uiAppCtx->get_evolution_vars();
         deallocate_internal_vars();
         allocate_internal_vars();
-        m_uiEVar = m_uiAppCtx->get_evolution_vars();
         m_uiAppCtx->set_ets_synced(true);
 
         return 0;

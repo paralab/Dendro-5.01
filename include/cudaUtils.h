@@ -1,24 +1,17 @@
-//
-// Created by milinda on 8/9/18.
-//
 /**
  * @author Milinda Fernando
  * School of Computing, University of Utah
  * @brief Contains utility function for the host related to GPUs
+ * @date  8/9/18.
  * */
 
-
-
-
-#ifndef SFCSORTBENCH_CUDAUTILS_H
-#define SFCSORTBENCH_CUDAUTILS_H
-
+#pragma once
 #include "cuda_runtime.h"
 #include "block.h"
 
 
 //Macro for checking cuda errors following a cuda launch or api call
-#define CUDA_CHECK_ERROR() {                                          \
+#define CUDA_CHECK_ERROR() {                                       \
  cudaError_t e=cudaGetLastError();                                 \
  if(e!=cudaSuccess) {                                              \
    printf("Cuda failure %s:%d: '%s'\n",__FILE__,__LINE__,cudaGetErrorString(e));           \
@@ -36,15 +29,15 @@ namespace cuda
      * @param[in] device : gpu device ID
      * @return cudaDeviceProp allocated on the device
      * */
-     cudaDeviceProp* getGPUDeviceInfo(unsigned int device);
+    cudaDeviceProp* getGPUDeviceInfo(unsigned int device);
 
     /**
      * @breif send mesh blocks to the gpu
      * @param[in] in : input array
      * @param[in] out: device pointer where the data is copied to.
      * */
-      template<typename T>
-       T * copyArrayToDevice(const T* in, unsigned int numElems);
+    template<typename T>
+    T * copyArrayToDevice(const T* in, unsigned int numElems);
 
 
     /**
@@ -52,8 +45,8 @@ namespace cuda
      * @param[in] in : input value
      * @param[in] out: device pointer where the data is copied to.
      * */
-      template<typename T>
-      inline T * copyValueToDevice(const T* in);
+    template<typename T>
+    inline T * copyValueToDevice(const T* in);
 
      /**
       * @biref allocates 1D array
@@ -354,4 +347,3 @@ namespace cuda
 }
 
 
-#endif //SFCSORTBENCH_CUDAUTILS_H

@@ -39,17 +39,16 @@ namespace seq {
     */
   namespace test {
 
-    /**
-      @fn
-      @param nodes[in] The vector of nodes that have to be tested.
-      @return true if it is sorted and false otherwise
-    **/ 
-    template<typename T>
+      /**
+        @fn
+        @param nodes[in] The vector of nodes that have to be tested.
+        @return true if it is sorted and false otherwise
+      **/ 
+      template<typename T>
       bool isSorted(const std::vector<T >& nodes);
 
-    template<typename T>
+      template<typename T>
       bool isSorted_all_pairs(const std::vector<T > & nodes);
-
 
       template<typename T>
       bool isSorted(T * nodes, unsigned int sz);
@@ -67,12 +66,12 @@ namespace seq {
       bool isBlockNAN(const T * in, const unsigned int* sz,unsigned int flag);
 
 
-    /**
-      @fn
-      @param nodes[in] The vector of nodes that have to be tested.
-      @return true if it is sorted and unique and false otherwise
-    **/ 
-    template<typename T>
+      /**
+        @fn
+        @param nodes[in] The vector of nodes that have to be tested.
+        @return true if it is sorted and unique and false otherwise
+      **/ 
+      template<typename T>
       bool isUniqueAndSorted(const std::vector<T >& nodes);
 
 
@@ -111,10 +110,10 @@ namespace par {
     */
   namespace test {
 
-    template<typename T>
+      template<typename T>
       bool isSorted(const std::vector<T>& nodes, MPI_Comm comm);
 
-    template<typename T>
+      template<typename T>
       bool isUniqueAndSorted(const std::vector<T >& nodes,MPI_Comm comm) ;
 
 

@@ -363,6 +363,9 @@ int Mpi_Irecv(T *buf, int count, int source, int tag, MPI_Comm comm, MPI_Request
 template <typename T>
 int Mpi_Gather(T *sendBuffer, T *recvBuffer, int count, int root, MPI_Comm comm);
 
+template <typename T>
+int Mpi_Gatherv(T *sendBuffer, int sendcnts, T *recvBuffer, int* recvcnts, int* rdispls, int root, MPI_Comm comm);
+
 template <typename T, typename S>
 int Mpi_Sendrecv(T *sendBuf, int sendCount, int dest, int sendTag, S *recvBuf, int recvCount, int source, int recvTag, MPI_Comm comm, MPI_Status *status);
 
@@ -618,6 +621,9 @@ void bitonicSort(std::vector<T> &in, MPI_Comm comm);
 template <typename T>
 void parallel_rank(const T* in, unsigned int sz, DendroIntL* out, MPI_Comm comm);
 
+/**compute overall stats (min, mean, max) of timing variable. */
+template<typename T>
+void computeOverallStats(T *stat, T *stat_g, MPI_Comm comm, const char* const prefix="");
 
 
 } // namespace par
