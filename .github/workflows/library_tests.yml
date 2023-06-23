@@ -14,7 +14,7 @@ jobs:
       - name: Setup MPI
         uses: mpi4py/setup-mpi@v1
       - name: CMake Configuration
-        run: cmake -S . -B build -D CMAKE_BUILD_TYPE=Release
+        run: cmake -S . -P CMakeLists-NotLibrary.txt -B build -D CMAKE_BUILD_TYPE=Release -D DENDROLIB_ISOLATED_DIR=ON
       - name: build several targets
         run: cmake --build build --parallel 10 --target run_all_tests testOctUtils testInterp meshE2NCheck heatEq laplaceEq
       - name: Test Octree Utilities (rm Dupes)
