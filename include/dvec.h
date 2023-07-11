@@ -65,6 +65,18 @@ namespace ot
              */
             void create_vector(const ot::Mesh* pMesh, DVEC_TYPE type, DVEC_LOC loc, unsigned int dof=1, bool allocate_ghost=true);
 
+            /**
+             * @brief initialize a DVector object from already allocated ptr
+             * 
+             * @param ptr allocated ptr
+             * @param pMesh Mesh associated with the allocation
+             * @param type DVector type
+             * @param loc DVector location
+             * @param dof DVector dof
+             * @param allocate_ghost  DVector allocated ghost
+             */
+            void set_vec_ptr(T*& ptr, const ot::Mesh* pMesh, DVEC_TYPE type, DVEC_LOC loc, unsigned int dof, bool allocate_ghost);
+
             /**@brief creates a similar vector as dvec*/
             void create_vector(const ot::DVector<T,I>& dvec);
 
@@ -143,15 +155,15 @@ namespace ot
     template<typename T,typename I>
     void DVector<T,I>::create_vector(const ot::Mesh* pMesh, DVEC_TYPE type, DVEC_LOC loc, unsigned int dof, bool allocate_ghost)
     {
+        if(!(pMesh->isActive()))
+            return;
+        
         m_dof       = dof;
         m_comm      = pMesh->getMPICommunicator();
         m_vec_type  = type;
         m_vec_loc   = loc;
         m_ghost_allocated = allocate_ghost;
         m_size     = 0;
-
-        if(!(pMesh->isActive()))
-            return;
 
         if(m_vec_type == DVEC_TYPE::OCT_SHARED_NODES)
             (allocate_ghost) ? m_size = pMesh->getDegOfFreedom() * m_dof : m_size = pMesh->getNumLocalMeshNodes() * m_dof;
@@ -188,6 +200,37 @@ namespace ot
             MPI_Abort(m_comm,0);
         }
 
+    }
+    
+    template<typename T,typename I>
+    void DVector<T,I>::set_vec_ptr(T*& ptr, const ot::Mesh* pMesh, DVEC_TYPE type, DVEC_LOC loc, unsigned int dof, bool allocate_ghost)
+    {
+        if(!(pMesh->isActive()))
+            return;
+        
+        m_dof       = dof;
+        m_comm      = pMesh->getMPICommunicator();
+        m_vec_type  = type;
+        m_vec_loc   = loc;
+        m_ghost_allocated = allocate_ghost;
+        m_size     = 0;
+
+        if(m_vec_type == DVEC_TYPE::OCT_SHARED_NODES)
+            (allocate_ghost) ? m_size = pMesh->getDegOfFreedom() * m_dof : m_size = pMesh->getNumLocalMeshNodes() * m_dof;
+        else if (m_vec_type == DVEC_TYPE::OCT_LOCAL_NODES)
+            (allocate_ghost) ? m_size = pMesh->getDegOfFreedomDG() * m_dof : m_size = pMesh->getNumLocalMeshElements() * pMesh->getNumNodesPerElement() * m_dof;
+        else if (m_vec_type == DVEC_TYPE::OCT_LOCAL_WITH_PADDING)
+            (allocate_ghost) ? m_size = pMesh->getDegOfFreedomUnZip() * m_dof : m_size = pMesh->getDegOfFreedomUnZip() * m_dof;
+        else if (m_vec_type == DVEC_TYPE::OCT_CELL_CENTERED)
+            (allocate_ghost) ? m_size = pMesh->getAllElements().size() * m_dof : m_size = pMesh->getNumLocalMeshElements() * m_dof;
+        else
+        {
+            dendro_log(" unknown type in DVector");
+            MPI_Abort(m_comm,0);
+        }
+
+        m_data_ptr = ptr;
+        return;
     }
 
     template<typename T,typename I>
