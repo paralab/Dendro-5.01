@@ -28,8 +28,9 @@
 
 const int _2D_HILBERT_TABLE=16;
 const int _3D_HILBERT_TABLE=192;
-const int _2D_ROTATIONS_SIZE=32;
-const int _3D_ROTATIONS_SIZE=384;
+// rotations size needs to be +1 to avoid overwriting shadow blocks upon strcpy (fsanatize reveals this "bug")
+const int _2D_ROTATIONS_SIZE=32 + 1;
+const int _3D_ROTATIONS_SIZE=384 + 1;
 
 
 extern char* HILBERT_TABLE;
