@@ -282,8 +282,8 @@ void computeSFCBucketSplitters(const T *pNodes, int lev, unsigned int maxDepth,u
 
     }
 
-    register unsigned int cnum;
-    register unsigned int cnum_prev=0;
+    DendroRegister unsigned int cnum;
+    DendroRegister unsigned int cnum_prev=0;
     DendroIntL num_elements=0;
     unsigned int rotation=0;
     DendroIntL count[(NUM_CHILDREN+2)]={};
