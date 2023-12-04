@@ -430,9 +430,9 @@ namespace SFC {
         {
 
             if(n==0) return;
-            register unsigned int cnum;
-            register unsigned int cnum_prev=0;
-            //register unsigned int n=0;
+            DendroRegister unsigned int cnum;
+            DendroRegister unsigned int cnum_prev=0;
+            //DendroRegister unsigned int n=0;
             unsigned int rotation=0;
             DendroIntL count[(NUM_CHILDREN+2)]={};
             unsigned int lev=pMaxDepth-pMaxDepthBit;
@@ -689,8 +689,8 @@ namespace SFC {
 
             }
 
-            register unsigned int cnum;
-            register unsigned int cnum_prev=0;
+            DendroRegister unsigned int cnum;
+            DendroRegister unsigned int cnum_prev=0;
             DendroIntL num_elements=0;
             unsigned int rotation=0;
             DendroIntL count[(NUM_CHILDREN+2)]={};

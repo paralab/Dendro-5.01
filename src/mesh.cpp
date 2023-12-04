@@ -569,11 +569,11 @@ namespace ot {
         ot::TreeNode *inPtr = (&(*(m_uiEmbeddedOctree.begin())));
         unsigned int domain_max = 1u<<(m_uiMaxDepth);
         SearchKey skey;
-        register unsigned int mySz;
-        register unsigned int myX;
-        register unsigned int myY;
-        register unsigned int myZ;
-        register unsigned int myLev;
+        DendroRegister unsigned int mySz;
+        DendroRegister unsigned int myX;
+        DendroRegister unsigned int myY;
+        DendroRegister unsigned int myZ;
+        DendroRegister unsigned int myLev;
         const unsigned int K=1;
 
 
@@ -698,11 +698,11 @@ namespace ot {
         ot::TreeNode *inPtr = (&(*(m_uiAllElements.begin())));
         unsigned int domain_max = 1u<<(m_uiMaxDepth);
         SearchKey skey;
-        register unsigned int mySz;
-        register unsigned int myX;
-        register unsigned int myY;
-        register unsigned int myZ;
-        register unsigned int myLev;
+        DendroRegister unsigned int mySz;
+        DendroRegister unsigned int myX;
+        DendroRegister unsigned int myY;
+        DendroRegister unsigned int myZ;
+        DendroRegister unsigned int myLev;
         const unsigned int K=1;
 
         for (unsigned int i = m_uiElementPreGhostBegin; i < m_uiElementPreGhostEnd; i++) {
@@ -912,11 +912,11 @@ namespace ot {
         unsigned int domain_max = 1u<<(m_uiMaxDepth);
         SearchKey skey;
         unsigned int elementLookUp;
-        register unsigned int mySz;
-        register unsigned int myX;
-        register unsigned int myY;
-        register unsigned int myZ;
-        register unsigned int myLev;
+        DendroRegister unsigned int mySz;
+        DendroRegister unsigned int myX;
+        DendroRegister unsigned int myY;
+        DendroRegister unsigned int myZ;
+        DendroRegister unsigned int myLev;
         const unsigned int K=1;
 
 

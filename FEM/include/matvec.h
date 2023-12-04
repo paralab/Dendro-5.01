@@ -201,7 +201,7 @@ inline void fem::seq::matvec(const T *pt_coords,const da* in,unsigned int pBegin
     const unsigned int ny=order+1;
     const unsigned int nz=order+1;
 
-    register unsigned int ijk[3];
+    DendroRegister unsigned int ijk[3];
     unsigned int cnum;
     const unsigned int pMin[]={pOctant.minX(),pOctant.minY(),pOctant.minZ()};
     const unsigned int pMax[]={pOctant.maxX(),pOctant.maxY(),pOctant.maxZ()};
@@ -221,7 +221,7 @@ inline void fem::seq::matvec(const T *pt_coords,const da* in,unsigned int pBegin
     ot::TreeNode childElem[NUM_CHILDREN];
 
 
-    register unsigned int pt_status;
+    DendroRegister unsigned int pt_status;
     childElem[0]=ot::TreeNode(pOctant.minX(),pOctant.minY(),pOctant.minZ(),pOctant.getLevel()+1,m_uiDim,maxDepth);
     childElem[1]=ot::TreeNode(pOctant.minX()+szb2,pOctant.minY(),pOctant.minZ(),pOctant.getLevel()+1,m_uiDim,maxDepth);
     childElem[2]=ot::TreeNode(pOctant.minX(),pOctant.minY()+szb2,pOctant.minZ(),pOctant.getLevel()+1,m_uiDim,maxDepth);

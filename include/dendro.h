@@ -1,24 +1,42 @@
 /**
  * @file dendro.h
- * @brief Basic dendro data types and definitions. 
+ * @brief Basic dendro data types and definitions.
  * @version 0.1
  * @date 2016-02-08
- * 
+ *
  * @copyright Copyright (c) 2022
- * 
+ *
  */
 #pragma once
-#include <climits>
-#include <complex>
-#include <stdio.h>
 #include <execinfo.h>
 #include <signal.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+
+#include <climits>
+#include <complex>
 #include <iostream>
 
+/**
+ * ==== C++ Standard-Based Definitions ====
+ *
+ * Any sort of definitions that need to be made based on used C++ standard
+ */
+#ifndef __cplusplus
+#error C++ is required
+#elif __cplusplus < 201703L
+// NOTE: The register keyword was depreciated in C++17, but it left for older
+// standards
+#define DendroRegister register
+#else
+#define DendroRegister
+#endif
 
-
+/**
+ * ==== Console Output Colors ====
+ *
+ */
 #define RED "\e[1;31m"
 #define BLU "\e[2;34m"
 #define GRN "\e[0;32m"
@@ -27,23 +45,22 @@
 #define CYN "\e[0;36m"
 #define NRM "\e[0m"
 
-
-
+/**
+ * ==== Data-type Definitions ====
+ *
+ */
 #ifdef USE_64BIT_INDICES
 #define DendroIntL long long
-#define DendroIntLSpecifier %lld
-#define DendroUIntLSpecifier %llu
+#define DendroIntLSpecifier % lld
+#define DendroUIntLSpecifier % llu
 #else
 #define DendroIntL unsigned int
-#define DendroIntLSpecifier %d
-#define DendroUIntLSpecifier %u
+#define DendroIntLSpecifier % d
+#define DendroUIntLSpecifier % u
 #endif
-
 
 #define DendroScalar double
 #define DendroComplex std::complex<double>
-
-
 
 //#define DendroIntL unsigned int
 typedef unsigned __int128 DendroUInt_128;
@@ -57,12 +74,12 @@ typedef unsigned __int128 DendroUInt_128;
 // mesh.h # defines.
 #define LOOK_UP_TABLE_DEFAULT UINT_MAX
 
-
 // TreeNode.h # defines.
 
 /**
- * Following are the flags that used to mark treeNodes when generating keys and mesh generation.
- * all these flags are stored in m_uiLevel since we know that, we need only 4 bits to store the level of the octree.
+ * Following are the flags that used to mark treeNodes when generating keys and
+ * mesh generation. all these flags are stored in m_uiLevel since we know that
+ * we need only 4 bits to store the level of the octree.
  *
  * bit -0 to bit -4 : level of the octant
  * bit -5 to 13 : are the Key flags.
@@ -73,17 +90,18 @@ typedef unsigned __int128 DendroUInt_128;
  * */
 #define OCT_FOUND 32
 #define OCT_KEY_NONE 64
-#define OCT_KEY_SPLITTER  128
-#define OCT_KEY_UP  256
-#define OCT_KEY_DOWN  512
-#define OCT_KEY_FRONT  1024
-#define OCT_KEY_BACK  2048
-#define OCT_KEY_LEFT  4096
-#define OCT_KEY_RIGHT  8192
+#define OCT_KEY_SPLITTER 128
+#define OCT_KEY_UP 256
+#define OCT_KEY_DOWN 512
+#define OCT_KEY_FRONT 1024
+#define OCT_KEY_BACK 2048
+#define OCT_KEY_LEFT 4096
+#define OCT_KEY_RIGHT 8192
 
 /**
  *
- * Note: Don't change that below numbering for key direction. With the following numbering you can always get the opposite direction performing XOR with 1.
+ * Note: Don't change that below numbering for key direction. With the following
+ * numbering you can always get the opposite direction performing XOR with 1.
  * Example OCT_DIR_LEFT= 1 XOR OCT_DIR_RIGHT
  *
  * */
@@ -100,7 +118,6 @@ typedef unsigned __int128 DendroUInt_128;
 #define OCT_DIR_LEFT_BACK 8
 #define OCT_DIR_LEFT_FRONT 9
 
-
 #define OCT_DIR_RIGHT_DOWN 10
 #define OCT_DIR_RIGHT_UP 11
 #define OCT_DIR_RIGHT_BACK 12
@@ -108,7 +125,6 @@ typedef unsigned __int128 DendroUInt_128;
 
 #define OCT_DIR_DOWN_BACK 14
 #define OCT_DIR_DOWN_FRONT 15
-
 
 #define OCT_DIR_UP_BACK 16
 #define OCT_DIR_UP_FRONT 17
@@ -125,9 +141,9 @@ typedef unsigned __int128 DendroUInt_128;
 
 #define OCT_DIR_TOTAL 27
 
-/** variable to ensure the element sz % element order =0 for higher order elemnts */
+/** variable to ensure the element sz % element order =0 for higher order
+ * elemnts */
 extern unsigned int MAXDEAPTH_LEVEL_DIFF;
-
 
 #define NUM_LEVEL_BITS 5u
 
@@ -162,7 +178,6 @@ extern unsigned int MAXDEAPTH_LEVEL_DIFF;
 #define F2E_FACE_INDEPEN_BIT 3
 #define F2E_FACE_DEPEN_BIT 4
 
-
 // AMR coarsening factor.
 #define DENDRO_AMR_COARSEN_FAC 0.1
 
@@ -170,16 +185,13 @@ extern unsigned int MAXDEAPTH_LEVEL_DIFF;
 #define DENDRO_DEFAULT_SF_K 2
 #define DENDRO_DEFAULT_GRAIN_SZ 100
 
-
 #define DENDRO_UNSIGNED_INT_MIN UINT_MIN
 #define DENDRO_UNSIGNED_INT_MAX UINT_MAX
 
 #define DENDRO_REMESH_UNZIP_SCALE_FAC 1.0
 
-
 #define DENDRO_BLOCK_ALIGN_FACTOR 1
 #define DENDRO_BLOCK_ALIGN_FACTOR_LOG 0
-
 
 #define ODA_INDEPENDENT_FLAG_BIT 0
 #define ODA_W_DEPENDENT_FLAG_BIT 1
@@ -189,9 +201,10 @@ extern unsigned int MAXDEAPTH_LEVEL_DIFF;
 
 void __handler(int sig);
 
-inline int dendro_error(const char* const file, int line, const std::string& msg){
-   std::cout<< "[" << file << "] : "<<line<<" "<< msg <<std::endl;
-   return 0;
+inline int dendro_error(const char* const file, int line,
+                        const std::string& msg) {
+    std::cout << "[" << file << "] : " << line << " " << msg << std::endl;
+    return 0;
 }
 
 #define dendro_log(msg) dendro_error(__FILE__, __LINE__, msg)
