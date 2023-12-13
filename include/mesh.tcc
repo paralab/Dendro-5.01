@@ -692,7 +692,7 @@ namespace ot
                                    dof * nodeRecvCount[proc_id], proc_id,
                                    m_uiCommTag, commActive, req);
                     ctx.getRequestList().push_back(req);
-                    std::cout << this->getMPIRank() << ": receiving from proc " << proc_id << " a total of " << dof * nodeRecvCount[proc_id] << std::endl;
+                    // std::cout << this->getMPIRank() << ": receiving from proc " << proc_id << " a total of " << dof * nodeRecvCount[proc_id] << std::endl;
                 }
             }
 
@@ -726,7 +726,7 @@ namespace ot
                                    dof * nodeSendCount[proc_id], proc_id,
                                    m_uiCommTag, commActive, req);
                     ctx.getRequestList().push_back(req);
-                    std::cout << this->getMPIRank() << ": sending from proc " << proc_id << " a total of " << dof * nodeSendOffset[proc_id] << std::endl;
+                    // std::cout << this->getMPIRank() << ": sending from proc " << proc_id << " a total of " << dof * nodeSendOffset[proc_id] << std::endl;
                 }
             }
 
