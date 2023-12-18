@@ -173,7 +173,7 @@ namespace ot
             (allocate_ghost) ? m_size = pMesh->getAllElements().size() * m_dof : m_size = pMesh->getNumLocalMeshElements() * m_dof;
         else
         {
-            dendro_log(" unknown type in DVector");
+            dendro_log(" unknown type in DVector, expected a value between 0 and 3, got: " + std::to_string(m_vec_type));
             MPI_Abort(m_comm,0);
         }
 
@@ -198,7 +198,7 @@ namespace ot
 
         }else
         {
-            dendro_log(" unknown vector allocation location specified");
+            dendro_log(" unknown vector allocation location specified, should be HOST (0) or DEVICE (1), got: " + std::to_string(m_vec_loc));
             MPI_Abort(m_comm,0);
         }
 
