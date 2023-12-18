@@ -155,9 +155,7 @@ namespace ot
     template<typename T,typename I>
     void DVector<T,I>::create_vector(const ot::Mesh* pMesh, DVEC_TYPE type, DVEC_LOC loc, unsigned int dof, bool allocate_ghost)
     {
-        if(!(pMesh->isActive()))
-            return;
-        
+        // set the internal fields based on input for storage
         m_dof       = dof;
         m_comm      = pMesh->getMPICommunicator();
         m_vec_type  = type;
@@ -178,6 +176,10 @@ namespace ot
             dendro_log(" unknown type in DVector");
             MPI_Abort(m_comm,0);
         }
+
+        // NOTE: we don't want to allocate the memory if we're not active. But we *must* have the vector initialized.
+        if(!(pMesh->isActive()))
+            return;
 
         if(m_vec_loc == DVEC_LOC::HOST)
         {
