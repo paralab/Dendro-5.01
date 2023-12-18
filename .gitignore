@@ -52,3 +52,5 @@ kde
 *.pdf
 .vscode
 .python-version
+
+.cache/

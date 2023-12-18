@@ -155,9 +155,7 @@ namespace ot
     template<typename T,typename I>
     void DVector<T,I>::create_vector(const ot::Mesh* pMesh, DVEC_TYPE type, DVEC_LOC loc, unsigned int dof, bool allocate_ghost)
     {
-        if(!(pMesh->isActive()))
-            return;
-        
+        // set the internal fields based on input for storage
         m_dof       = dof;
         m_comm      = pMesh->getMPICommunicator();
         m_vec_type  = type;
@@ -175,9 +173,13 @@ namespace ot
             (allocate_ghost) ? m_size = pMesh->getAllElements().size() * m_dof : m_size = pMesh->getNumLocalMeshElements() * m_dof;
         else
         {
-            dendro_log(" unknown type in DVector");
+            dendro_log(" unknown type in DVector, expected a value between 0 and 3, got: " + std::to_string(m_vec_type));
             MPI_Abort(m_comm,0);
         }
+
+        // NOTE: we don't want to allocate the memory if we're not active. But we *must* have the vector initialized.
+        if(!(pMesh->isActive()))
+            return;
 
         if(m_vec_loc == DVEC_LOC::HOST)
         {
@@ -196,7 +198,7 @@ namespace ot
 
         }else
         {
-            dendro_log(" unknown vector allocation location specified");
+            dendro_log(" unknown vector allocation location specified, should be HOST (0) or DEVICE (1), got: " + std::to_string(m_vec_loc));
             MPI_Abort(m_comm,0);
         }
 
