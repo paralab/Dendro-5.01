@@ -70,6 +70,7 @@ option(WITH_CUDA " build dendro with cuda " OFF)
 option(BUILD_WITH_PETSC " build dendro with PETSC " OFF)
 option(USE_FD_INTERP_FOR_UNZIP "use FD style interpolation for unzip" OFF)
 option(MPIX_CUDA_AWARE_SUPPORT "use FD style interpolation for unzip" OFF)
+option(DVEC_ZERO_ALLOC "Make the memory allocation of dvec on CPU initialize as zeros" OFF)
 
 # option(KWAY "K parameter for alltoallv_kway" 128)
 set(KWAY
@@ -205,6 +206,10 @@ endif()
 
 if(USE_FD_INTERP_FOR_UNZIP)
   add_definitions(-DUSE_FD_INTERP_FOR_UNZIP)
+endif()
+
+if(DVEC_ZERO_ALLOC)
+  add_definitions(-DDVEC_ZERO_ALLOC)
 endif()
 
 add_definitions(-DMATVEC_PROFILE)

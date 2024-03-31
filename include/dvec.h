@@ -186,8 +186,15 @@ namespace ot
             #ifdef __CUDACC__
                 m_data_ptr = GPUDevice::host_malloc<T>(m_size);
             #else 
+
+            #ifdef DVEC_ZERO_ALLOC
+                m_data_ptr = (T*) calloc(m_size, sizeof(T));
+            #else
                 m_data_ptr = (T*) malloc(sizeof(T)*m_size);
             #endif
+            // end DVEC_ZERO_ALLOC
+            #endif
+            // end __CUDACC__ if
             
         }else if(m_vec_loc == DVEC_LOC::DEVICE)
         {   
@@ -207,9 +214,6 @@ namespace ot
     template<typename T,typename I>
     void DVector<T,I>::set_vec_ptr(T*& ptr, const ot::Mesh* pMesh, DVEC_TYPE type, DVEC_LOC loc, unsigned int dof, bool allocate_ghost)
     {
-        if(!(pMesh->isActive()))
-            return;
-        
         m_dof       = dof;
         m_comm      = pMesh->getMPICommunicator();
         m_vec_type  = type;
@@ -230,6 +234,9 @@ namespace ot
             dendro_log(" unknown type in DVector");
             MPI_Abort(m_comm,0);
         }
+
+        if(!(pMesh->isActive()))
+            return;
 
         m_data_ptr = ptr;
         return;
