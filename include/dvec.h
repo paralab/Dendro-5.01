@@ -186,8 +186,15 @@ namespace ot
             #ifdef __CUDACC__
                 m_data_ptr = GPUDevice::host_malloc<T>(m_size);
             #else 
+
+            #ifdef DVEC_ZERO_ALLOC
                 m_data_ptr = (T*) calloc(m_size, sizeof(T));
+            #else
+                m_data_ptr = (T*) malloc(sizeof(T)*m_size);
             #endif
+            // end DVEC_ZERO_ALLOC
+            #endif
+            // end __CUDACC__ if
             
         }else if(m_vec_loc == DVEC_LOC::DEVICE)
         {   
