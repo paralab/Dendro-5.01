@@ -4,12 +4,12 @@
 
 #include "treenode2vtk.h"
 
-
-/*void treeNodesTovtk(std::vector<ot::TreeNode> &nodes, int mpi_rank, std::string vtk_file_name, bool hsorted) {
+/*void treeNodesTovtk(std::vector<ot::TreeNode> &nodes, int mpi_rank,
+std::string vtk_file_name, bool hsorted) {
 
     //std::sort(nodes.begin(), nodes.end());
-    if (!mpi_rank) std::cout << "writing mesh to VTK file: " << vtk_file_name << std::endl;
-    std::ostringstream convert;
+    if (!mpi_rank) std::cout << "writing mesh to VTK file: " << vtk_file_name <<
+std::endl; std::ostringstream convert;
 
 #ifdef  HILBERT_ORDERING
     convert << vtk_file_name << "_H_" << mpi_rank << ".vtk";
@@ -34,7 +34,8 @@
     int num_verticies = nodes.size() * (unit_points);
     int num_cells = nodes.size();
 
-    //std::cout<<"FileName :"<<vtk_file_name<<"\t DIM:"<<dim<<"\t number of points:"<<num_verticies<<"\t number of cells:"<<num_cells<<std::endl;
+    //std::cout<<"FileName :"<<vtk_file_name<<"\t DIM:"<<dim<<"\t number of
+points:"<<num_verticies<<"\t number of cells:"<<num_cells<<std::endl;
 
 
     myfile << "POINTS " << num_verticies << " float" << std::endl;
@@ -120,5 +121,3 @@
     myfile.close();
 
 }*/
-
-

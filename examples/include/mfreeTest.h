@@ -3,7 +3,8 @@
 //
 
 /**
- * @brief contains bechmark functions for mesh free vs mesh based FEM computation.
+ * @brief contains bechmark functions for mesh free vs mesh based FEM
+ * computation.
  * @author Milinda Fernando
  * School of Computing, University of Utah
  * */
@@ -11,6 +12,8 @@
 #ifndef DENDRO_5_0_MFREETEST_H
 #define DENDRO_5_0_MFREETEST_H
 
+// NOTE: these need to be in this order due to include issues
+// clang-format off
 #include "TreeNode.h"
 #include "mpi.h"
 #include "genPts_par.h"
@@ -27,23 +30,19 @@
 #include "operators.h"
 #include "cg.h"
 #include "matvec.h"
+// clang-format on
 
+namespace mfree {
 
+extern profiler_t tLev[31];
 
-namespace mfree
-{
+/**@brief performs roofline bucketing.
+ * @param [in] ptList: input point list
+ * @param [in] ptSz: point size
+ *
+ * */
+void ptBucketRoofline(const Point* ptList, unsigned int ptSz, unsigned int lev,
+                      unsigned int pMaxDepth);
+}  // namespace mfree
 
-
-    extern profiler_t tLev[31];
-
-    /**@brief performs roofline bucketing.
-     * @param [in] ptList: input point list
-     * @param [in] ptSz: point size
-     *
-     * */
-    void ptBucketRoofline(const Point* ptList, unsigned int ptSz,unsigned int lev,unsigned int pMaxDepth);
-}
-
-
-
-#endif //DENDRO_5_0_MFREETEST_H
+#endif  // DENDRO_5_0_MFREETEST_H

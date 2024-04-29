@@ -15,18 +15,18 @@
 #ifndef SFCSORTBENCH_DENDROIO_H
 #define SFCSORTBENCH_DENDROIO_H
 
-#include "TreeNode.h"
 #include <algorithm>
-#include <iostream>
 #include <fstream>
-#include <vector>
+#include <iostream>
 #include <sstream>
-#include "assert.h"
+#include <vector>
 
+#include "TreeNode.h"
+#include "assert.h"
 
 // Files to handle raw data.
 
-namespace IO{
+namespace IO {
 
 /**
     @author Rahul Sampath
@@ -43,7 +43,8 @@ int readPtsFromFile(char* filename, std::vector<double>& pts);
   @param pts the points
   @param data the values
   */
-int readDataPtsFromFile(char* filename, std::vector<double>& pts, std::vector<double>& ptVals);
+int readDataPtsFromFile(char* filename, std::vector<double>& pts,
+                        std::vector<double>& ptVals);
 
 /**
   @author Rahul Sampath
@@ -51,7 +52,7 @@ int readDataPtsFromFile(char* filename, std::vector<double>& pts, std::vector<do
   @param filename the file name
   @param pts the points
   */
-int writePtsToFile(char* filename,  std::vector<double>& pts);
+int writePtsToFile(char* filename, std::vector<double>& pts);
 
 /**
   @author Ilya Lashuk
@@ -60,8 +61,8 @@ int writePtsToFile(char* filename,  std::vector<double>& pts);
   @param pts the points
   @param data the values
   */
-int writeDataPtsToFile(char* filename, std::vector<double>& pts, std::vector<double>& data);
-
+int writeDataPtsToFile(char* filename, std::vector<double>& pts,
+                       std::vector<double>& data);
 
 /**
   @author Rahul Sampath
@@ -69,7 +70,7 @@ int writeDataPtsToFile(char* filename, std::vector<double>& pts, std::vector<dou
   @param filename the file name
   @param nodes the octants
   */
-int writeNodesToFile (char* filename, const std::vector<ot::TreeNode> & nodes);
+int writeNodesToFile(char* filename, const std::vector<ot::TreeNode>& nodes);
 
 /**
   @author Rahul Sampath
@@ -77,12 +78,8 @@ int writeNodesToFile (char* filename, const std::vector<ot::TreeNode> & nodes);
   @param filename the file name
   @param nodes the octants
   */
-int readNodesFromFile (char* filename,std::vector<ot::TreeNode > & nodes );
+int readNodesFromFile(char* filename, std::vector<ot::TreeNode>& nodes);
 
+};  // namespace IO
 
-
-};
-
-
-
-#endif //SFCSORTBENCH_DENDROIO_H
+#endif  // SFCSORTBENCH_DENDROIO_H

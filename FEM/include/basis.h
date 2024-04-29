@@ -6,20 +6,22 @@
  *
  * @author Milinda Fernando,
  * School of Computing, University of Utah.
- * @breif Contains implementation of Jacobi polynomials, and Jacobi Gauss-Lobatto quadrature  and Gauss quadrature.
- * All the basis functions that is hoped to be used in for interpolation and integration will be coded in the basis.h and basis.cpp file.
+ * @breif Contains implementation of Jacobi polynomials, and Jacobi
+ * Gauss-Lobatto quadrature  and Gauss quadrature. All the basis functions that
+ * is hoped to be used in for interpolation and integration will be coded in the
+ * basis.h and basis.cpp file.
  *
  * */
-
 
 #ifndef SFCSORTBENCH_JACOBIPOLYNOMIAL_H
 #define SFCSORTBENCH_JACOBIPOLYNOMIAL_H
 
+#include <math.h>
+
+#include <cmath>
+#include <iostream>
 
 #include "assert.h"
-#include <iostream>
-#include <math.h>
-#include <cmath>
 #include "cstring"
 #ifdef WITH_BLAS_LAPACK
 #include "lapac.h"
@@ -27,28 +29,25 @@
 
 #ifndef WITH_BLAS_LAPACK
 template <typename T>
-void printArray_1D(T *a, int length)
-{
-    for (int i = 0; i < length; i++) { std::cout<<a[i]<<" "; }
-    std::cout<<std::endl;
+void printArray_1D(T *a, int length) {
+    for (int i = 0; i < length; i++) {
+        std::cout << a[i] << " ";
+    }
+    std::cout << std::endl;
 }
 
-
 template <typename T>
-void printArray_2D(T *a, int length1,int length2)
-{
+void printArray_2D(T *a, int length1, int length2) {
     for (int i = 0; i < length1; i++) {
         for (int j = 0; j < length2; j++) {
             std::cout << a[i * length2 + j] << " ";
         }
-        std::cout<<std::endl;
+        std::cout << std::endl;
     }
-    std::cout<<std::endl;
+    std::cout << std::endl;
 }
 
 #endif
-
-
 
 namespace basis {
 
@@ -69,8 +68,8 @@ namespace basis {
  * \note The matrix \a P is assumed to have the correct size of (1, len(x)).
  *       Also then polynomials are normalized to be orthonormal.
  */
-    void jacobip(double alpha, double beta, unsigned int N,
-                 double *x, double *p , unsigned int np);
+void jacobip(double alpha, double beta, unsigned int N, double *x, double *p,
+             unsigned int np);
 
 /** Evaluate  the derivative of the \c N'th order Jacobi Polynomial of
  * type (\c alpha, \c beta ) > -1.
@@ -89,7 +88,8 @@ namespace basis {
  * \note The matrix \a P is assumed to have the correct size of (1, len(x)).
  *       Also then polynomials are normalized to be orthonormal.
  */
-    void gradjacobip(double alpha, double beta, int N,double *x, double *dp, unsigned int np);
+void gradjacobip(double alpha, double beta, int N, double *x, double *dp,
+                 unsigned int np);
 
 /** Compute the \c N'th order Gauss Lobatto quadrature points and weights.
  *
@@ -104,8 +104,7 @@ namespace basis {
  * \note The matrices \a x and \a w are assumed to have the correct size
  * of (1, N+1).  Also the node location will be between [-1,1].
  */
-    void jacobiglq(double alpha, double beta, int N,
-                   double *x, double *w);
+void jacobiglq(double alpha, double beta, int N, double *x, double *w);
 
 /** Compute the \c N'th order Gauss quadrature points and weights.
  *
@@ -123,29 +122,26 @@ namespace basis {
  * \note The matrices \a x and \a w are assumed to have the correct size
  * of (1, N+1).  Also the node locaiton will be between [-1,1].
  */
-    void jacobigq(double alpha, double beta, int N,
-                  double *x, double *w);
+void jacobigq(double alpha, double beta, int N, double *x, double *w);
 
+/**
+ * @brief computes the Lagrange polynomials evalueated at x coords.
+ * @param x0: nodal locations. N+1 points.
+ * @param N:  order of the Lagrange polynomial
+ * @param x:  points which Lagrange evaluated at.
+ * @param px: P(x)
+ * @param m: size of x points, (i.e. similar to px)
+ */
+void lagrange(const double *x0, int N, int at, const double *x, double *px,
+              int m);
 
+/**
+ * @brief wavelet scaling function construction based on the Jacobi polynomials.
+ *
+ */
+void jacobisf(double alpha, double beta, unsigned int N, double *x, double *p,
+              unsigned int np);
 
-   /**
-    * @brief computes the Lagrange polynomials evalueated at x coords. 
-    * @param x0: nodal locations. N+1 points. 
-    * @param N:  order of the Lagrange polynomial
-    * @param x:  points which Lagrange evaluated at.
-    * @param px: P(x)
-    * @param m: size of x points, (i.e. similar to px)
-    */
-    void lagrange(const double * x0, int N, int at, const double * x, double* px,  int m); 
+}  // namespace basis
 
-
-    /**
-     * @brief wavelet scaling function construction based on the Jacobi polynomials.
-     * 
-     */
-    void jacobisf(double alpha, double beta, unsigned int N, double *x, double *p , unsigned int np);
-
-
-}
-
-#endif //SFCSORTBENCH_JACOBIPOLYNOMIAL_H
+#endif  // SFCSORTBENCH_JACOBIPOLYNOMIAL_H
