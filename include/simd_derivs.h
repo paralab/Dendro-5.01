@@ -21,22 +21,20 @@
 #include <x86intrin.h>
 
 #ifdef __AVX512F__
-#define SIMD_LENGTH 8
+#define SIMD_LENGTH    8
 #define SIMD_ALIGNMENT 32
 
 // load-store
-
 
 // arithmetic
 
 #endif
 
 #ifdef __AVX2__
-#define SIMD_LENGTH 4
+#define SIMD_LENGTH    4
 #define SIMD_ALIGNMENT 32
 
 // load-store
-
 
 // arithmetic
 
@@ -44,7 +42,7 @@
 
 // allocation
 int simd_alloc(void **memptr, size_t size) {
-  return posix_memalign(memptr, SIMD_ALIGNMENT, size);
+    return posix_memalign(memptr, SIMD_ALIGNMENT, size);
 }
 
-#endif //SFCSORTBENCH_SIMD_DERIVS_H
+#endif  // SFCSORTBENCH_SIMD_DERIVS_H

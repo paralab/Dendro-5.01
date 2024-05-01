@@ -17,4 +17,3 @@
 #define NRM "\e[0m"
 
 #endif /*COLORS_H_*/
-

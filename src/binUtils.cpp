@@ -6,59 +6,57 @@
   @author Hari Sundar, hsundar@gmail.com
   */
 
-#include <vector>
-#include <cassert>
 #include "binUtils.h"
+
+#include <cassert>
+#include <vector>
 
 namespace binOp {
 
-  unsigned int fastLog2(unsigned int num) {
-    if(num) {
-      return (binLength(num) - 1);
+unsigned int fastLog2(unsigned int num) {
+    if (num) {
+        return (binLength(num) - 1);
     } else {
-      assert(false);
-      return 1; 
+        assert(false);
+        return 1;
     }
-  }//end function
+}  // end function
 
-  unsigned int binLength(unsigned int num) {
+unsigned int binLength(unsigned int num) {
     unsigned int len = 1;
-    while(num > 1) {
-      num = (num >> 1);
-      len++;
+    while (num > 1) {
+        num = (num >> 1);
+        len++;
     }
     return len;
-  }//end function
+}  // end function
 
-  int toBin(unsigned int num, unsigned int binLen,  std::vector<bool>& numBin) {
+int toBin(unsigned int num, unsigned int binLen, std::vector<bool>& numBin) {
     numBin = std::vector<bool>(binLen);
-    for(unsigned int i = 0; i < binLen; i++) {
-      numBin[i]=0;
-    }//end for
-    unsigned int pos = binLen -1;
-    while(num > 0) {
-      numBin[pos] = (num%2);
-      num = num/2;  
-      pos--;
-    }  //end while  
+    for (unsigned int i = 0; i < binLen; i++) {
+        numBin[i] = 0;
+    }  // end for
+    unsigned int pos = binLen - 1;
+    while (num > 0) {
+        numBin[pos] = (num % 2);
+        num         = num / 2;
+        pos--;
+    }  // end while
     return 1;
-  }//end function
+}  // end function
 
-  unsigned int binToDec(unsigned int* numBin, unsigned int binLen) {
+unsigned int binToDec(unsigned int* numBin, unsigned int binLen) {
     unsigned int res = 0;
-    for(unsigned int i = 0; i< binLen; i++) {
-      res = (2*res) + numBin[i];
+    for (unsigned int i = 0; i < binLen; i++) {
+        res = (2 * res) + numBin[i];
     }
     return res;
-  }//end function
+}  // end function
 
+bool isPowerOfTwo(unsigned int n) { return (n && (!(n & (n - 1)))); }
 
-  bool isPowerOfTwo(unsigned int n) {
-    return (n && (!(n & (n - 1))));
-  }
-
-  // compute the next highest power of 2 of 32-bit v
-  int getNextHighestPowerOfTwo(unsigned int n) {
+// compute the next highest power of 2 of 32-bit v
+int getNextHighestPowerOfTwo(unsigned int n) {
     unsigned int v = n;
     assert(v > 0);
     v--;
@@ -69,10 +67,10 @@ namespace binOp {
     v |= (v >> 16);
     v++;
     return v;
-  }
+}
 
-  // compute the prev highest power of 2 of 32-bit v
-  int getPrevHighestPowerOfTwo(unsigned int n) {
+// compute the prev highest power of 2 of 32-bit v
+int getPrevHighestPowerOfTwo(unsigned int n) {
     unsigned int v = n;
     assert(v > 0);
     v--;
@@ -82,11 +80,7 @@ namespace binOp {
     v |= (v >> 8);
     v |= (v >> 16);
     v++;
-    return  (v >> 1);
-  }
+    return (v >> 1);
+}
 
-
-
-
-}//end namespace
-
+}  // namespace binOp
