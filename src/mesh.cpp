@@ -13684,6 +13684,26 @@ void Mesh::interGridTransferSendRecvCompute(const ot::Mesh *pMesh) {
     return;
 }
 
+std::vector<unsigned int> Mesh::getAllRefinementFlags() {
+    // create the starting vector with oct no change based on the element IDs
+    std::vector<unsigned int> refine_flags(m_uiNumLocalElements, OCT_NO_CHANGE);
+
+    for (unsigned int ele = m_uiElementLocalBegin; ele < m_uiElementLocalEnd;
+         ele++) {
+        // the relative ID is based on the element we traverse over
+        const unsigned int rel_id = ele - m_uiElementLocalBegin;
+
+        // then get the flag
+        const unsigned int flag   = m_uiAllElements[ele].getFlag();
+
+        // don't forget to strip it from it's level bits
+        refine_flags[rel_id]      = flag >> NUM_LEVEL_BITS;
+    }
+
+    // resulting vector should just have OCT_COARSE, OCT_SPLIT, or OCT_NO_CHANGE
+    return refine_flags;
+}
+
 bool Mesh::setMeshRefinementFlags(
     const std::vector<unsigned int> &refine_flags) {
     // explicitly set the refinement flags,

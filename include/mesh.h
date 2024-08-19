@@ -2622,6 +2622,11 @@ class Mesh {
                                unsigned int *child) const;
 
     /**
+     * @brief Extract the raw refinement flags from all local elements
+     */
+    std::vector<unsigned int> getAllRefinementFlags();
+
+    /**
      * @brief Set the Mesh Refinement flags, for the local portion of the mesh.
      Note that coarsening happens if all the children are
      * have the same parent and all the children should be in the same processor
