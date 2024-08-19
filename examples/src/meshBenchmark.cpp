@@ -155,9 +155,10 @@ void meshBenchMark(char* ptsFile, bool genPts, unsigned int numPts,
         SFC::parSort::SFC_treeSort(
             pNodesConstructed, pNodesSorted, pNodesConstructed, pNodesBalanced,
             tol, maxDepth, root, ROOT_ROT_ID, 1, TS_BALANCE_OCTREE, sf_k, comm);
-        t2 = MPI_Wtime();  // std::chrono::high_resolution_clock::now();
-        t_bal = t2 - t1;  // std::chrono::duration_cast<std::chrono::milliseconds>(t2
-                          // - t1).count();
+        t2    = MPI_Wtime();  // std::chrono::high_resolution_clock::now();
+        t_bal = t2 -
+                t1;  // std::chrono::duration_cast<std::chrono::milliseconds>(t2
+                     // - t1).count();
         if (!rank) std::cout << RED << "2:1 balance end" << NRM << std::endl;
         pNodesConstructed.clear();
 
@@ -184,8 +185,10 @@ void meshBenchMark(char* ptsFile, bool genPts, unsigned int numPts,
         ot::Mesh mesh(pNodesBalanced, stencilSz, eleOrder, comm, false,
                       ot::FEM_CG);
         t2 = MPI_Wtime();  // std::chrono::high_resolution_clock::now();
-        t_mesh = t2 - t1;  // std::chrono::duration_cast<std::chrono::milliseconds>(t2
-                           // - t1).count();
+        t_mesh =
+            t2 -
+            t1;  // std::chrono::duration_cast<std::chrono::milliseconds>(t2
+                 // - t1).count();
         if (!rank)
             std::cout << RED << "mesh generation end" << NRM << std::endl;
 
@@ -279,9 +282,10 @@ void meshBenchMark(char* ptsFile, bool genPts, unsigned int numPts,
             &(*(pNodesConstructed.begin())), pNodesConstructed.size(),
             pNodesSorted, pNodesConstructed, pNodesBalanced, maxDepth, maxDepth,
             root, ROOT_ROT_ID, 1, TS_BALANCE_OCTREE);
-        t2 = MPI_Wtime();  // std::chrono::high_resolution_clock::now();
-        t_bal = t2 - t1;  // std::chrono::duration_cast<std::chrono::milliseconds>(t2
-                          // - t1).count();
+        t2    = MPI_Wtime();  // std::chrono::high_resolution_clock::now();
+        t_bal = t2 -
+                t1;  // std::chrono::duration_cast<std::chrono::milliseconds>(t2
+                     // - t1).count();
         if (!rank) std::cout << RED << "2:1 balance end" << NRM << std::endl;
 
         t_bal_g[0] = t_bal;
@@ -314,8 +318,10 @@ void meshBenchMark(char* ptsFile, bool genPts, unsigned int numPts,
             cg_sz = mesh.getDegOfFreedom();
         }
         t2 = MPI_Wtime();  // std::chrono::high_resolution_clock::now();
-        t_mesh = t2 - t1;  // std::chrono::duration_cast<std::chrono::milliseconds>(t2
-                           // - t1).count();
+        t_mesh =
+            t2 -
+            t1;  // std::chrono::duration_cast<std::chrono::milliseconds>(t2
+                 // - t1).count();
         if (!rank)
             std::cout << RED << "mesh generation end" << NRM << std::endl;
 

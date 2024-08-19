@@ -38,7 +38,7 @@ class AsyncExchangeContex {
     /**@brief batched requests for recv */
     std::vector<MPI_Request> m_recv_req;
 
-    AsyncExchangeContex(){};
+    AsyncExchangeContex() {};
 
     /**@brief creates an async ghost exchange contex*/
     AsyncExchangeContex(const void* var) {
@@ -51,7 +51,7 @@ class AsyncExchangeContex {
     }
 
     /**@brief : defaut destructor*/
-    ~AsyncExchangeContex(){};
+    ~AsyncExchangeContex() {};
 
     /**@brief allocates send buffer for ghost exchange*/
     inline void allocateSendBuffer(size_t bytes) {

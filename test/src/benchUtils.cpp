@@ -58,7 +58,7 @@ int main(int argc, char** argv) {
     Point pt_min(d_min, d_min, d_min);
     Point pt_max(d_max, d_max, d_max);
     //@note that based on how the functions are defined (f(x), dxf(x), etc) the
-    //compuatational domain is equivalent to the grid domain.
+    // compuatational domain is equivalent to the grid domain.
     std::function<void(double, double, double, double*)> func =
         [d_min, d_max](double x, double y, double z, double* var) {
             double ca[] = {-2, 0, 0};

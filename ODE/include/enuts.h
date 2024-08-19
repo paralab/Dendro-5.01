@@ -456,14 +456,16 @@ class ExplicitNUTS : public ETS<T, Ctx> {
 
     /**@brief: compute weight for a wpart. */
     static unsigned int getOctWeight(const ot::TreeNode* pNode) {
-        const unsigned int finest_t =
-            wpart_meta.tfac(wpart_meta.lmax, wpart_meta.lmin,
-                            wpart_meta.lmax);  // m_uiAppCtx->getBlkTimestepFac(m_uiLevMax,m_uiLevMin,m_uiLevMax);
-                                               // // finest  time level.
-        const unsigned int coarset_t =
-            wpart_meta.tfac(wpart_meta.lmin, wpart_meta.lmin,
-                            wpart_meta.lmax);  // m_uiAppCtx->getBlkTimestepFac(m_uiLevMin,m_uiLevMin,m_uiLevMax);
-                                               // // coarset time level.
+        const unsigned int finest_t = wpart_meta.tfac(
+            wpart_meta.lmax, wpart_meta.lmin,
+            wpart_meta
+                .lmax);  // m_uiAppCtx->getBlkTimestepFac(m_uiLevMax,m_uiLevMin,m_uiLevMax);
+                         // // finest  time level.
+        const unsigned int coarset_t = wpart_meta.tfac(
+            wpart_meta.lmin, wpart_meta.lmin,
+            wpart_meta
+                .lmax);  // m_uiAppCtx->getBlkTimestepFac(m_uiLevMin,m_uiLevMin,m_uiLevMax);
+                         // // coarset time level.
         const unsigned int weight =
             ((coarset_t - finest_t) /
              (wpart_meta.tfac(pNode->getLevel(), wpart_meta.lmin,

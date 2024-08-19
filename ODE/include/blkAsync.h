@@ -41,7 +41,7 @@ class BlockAsyncVector {
 
    public:
     /**@brief: default constructor.*/
-    BlockAsyncVector(){};
+    BlockAsyncVector() {};
 
     /**@brief: default destructor*/
     ~BlockAsyncVector() {

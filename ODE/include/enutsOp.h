@@ -72,7 +72,7 @@ class ENUTSOp {
      * @brief Destroy the ENUTSOp object
      *
      */
-    ~ENUTSOp(){};
+    ~ENUTSOp() {};
 
     /**
      * @brief Diagonal op. of time scaling $P_{\Delta t}$ and its inverse

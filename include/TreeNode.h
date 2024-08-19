@@ -952,7 +952,7 @@ class Mpi_datatype<ot::TreeNode> {
             (static_cast<ot::TreeNode *>(inout))[i] =
                 (((first.getLevel()) > (second.getLevel())) ? first : second);
         }  // end for
-    }      // end function
+    }  // end function
 
     static void Node_MAX(void *in, void *inout, int *len, MPI_Datatype *dptr) {
         for (int i = 0; i < (*len); i++) {
@@ -961,7 +961,7 @@ class Mpi_datatype<ot::TreeNode> {
             (static_cast<ot::TreeNode *>(inout))[i] =
                 ((first > second) ? first : second);
         }  // end for
-    }      // end function
+    }  // end function
 
     static void Node_MIN(void *in, void *inout, int *len, MPI_Datatype *dptr) {
         for (int i = 0; i < (*len); i++) {
@@ -970,7 +970,7 @@ class Mpi_datatype<ot::TreeNode> {
             (static_cast<ot::TreeNode *>(inout))[i] =
                 ((first < second) ? first : second);
         }  // end for
-    }      // end function
+    }  // end function
 
     /* static void Node_NCA(void *in, void *inout, int* len, MPI_Datatype *
      dptr) { for(int i = 0; i < (*len); i++) { ot::TreeNode first =

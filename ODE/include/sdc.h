@@ -76,7 +76,7 @@ class SDC {
     /**
      * @brief Construct a new SDC object
      */
-    SDC(){};
+    SDC() {};
 
     /**
      * @brief Destroy the SDC object
