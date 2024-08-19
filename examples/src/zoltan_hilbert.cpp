@@ -417,9 +417,9 @@ void ZoltanHibertLBandSort(DendroIntL grainSz, unsigned int dim,
 
     //}
 
-    auto zz_local_start = std::chrono::system_clock::now();  // MPI_Wtime();
+    auto zz_local_start     = std::chrono::system_clock::now();  // MPI_Wtime();
 
-    ZOLTAN_ID_TYPE localPts     = mesh.numLocalPts;
+    ZOLTAN_ID_TYPE localPts = mesh.numLocalPts;
 
     ZOLTAN_ID_TYPE *permutedIds = new ZOLTAN_ID_TYPE[localPts];
     Zoltan_Order(zz, NUM_GID_SIZE, mesh.numLocalPts, mesh.globalIds,

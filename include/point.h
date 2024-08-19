@@ -126,7 +126,7 @@ class Mpi_datatype<Point> {
             Point p2 = (static_cast<Point *>(inout))[i];
             (static_cast<Point *>(inout))[i] += p1;
         }  // end for
-    }      // end function
+    }  // end function
 
    public:
     /**

@@ -250,7 +250,7 @@ namespace seqSort {
  */
 
 //========================================================= Function declaration
-//begin.=========================================================================================
+// begin.=========================================================================================
 
 /**
  * @author Milinda Fernando
@@ -331,7 +331,7 @@ void SFC_treeSortLocalOptimal(T* pNodes, DendroIntL n,
                               T& parent, unsigned int rot_id, T& min, T& max);
 
 //========================================================= Function declaration
-//end.==========================================================================================
+// end.==========================================================================================
 
 template <typename T>
 inline void SFC_bottomUpBalOctantCreation(std::vector<T>& pNodes) {  //$
@@ -947,7 +947,7 @@ void SFC_treeSortLocalOptimal(T* pNodes, DendroIntL n,
 }
 
 //========================================================= Function definition
-//end
+// end
 //=========================================================================================
 
 }  // namespace seqSort
@@ -958,7 +958,7 @@ namespace SFC {
 namespace parSort {
 
 //========================================================= Function declaration
-//begin.=========================================================================================
+// begin.=========================================================================================
 /**
  * @author Milinda Fernando
  * @breif Staged version of the splitter selection. This is used when the number
@@ -996,10 +996,10 @@ void SFC_treeSort(std::vector<T>& pNodes, std::vector<T>& pOutSorted,
  maxDepth,MPI_Comm comm);*/
 
 //========================================================= Function declaration
-//end.=========================================================================================
+// end.=========================================================================================
 
 //========================================================= Function definition
-//begin.=========================================================================================
+// begin.=========================================================================================
 
 template <typename T>
 inline void SFC_SplitterFix(std::vector<T>& pNodes, unsigned int pMaxDepth,
@@ -2301,8 +2301,8 @@ void SFC_treeSort(std::vector<T>& pNodes, std::vector<T>& pOutSorted,
             bool state_global  = true;
             unsigned int count = 0;
             //@milindasf : Possible location for MPI hang, if for a one
-            //processor if above is not true, then followign sendrecv will get
-            //hanged.
+            // processor if above is not true, then followign sendrecv will get
+            // hanged.
 
             while (count < pOutSorted.size() & state_global) {
                 begin = pOutSorted[count];
@@ -2628,7 +2628,7 @@ void SFC_treeSort(std::vector<T>& pNodes, std::vector<T>& pOutSorted,
  }*/
 
 //========================================================= Function definition
-//end.=========================================================================================
+// end.=========================================================================================
 
 }  // end of namespace parSort
 

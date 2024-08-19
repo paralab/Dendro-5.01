@@ -637,7 +637,7 @@ void markBoundaryNodesAtAllLevels(std::vector<ot::TreeNode>& finestOctree,
                 coarserOctrees[lev][i].orFlag(ot::TreeNode::BOUNDARY);
             }
         }  // end for i
-    }      // end for lev
+    }  // end for lev
 
     // finest octree
     for (unsigned int i = 0; i < finestOctree.size(); i++) {
@@ -918,7 +918,7 @@ void flagNodesType1(std::vector<ot::TreeNode>& in, MPI_Comm comm) {
             default:
                 assert(false);
         }  // end switch
-    }      // end for i
+    }  // end for i
 
     PROF_FLN_STAGE1_END
     PROF_FLN_STAGE2_BEGIN
@@ -1353,7 +1353,7 @@ void flagNodesType2(std::vector<ot::TreeNode>& in, MPI_Comm comm) {
             default:
                 assert(false);
         }  // end switch
-    }      // end for i
+    }  // end for i
 #endif
 
     PROF_FLN_STAGE1_END
@@ -1527,7 +1527,7 @@ void flagNodesType2(std::vector<ot::TreeNode>& in, MPI_Comm comm) {
                 isHanging[retIdx] = true;
             }
         }  // end for j
-    }      // end for i
+    }  // end for i
 
     for (int i = (rank + 1); i < npes; i++) {
         for (int j = 0; j < recvCounts[i]; j++) {
@@ -1539,7 +1539,7 @@ void flagNodesType2(std::vector<ot::TreeNode>& in, MPI_Comm comm) {
                 isHanging[retIdx] = true;
             }
         }  // end for j
-    }      // end for i
+    }  // end for i
 
     for (int i = 0; i < in.size(); i++) {
         if (!isHanging[i]) {
@@ -1622,7 +1622,7 @@ void flagNodesType3(std::vector<ot::TreeNode>& in, MPI_Comm comm) {
         unsigned int myZ       = inPtr[i].getZ();
 
         //@hari: I think this is incorrect for Hilbert if we use the
-        //getChildNumber function,
+        // getChildNumber function,
         switch (childNum) {
             case 0: {
                 break;
@@ -1708,7 +1708,7 @@ void flagNodesType3(std::vector<ot::TreeNode>& in, MPI_Comm comm) {
         for (int j = currKeySz; j < keys.size(); j++) {
             keys[j].setWeight(i);
         }  // end for j
-    }      // end for i
+    }  // end for i
 
     PROF_FLN_STAGE1_END
     // std::sort(keys.begin(),keys.end()); @Hari: Do we need to sort these keys?

@@ -238,10 +238,10 @@ class Ctx {
 
    public:
     /**@brief: default constructor*/
-    Ctx(){};
+    Ctx() {};
 
     /**@brief: default destructor*/
-    ~Ctx(){};
+    ~Ctx() {};
 
     /**@brief: derived class static cast*/
     inline DerivedCtx& asLeaf() { return static_cast<DerivedCtx&>(*this); }

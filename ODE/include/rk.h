@@ -126,15 +126,15 @@ class RK {
     // END UNUSED
 
     /** One time step iteration iteration for RK45 update*/
-    virtual void performSingleIteration(){};
+    virtual void performSingleIteration() {};
 
     /** apply intial conditions*/
-    virtual void applyInitialConditions(){};
+    virtual void applyInitialConditions() {};
 
     /**function to apply boundary conditions. */
-    virtual void applyBoundaryConditions(){};
+    virtual void applyBoundaryConditions() {};
 
-    virtual void rkSolve(){};
+    virtual void rkSolve() {};
 
     /**@brief free memeory of the mesh*/
     inline void freeMesh() { delete m_uiMesh; };

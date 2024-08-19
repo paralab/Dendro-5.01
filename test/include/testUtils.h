@@ -123,7 +123,7 @@ template <typename T>
 bool containsAncestor(const std::vector<T>& nodes, MPI_Comm comm);
 
 //@author: Milinda Fernando. Assess the completeness of the octree based on the
-//volumes of the octants.
+// volumes of the octants.
 template <typename T>
 bool isComplete(const std::vector<T>& nodes, MPI_Comm comm);
 

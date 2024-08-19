@@ -32,9 +32,9 @@ class InverseCtx {
     launcher::Launcher* m_uiJobLauncher = NULL;
 
    public:
-    InverseCtx(){};
+    InverseCtx() {};
 
-    ~InverseCtx(){};
+    ~InverseCtx() {};
 
     /**@brief: derived class static cast*/
     DerivedInverseCtx& asLeaf() {

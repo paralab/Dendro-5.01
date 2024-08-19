@@ -45,7 +45,7 @@ class Launcher {
         m_uiCoresPerNode = cores_per_node;
     }
 
-    ~Launcher(){};
+    ~Launcher() {};
 
     int alloc_sub_communicator(unsigned int njobs) {
         int rank_g, npes_g;

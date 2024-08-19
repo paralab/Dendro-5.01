@@ -299,9 +299,10 @@ int main(int argc, char** argv) {
         SFC::parSort::SFC_treeSort(
             pNodesConstructed, pNodesSorted, pNodesConstructed, pNodesBalanced,
             tol, maxDepth, root, ROOT_ROT_ID, 1, TS_BALANCE_OCTREE, sf_k, comm);
-        t2 = MPI_Wtime();  // std::chrono::high_resolution_clock::now();
-        t_bal = t2 - t1;  // std::chrono::duration_cast<std::chrono::milliseconds>(t2
-                          // - t1).count();
+        t2    = MPI_Wtime();  // std::chrono::high_resolution_clock::now();
+        t_bal = t2 -
+                t1;  // std::chrono::duration_cast<std::chrono::milliseconds>(t2
+                     // - t1).count();
         if (!rank) std::cout << RED << "2:1 balance end" << NRM << std::endl;
         pNodesConstructed.clear();
 
@@ -355,8 +356,10 @@ int main(int argc, char** argv) {
         t1 = MPI_Wtime();  // std::chrono::high_resolution_clock::now();
         ot::Mesh mesh(pNodesBalanced, stencilSz, 4, comm);
         t2 = MPI_Wtime();  // std::chrono::high_resolution_clock::now();
-        t_mesh = t2 - t1;  // std::chrono::duration_cast<std::chrono::milliseconds>(t2
-                           // - t1).count();
+        t_mesh =
+            t2 -
+            t1;  // std::chrono::duration_cast<std::chrono::milliseconds>(t2
+                 // - t1).count();
         if (!rank)
             std::cout << RED << "mesh generation end" << NRM << std::endl;
 

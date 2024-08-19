@@ -84,7 +84,7 @@ class Mpi_datatype<bool> {
                 (((static_cast<bool *>(in))[i]) ||
                  ((static_cast<bool *>(inout))[i]));
         }  // end for
-    }      // end function
+    }  // end function
 
     static void bool_LAND(void *in, void *inout, int *len, MPI_Datatype *dptr) {
         for (int i = 0; i < (*len); i++) {
@@ -92,7 +92,7 @@ class Mpi_datatype<bool> {
                 (((static_cast<bool *>(in))[i]) &&
                  ((static_cast<bool *>(inout))[i]));
         }  // end for
-    }      // end function
+    }  // end function
 
    public:
     /**

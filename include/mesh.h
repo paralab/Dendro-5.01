@@ -2826,24 +2826,30 @@ inline bool Mesh::computeOveralppingNodes(const ot::TreeNode &parent,
 
                 if (!(((child.getX() - parent.getX()) * dp * dc + k * Lc * dp) %
                       (Lp * dc)))
-                    index[0] = ((child.getX() - parent.getX()) * dp * dc +
-                                k * Lc * dp) /
-                               (Lp * dc);  //((child.getX()-parent.getX())*m_uiElementOrder
-                                           //+ k*Lc)/Lp;
+                    index[0] =
+                        ((child.getX() - parent.getX()) * dp * dc +
+                         k * Lc * dp) /
+                        (Lp *
+                         dc);  //((child.getX()-parent.getX())*m_uiElementOrder
+                               //+ k*Lc)/Lp;
 
                 if (!(((child.getY() - parent.getY()) * dp * dc + k * Lc * dp) %
                       (Lp * dc)))
-                    index[1] = ((child.getY() - parent.getY()) * dp * dc +
-                                k * Lc * dp) /
-                               (Lp * dc);  //((child.getY()-parent.getY())*m_uiElementOrder
-                                           //+ k*Lc)/Lp;
+                    index[1] =
+                        ((child.getY() - parent.getY()) * dp * dc +
+                         k * Lc * dp) /
+                        (Lp *
+                         dc);  //((child.getY()-parent.getY())*m_uiElementOrder
+                               //+ k*Lc)/Lp;
 
                 if (!(((child.getZ() - parent.getZ()) * dp * dc + k * Lc * dp) %
                       (Lp * dc)))
-                    index[2] = ((child.getZ() - parent.getZ()) * dp * dc +
-                                k * Lc * dp) /
-                               (Lp * dc);  //((child.getZ()-parent.getZ())*m_uiElementOrder
-                                           //+ k*Lc)/Lp;
+                    index[2] =
+                        ((child.getZ() - parent.getZ()) * dp * dc +
+                         k * Lc * dp) /
+                        (Lp *
+                         dc);  //((child.getZ()-parent.getZ())*m_uiElementOrder
+                               //+ k*Lc)/Lp;
 
                 if (!stateX && index[0] < (m_uiElementOrder + 1)) stateX = true;
 

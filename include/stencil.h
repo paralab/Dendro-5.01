@@ -44,7 +44,7 @@ struct Stencil {
 
    public:
     /** @brief: default constructor */
-    Stencil(){};
+    Stencil() {};
 
     /**
      * @brief: creates a stencil with given coefficients.

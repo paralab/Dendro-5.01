@@ -2405,9 +2405,9 @@ void Mesh::buildE2EMap(std::vector<ot::TreeNode> &in, MPI_Comm comm) {
                             setHintUint = tmpSendEleIdR2[p].emplace(lookUp);
                     }*/
                     //(Milinda)27/05/20: I realized this was a wrong fix to the
-                    //correct the SM in FEM computations, this descrease the
-                    //mesh generation performance a lot since we increase the
-                    //pre and post ghost
+                    // correct the SM in FEM computations, this descrease the
+                    // mesh generation performance a lot since we increase the
+                    // pre and post ghost
                     // elements an inactive ghost nodes, I realized this running
                     // perfromace for mesh generations in Frontera, the fix made
                     // for this was write to ghost nodes and accumilate from
@@ -4363,12 +4363,12 @@ void Mesh::buildE2NMap() {
 
             }*/
         //--------------------------------------------------------PRINT THE E2N
-        //MAP------------------------------------------------------------------------------------
+        // MAP------------------------------------------------------------------------------------
         /*for(unsigned int w=0;w<m_uiE2NMapping_CG.size();w++)
             std::cout<<"w: "<<w<<" -> : "<<m_uiE2NMapping_CG[w]<<std::endl;*/
 
         //--------------------------------------------------------PRINT THE E2N
-        //MAP------------------------------------------------------------------------------------
+        // MAP------------------------------------------------------------------------------------
 
 #ifdef DEBUG_E2N_MAPPING
     // MPI_Barrier(MPI_COMM_WORLD);
@@ -4405,7 +4405,7 @@ void Mesh::buildE2NMap() {
 #endif
 
     //---------------------------------------print out the E2N mapping of fake
-    //elements. (This is done for only the fake elements. )
+    // elements. (This is done for only the fake elements. )
     //---------------------------------------------------------------------------------
 
     /* MPI_Barrier(MPI_COMM_WORLD);
@@ -4467,8 +4467,8 @@ void Mesh::buildE2NMap() {
     // int )*(m_uiFElementPostGhostEnd-m_uiFElementPreGhostBegin)*m_uiNpE);
 
     //---------------------------------------print out the final e2n mapping of
-    //all, actual and fake element to node
-    //mapping.--------------------------------------------------------------------------
+    // all, actual and fake element to node
+    // mapping.--------------------------------------------------------------------------
 
     //----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
     // if(!m_uiActiveRank) std::cout<<"E2N Mapping ended"<<std::endl;
@@ -4786,7 +4786,7 @@ void Mesh::computeNodeScatterMaps(MPI_Comm comm) {
 
     // 1. compute the local nodes.
     ///@todo We need not to generate all the nodes (which is expensive). we just
-    ///need to find min and the max nodes.
+    /// need to find min and the max nodes.
 
     for (unsigned int ele = m_uiElementLocalBegin; ele < m_uiElementLocalEnd;
          ele++) {
