@@ -45,7 +45,7 @@ bool BinarySearch(const T* arr, unsigned int nelem, const T& key,
             *ret_idx = mid;
             return true;
         }  // end if-else-if
-    }      // end while
+    }  // end while
     *ret_idx = nelem;
     return false;
 }  // end function
@@ -109,7 +109,7 @@ bool maxLowerBound(const std::vector<T>& arr, const T& key,
             ret_idx = mid;
             return true;
         }  // end if-else-if
-    }      // end while
+    }  // end while
 
     // If binary search did not find an exact match, it would have
     // stopped one element after or one element before.

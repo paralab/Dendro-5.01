@@ -390,6 +390,9 @@ void interpolateToCoords(const ot::Mesh* mesh, const T* in,
     unsigned int rankGlobal = mesh->getMPIRankGlobal();
     unsigned int npesGlobal = mesh->getMPICommSizeGlobal();
 
+    dendro::logger::debug(dendro::logger::Scope{"daUtils"},
+                          "Now running interpolateToCoords...");
+
     if (mesh->isActive()) {
         unsigned int rankActive = mesh->getMPIRank();
         unsigned int npesActive = mesh->getMPICommSize();
@@ -571,6 +574,9 @@ void interpolateToCoords(const ot::Mesh* mesh, const T* in,
         std::sort(validIndices.begin(), validIndices.end());
         meshOctree.clear();
     }
+
+    dendro::logger::debug(dendro::logger::Scope{"daUtils"},
+                          "Finished calling interpolate coordinates!");
 }
 
 template <typename T, typename CoordT>

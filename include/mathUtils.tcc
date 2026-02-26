@@ -58,6 +58,49 @@ T normLInfty(T* vec, unsigned int n) {
 }
 
 template <typename T>
+T normRMSE(T* vec, unsigned int n) {
+    T rmse = 0;
+    for (unsigned int i = 0; i < n; i++) {
+        if ((std::isnan(vec[i]))) return NAN;
+
+        rmse += vec[i] * vec[i];
+    }
+
+    return sqrt(rmse / n);
+}
+
+template <typename T>
+T normNRMSE(T* vec, T* truth, unsigned int n) {
+    T squared_error = 0;
+    T min           = truth[0];
+    T max           = truth[0];
+
+    for (unsigned int i = 0; i < n; i++) {
+        if ((std::isnan(vec[i]))) return NAN;
+
+        squared_error += vec[i] * vec[i];
+        min = std::min(min, truth[i]);
+        max = std::max(max, truth[i]);
+    }
+
+    T range = max - min;
+
+    return sqrt(squared_error / n) / range;
+}
+
+template <typename T>
+T normMAE(T* vec, unsigned int n) {
+    T mae = 0;
+    for (unsigned int i = 0; i < n; i++) {
+        if ((std::isnan(vec[i]))) return NAN;
+
+        mae += abs(vec[i]);
+    }
+
+    return mae / n;
+}
+
+template <typename T>
 T vecMin(T* vec, unsigned int n) {
     if ((std::isnan(vec[0]))) return NAN;
     T min = (vec[0]);
@@ -131,6 +174,65 @@ T normL2(T* vec, unsigned int n, MPI_Comm comm) {
     par::Mpi_Reduce(&l2, &l2_sum, 1, MPI_SUM, 0, comm);
 
     return sqrt(l2_sum);
+}
+
+template <typename T>
+T normRMSE(T* vec, unsigned int n, MPI_Comm comm) {
+    T local_sum_squared = 0;
+
+    for (unsigned int i = 0; i < n; i++) {
+        local_sum_squared += vec[i] * vec[i];
+    }
+
+    T global_sum       = 0;
+    unsigned int n_sum = 0;
+
+    par::Mpi_Reduce(&local_sum_squared, &global_sum, 1, MPI_SUM, 0, comm);
+    par::Mpi_Reduce(&n, &n_sum, 1, MPI_SUM, 0, comm);
+
+    return sqrt(global_sum / n_sum);
+}
+
+template <typename T>
+T normNRMSE(const T* vec, const T* truth, unsigned int n, MPI_Comm comm) {
+    T local_sum_squared = 0;
+    T local_min         = truth[0];
+    T local_max         = truth[0];
+
+    for (unsigned int i = 0; i < n; i++) {
+        local_sum_squared += vec[i] * vec[i];
+        local_min = std::min(local_min, truth[i]);
+        local_max = std::max(local_max, truth[i]);
+    }
+
+    T global_sum, global_min, global_max;
+    unsigned int n_sum;
+
+    par::Mpi_Reduce(&local_sum_squared, &global_sum, 1, MPI_SUM, 0, comm);
+    par::Mpi_Reduce(&local_min, &global_min, 1, MPI_MIN, 0, comm);
+    par::Mpi_Reduce(&local_max, &global_max, 1, MPI_MAX, 0, comm);
+    par::Mpi_Reduce(&n, &n_sum, 1, MPI_SUM, 0, comm);
+
+    T range = global_max - global_min;
+
+    return std::sqrt(global_sum / n_sum) / range;
+}
+
+template <typename T>
+T normMAE(T* vec, unsigned int n, MPI_Comm comm) {
+    T lmae = 0;
+
+    for (unsigned int i = 0; i < n; i++) {
+        lmae += std::abs(vec[i]);
+    }
+
+    T lmae_sum         = 0;
+    unsigned int n_sum = 0;
+
+    par::Mpi_Reduce(&lmae, &lmae_sum, 1, MPI_SUM, 0, comm);
+    par::Mpi_Reduce(&n, &n_sum, 1, MPI_SUM, 0, comm);
+
+    return lmae_sum / n_sum;
 }
 
 template <typename T>

@@ -14,6 +14,7 @@
 #include "ctx.h"
 #include "dendro.h"
 #include "dvec.h"
+#include "logger.h"
 #include "mesh.h"
 #include "ts.h"
 
@@ -330,6 +331,9 @@ ETS<T, Ctx>::ETS(Ctx* appCtx) {
     m_uiTimeInfo  = appCtx->get_ts_info();
 
     m_uiEVar      = m_uiAppCtx->get_evolution_vars();
+
+    dendro::logger::debug(dendro::logger::Scope{"ETS"},
+                          "Explicit time stepper (ETS) created!");
 }
 
 template <typename T, typename Ctx>
@@ -402,6 +406,9 @@ int ETS<T, Ctx>::set_ets_coefficients(ETSType type) {
         m_uiBi  = (DendroScalar*)ETS_C;
         m_uiAij = (DendroScalar*)ETS_U;
 
+        dendro::logger::debug(dendro::logger::Scope{"ETS"},
+                              "ETS Coefficients set for RK3");
+
     } else if (type == ETSType::RK4) {
         m_uiNumStages                     = 4;
 
@@ -415,6 +422,9 @@ int ETS<T, Ctx>::set_ets_coefficients(ETSType type) {
         m_uiCi  = (DendroScalar*)ETS_T;
         m_uiBi  = (DendroScalar*)ETS_C;
         m_uiAij = (DendroScalar*)ETS_U;
+
+        dendro::logger::debug(dendro::logger::Scope{"ETS"},
+                              "ETS Coefficients set for RK4");
 
     } else if (type == ETSType::RK5) {
         return -1;
@@ -436,14 +446,24 @@ int ETS<T, Ctx>::set_ets_coefficients(ETSType type) {
         m_uiBi  = (DendroScalar*)ETS_C;
         m_uiAij = (DendroScalar*)ETS_U;
 
-    } else
+        dendro::logger::debug(dendro::logger::Scope{"ETS"},
+                              "ETS Coefficients set for RK5");
+
+    } else {
+        dendro::logger::error(dendro::logger::Scope{"ETS"},
+                              "UNKNOWN ETS TYPE (supports RK3, RK4, and RK5)");
         return -1;
+    }
 
     return 0;
 }
 
 template <typename T, typename Ctx>
 void ETS<T, Ctx>::init() {
+    dendro::logger::info(
+        dendro::logger::Scope{"ETS"},
+        "Now initializing the ETS (initializing app context, allocating "
+        "internal vars, and synchronizing with mesh");
     m_uiAppCtx->initialize();
     m_uiTimeInfo = m_uiAppCtx->get_ts_info();
     allocate_internal_vars();
@@ -464,6 +484,10 @@ void ETS<T, Ctx>::evolve() {
 #ifdef __PROFILE_ETS__
     m_uiCtxpt[ETSPROFILE::EVOLVE].start();
 #endif
+
+    dendro::logger::debug(dendro::logger::Scope{"ETS"},
+                          "Beginning ETS evolve (overall time step: {})",
+                          m_uiTimeInfo._m_uiStep);
 
     const ot::Mesh* pMesh  = m_uiAppCtx->get_mesh();
     m_uiTimeInfo           = m_uiAppCtx->get_ts_info();
@@ -490,6 +514,10 @@ void ETS<T, Ctx>::evolve() {
         double dx, dy, dz;
 
         for (int stage = 0; stage < m_uiNumStages; stage++) {
+            dendro::logger::debug(dendro::logger::Scope{"ETS"},
+                                  "Now executing ETS Evolve stage {}/{}",
+                                  stage + 1, m_uiNumStages);
+
             m_uiEVecTmp[0].copy_data(m_uiEVar);
 
             for (int p = 0; p < stage; p++)
@@ -505,6 +533,8 @@ void ETS<T, Ctx>::evolve() {
             m_uiAppCtx->post_stage(m_uiStVec[stage]);
         }
 
+        dendro::logger::debug(dendro::logger::Scope{"ETS"},
+                              "Calculating next step after stages");
         for (unsigned int k = 0; k < m_uiNumStages; k++)
             DVec::axpy(m_uiAppCtx->get_mesh(), m_uiBi[k] * dt, m_uiStVec[k],
                        m_uiEVar);
@@ -519,6 +549,9 @@ void ETS<T, Ctx>::evolve() {
 #ifdef __PROFILE_ETS__
     m_uiCtxpt[ETSPROFILE::EVOLVE].stop();
 #endif
+
+    dendro::logger::debug(dendro::logger::Scope{"ETS"},
+                          "ETS evolve step finished!");
 }
 
 template <typename T, typename Ctx>
@@ -564,10 +597,17 @@ template <typename T, typename Ctx>
 int ETS<T, Ctx>::sync_with_mesh() {
     if (m_uiAppCtx->is_ets_synced()) return 0;
 
+    dendro::logger::debug(
+        dendro::logger::Scope{"ETS"},
+        "Now syncing ETS with mesh (reallocating internal ets variables)");
+
     m_uiEVar = m_uiAppCtx->get_evolution_vars();
     deallocate_internal_vars();
     allocate_internal_vars();
     m_uiAppCtx->set_ets_synced(true);
+
+    dendro::logger::debug(dendro::logger::Scope{"ETS"},
+                          "Finished syncing ETS with mesh!");
 
     return 0;
 }

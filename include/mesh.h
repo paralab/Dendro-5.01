@@ -33,6 +33,7 @@
 #include "dendro.h"
 #include "dendroProfileParams.h"  // only need to profile unzip_asyn for bssn. remove this header file later.
 #include "key.h"
+#include "logger.h"
 #include "mpi.h"
 #include "node.h"
 #include "octUtils.h"
@@ -1515,6 +1516,11 @@ class Mesh {
     void setDomainBounds(Point dmin, Point dmax) {
         m_uiDMinPt = Point(dmin.x(), dmin.y(), dmin.z());
         m_uiDMaxPt = Point(dmax.x(), dmax.y(), dmax.z());
+
+        dendro::logger::debug(dendro::logger::Scope{"MESH"},
+                              "Domain bounds set to ({}, {}, {})->({}, {}, {})",
+                              m_uiDMinPt.x(), m_uiDMinPt.y(), m_uiDMinPt.z(),
+                              m_uiDMaxPt.x(), m_uiDMaxPt.y(), m_uiDMaxPt.z());
     }
 
     /**@brief: get the domain min point. */

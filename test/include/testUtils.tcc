@@ -151,7 +151,7 @@ bool isComplete(const std::vector<T>& nodes) {
         for (DendroIntL i = 0; i < nodes.size(); i++) {
             vol1 = (dim * (maxDepth - nodes[i].getLevel()));
             vol1 = c << vol1;  //(1ull << ((DendroIntL)(dim * (maxDepth -
-                               //nodes[i].getLevel()))));
+                               // nodes[i].getLevel()))));
             if (i < (nodes.size() - 1) && (nodes[i].isAncestor(nodes[i + 1]))) {
                 std::cout << i << " contains duplicate nodes. (children)"
                           << std::endl;

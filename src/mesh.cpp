@@ -23,6 +23,8 @@
  * */
 
 #include "mesh.h"
+
+#include "logger.h"
 double t_e2e;  // e2e map generation time
 double t_e2n;  // e2n map generation time
 double t_sm;   // sm map generation time
@@ -42,6 +44,8 @@ Mesh::Mesh(std::vector<ot::TreeNode> &in, unsigned int k_s, unsigned int pOrder,
            unsigned int activeNpes, MPI_Comm comm, bool pBlockSetup,
            SM_TYPE smType, unsigned int grainSz, double ld_tol,
            unsigned int sf_k) {
+    dendro::logger::info(dendro::logger::Scope{"MESH"},
+                         "Now constructing mesh object");
     m_uiCommGlobal     = comm;
     m_uiIsBlockSetup   = pBlockSetup;
     m_uiScatterMapType = smType;
@@ -243,6 +247,9 @@ Mesh::Mesh(std::vector<ot::TreeNode> &in, unsigned int k_s, unsigned int pOrder,
             // ghost exchange.
         }
     }
+
+    dendro::logger::info(dendro::logger::Scope{"MESH"},
+                         "Finished building the mesh!");
 }
 
 Mesh::Mesh(std::vector<ot::TreeNode> &in, unsigned int k_s, unsigned int pOrder,
@@ -250,6 +257,8 @@ Mesh::Mesh(std::vector<ot::TreeNode> &in, unsigned int k_s, unsigned int pOrder,
            unsigned int grainSz, double ld_tol, unsigned int sf_k,
            unsigned int (*getWeight)(const ot::TreeNode *),
            unsigned int *blk_tags, unsigned int blk_tags_sz) {
+    dendro::logger::info(dendro::logger::Scope{"MESH"},
+                         "Now constructing mesh object");
     m_uiCommGlobal     = comm;
     m_uiIsBlockSetup   = pBlockSetup;
     m_uiScatterMapType = smType;
@@ -481,6 +490,9 @@ Mesh::Mesh(std::vector<ot::TreeNode> &in, unsigned int k_s, unsigned int pOrder,
             // ghost exchange.
         }
     }
+
+    dendro::logger::info(dendro::logger::Scope{"MESH"},
+                         "Finished building the mesh!");
 }
 
 Mesh::~Mesh() {
@@ -1381,6 +1393,9 @@ void Mesh::buildE2EMap(std::vector<ot::TreeNode> &in, MPI_Comm comm) {
     // should not be called if the mesh is not active
     if (!m_uiIsActive) return;
 
+    dendro::logger::debug(dendro::logger::Scope{"MESH"},
+                          "Now building E2E map");
+
     int rank, npes;
     MPI_Comm_rank(comm, &rank);
     MPI_Comm_size(comm, &npes);
@@ -1434,11 +1449,11 @@ void Mesh::buildE2EMap(std::vector<ot::TreeNode> &in, MPI_Comm comm) {
 #endif
 
 #ifdef DEBUG_MESH_GENERATION
-        /* unsigned int localKeySz=keys_vec.size();
-            unsigned int globalKeySz=0;
-            par::Mpi_Reduce(&localKeySz,&globalKeySz,1,MPI_SUM,0,comm);
-            if(!rank) std::cout<<" Total number of keys generated:
-           "<<globalKeySz<<std::endl;*/
+    /* unsigned int localKeySz=keys_vec.size();
+        unsigned int globalKeySz=0;
+        par::Mpi_Reduce(&localKeySz,&globalKeySz,1,MPI_SUM,0,comm);
+        if(!rank) std::cout<<" Total number of keys generated:
+       "<<globalKeySz<<std::endl;*/
 #endif
 
     // 4- Compute Face Neighbors (By sending owners of the key to the correct
@@ -2909,7 +2924,8 @@ void Mesh::buildE2EMap(std::vector<ot::TreeNode> &in, MPI_Comm comm) {
     treeNodesTovtk(ghostElements, rank, "ghostElements");
 #endif
 
-    if (!rank) std::cout << "E2E mapping Ended" << std::endl;
+    dendro::logger::info(dendro::logger::Scope{"MESH"},
+                         "Finished building E2E Map!");
 }
 
 void Mesh::buildE2EMap(std::vector<ot::TreeNode> &in) {
@@ -3063,6 +3079,9 @@ void Mesh::buildE2EMap(std::vector<ot::TreeNode> &in) {
 
 void Mesh::buildE2NWithSM() {
     if (!m_uiIsActive) return;
+
+    dendro::logger::debug(dendro::logger::Scope{"MESH"},
+                          "Now building E2N with the scattermap");
 
     // 1. first build all data structures for element order 2. (this serves as
     // auxilary data strucutre to figure out hanging node information)
@@ -3663,7 +3682,8 @@ void Mesh::buildE2NWithSM() {
         m_uiNodePostGhostEnd = m_uiCG2DG.size();  // E2N_DG_Sorted.size();
     }
 
-    if (!m_uiActiveRank) std::cout << "E2N Mapping ended" << std::endl;
+    dendro::logger::info(dendro::logger::Scope{"MESH"},
+                         "Finished building E2N map!");
 }
 
 void Mesh::buildE2NMap() {
@@ -3752,8 +3772,8 @@ void Mesh::buildE2NMap() {
 #ifdef DEBUG_E2N_MAPPING
     MPI_Barrier(MPI_COMM_WORLD);
     if (!m_uiActiveRank) std::cout << "Invalid nodes removed " << std::endl;
-        // treeNodesTovtk(invalidatedPreGhost,m_uiActiveRank,"invalidPre");
-        // treeNodesTovtk(invalidatedPostGhost,m_uiActiveRank,"invalidPost");
+    // treeNodesTovtk(invalidatedPreGhost,m_uiActiveRank,"invalidPre");
+    // treeNodesTovtk(invalidatedPostGhost,m_uiActiveRank,"invalidPost");
 #endif
 
     // 2. Removing the duplicate nodes from the mapping.
@@ -4313,62 +4333,62 @@ void Mesh::buildE2NMap() {
     if (m_uiActiveRank) std::cout << " DG to CG index updated " << std::endl;
 #endif
 
-        /*for(unsigned int
-        e=m_uiElementPreGhostBegin;e<m_uiElementPostGhostEnd;e++)
+    /*for(unsigned int
+    e=m_uiElementPreGhostBegin;e<m_uiElementPostGhostEnd;e++)
+    {
+        if(m_uiActiveRank==2 && e==28)
         {
-            if(m_uiActiveRank==2 && e==28)
+
+            std::vector<ot::TreeNode> cusEleCheck;
+            unsigned int ownerID,ii_x,jj_y,kk_z; // DG index to ownerID and
+    ijk decomposition variable. unsigned int x,y,z,sz;
+            cusEleCheck.push_back(m_uiAllElements[e]);
+            for(unsigned int node=0;node<m_uiNpE;node++)
             {
 
-                std::vector<ot::TreeNode> cusEleCheck;
-                unsigned int ownerID,ii_x,jj_y,kk_z; // DG index to ownerID and
-        ijk decomposition variable. unsigned int x,y,z,sz;
-                cusEleCheck.push_back(m_uiAllElements[e]);
-                for(unsigned int node=0;node<m_uiNpE;node++)
-                {
+                dg2eijk(m_uiE2NMapping_DG[e*m_uiNpE+node],ownerID,ii_x,jj_y,kk_z);
 
-                    dg2eijk(m_uiE2NMapping_DG[e*m_uiNpE+node],ownerID,ii_x,jj_y,kk_z);
+                x=m_uiAllElements[ownerID].getX();
+                y=m_uiAllElements[ownerID].getY();
+                z=m_uiAllElements[ownerID].getZ();
+                sz=1u<<(m_uiMaxDepth-m_uiAllElements[ownerID].getLevel());
+                cusEleCheck.push_back(m_uiAllElements[ownerID]);
 
-                    x=m_uiAllElements[ownerID].getX();
-                    y=m_uiAllElements[ownerID].getY();
-                    z=m_uiAllElements[ownerID].getZ();
-                    sz=1u<<(m_uiMaxDepth-m_uiAllElements[ownerID].getLevel());
-                    cusEleCheck.push_back(m_uiAllElements[ownerID]);
-
-                    cusEleCheck.push_back(ot::TreeNode((x + ii_x *
-        sz/m_uiElementOrder), (y + jj_y * sz/m_uiElementOrder), (z + kk_z *
-        sz/m_uiElementOrder), m_uiMaxDepth,m_uiDim, m_uiMaxDepth));
-
-                }
-
-                treeNodesTovtk(cusEleCheck,e,"cusE2N_3");
+                cusEleCheck.push_back(ot::TreeNode((x + ii_x *
+    sz/m_uiElementOrder), (y + jj_y * sz/m_uiElementOrder), (z + kk_z *
+    sz/m_uiElementOrder), m_uiMaxDepth,m_uiDim, m_uiMaxDepth));
 
             }
 
+            treeNodesTovtk(cusEleCheck,e,"cusE2N_3");
+
+        }
+
+    }*/
+
+    /*unsigned int eleIndex;
+    if(!m_uiActiveRank)  std::cout<<"E2N  rank :
+    "<<m_uiActiveRank<<std::endl; if(!m_uiActiveRank) for(unsigned int
+    e=0;e<m_uiAllElements.size();e++)
+        {
+            if(m_uiAllElements[e]==ot::TreeNode(24, 12, 40,
+    4,m_uiDim,m_uiMaxDepth)) { std::cout << "rank: "<<m_uiActiveRank<<"
+    Element : "<<e<<" " << m_uiAllElements[e] << " : Node List :"; for
+    (unsigned int k = 0; k < m_uiNpE; k++) { std::cout << " " <<
+    m_uiE2NMapping_DG[e * m_uiNpE + k];
+            }
+
+            std::cout << std::endl;
+            }
+
         }*/
+    //--------------------------------------------------------PRINT THE E2N
+    // MAP------------------------------------------------------------------------------------
+    /*for(unsigned int w=0;w<m_uiE2NMapping_CG.size();w++)
+        std::cout<<"w: "<<w<<" -> : "<<m_uiE2NMapping_CG[w]<<std::endl;*/
 
-        /*unsigned int eleIndex;
-        if(!m_uiActiveRank)  std::cout<<"E2N  rank :
-        "<<m_uiActiveRank<<std::endl; if(!m_uiActiveRank) for(unsigned int
-        e=0;e<m_uiAllElements.size();e++)
-            {
-                if(m_uiAllElements[e]==ot::TreeNode(24, 12, 40,
-        4,m_uiDim,m_uiMaxDepth)) { std::cout << "rank: "<<m_uiActiveRank<<"
-        Element : "<<e<<" " << m_uiAllElements[e] << " : Node List :"; for
-        (unsigned int k = 0; k < m_uiNpE; k++) { std::cout << " " <<
-        m_uiE2NMapping_DG[e * m_uiNpE + k];
-                }
-
-                std::cout << std::endl;
-                }
-
-            }*/
-        //--------------------------------------------------------PRINT THE E2N
-        // MAP------------------------------------------------------------------------------------
-        /*for(unsigned int w=0;w<m_uiE2NMapping_CG.size();w++)
-            std::cout<<"w: "<<w<<" -> : "<<m_uiE2NMapping_CG[w]<<std::endl;*/
-
-        //--------------------------------------------------------PRINT THE E2N
-        // MAP------------------------------------------------------------------------------------
+    //--------------------------------------------------------PRINT THE E2N
+    // MAP------------------------------------------------------------------------------------
 
 #ifdef DEBUG_E2N_MAPPING
     // MPI_Barrier(MPI_COMM_WORLD);
@@ -4518,6 +4538,8 @@ void Mesh::buildFEM_E2N() {
 }
 
 void Mesh::buildE2N_DG() {
+    dendro::logger::debug(dendro::logger::Scope{"MESH"},
+                          "Now constructing E2N map (DG)");
     unsigned int lookUp = 0;
     unsigned int lev1   = 0;
     unsigned int lev2   = 0;
@@ -4591,11 +4613,15 @@ void Mesh::buildE2N_DG() {
     m_uiCG2DG         = m_uiE2NMapping_CG;
     // m_uiCG2DG.resize(m_uiE2NMapping_CG.size(),1);
 
-    if (!m_uiActiveRank) std::cout << "E2N_DG Ended" << std::endl;
+    dendro::logger::info(dendro::logger::Scope{"MESH"},
+                         "Finished constructing E2N Map (DG)!");
 }
 
 void Mesh::buildE2BlockMap() {
     if (!m_uiIsActive) return;
+
+    dendro::logger::debug(dendro::logger::Scope{"MESH"},
+                          "Now building the element to block map");
 
     // clear all the maps.
     const unsigned int num_all_elements = m_uiAllElements.size();
@@ -4650,12 +4676,18 @@ void Mesh::buildE2BlockMap() {
         }
     }
 
+    dendro::logger::info(dendro::logger::Scope{"MESH"},
+                         "Finished building the element to block map!");
+
     return;
 }
 
 void Mesh::computeNodalScatterMapDG(MPI_Comm comm) {
     // should not be called if the mesh is not active
     if (!m_uiIsActive) return;
+
+    dendro::logger::debug(dendro::logger::Scope{"MESH"},
+                          "Now computing the nodal scattermap");
 
     int rank, npes;
     MPI_Comm_rank(comm, &rank);
@@ -4717,6 +4749,9 @@ void Mesh::computeNodalScatterMapDG(MPI_Comm comm) {
                                       n];
         }
     }
+
+    dendro::logger::info(dendro::logger::Scope{"MESH"},
+                         "Finished building the nodal scatter map!");
 
     return;
 }
@@ -9480,6 +9515,8 @@ void Mesh::flagBlockGhostDependancies() {
 
 void Mesh::performBlocksSetup(unsigned int cLev, unsigned int *tag,
                               unsigned int tsz) {
+    dendro::logger::debug(dendro::logger::Scope{"MESH"},
+                          "Now building the blocks from the adaptive mesh");
     m_uiIsBlockSetup  = true;
     m_uiCoarsetBlkLev = cLev;
     m_uiLocalBlockList.clear();
@@ -9641,6 +9678,9 @@ void Mesh::performBlocksSetup(unsigned int cLev, unsigned int *tag,
     }
 
     this->flagBlockGhostDependancies();
+
+    dendro::logger::info(dendro::logger::Scope{"MESH"},
+                         "Finished building the blocks!");
 }
 
 bool Mesh::isEdgeHanging(unsigned int elementId, unsigned int edgeId,
@@ -10578,6 +10618,8 @@ bool Mesh::isNodeHanging(unsigned int eleID, unsigned int ix, unsigned int jy,
 ot::Mesh *Mesh::ReMesh(unsigned int grainSz, double ld_tol, unsigned int sfK,
                        unsigned int (*getWeight)(const ot::TreeNode *),
                        unsigned int *blk_tags, unsigned int blk_tag_sz) {
+    dendro::logger::info(dendro::logger::Scope{"MESH"},
+                         "Creating new mesh during remesh");
     std::vector<ot::TreeNode> balOct1;  // new balanced octree.
 
     if (m_uiIsActive) {
@@ -10897,6 +10939,9 @@ ot::Mesh *Mesh::ReMesh(unsigned int grainSz, double ld_tol, unsigned int sfK,
                      m_uiIsBlockSetup, m_uiScatterMapType, grainSz, ld_tol, sfK,
                      getWeight, blk_tags, blk_tag_sz);
     pMesh->setDomainBounds(m_uiDMinPt, m_uiDMaxPt);
+
+    dendro::logger::info(dendro::logger::Scope{"MESH"},
+                         "Finished creating the new mesh during remesh!");
     return pMesh;
 }
 

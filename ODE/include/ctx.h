@@ -440,6 +440,8 @@ class Ctx {
      * @brief performs intergrid transfer for a given appCtx
      */
     inline int grid_transfer(const ot::Mesh* m_new) {
+        dendro::logger::debug(dendro::logger::Scope{"CTX"},
+                              "Now calling user-defined grid transfer");
         return asLeaf().grid_transfer(m_new);
     }
 
@@ -802,6 +804,8 @@ template <typename DerivedCtx, typename T, typename I>
 int Ctx<DerivedCtx, T, I>::remesh_and_gridtransfer(unsigned int grain_sz,
                                                    double ld_tol,
                                                    unsigned int sf_k) {
+    dendro::logger::debug(dendro::logger::Scope{"CTX"},
+                          "Now doing full remesh and grid transfer!");
     ot::Mesh* newMesh      = remesh(grain_sz, ld_tol, sf_k);
 
     DendroIntL oldElements = m_uiMesh->getNumLocalMeshElements();
@@ -814,11 +818,10 @@ int Ctx<DerivedCtx, T, I>::remesh_and_gridtransfer(unsigned int grain_sz,
     par::Mpi_Reduce(&newElements, &newElements_g, 1, MPI_SUM, 0,
                     newMesh->getMPIGlobalCommunicator());
 
-    if (!(m_uiMesh->getMPIRankGlobal()))
-        std::cout << "[Ctx]: step : " << m_uiTinfo._m_uiStep
-                  << "\ttime : " << m_uiTinfo._m_uiT
-                  << "\told mesh: " << oldElements_g
-                  << "\tnew mesh:" << newElements_g << std::endl;
+    dendro::logger::info(
+        dendro::logger::Scope{"CTX"},
+        "step : {} | time : {} | old mesh size : {} | new mesh size : {}",
+        m_uiTinfo._m_uiStep, m_uiTinfo._m_uiT, oldElements_g, newElements_g);
 
     this->grid_transfer(newMesh);
 
@@ -834,7 +837,8 @@ int Ctx<DerivedCtx, T, I>::remesh_and_gridtransfer(unsigned int grain_sz,
 #endif
 
     m_uiIsETSSynced = false;
-
+    dendro::logger::info(dendro::logger::Scope{"CTX"},
+                         "Finished performing full remesh and grid transfer!");
     return 0;
 }
 

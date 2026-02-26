@@ -99,6 +99,7 @@ namespace io {
 namespace checkpoint {
 template <typename T>
 int writeVecToFile(const char* fName, const ot::Mesh* pMesh, const T* vec) {
+    dendro::logger::debug("Writing vec to file: ", fName);
     unsigned int numNodes = pMesh->getNumLocalMeshNodes() +
                             pMesh->getNumPreMeshNodes() +
                             pMesh->getNumPostMeshNodes();
@@ -119,12 +120,14 @@ int writeVecToFile(const char* fName, const ot::Mesh* pMesh, const T* vec) {
                outfile);
 
     fclose(outfile);
+    dendro::logger::debug("Finished writing vec to file: ", fName);
     return 0;
 }
 
 template <typename T>
 int writeVecToFile(const char* fName, const ot::Mesh* pMesh, const T** vec,
                    const unsigned int numVars) {
+    dendro::logger::debug("Writing vec to file: ", fName);
     unsigned int numNodes = pMesh->getNumLocalMeshNodes() +
                             pMesh->getNumPreMeshNodes() +
                             pMesh->getNumPostMeshNodes();
@@ -146,11 +149,13 @@ int writeVecToFile(const char* fName, const ot::Mesh* pMesh, const T** vec,
                    pMesh->getNumLocalMeshNodes(), outfile);
 
     fclose(outfile);
+    dendro::logger::debug("Finished writing vec to file: ", fName);
     return 0;
 }
 
 template <typename T>
 int readVecFromFile(const char* fName, const ot::Mesh* pMesh, T* vec) {
+    dendro::logger::debug("Reading vec from file: ", fName);
     unsigned int numNodes, nLocalBegin, nLocalEnd;
 
     FILE* infile = fopen(fName, "r");
@@ -189,12 +194,14 @@ int readVecFromFile(const char* fName, const ot::Mesh* pMesh, T* vec) {
                           pMesh->getNumLocalMeshNodes(), infile);
 
     fclose(infile);
+    dendro::logger::debug("Finished reading vec from file: ", fName);
     return 0;
 }
 
 template <typename T>
 int readVecFromFile(const char* fName, const ot::Mesh* pMesh, T** vec,
                     const unsigned int numVars) {
+    dendro::logger::debug("Reading vec from file: ", fName);
     unsigned int numNodes, nLocalBegin, nLocalEnd;
 
     FILE* infile = fopen(fName, "r");
@@ -235,6 +242,7 @@ int readVecFromFile(const char* fName, const ot::Mesh* pMesh, T** vec,
                               pMesh->getNumLocalMeshNodes(), infile);
 
     fclose(infile);
+    dendro::logger::debug("Finished reading vec from file: ", fName);
     return 0;
 }
 

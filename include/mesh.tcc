@@ -9774,8 +9774,8 @@ void Mesh::unzip(const T* in, T* out, const unsigned int* blkIDs,
 #endif
 
                 //---------------------------------------------------------------------------------------------------
-                //Y
-                //Direction----------------------------------------------------------------------------------
+                // Y
+                // Direction----------------------------------------------------------------------------------
                 if ((pNodes[elem].minY() == blkNode.minY())) {
                     assert(ej == 0);
 
@@ -10385,7 +10385,7 @@ void Mesh::unzip(const T* in, T* out, const unsigned int* blkIDs,
                 dendro::timer::t_unzip_sync_face[4].start();
 #endif
                 //---------------------------------------------------------------------
-                //Z direction padding.
+                // Z direction padding.
                 //-------------------------------------------------------------------------------------------------------
 
                 if ((pNodes[elem].minZ() == blkNode.minZ())) {

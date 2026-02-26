@@ -171,6 +171,10 @@ class RefElement {
     /**intermidiate vec 1 needed during interploation */
     std::vector<double> im_vec2;
 
+    /** precomputed w @ Q1d for making the interpolation/integration for a block
+     * easy */
+    std::vector<double> w_quad_1D;
+
    public:
     /**@brief: default constructor for the reference element*/
     RefElement();
@@ -191,7 +195,9 @@ class RefElement {
     inline int getDim() const { return m_uiDimension; }
 
     /**@brief: size of the interpolation points 1D*/
-    inline int get1DNumInterpolationPoints() { return m_uiNrp; }
+    inline int get1DNumInterpolationPoints() const { return m_uiNrp; }
+
+    inline const double *getWMulQ1D() const { return &(*(w_quad_1D.begin())); }
 
     /**@brief: parent to child 0 interpolation operator*/
     inline const double *getIMChild0() const { return &(*(ip_1D_0.begin())); }

@@ -60,6 +60,8 @@ RefElement::RefElement(unsigned int dim, unsigned int order) {
     quad_1D.resize(m_uiNrp * m_uiNrp);
     quadT_1D.resize(m_uiNrp * m_uiNrp);
 
+    w_quad_1D.resize(m_uiNrp);
+
     Dr.resize(m_uiNrp * m_uiNrp);
     Dg.resize(m_uiNrp * m_uiNrp);
     DgT.resize(m_uiNrp * m_uiNrp);
@@ -197,6 +199,16 @@ RefElement::RefElement(unsigned int dim, unsigned int order) {
 
     delete[] w1;
     delete[] wgll1;
+
+    // and then calculate w_quad_1D, which is just the vector * matrix
+    // multiplication to get a single vector
+    for (int m = 0; m < m_uiNrp; ++m) {
+        double sum = 0.0;
+        for (int i = 0; i < m_uiNrp; ++i) {
+            sum += w[i] * quad_1D[m * m_uiNrp + i];
+        }
+        w_quad_1D[m] = sum;
+    }
 
     /*std::cout<<"ip_1D_0: "<<std::endl;
     printArray_2D(&(*(ip_1D_0.begin())),m_uiNrp,m_uiNrp);

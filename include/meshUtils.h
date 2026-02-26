@@ -15,6 +15,7 @@
 #include <iostream>
 #include <vector>
 
+#include "TreeNode.h"
 #include "asyncExchangeContex.h"
 #include "dvec.h"
 #include "mesh.h"
@@ -139,6 +140,121 @@ int slice_mesh(const ot::Mesh* pMesh, unsigned int s_val[3],
  */
 Mesh* createSplitMesh(unsigned int eleOrder, unsigned int lmin,
                       unsigned int lmax, MPI_Comm comm);
+
+template <typename T>
+double computeElementIntegral(T* elementalVec, const ot::TreeNode& node,
+                              const RefElement* refEl, T& elementIntegral,
+                              const T Lx, const T Ly, const T Lz) {
+    // this will compute the elemental integration
+    const unsigned int N         = refEl->get1DNumInterpolationPoints();
+    // interpolation *and* weighting matrix - calculated W @ Q1d
+    const double* w_Q1d          = refEl->getWMulQ1D();
+
+    const unsigned int len       = (1u << (m_uiMaxDepth - node.getLevel()));
+    // dx, dy, and dz are all then just the length divided by the number of
+    // points -1, and are the same as h
+    // const double h         = (double)len / (double)refEl->getElementOrder();
+    const double full_oct_domain = (double)(1u << m_uiMaxDepth);
+
+    // calculate the integral with the scaled/transformed weight vector
+    elementIntegral              = 0.0;
+    for (int k = 0; k < N; k++) {
+        for (int j = 0; j < N; j++) {
+            for (int i = 0; i < N; i++) {
+                elementIntegral += w_Q1d[i] * w_Q1d[j] * w_Q1d[k] *
+                                   elementalVec[k * N * N + j * N + i];
+            }
+        }
+    }
+
+    // with h now calculated, we need to scale by the actual block length,
+    // i.e. jacobian = (phys_x_len) * (phys_y_len) * (phys_z_len) / 8
+    const double Lx_scale = len * (Lx / full_oct_domain);
+    const double Ly_scale = len * (Ly / full_oct_domain);
+    const double Lz_scale = len * (Lz / full_oct_domain);
+    const double jacobian = (Lx_scale * Ly_scale * Lz_scale) / 8.0;
+    elementIntegral *= jacobian;
+
+    return elementIntegral;
+}
+
+template <typename T>
+T integrateScalarFieldOnMesh(ot::Mesh* mesh, T* in) {
+    // just return 0.0 if inactive mesh
+    if (!mesh->isActive()) return 0.0;
+
+    T localIntegral = 0.0;
+    // perform ghost exchange to sync values
+    mesh->performGhostExchange(in);
+
+    const unsigned int nPe      = mesh->getNumNodesPerElement();
+    const unsigned int eleOrder = mesh->getElementOrder();
+
+    T* elementalVec             = new T[nPe];
+    T elementIntegral;
+
+    const T Lx = mesh->getDomainMaxPt().x() - mesh->getDomainMinPt().x();
+    const T Ly = mesh->getDomainMaxPt().y() - mesh->getDomainMinPt().y();
+    const T Lz = mesh->getDomainMaxPt().z() - mesh->getDomainMinPt().z();
+
+    // process the ghost elements for shared faces and edges
+    for (unsigned int ele = mesh->getElementLocalBegin();
+         ele < mesh->getElementLocalEnd(); ele++) {
+        mesh->getElementNodalValues(in, elementalVec, ele);
+
+        // then compute the element-based integral
+        computeElementIntegral(elementalVec, mesh->getAllElements()[ele],
+                               mesh->getReferenceElement(), elementIntegral, Lx,
+                               Ly, Lz);
+
+        localIntegral += elementIntegral;
+    }
+
+    delete[] elementalVec;
+
+    // then all reduce to root
+    T globalIntegral = 0.0;
+    par::Mpi_Allreduce(&localIntegral, &globalIntegral, 1, MPI_SUM,
+                       mesh->getMPICommunicator());
+
+    return globalIntegral;
+}
+
+template <typename T>
+T calculateL2ErrorFullMeshIntegration(ot::Mesh* mesh, T* in, T* truth) {
+    if (!mesh->isActive()) return 0.0;
+
+    // create a new vector that's the same size as the in and truth, since we're
+    // using mesh we'll have the same size as a "zipped" vector
+    std::vector<T> squaredDiffVector;
+    mesh->createVector(squaredDiffVector);
+
+    // then iterate through the values
+    for (size_t i = 0; i < mesh->getDegOfFreedom(); i++) {
+        squaredDiffVector[i] = (in[i] - truth[i]) * (in[i] - truth[i]);
+    }
+
+    // NOTE: performGhostExchange happens inside this function
+    return integrateScalarFieldOnMesh(mesh, squaredDiffVector.data());
+}
+
+template <typename T>
+T calculateL2FullMeshIntegration(ot::Mesh* mesh, T* in) {
+    if (!mesh->isActive()) return 0.0;
+
+    // create a new vector that's the same size as the in, since we're
+    // using mesh we'll have the same size as a "zipped" vector
+    std::vector<T> squaredVector;
+    mesh->createVector(squaredVector);
+
+    // then iterate through the values
+    for (size_t i = 0; i < mesh->getDegOfFreedom(); i++) {
+        squaredVector[i] = (in[i]) * (in[i]);
+    }
+
+    // NOTE: performGhostExchange happens inside this function
+    return integrateScalarFieldOnMesh(mesh, squaredVector.data());
+}
 
 template <typename T>
 void alloc_mpi_ctx(const Mesh* pMesh,

@@ -12,6 +12,8 @@
 
 #include "meshUtils.h"
 
+#include "logger.h"
+
 namespace ot {
 
 Mesh* createMesh(const ot::TreeNode* oct, unsigned int num,
@@ -22,6 +24,9 @@ Mesh* createMesh(const ot::TreeNode* oct, unsigned int num,
     int rank, npes;
     MPI_Comm_rank(comm, &rank);
     MPI_Comm_size(comm, &npes);
+
+    dendro::logger::debug(dendro::logger::Scope{"OT-MeshUtils"},
+                          "Now creating the mesh from input octree");
 
     std::vector<ot::TreeNode> tmpNodes;
 

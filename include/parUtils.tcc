@@ -781,7 +781,7 @@ int scatterValues(std::vector<T> &in, std::vector<T> &out, DendroIntL outSz,
     // add offset to local array
     for (DendroIntL i = 0; i < inSz; i++) {
         scnIn[i] = scnIn[i] + off2;  // This has the global scan results now ...
-    }                                // end for
+    }  // end for
 
     // Gather Scan of outCnts
     DendroIntL *outCnts;
@@ -1380,7 +1380,7 @@ int partitionW(std::vector<T> &nodeList, unsigned int (*getWeight)(const T *),
 #pragma omp parallel for
     for (DendroIntL i = 0; i < nlSize; i++) {
         lscn[i] = lscn[i] + off2;  // This has the global scan results now ...
-    }                              // end for
+    }  // end for
 
 #ifdef __DEBUG_PAR__
     MPI_Barrier(comm);
@@ -1433,7 +1433,7 @@ int partitionW(std::vector<T> &nodeList, unsigned int (*getWeight)(const T *),
                 assert(ind < npes);
                 sendSz[ind]++;
             }  // end if-else
-        }      // end for */
+        }  // end for */
 
 #ifdef __DEBUG_PAR__
         int tmp_sum = 0;
@@ -1848,7 +1848,7 @@ int sampleSort(std::vector<T> &arr, std::vector<T> &SortedElem,
                         sendcnts_++;
                     }
                 }  // end if-else
-            }      // end for j
+            }  // end for j
             if (sendcnts_ > 0) sendcnts[k] = sendcnts_;
         }
         delete[] lst_split_indx;
@@ -2025,7 +2025,7 @@ int sampleSort(std::vector<T> &arr, std::vector<T> &SortedElem,
         stats.push_back(ss_time_g[2]);  // ss overall time max
 
         //!!! Note : Quick fix for sample sort to match with the lengths for the
-        //!ts_stats vector.
+        //! ts_stats vector.
         stats.push_back(0);
         stats.push_back(0);
         stats.push_back(0);
@@ -2242,7 +2242,7 @@ void bitonicSort(std::vector<T> &in, MPI_Comm comm) {
             }
             MPI_Comm_free(&new_comm);
         }  // end if isPower of 2
-    }      // end if single processor
+    }  // end if single processor
 }  // end function
 
 template <typename T>
