@@ -108,27 +108,23 @@ if(WITH_CUDA)
   list(APPEND DENDRO_SRC src/cudaUtils.cpp src/oda.cpp FEM/examples/src/heatMat.cpp)
 endif()
 
-FetchContent_Declare(
-        spdlog
-        GIT_REPOSITORY https://github.com/gabime/spdlog.git
-        GIT_TAG        v1.14.1
-    )
-FetchContent_MakeAvailable(spdlog)
-
 # ==========================
 # DENDRO LIBRARY DEFINITION
 # ==========================
 add_library(dendro5 ${DENDRO_SRC} ${FEM_SRC} ${ODE_SRC} ${IO_SRC} ${ZLIB_SRC})
 
+# create an interface library for both dendro5 and dendro5_cuda
+add_library(dendro_config INTERFACE)
+
 # add definitions to COMPILE for dendro5
 macro(dendro_add_def OPTION_NAME DEF_NAME)
   if(${OPTION_NAME})
-    target_compile_definitions(dendro5 PUBLIC ${DEF_NAME})
+    target_compile_definitions(dendro_config INTERFACE ${DEF_NAME})
   endif()
 endmacro()
 
-target_compile_definitions(dendro5 PUBLIC -DMATVEC_PROFILE)
-target_compile_definitions(dendro5 PUBLIC -DOCT2BLK_COARSEST_LEV=${OCT2BLK_COARSEST_LEV})
+target_compile_definitions(dendro_config INTERFACE -DMATVEC_PROFILE)
+target_compile_definitions(dendro_config INTERFACE -DOCT2BLK_COARSEST_LEV=${OCT2BLK_COARSEST_LEV})
 
 dendro_add_def(USE_64BIT_INDICES USE_64BIT_INDICES)
 dendro_add_def(HILBERT_ORDERING HILBERT_ORDERING)
@@ -141,28 +137,28 @@ dendro_add_def(USE_FD_INTERP_FOR_UNZIP USE_FD_INTERP_FOR_UNZIP)
 dendro_add_def(DVEC_ZERO_ALLOC DVEC_ZERO_ALLOC)
 
 if(ALLTOALLV_FIX)
-  target_compile_definitions(dendro5 PUBLIC ALLTOALLV_FIX KWAY=${KWAY})
+  target_compile_definitions(dendro_config INTERFACE ALLTOALLV_FIX KWAY=${KWAY})
 endif()
 
 if(SPLITTER_SELECTION_FIX)
-  target_compile_definitions(dendro5 PUBLIC SPLITTER_SELECTION_FIX NUM_NPES_THRESHOLD=${NUM_NPES_THRESHOLD})
+  target_compile_definitions(dendro_config INTERFACE SPLITTER_SELECTION_FIX NUM_NPES_THRESHOLD=${NUM_NPES_THRESHOLD})
 endif()
 
 if(ENABLE_DENDRO_PROFILE_COUNTERS)
-  target_compile_definitions(dendro5 PUBLIC ENABLE_DENDRO_PROFILE_COUNTERS __PROFILE_CTX__ __PROFILE_ETS__)
+  target_compile_definitions(dendro_config INTERFACE ENABLE_DENDRO_PROFILE_COUNTERS __PROFILE_CTX__ __PROFILE_ETS__)
 endif()
 
 # VTK Logic
 if(DENDRO_VTK_BINARY)
-  target_compile_definitions(dendro5 PUBLIC DENDRO_VTU_BINARY)
+  target_compile_definitions(dendro_config INTERFACE DENDRO_VTU_BINARY)
   if(DENDRO_VTK_ZLIB_COMPRES)
-    target_compile_definitions(dendro5 PUBLIC DENDRO_VTU_ZLIB)
+    target_compile_definitions(dendro_config INTERFACE DENDRO_VTU_ZLIB)
   endif()
 else()
-  target_compile_definitions(dendro5 PUBLIC DENDRO_VTU_ASCII)
+  target_compile_definitions(dendro_config INTERFACE DENDRO_VTU_ASCII)
 endif()
 
-target_include_directories(dendro5 PUBLIC
+target_include_directories(dendro_config INTERFACE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/test/include
     ${CMAKE_CURRENT_SOURCE_DIR}/examples/include
@@ -175,7 +171,7 @@ target_include_directories(dendro5 PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/IO/zlib/inc
 )
 
-target_link_libraries(dendro5 PUBLIC MPI::MPI_CXX OpenMP::OpenMP_CXX GSL::gsl spdlog::spdlog BHaHAHA m)
+target_link_libraries(dendro5 PUBLIC dendro_config MPI::MPI_CXX OpenMP::OpenMP_CXX GSL::gsl spdlog::spdlog BHaHAHA m)
 
 if(WITH_BLAS_LAPACK)
   target_compile_definitions(dendro5 PUBLIC WITH_BLAS_LAPACK)
@@ -198,36 +194,44 @@ if(BUILD_WITH_PETSC)
 endif()
 
 if(WITH_CUDA)
-  set(OCT2BLK_COARSEST_LEV 31 CACHE STRING "Coarsest Level for CUDA" FORCE)
-  target_compile_definitions(dendro5 PUBLIC WITH_CUDA OCT2BLK_COARSEST_LEV=31)
+  enable_language(CUDA)
 
-  find_package(CUDA REQUIRED)
-  target_include_directories(dendro5 PUBLIC ${CUDA_INCLUDE_DIRS})
+  # supress the declared but never referenced warnings on nvcc
+  set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcudafe --diag_suppress=177")
 
-  if(MPIX_CUDA_AWARE_SUPPORT)
-    target_compile_definitions(dendro5 PUBLIC MPIX_CUDA_AWARE_SUPPORT)
+  if(CMAKE_BUILD_TYPE MATCHES "Debug")
+    # if we'r in full debug mode, then we want all debug symbols (includes lineinfo)
+    set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -G")
+  elseif(CMAKE_BUILD_TYPE MATCHES "RelWithDebInfo")
+    # deb-info means we can keep line info for compute-sanatizer
+    set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -lineinfo")
   endif()
 
-  # Create the separate CUDA target
-  set(CUDA_SRCS
-        ${DENDRO_SRC} ${FEM_SRC} ${ODE_SRC} ${IO_SRC} ${ZLIB_SRC}
-        GPU/include/derivs_cu.cuh GPU/src/refel_const.cu GPU/src/mesh_gpu.cu)
+  # define the target GPU architectures (e.g., 70=Volta, 75=Turing, 80=Ampere, 89=Ada, 90=Hopper)
+  set(CMAKE_CUDA_ARCHITECTURES 75 80 CACHE STRING "CUDA Architectures" FORCE)
 
-  cuda_add_library(dendro5_cuda ${CUDA_SRCS})
+  # turn on relocatable device code!
+  set(CMAKE_CUDA_SEPARABLE_COMPILATION ON)
 
-  # We must manually re-apply properties to the cuda library
-  target_include_directories(dendro5_cuda PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR}/GPU/include
-        ${CMAKE_CURRENT_SOURCE_DIR}/include
-        ${CMAKE_CURRENT_SOURCE_DIR}/FEM/include
-        ${CMAKE_CURRENT_SOURCE_DIR}/ODE/include
-        ${CMAKE_CURRENT_SOURCE_DIR}/IO/vtk/include
-        ${CMAKE_CURRENT_SOURCE_DIR}/IO/zlib/inc
-        ${CUDA_INCLUDE_DIRS}
-    )
-  # Define flags
-  target_compile_definitions(dendro5_cuda PUBLIC WITH_CUDA)
-  target_link_libraries(dendro5_cuda PUBLIC ${CUDA_LIBRARIES} MPI::MPI_CXX)
+  # cuda toolkit makes sure regular C++ files get access to GPU-based code
+  find_package(CUDAToolkit REQUIRED)
+
+  target_include_directories(dendro_config INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/GPU/include)
+  set(OCT2BLK_COARSEST_LEV 31 CACHE STRING "Coarsest Level for CUDA" FORCE)
+  target_compile_definitions(dendro_config INTERFACE WITH_CUDA OCT2BLK_COARSEST_LEV=31)
+
+  if(MPIX_CUDA_AWARE_SUPPORT)
+    target_compile_definitions(dendro_config PUBLIC MPIX_CUDA_AWARE_SUPPORT)
+  endif()
+
+  target_sources(dendro5 PRIVATE
+        GPU/include/derivs_cu.cuh
+        GPU/src/refel_const.cu
+        GPU/src/mesh_gpu.cu
+  )
+
+  set_target_properties(dendro5 PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
+  target_link_libraries(dendro5 PUBLIC CUDA::cudart)
 endif()
 
 # ==========================
@@ -271,8 +275,10 @@ if(BUILD_DENDRO_EXAMPLES)
 
   if(WITH_CUDA)
     # cuda GPU tests
-    cuda_add_executable(run_meshgpu_tests ${CMAKE_CURRENT_SOURCE_DIR}/GPU/src/run_meshgpu_tests.cu)
-    target_link_libraries(run_meshgpu_tests dendro5 dendro5_cuda)
+    add_executable(run_meshgpu_tests ${CMAKE_CURRENT_SOURCE_DIR}/GPU/src/run_meshgpu_tests.cu)
+    target_link_libraries(run_meshgpu_tests PRIVATE dendro5) # dendro5_cuda)
     target_include_directories(run_meshgpu_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/GPU/include)
+    # NOTE: CUDA_SEPARABLE_COMPILATION is a necessity for the refel stuff (keeps us from having to redefine it)
+    set_target_properties(run_meshgpu_tests PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
   endif()
 endif()

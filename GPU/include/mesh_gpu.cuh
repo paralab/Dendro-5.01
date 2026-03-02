@@ -2448,7 +2448,7 @@ void MeshGPU::unzip_dg(const ot::Mesh* const pMesh,
     // gb.x, gb.y, gb.z, tb.x, tb.y, tb.z);
     //__unzip_dg__3<T,6,3> <<<gb,tb,0,s>>> (dptr_mesh, dptr_in,dptr_out);
     //__block_internal_unzip_dg__2<T,6,3> <<<gb1,tb,0,s>>> (dptr_mesh,
-    //dptr_in,dptr_out);
+    // dptr_in,dptr_out);
     __unzip_dg__2<T, 6, 3><<<gb, tb, 0, s>>>(dptr_mesh, dptr_in, dptr_out);
     //__unzip_dg__1<T,6,3> <<<gb,tb,0,s>>> (dptr_mesh, dptr_in,dptr_out);
     return;
@@ -2517,7 +2517,7 @@ void MeshGPU::read_from_ghost_dg_begin(ot::AsyncExchangeContex& ctx_host,
     const std::vector<unsigned int>& send_plist = pMesh->getSendEleProcList();
     const std::vector<unsigned int>& recv_plist = pMesh->getRecvEleProcList();
 
-    const const int active_p                    = pMesh->getMPICommSize();
+    const int active_p                          = pMesh->getMPICommSize();
     const DEVICE_UINT nPe = pMesh->getNumNodesPerElement();
     const unsigned int sendBSz =
         (se_f[active_p - 1] + se_c[active_p - 1]) * nPe;
@@ -2606,7 +2606,7 @@ void MeshGPU::read_from_ghost_dg_end(ot::AsyncExchangeContex& ctx_host,
     const std::vector<unsigned int>& send_plist = pMesh->getSendEleProcList();
     const std::vector<unsigned int>& recv_plist = pMesh->getRecvEleProcList();
 
-    const const int active_p                    = pMesh->getMPICommSize();
+    const int active_p                          = pMesh->getMPICommSize();
     const DEVICE_UINT nPe = pMesh->getNumNodesPerElement();
     const unsigned int sendBSz =
         (se_f[active_p - 1] + se_c[active_p - 1]) * nPe;
@@ -2750,7 +2750,7 @@ void MeshGPU::read_from_ghost_cg_end(ot::AsyncExchangeContex& ctx_host,
     const std::vector<unsigned int>& send_plist = pMesh->getSendProcList();
     const std::vector<unsigned int>& recv_plist = pMesh->getRecvProcList();
 
-    const const int active_p                    = pMesh->getMPICommSize();
+    const int active_p                          = pMesh->getMPICommSize();
     const DEVICE_UINT nPe      = pMesh->getNumNodesPerElement();
     const unsigned int sendBSz = (se_f[active_p - 1] + se_c[active_p - 1]);
     const unsigned int recvBSz = (re_f[active_p - 1] + re_c[active_p - 1]);

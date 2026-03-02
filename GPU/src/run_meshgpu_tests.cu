@@ -17,7 +17,6 @@
 #include "mpi.h"
 #include "profiler.h"
 
-CONST_MEM DEVICE_REAL device::refel_1d[2 * REFEL_CONST_MEM_MAX];
 enum event {
     unzip_cg_g,
     unzip_cg_s,
@@ -64,7 +63,7 @@ int main(int argc, char** argv) {
     if (!rank) printf("number of cuda devices: %d\n", devicesCount);
 
     cudaSetDevice(rank % devicesCount);
-    cudaDeviceSetSharedMemConfig(cudaSharedMemBankSizeEightByte);
+    // cudaDeviceSetSharedMemConfig(cudaSharedMemBankSizeEightByte);
 
     for (unsigned int i = 0; i < time_events.size(); i++)
         time_events[i].clear();
@@ -90,10 +89,10 @@ int main(int argc, char** argv) {
         std::cout << YLW << "partition_tol: " << partition_tol << NRM
                   << std::endl;
         std::cout << YLW << "eleOrder: " << eOrder << NRM << std::endl;
-        std::cout << YLW << "OMP_NUM_THREADS:"
-                  << std::max(atoi(std::getenv("OMP_NUM_THREADS")), 1)
+        const char* omp_env = std::getenv("OMP_NUM_THREADS");
+        int num_threads     = omp_env ? std::max(atoi(omp_env), 1) : 1;
+        std::cout << YLW << "OMP_NUM_THREADS: " << num_threads << NRM
                   << std::endl;
-        ;
     }
 
     _InitializeHcurve(m_uiDim);
@@ -107,7 +106,7 @@ int main(int argc, char** argv) {
     Point pt_min(d_min, d_min, d_min);
     Point pt_max(d_max, d_max, d_max);
     //@note that based on how the functions are defined (f(x), dxf(x), etc) the
-    //compuatational domain is equivalent to the grid domain.
+    // compuatational domain is equivalent to the grid domain.
 
     const unsigned int dof       = 24;
     const double unzip_check_tol = 1e-4;
@@ -160,6 +159,7 @@ int main(int argc, char** argv) {
     double* v_unzip = mesh->createUnZippedVector<double>(dof);
 
     if (run_gpu == 1) {
+        printf("Attempting to run on gpu 1\n ");
         time_events[event::gpu_mesh].start();
         device::MeshGPU mesh_gpu;
         device::MeshGPU* dptr_mesh = mesh_gpu.alloc_mesh_on_device(mesh);
@@ -188,19 +188,21 @@ int main(int argc, char** argv) {
         ot::alloc_mpi_ctx<double>(mesh, ctx_host, dof, 1);
         device::alloc_mpi_ctx<double>(mesh, ctx_device, dof, 1);
 
-        mesh_gpu.read_from_ghost_cg_begin<double, cudaStream_t>(
-            ctx_host[0], ctx_device[0], mesh, dptr_mesh, dptr_vcg, dof);
-        cuda_check_last_error();
-        mesh_gpu.read_from_ghost_cg_end<double, cudaStream_t>(
-            ctx_host[0], ctx_device[0], mesh, dptr_mesh, dptr_vcg, dof);
-        cuda_check_last_error();
+        if (!ctx_host.empty() && !ctx_device.empty()) {
+            mesh_gpu.read_from_ghost_cg_begin<double, cudaStream_t>(
+                ctx_host[0], ctx_device[0], mesh, dptr_mesh, dptr_vcg, dof);
+            cuda_check_last_error();
+            mesh_gpu.read_from_ghost_cg_end<double, cudaStream_t>(
+                ctx_host[0], ctx_device[0], mesh, dptr_mesh, dptr_vcg, dof);
+            cuda_check_last_error();
 
-        mesh_gpu.read_from_ghost_dg_begin<DEVICE_REAL, cudaStream_t>(
-            ctx_host[0], ctx_device[0], mesh, dptr_mesh, dptr_vdg, dof);
-        cuda_check_last_error();
-        mesh_gpu.read_from_ghost_dg_end<double, cudaStream_t>(
-            ctx_host[0], ctx_device[0], mesh, dptr_mesh, dptr_vdg, dof);
-        cuda_check_last_error();
+            mesh_gpu.read_from_ghost_dg_begin<DEVICE_REAL, cudaStream_t>(
+                ctx_host[0], ctx_device[0], mesh, dptr_mesh, dptr_vdg, dof);
+            cuda_check_last_error();
+            mesh_gpu.read_from_ghost_dg_end<double, cudaStream_t>(
+                ctx_host[0], ctx_device[0], mesh, dptr_mesh, dptr_vdg, dof);
+            cuda_check_last_error();
+        }
 
         for (unsigned int w = 0; w < 1; w++) {
             mesh_gpu.unzip_cg(mesh, dptr_mesh, dptr_vcg, dptr_u_unzip, dof,
