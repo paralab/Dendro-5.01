@@ -238,7 +238,7 @@ endif()
 # Examples and Tests!
 # ==========================
 
-option(BUILD_DENDRO_EXAMPLES "Build Dendro Examples" ON)
+option(BUILD_DENDRO_EXAMPLES "Build Dendro Examples" OFF)
 
 if(BUILD_DENDRO_EXAMPLES)
   function(dendro_add_example TARGET_NAME)
