@@ -21,7 +21,7 @@ jobs:
         uses: mpi4py/setup-mpi@v1
 
       - name: CMake Configuration
-        run: cmake -S . -B build -D CMAKE_BUILD_TYPE=Release -D DENDROLIB_ISOLATED_DIR=ON
+        run: cmake -S . -B build -D CMAKE_BUILD_TYPE=Release -D DENDROLIB_ISOLATED_DIR=ON -D BUILD_DENDRO_EXAMPLES=ON
 
       - name: Build Targets
         run: cmake --build build --parallel $(nproc) --target run_all_tests testOctUtils testInterp meshE2NCheck heatEq laplaceEq
