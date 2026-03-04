@@ -260,6 +260,8 @@ template <typename T>
 void alloc_mpi_ctx(const Mesh* pMesh,
                    std::vector<AsyncExchangeContex>& ctx_list, int dof,
                    int async_k) {
+    ctx_list.resize(async_k);
+
     if (pMesh->getMPICommSizeGlobal() == 1 || !pMesh->isActive()) return;
 
     {

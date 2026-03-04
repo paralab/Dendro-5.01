@@ -226,8 +226,8 @@ if(WITH_CUDA)
 
   target_sources(dendro5 PRIVATE
         GPU/include/derivs_cu.cuh
-        GPU/src/refel_const.cu
         GPU/src/mesh_gpu.cu
+        GPU/src/refel_const.cu
   )
 
   set_target_properties(dendro5 PROPERTIES CUDA_SEPARABLE_COMPILATION ON)

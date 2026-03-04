@@ -524,7 +524,10 @@ Mesh::~Mesh() {
     m_uiRecvProcList.clear();
     m_uiE2BlkMap.clear();
 
-    MPI_Comm_free(&m_uiCommActive);
+    if (m_uiCommActive != MPI_COMM_NULL && m_uiCommActive != MPI_COMM_WORLD) {
+        MPI_Comm_free(&m_uiCommActive);
+        m_uiCommActive = MPI_COMM_NULL;
+    }
 }
 
 void Mesh::generateSearchKeys() {
