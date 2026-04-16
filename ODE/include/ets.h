@@ -218,7 +218,7 @@ class ETS {
     /**@brief: state true if the internal variables are allocated. */
     bool m_uiIsInternalAlloc = false;
 
-   private:
+   protected:
     /**
      * @brief Allocates internal variables for the time stepper.
      * @return int
@@ -427,27 +427,36 @@ int ETS<T, Ctx>::set_ets_coefficients(ETSType type) {
                               "ETS Coefficients set for RK4");
 
     } else if (type == ETSType::RK5) {
-        return -1;
-        // these coefficients looks wrong. - Milinda. (need to fix those and
-        // enable the rk5 method. )
-        m_uiNumStages                     = 5;
+        // Butcher's 5th-order method (6 stages).
+        // Original implementation had m_uiNumStages=5 and a 5x5 Aij
+        // matrix, which was incorrect — the method requires 6 stages.
+        // The first row of Aij (all zeros) and the a21=1/4 entry were
+        // missing.  Fixed to use the full 6x6 tableau.
+        m_uiNumStages                     = 6;
+
         static const DendroScalar ETS_C[] = {
-            7.0 / 90.0, 0, 32 / 90.0, 12.0 / 90.0, 32.0 / 90.0, 7.0 / 90.0};
-        static const DendroScalar ETS_T[] = {0,         1.0 / 4.0, 1.0 / 4.0,
+            7.0 / 90.0, 0.0, 32.0 / 90.0, 12.0 / 90.0, 32.0 / 90.0,
+            7.0 / 90.0};
+
+        static const DendroScalar ETS_T[] = {0.0,       1.0 / 4.0, 1.0 / 4.0,
                                              1.0 / 2.0, 3.0 / 4.0, 1.0};
+
+        // clang-format off
         static const DendroScalar ETS_U[] = {
-            0.0,        0.0,        0.0,        0.0,         0.0,
-            1.0 / 8.0,  1.0 / 8.0,  0.0,        0.0,         0.0,
-            0.0,        -1.0 / 2.0, 1.0,        0.0,         0.0,
-            3.0 / 16.0, 0.0,        0.0,        9.0 / 16.0,  0.0,
-            -3.0 / 7.0, 2.0 / 7.0,  12.0 / 7.0, -12.0 / 7.0, 8.0 / 7.0};
+            0.0,        0.0,        0.0,        0.0,         0.0,        0.0,
+            1.0 / 4.0,  0.0,        0.0,        0.0,         0.0,        0.0,
+            1.0 / 8.0,  1.0 / 8.0,  0.0,        0.0,         0.0,        0.0,
+            0.0,       -1.0 / 2.0,  1.0,        0.0,         0.0,        0.0,
+            3.0 / 16.0, 0.0,        0.0,        9.0 / 16.0,  0.0,        0.0,
+           -3.0 / 7.0,  2.0 / 7.0, 12.0 / 7.0,-12.0 / 7.0,  8.0 / 7.0,  0.0};
+        // clang-format on
 
         m_uiCi  = (DendroScalar*)ETS_T;
         m_uiBi  = (DendroScalar*)ETS_C;
         m_uiAij = (DendroScalar*)ETS_U;
 
         dendro::logger::debug(dendro::logger::Scope{"ETS"},
-                              "ETS Coefficients set for RK5");
+                              "ETS Coefficients set for RK5 (Butcher, 6 stages)");
 
     } else {
         dendro::logger::error(dendro::logger::Scope{"ETS"},
