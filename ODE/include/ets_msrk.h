@@ -556,10 +556,11 @@ void ETS_MSRK<T, Ctx>::evolve_bootstrap() {
 
             m_uiEVecTmp[0].copy_data(m_uiEVar);
 
-            for (unsigned int p = 0; p < stage; p++)
-                DVec::axpy(m_uiAppCtx->get_mesh(),
-                           m_uiAij[stage * m_uiNumStages + p] * dt,
-                           m_uiStVec[p], m_uiEVecTmp[0]);
+            for (unsigned int p = 0; p < stage; p++) {
+                const DendroScalar aip = m_uiAij[stage * m_uiNumStages + p];
+                if (aip != 0.0)
+                    DVec::axpy(pMesh, aip * dt, m_uiStVec[p], m_uiEVecTmp[0]);
+            }
 
             m_uiAppCtx->post_timestep(m_uiEVecTmp[0]);
 
@@ -572,7 +573,7 @@ void ETS_MSRK<T, Ctx>::evolve_bootstrap() {
 
         // Final update: y_{n+1} = y_n + sum(b_i * k_i * dt).
         for (unsigned int k = 0; k < m_uiNumStages; k++)
-            DVec::axpy(m_uiAppCtx->get_mesh(), m_uiBi[k] * dt, m_uiStVec[k],
+            DVec::axpy(pMesh, m_uiBi[k] * dt, m_uiStVec[k],
                        m_uiEVar);
     }
 
@@ -693,7 +694,7 @@ void ETS_MSRK<T, Ctx>::evolve_msrk() {
                 const DendroScalar aip =
                     m_uiAij[stage * m_uiNumStages + p];
                 if (aip != 0.0)
-                    DVec::axpy(m_uiAppCtx->get_mesh(), aip * dt,
+                    DVec::axpy(pMesh, aip * dt,
                                m_uiStVec[p], m_uiEVecTmp[0]);
             }
 
@@ -710,7 +711,7 @@ void ETS_MSRK<T, Ctx>::evolve_msrk() {
         dendro::logger::debug(dendro::logger::Scope{"ETS_MSRK"},
                               "Computing final update");
         for (unsigned int k = 0; k < m_uiNumStages; k++)
-            DVec::axpy(m_uiAppCtx->get_mesh(), m_uiBi[k] * dt,
+            DVec::axpy(pMesh, m_uiBi[k] * dt,
                        m_uiStVec[k], m_uiEVar);
     }
 

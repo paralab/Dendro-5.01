@@ -506,33 +506,20 @@ void ETS<T, Ctx>::evolve() {
 
     m_uiAppCtx->pre_timestep(m_uiEVar);
 
-    const unsigned int DOF    = m_uiEVar.get_dof();
-    const unsigned int szPDof = pMesh->getDegOfFreedom();
-
     if (pMesh->isActive()) {
-        int rank                              = pMesh->getMPIRank();
-
-        const unsigned int nodeLocalBegin     = pMesh->getNodeLocalBegin();
-        const unsigned int nodeLocalEnd       = pMesh->getNodeLocalEnd();
-
-        const std::vector<ot::Block>& blkList = pMesh->getLocalBlockList();
-        unsigned int offset;
-        double ptmin[3], ptmax[3];
-        unsigned int sz[3];
-        unsigned int bflag;
-        double dx, dy, dz;
-
-        for (int stage = 0; stage < m_uiNumStages; stage++) {
+        for (unsigned int stage = 0; stage < m_uiNumStages; stage++) {
             dendro::logger::debug(dendro::logger::Scope{"ETS"},
                                   "Now executing ETS Evolve stage {}/{}",
                                   stage + 1, m_uiNumStages);
 
             m_uiEVecTmp[0].copy_data(m_uiEVar);
 
-            for (int p = 0; p < stage; p++)
-                DVec::axpy(m_uiAppCtx->get_mesh(),
-                           m_uiAij[(stage)*m_uiNumStages + p] * dt,
-                           m_uiStVec[p], m_uiEVecTmp[0]);
+            for (unsigned int p = 0; p < stage; p++) {
+                const DendroScalar aip = m_uiAij[stage * m_uiNumStages + p];
+                if (aip != 0.0)
+                    DVec::axpy(pMesh, aip * dt, m_uiStVec[p], m_uiEVecTmp[0]);
+            }
+
             m_uiAppCtx->post_timestep(m_uiEVecTmp[0]);
 
             current_t_adv = current_t + m_uiCi[stage] * dt;
@@ -542,11 +529,8 @@ void ETS<T, Ctx>::evolve() {
             m_uiAppCtx->post_stage(m_uiStVec[stage]);
         }
 
-        dendro::logger::debug(dendro::logger::Scope{"ETS"},
-                              "Calculating next step after stages");
         for (unsigned int k = 0; k < m_uiNumStages; k++)
-            DVec::axpy(m_uiAppCtx->get_mesh(), m_uiBi[k] * dt, m_uiStVec[k],
-                       m_uiEVar);
+            DVec::axpy(pMesh, m_uiBi[k] * dt, m_uiStVec[k], m_uiEVar);
     }
 
     m_uiAppCtx->post_timestep(m_uiEVar);
