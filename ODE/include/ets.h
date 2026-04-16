@@ -238,7 +238,7 @@ class ETS {
     /**
      * @brief Destroy the ETS object
      */
-    ~ETS();
+    virtual ~ETS();
 
     /**
      * @brief Set the ets coefficients
@@ -269,7 +269,7 @@ class ETS {
     int set_evolve_vars(DVec eVar);
 
     /**@brief: initialize the ETS solver*/
-    void init();
+    virtual void init();
 
     /**@brief: returns the current time step*/
     inline DendroIntL curr_step() { return m_uiTimeInfo._m_uiStep; };
@@ -312,10 +312,10 @@ class ETS {
 
     /**@brief: perform synchronizations with correct variable allocations for
      * the new mesh: should be called after remeshing.  */
-    int sync_with_mesh();
+    virtual int sync_with_mesh();
 
     /**@brief: advance to next time step*/
-    void evolve();
+    virtual void evolve();
 
     /**@brief: dump load statistics*/
     void dump_load_statistics(std::ostream& sout);
