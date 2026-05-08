@@ -4,6 +4,73 @@
 #include "daUtils.h"
 
 namespace dendro_aeh {
+
+void AEH_BHaHAHA::reseed_common_horizon_geometric_() {
+    const int inspiral_bh1   = 0;
+    const int inspiral_bh2   = 1;
+    const int common_horizon = 2;
+
+    const double x1 = x_center_m1_[inspiral_bh1];
+    const double y1 = y_center_m1_[inspiral_bh1];
+    const double z1 = z_center_m1_[inspiral_bh1];
+    const double x2 = x_center_m1_[inspiral_bh2];
+    const double y2 = y_center_m1_[inspiral_bh2];
+    const double z2 = z_center_m1_[inspiral_bh2];
+    const double r1 = r_max_m1_[inspiral_bh1];
+    const double r2 = r_max_m1_[inspiral_bh2];
+
+    const double sep    = dist(x1, x2, y1, y2, z1, z2);
+    const double mid_x  = 0.5 * (x1 + x2);
+    const double mid_y  = 0.5 * (y1 + y2);
+    const double mid_z  = 0.5 * (z1 + z2);
+    const double r_geom = std::min(0.5 * sep + std::max(r1, r2) +
+                                       bah_ah3_radius_padding_,
+                                   bah_max_search_radius_[common_horizon]);
+
+    x_center_m1_[common_horizon] = mid_x;
+    y_center_m1_[common_horizon] = mid_y;
+    z_center_m1_[common_horizon] = mid_z;
+    x_center_m2_[common_horizon] = 0.0;
+    y_center_m2_[common_horizon] = 0.0;
+    z_center_m2_[common_horizon] = 0.0;
+    x_center_m3_[common_horizon] = 0.0;
+    y_center_m3_[common_horizon] = 0.0;
+    z_center_m3_[common_horizon] = 0.0;
+    t_m1_[common_horizon]        = -1.0;
+    t_m2_[common_horizon]        = -1.0;
+    t_m3_[common_horizon]        = -1.0;
+    r_min_m1_[common_horizon]    = 0.0;
+    r_max_m1_[common_horizon]    = 0.0;
+    r_min_m2_[common_horizon]    = 0.0;
+    r_max_m2_[common_horizon]    = 0.0;
+    r_min_m3_[common_horizon]    = 0.0;
+    r_max_m3_[common_horizon]    = 0.0;
+
+    const size_t horizon_data_size =
+        static_cast<size_t>(max_ntheta_ * max_nphi_);
+    const size_t horizon_offset =
+        static_cast<size_t>(common_horizon) * horizon_data_size;
+    std::fill(prev_horizon_m1_.begin() + horizon_offset,
+              prev_horizon_m1_.begin() + horizon_offset + horizon_data_size,
+              0.0);
+    std::fill(prev_horizon_m2_.begin() + horizon_offset,
+              prev_horizon_m2_.begin() + horizon_offset + horizon_data_size,
+              0.0);
+    std::fill(prev_horizon_m3_.begin() + horizon_offset,
+              prev_horizon_m3_.begin() + horizon_offset + horizon_data_size,
+              0.0);
+
+    x_guess_[common_horizon]     = mid_x;
+    y_guess_[common_horizon]     = mid_y;
+    z_guess_[common_horizon]     = mid_z;
+    r_min_guess_[common_horizon] = 0.0;
+    r_max_guess_[common_horizon] = r_geom;
+
+    bah_use_fixed_radius_guess_on_full_sphere_[common_horizon] = 1;
+    failed_last_find_[common_horizon]                          = false;
+    failed_last_find_int_[common_horizon]                      = 0;
+}
+
 void AEH_BHaHAHA::find_horizons(
     const ot::Mesh* mesh, const double** var, const unsigned int current_step,
     const double current_time, const std::vector<Point> tracked_location_data) {
@@ -194,21 +261,33 @@ void AEH_BHaHAHA::find_horizons(
         }
 #endif
 
-        // if use_fixed_radius_guess_on_full_sphere=0 then we've found a common
-        // horizon
-        const bool found_common =
-            (bah_use_fixed_radius_guess_on_full_sphere_[common_horizon] == 0);
-
         // are the black holes active?
         const bool bh1_active    = (bah_horizon_active_[inspiral_bh1] != 0);
         const bool bh2_active    = (bah_horizon_active_[inspiral_bh2] != 0);
         const bool common_active = (bah_horizon_active_[common_horizon] != 0);
 
-        // step 3.c: deactivate individual BH horizons if common is found
-        if (common_active && found_common && bh1_active && bh2_active) {
-            bah_horizon_active_[inspiral_bh1] = 0;
-            bah_horizon_active_[inspiral_bh2] = 0;
-            // disabled the search!
+        // step 3.c: deactivate AH1/AH2 only when their separation collapses
+        // below the configured merger threshold. Finding AH3 alone is NOT
+        // proof of merger (it can falsely converge onto a single BH for large
+        // mass ratios), so AH1/AH2 stay active alongside AH3 until the BHs
+        // are essentially coincident.
+        if (bh1_active && bh2_active && t_m1_[inspiral_bh1] >= 0.0 &&
+            t_m1_[inspiral_bh2] >= 0.0) {
+            const double sep_bhbh =
+                dist(x_center_m1_[inspiral_bh1], x_center_m1_[inspiral_bh2],
+                     y_center_m1_[inspiral_bh1], y_center_m1_[inspiral_bh2],
+                     z_center_m1_[inspiral_bh1], z_center_m1_[inspiral_bh2]);
+            if (sep_bhbh < bah_bhbh_min_separation_) {
+                bah_horizon_active_[inspiral_bh1] = 0;
+                bah_horizon_active_[inspiral_bh2] = 0;
+                if (bah_verbosity_level_ > 0 && rankActive == 0) {
+                    std::cout << GRN
+                              << "BBH BHBH_MIN_SEPARATION reached (sep="
+                              << std::fixed << std::setprecision(6) << sep_bhbh
+                              << " < " << bah_bhbh_min_separation_
+                              << "): disabling AH1/AH2." << NRM << std::endl;
+                }
+            }
         }
 
         // 3.d: we activate common horizon based on proximity of last known good
@@ -272,57 +351,81 @@ void AEH_BHaHAHA::find_horizons(
 
                 if (dist_between_centers + rmax_bh1_last + rmax_bh2_last <=
                     threshold_diameter) {
-                    // activate common horizon! hooray
                     bah_horizon_active_[common_horizon] = 1;
-
-                    // compute center of mass from last good centers
-                    const double m1 = bah_m_scale_[inspiral_bh1];
-                    const double m2 = bah_m_scale_[inspiral_bh2];
-
-                    double x_center_common =
-                        (m1 * x_bh1_last + m2 * x_bh2_last) / (m1 + m2);
-                    double y_center_common =
-                        (m1 * y_bh1_last + m2 * y_bh2_last) / (m1 + m2);
-                    double z_center_common =
-                        (m1 * z_bh1_last + m2 * z_bh2_last) / (m1 + m2);
-
-                    // update the common-horizon center
-                    x_center_m1_[common_horizon] = x_center_common;
-                    y_center_m1_[common_horizon] = y_center_common;
-                    z_center_m1_[common_horizon] = z_center_common;
-
-                    // force the next extrapolation to use full-sphere radius!
-                    t_m1_[common_horizon]        = t_m2_[common_horizon] =
-                        t_m3_[common_horizon]    = -1.0;
-
-                    // and working guesses for iteration
-                    x_guess_[common_horizon]     = x_center_common;
-                    y_guess_[common_horizon]     = y_center_common;
-                    z_guess_[common_horizon]     = z_center_common;
-
-                    // and a naive initial guess
-                    r_min_guess_[common_horizon] = 0.0;
-                    r_max_guess_[common_horizon] =
-                        bah_max_search_radius_[common_horizon];
-
-                    if (bah_verbosity_level_ > 0) {
-                        if (rankActive == 0) {
-                            std::cout
-                                << GRN
-                                << "BBH COMMON HORIZON ACTIVATED: center=("
-                                << std::fixed << std::setprecision(6)
-                                << x_center_common << "," << y_center_common
-                                << "," << z_center_common << ") r_max_guess="
-                                << r_max_guess_[common_horizon] << NRM
-                                << std::endl;
-                        }
+                    if (bah_verbosity_level_ > 0 && rankActive == 0) {
+                        std::cout
+                            << GRN
+                            << "BBH COMMON HORIZON ACTIVATED (geometric "
+                               "reseed in step 3.e)."
+                            << NRM << std::endl;
                     }
+                    // Geometric reseed is performed unconditionally below in
+                    // step 3.e (since use_fixed_radius_guess_on_full_sphere_
+                    // is still 1 here for a never-found AH3).
                 }
             } else {
                 // sanity check: make sure horizons found when expected
                 if (rankActive == 0 && bah_verbosity_level_ > 1) {
                     std::cout << "[BAH]: Horizon never found before!" << std::endl;
                 }
+            }
+        }
+
+        // 3.e: AH3 sanity check + corrective geometric reseed.
+        // Runs after 3.b (synced inputs), 3.c (separation shutdown), and 3.d
+        // (activation). All inputs are synchronized across ranks so the
+        // decision is deterministic on every rank.
+        const bool common_active_now =
+            (bah_horizon_active_[common_horizon] != 0);
+        const bool ah3_ever_found =
+            (bah_use_fixed_radius_guess_on_full_sphere_[common_horizon] == 0);
+        const bool bh_centers_valid =
+            (t_m1_[inspiral_bh1] >= 0.0) && (t_m1_[inspiral_bh2] >= 0.0);
+
+        if (common_active_now && ah3_ever_found && bh_centers_valid) {
+            const double r3 = r_max_m1_[common_horizon];
+            const double d31 =
+                dist(x_center_m1_[common_horizon], x_center_m1_[inspiral_bh1],
+                     y_center_m1_[common_horizon], y_center_m1_[inspiral_bh1],
+                     z_center_m1_[common_horizon], z_center_m1_[inspiral_bh1]);
+            const double d32 =
+                dist(x_center_m1_[common_horizon], x_center_m1_[inspiral_bh2],
+                     y_center_m1_[common_horizon], y_center_m1_[inspiral_bh2],
+                     z_center_m1_[common_horizon], z_center_m1_[inspiral_bh2]);
+            const double k_r3 = bah_ah3_sanity_k_ * r3;
+
+            const bool insane = (r3 <= 0.0) || (d31 > k_r3) || (d32 > k_r3);
+            if (insane) {
+                if (bah_verbosity_level_ > 0 && rankActive == 0) {
+                    std::cout << GRN
+                              << "BBH AH3 SANITY FAIL: r3=" << std::fixed
+                              << std::setprecision(6) << r3
+                              << ", d(c3,c1)=" << d31 << ", d(c3,c2)=" << d32
+                              << ", k*r3=" << k_r3
+                              << " -> wiping AH3 history, geometric reseed."
+                              << NRM << std::endl;
+                }
+                bah_use_fixed_radius_guess_on_full_sphere_[common_horizon] = 1;
+                failed_last_find_[common_horizon]                          = true;
+                failed_last_find_int_[common_horizon]                      = 1;
+            }
+        }
+
+        const bool needs_reseed =
+            common_active_now && bh_centers_valid &&
+            ((bah_use_fixed_radius_guess_on_full_sphere_[common_horizon] ==
+              1) ||
+             failed_last_find_[common_horizon]);
+
+        if (needs_reseed) {
+            reseed_common_horizon_geometric_();
+            if (bah_verbosity_level_ > 1 && rankActive == 0) {
+                std::cout << "[BAH]: AH3 geometric reseed: center=("
+                          << x_guess_[common_horizon] << ","
+                          << y_guess_[common_horizon] << ","
+                          << z_guess_[common_horizon]
+                          << ") r_max=" << r_max_guess_[common_horizon]
+                          << std::endl;
             }
         }
     }

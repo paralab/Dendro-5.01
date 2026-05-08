@@ -157,6 +157,10 @@ class AEH_BHaHAHA {
     int bah_verbosity_level_;
     int bah_enable_eta_varying_alg_for_precision_common_horizon_;
 
+    double bah_bhbh_min_separation_;
+    double bah_ah3_sanity_k_;
+    double bah_ah3_radius_padding_;
+
     std::vector<double> bah_m_scale_;
     std::vector<double> bah_cfl_factor_;
     std::vector<int> bah_max_iterations_;
@@ -219,7 +223,10 @@ class AEH_BHaHAHA {
                 const std::vector<int>& ntheta_array = {8, 16, 32},
                 const std::vector<int>& nphi_array   = {16, 32, 64},
                 const int enable_eta_varying_alg     = 0,
-                const int verbosity_level            = 1)
+                const int verbosity_level            = 1,
+                const double bah_bhbh_min_separation         = 0.01,
+                const double bah_ah3_sanity_k        = 2.0,
+                const double bah_ah3_radius_padding  = 0.5)
         : num_horizons_(n_horizons),
           is_bbh_(is_binary_black_hole),
           num_resolutions_multigrid_(n_resolutions_multigrid),
@@ -231,7 +238,10 @@ class AEH_BHaHAHA {
           out_dir_(save_directory),
           variable_indices_(indices_extract),
           transform_(transform),
-          file_output_freq_(file_output_freq) {
+          file_output_freq_(file_output_freq),
+          bah_bhbh_min_separation_(bah_bhbh_min_separation),
+          bah_ah3_sanity_k_(bah_ah3_sanity_k),
+          bah_ah3_radius_padding_(bah_ah3_radius_padding) {
         allocate_data_structures();
 
         grid_limits_[0]   = grid_limits[0];
@@ -520,6 +530,8 @@ class AEH_BHaHAHA {
     }
 
     void bah_sum_shared_arrays(const ot::Mesh* mesh);
+
+    void reseed_common_horizon_geometric_();
 
     void fill_domain_coords(const int which_horizon, const int n_r,
                             const int n_theta, const int n_phi,
