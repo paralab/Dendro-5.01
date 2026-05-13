@@ -159,6 +159,40 @@ void AEH_BHaHAHA::find_horizons(
         bah_xyz_center_r_minmax(bah_params_and_data, &x_center, &y_center,
                                 &z_center, &r_min, &r_max);
 
+        // extrapolation can shoot off into nonsense during the plunge
+        // (closely-spaced finds + long extrapolation = polynomial blowup).
+        // if the new guess is non-finite or way off from the last known
+        // good center, fall back to that center.
+        {
+            constexpr double k_clamp = 5.0;
+            const double r_search    = bah_max_search_radius_[which_horizon];
+            const double dx          = x_center - x_center_m1_[which_horizon];
+            const double dy          = y_center - y_center_m1_[which_horizon];
+            const double dz          = z_center - z_center_m1_[which_horizon];
+            const double drift = std::sqrt(dx * dx + dy * dy + dz * dz);
+            const bool nonfinite     = !std::isfinite(x_center) ||
+                                   !std::isfinite(y_center) ||
+                                   !std::isfinite(z_center);
+            const bool too_far       = (t_m1_[which_horizon] >= 0.0) &&
+                                 (drift > k_clamp * r_search);
+            if (nonfinite || too_far) {
+                if (bah_verbosity_level_ > 0 && rankActive == 0) {
+                    std::cout
+                        << GRN << "[BAH]: extrapolation clamp h="
+                        << which_horizon << " guess=(" << x_center << ","
+                        << y_center << "," << z_center << ") drift=" << drift
+                        << " -> falling back to last-known ("
+                        << x_center_m1_[which_horizon] << ","
+                        << y_center_m1_[which_horizon] << ","
+                        << z_center_m1_[which_horizon] << ")" << NRM
+                        << std::endl;
+                }
+                x_center = x_center_m1_[which_horizon];
+                y_center = y_center_m1_[which_horizon];
+                z_center = z_center_m1_[which_horizon];
+            }
+        }
+
         // need to make sure that we force a full guess if the parameters
         // request (or enforce) it
         if (bah_params_and_data->use_fixed_radius_guess_on_full_sphere) {
@@ -430,6 +464,18 @@ void AEH_BHaHAHA::find_horizons(
         }
     }
     // ------- END STEP 3 --------
+
+    // dump per-horizon guesses going into interpolation. handy when a
+    // downstream interp blows up - tells you whose sphere is at fault.
+    if (bah_verbosity_level_ > 1 && rankActive == 0) {
+        for (int h = 0; h < num_horizons_; h++) {
+            std::cout << "[BAH]: pre-interp h=" << h
+                      << " active=" << bah_horizon_active_[h] << " guess=("
+                      << x_guess_[h] << "," << y_guess_[h] << "," << z_guess_[h]
+                      << ")" << " r=[" << r_min_guess_[h] << ","
+                      << r_max_guess_[h] << "]" << std::endl;
+        }
+    }
 
     // 4: Metric interpolation
     // -- Allocate memory and interpolate metric data onto the BHaHAHA grid

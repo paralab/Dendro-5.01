@@ -444,24 +444,45 @@ void interpolateToCoords(const ot::Mesh* mesh, const T* in,
         std::vector<ot::SearchKey> coordOcts_skey;
         unsigned int octree_coords[m_uiDim];
 
+        unsigned int n_skipped = 0;
         for (unsigned int i = 0; i < numPts; i++) {
+            const double cx = domain_coords[m_uiDim * i + 0];
+            const double cy = domain_coords[m_uiDim * i + 1];
+            const double cz = domain_coords[m_uiDim * i + 2];
+
+            // skip out-of-domain points. casting a negative offset to
+            // unsigned int below wraps to a huge value and silently matches
+            // a bogus element on the other side of the octree.
+            if (cx < domain_limit[0].x() || cx > domain_limit[1].x() ||
+                cy < domain_limit[0].y() || cy > domain_limit[1].y() ||
+                cz < domain_limit[0].z() || cz > domain_limit[1].z()) {
+                n_skipped++;
+                continue;
+            }
+
             octree_coords[0] = (unsigned int)(grid_limit[0].x() +
-                                              (domain_coords[m_uiDim * i + 0] -
-                                               domain_limit[0].x()) *
+                                              (cx - domain_limit[0].x()) *
                                                   (gridRangeX / domainRangeX));
             octree_coords[1] = (unsigned int)(grid_limit[0].y() +
-                                              (domain_coords[m_uiDim * i + 1] -
-                                               domain_limit[0].y()) *
+                                              (cy - domain_limit[0].y()) *
                                                   (gridRangeY / domainRangeY));
             octree_coords[2] = (unsigned int)(grid_limit[0].z() +
-                                              (domain_coords[m_uiDim * i + 2] -
-                                               domain_limit[0].z()) *
+                                              (cz - domain_limit[0].z()) *
                                                   (gridRangeZ / domainRangeZ));
 
             coordOcts_skey.push_back(ot::SearchKey(
                 octree_coords[0], octree_coords[1], octree_coords[2],
                 m_uiMaxDepth, m_uiDim, m_uiMaxDepth));
             coordOcts_skey.back().addOwner(i);
+        }
+
+        if (n_skipped > 0 && rankActive == 0) {
+            std::cerr << "Warning[" << __func__ << "]: skipped " << n_skipped
+                      << " of " << numPts << " points outside domain ["
+                      << domain_limit[0].x() << "," << domain_limit[0].y()
+                      << "," << domain_limit[0].z() << "] to ["
+                      << domain_limit[1].x() << "," << domain_limit[1].y()
+                      << "," << domain_limit[1].z() << "]" << std::endl;
         }
 
         // 2. get the element local splitters.
