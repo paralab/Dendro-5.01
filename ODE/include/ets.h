@@ -39,7 +39,18 @@ enum ETSFlags { FROM_T0 = 0, CHECKPT, CURR_STEP, CURR_TIME };
  */
 
 #ifdef __PROFILE_ETS__
-enum ETSPROFILE { EVOLVE = 0, ETS_LAST };
+// Capped at 6 stages (RK3..RK45). EVOLVE stays index 0 for dump_pt() back-compat.
+enum ETSPROFILE {
+    EVOLVE = 0,
+    STAGE_0,
+    STAGE_1,
+    STAGE_2,
+    STAGE_3,
+    STAGE_4,
+    STAGE_5,
+    ETS_LAST
+};
+#define ETS_MAX_PROFILED_STAGES 6
 #endif
 
 template <typename T, typename Ctx>
@@ -49,7 +60,8 @@ class ETS {
     std::vector<profiler_t> m_uiCtxpt =
         std::vector<profiler_t>(static_cast<int>(ETSPROFILE::ETS_LAST));
     const char* ETSPROFILE_NAMES[static_cast<int>(ETSPROFILE::ETS_LAST)] = {
-        "evolve"};
+        "evolve", "stage_0", "stage_1", "stage_2",
+        "stage_3", "stage_4", "stage_5"};
 
     void init_pt() {
         for (unsigned int i = 0; i < m_uiCtxpt.size(); i++)
@@ -512,6 +524,11 @@ void ETS<T, Ctx>::evolve() {
                                   "Now executing ETS Evolve stage {}/{}",
                                   stage + 1, m_uiNumStages);
 
+#ifdef __PROFILE_ETS__
+            if (stage < ETS_MAX_PROFILED_STAGES)
+                m_uiCtxpt[ETSPROFILE::STAGE_0 + stage].start();
+#endif
+
             m_uiEVecTmp[0].copy_data(m_uiEVar);
 
             for (unsigned int p = 0; p < stage; p++) {
@@ -527,6 +544,11 @@ void ETS<T, Ctx>::evolve() {
             m_uiAppCtx->rhs(&m_uiEVecTmp[0], &m_uiStVec[stage], 1,
                             current_t_adv);
             m_uiAppCtx->post_stage(m_uiStVec[stage]);
+
+#ifdef __PROFILE_ETS__
+            if (stage < ETS_MAX_PROFILED_STAGES)
+                m_uiCtxpt[ETSPROFILE::STAGE_0 + stage].stop();
+#endif
         }
 
         for (unsigned int k = 0; k < m_uiNumStages; k++)
