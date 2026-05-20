@@ -2038,6 +2038,23 @@ class Mesh {
      * @param[out] out: interpolated values.
      *
      * */
+    // Thread-safe variant: caller supplies scratch buffers (size m_uiNpE
+    // each). Use this from OpenMP-parallel regions where each thread needs
+    // its own scratch — the no-scratch overload uses RefElement's shared
+    // im_vec1/im_vec2 members.
+    inline void parent2ChildInterpolation(const double *in, double *out,
+                                          unsigned int cnum, unsigned int dim,
+                                          double *im1, double *im2) const {
+        if (dim == 3)
+            m_uiRefEl.I3D_Parent2Child(in, out, cnum, im1, im2);
+        else if (dim == 2)
+            m_uiRefEl.I2D_Parent2Child(in, out, cnum, im1, im2);
+        else if (dim == 1)
+            m_uiRefEl.I1D_Parent2Child(in, out, cnum);  // already
+                                                        // thread-safe (no
+                                                        // scratch used)
+    }
+
     inline void parent2ChildInterpolation(const double *in, double *out,
                                           unsigned int cnum,
                                           unsigned int dim = 3) const;
@@ -2109,6 +2126,22 @@ class Mesh {
      */
     template <typename T>
     void unzip_scatter(const T *in, T *out, unsigned int dof = 1);
+
+    /**
+     * @brief Batched unzip — process n_vars dof=1 unzips inside ONE OpenMP
+     * parallel region. Functionally equivalent to calling
+     *   for v in n_vars: unzip_scatter(ins[v], outs[v], 1);
+     * but amortizes the OpenMP fork/join overhead across all variables.
+     * Only meaningful when DENDRO_UNZIP_OMP is defined; otherwise this
+     * just calls unzip_scatter in a serial loop.
+     *
+     * @param ins  array of n_vars input CG-vector pointers (each size cgSz)
+     * @param outs array of n_vars output unzip-vector pointers (each unSz)
+     * @param n_vars number of variables to unzip in this batch
+     */
+    template <typename T>
+    void unzip_scatter_batch(const T *const *ins, T *const *outs,
+                             unsigned int n_vars);
 
     /**
      * @brief performs unzip operation for a given block id.
@@ -2550,6 +2583,15 @@ class Mesh {
     void getElementNodalValues(const T *vec, T *nodalValues,
                                unsigned int elementID,
                                bool isDGVec = false) const;
+
+    // Thread-safe overload: caller supplies scratch (size m_uiNpE each).
+    // Safe to call concurrently from OpenMP parallel regions because the
+    // face/edge interpolations use the thread-safe parent2ChildInterpolation
+    // overload (which doesn't touch RefElement's shared im_vec1/im_vec2).
+    template <typename T>
+    void getElementNodalValues(const T *vec, T *nodalValues,
+                               unsigned int elementID, bool isDGVec,
+                               double *im1, double *im2) const;
 
     /**
      * @assumption: input is the elemental nodal values.

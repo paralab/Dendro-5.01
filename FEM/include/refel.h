@@ -222,10 +222,14 @@ class RefElement {
     inline const double *getDr1d() const { return &(*(Dr.begin())); }
 
     /**@brief: intermediate vectors for elemental mat computations. */
-    inline double *getImVec1() { return &(*(im_vec1.begin())); }
+    inline double *getImVec1() const {
+        return const_cast<double *>(im_vec1.data());
+    }
 
     /**@brief: intermediate vectors for elemental mat computations. */
-    inline double *getImVec2() { return &(*(im_vec2.begin())); }
+    inline double *getImVec2() const {
+        return const_cast<double *>(im_vec2.data());
+    }
 
     /**@brief: weights for the Gauss quadrature */
     inline const double *getWgq() const { return &(*(w.begin())); }
@@ -330,6 +334,86 @@ class RefElement {
             default:
                 std::cout << "[refel][error]: invalid child number specified "
                              "for 3D interpolation."
+                          << std::endl;
+                break;
+        }
+    }
+
+    // Thread-safe variant: caller supplies the two scratch buffers (size
+    // m_uiNp each). For OpenMP block-parallel unzip where each thread needs
+    // its own scratch — the default version uses RefElement's shared
+    // im_vec1/im_vec2 members and is NOT safe under concurrent calls.
+    inline void I3D_Parent2Child(const double *in, double *out,
+                                 unsigned int childNum, double *im1,
+                                 double *im2) const {
+        switch (childNum) {
+            case 0:
+                DENDRO_TENSOR_IIAX_APPLY_ELEM(m_uiNrp, &(*(ip_1D_0.begin())),
+                                              in, im1);
+                DENDRO_TENSOR_IAIX_APPLY_ELEM(m_uiNrp, &(*(ip_1D_0.begin())),
+                                              im1, im2);
+                DENDRO_TENSOR_AIIX_APPLY_ELEM(m_uiNrp, &(*(ip_1D_0.begin())),
+                                              im2, out);
+                break;
+            case 1:
+                DENDRO_TENSOR_IIAX_APPLY_ELEM(m_uiNrp, &(*(ip_1D_1.begin())),
+                                              in, im1);
+                DENDRO_TENSOR_IAIX_APPLY_ELEM(m_uiNrp, &(*(ip_1D_0.begin())),
+                                              im1, im2);
+                DENDRO_TENSOR_AIIX_APPLY_ELEM(m_uiNrp, &(*(ip_1D_0.begin())),
+                                              im2, out);
+                break;
+            case 2:
+                DENDRO_TENSOR_IIAX_APPLY_ELEM(m_uiNrp, &(*(ip_1D_0.begin())),
+                                              in, im1);
+                DENDRO_TENSOR_IAIX_APPLY_ELEM(m_uiNrp, &(*(ip_1D_1.begin())),
+                                              im1, im2);
+                DENDRO_TENSOR_AIIX_APPLY_ELEM(m_uiNrp, &(*(ip_1D_0.begin())),
+                                              im2, out);
+                break;
+            case 3:
+                DENDRO_TENSOR_IIAX_APPLY_ELEM(m_uiNrp, &(*(ip_1D_1.begin())),
+                                              in, im1);
+                DENDRO_TENSOR_IAIX_APPLY_ELEM(m_uiNrp, &(*(ip_1D_1.begin())),
+                                              im1, im2);
+                DENDRO_TENSOR_AIIX_APPLY_ELEM(m_uiNrp, &(*(ip_1D_0.begin())),
+                                              im2, out);
+                break;
+            case 4:
+                DENDRO_TENSOR_IIAX_APPLY_ELEM(m_uiNrp, &(*(ip_1D_0.begin())),
+                                              in, im1);
+                DENDRO_TENSOR_IAIX_APPLY_ELEM(m_uiNrp, &(*(ip_1D_0.begin())),
+                                              im1, im2);
+                DENDRO_TENSOR_AIIX_APPLY_ELEM(m_uiNrp, &(*(ip_1D_1.begin())),
+                                              im2, out);
+                break;
+            case 5:
+                DENDRO_TENSOR_IIAX_APPLY_ELEM(m_uiNrp, &(*(ip_1D_1.begin())),
+                                              in, im1);
+                DENDRO_TENSOR_IAIX_APPLY_ELEM(m_uiNrp, &(*(ip_1D_0.begin())),
+                                              im1, im2);
+                DENDRO_TENSOR_AIIX_APPLY_ELEM(m_uiNrp, &(*(ip_1D_1.begin())),
+                                              im2, out);
+                break;
+            case 6:
+                DENDRO_TENSOR_IIAX_APPLY_ELEM(m_uiNrp, &(*(ip_1D_0.begin())),
+                                              in, im1);
+                DENDRO_TENSOR_IAIX_APPLY_ELEM(m_uiNrp, &(*(ip_1D_1.begin())),
+                                              im1, im2);
+                DENDRO_TENSOR_AIIX_APPLY_ELEM(m_uiNrp, &(*(ip_1D_1.begin())),
+                                              im2, out);
+                break;
+            case 7:
+                DENDRO_TENSOR_IIAX_APPLY_ELEM(m_uiNrp, &(*(ip_1D_1.begin())),
+                                              in, im1);
+                DENDRO_TENSOR_IAIX_APPLY_ELEM(m_uiNrp, &(*(ip_1D_1.begin())),
+                                              im1, im2);
+                DENDRO_TENSOR_AIIX_APPLY_ELEM(m_uiNrp, &(*(ip_1D_1.begin())),
+                                              im2, out);
+                break;
+            default:
+                std::cout << "[refel][error]: invalid child number specified "
+                             "for 3D interpolation (thread-safe variant)."
                           << std::endl;
                 break;
         }
@@ -475,6 +559,54 @@ class RefElement {
             default:
                 std::cout << "[refel][error]: invalid child number specified "
                              "for 2D  interpolation."
+                          << std::endl;
+                break;
+        }
+    }
+
+    // Thread-safe variant of I2D_Parent2Child — caller supplies scratch
+    // (size m_uiNrp*m_uiNrp). Only `im1` is used; `im2` is accepted for
+    // signature symmetry with the 3D variant.
+    inline void I2D_Parent2Child(const double *in, double *out,
+                                 unsigned int childNum, double *im1,
+                                 double *im2) const {
+        (void)im2;
+        switch (childNum) {
+            case 0:
+                DENDRO_TENSOR_IAX_APPLY_ELEM_2D(m_uiNrp,
+                                                &(*(ip_1D_0.begin())), in,
+                                                im1);
+                DENDRO_TENSOR_AIX_APPLY_ELEM_2D(m_uiNrp,
+                                                &(*(ip_1D_0.begin())), im1,
+                                                out);
+                break;
+            case 1:
+                DENDRO_TENSOR_IAX_APPLY_ELEM_2D(m_uiNrp,
+                                                &(*(ip_1D_1.begin())), in,
+                                                im1);
+                DENDRO_TENSOR_AIX_APPLY_ELEM_2D(m_uiNrp,
+                                                &(*(ip_1D_0.begin())), im1,
+                                                out);
+                break;
+            case 2:
+                DENDRO_TENSOR_IAX_APPLY_ELEM_2D(m_uiNrp,
+                                                &(*(ip_1D_0.begin())), in,
+                                                im1);
+                DENDRO_TENSOR_AIX_APPLY_ELEM_2D(m_uiNrp,
+                                                &(*(ip_1D_1.begin())), im1,
+                                                out);
+                break;
+            case 3:
+                DENDRO_TENSOR_IAX_APPLY_ELEM_2D(m_uiNrp,
+                                                &(*(ip_1D_1.begin())), in,
+                                                im1);
+                DENDRO_TENSOR_AIX_APPLY_ELEM_2D(m_uiNrp,
+                                                &(*(ip_1D_1.begin())), im1,
+                                                out);
+                break;
+            default:
+                std::cout << "[refel][error]: invalid child number specified "
+                             "for 2D  interpolation (thread-safe variant)."
                           << std::endl;
                 break;
         }

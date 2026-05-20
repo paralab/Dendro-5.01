@@ -112,6 +112,14 @@ int main(int argc, char** argv) {
 
     const unsigned int unSz = mesh->getDegOfFreedomUnZip();
 
+    // Optional batched mode (single dof=n_vars call per step) — set
+    // BENCH_BATCHED=1 to enable. The default mimics the BSSN per-variable
+    // dof=1 pattern; batched is useful for testing the OMP region-count
+    // ceiling.
+    const bool batched =
+        (std::getenv("BENCH_BATCHED") != nullptr &&
+         std::atoi(std::getenv("BENCH_BATCHED")) != 0);
+
     mesh->readFromGhostBegin(u, 1);
     mesh->readFromGhostEnd(u, 1);
 
@@ -120,23 +128,39 @@ int main(int argc, char** argv) {
     mesh->unzip(u, u_unzip, 1);
     const bool valid = ot::test::isUnzipValid(mesh, u_unzip, fr, 1e-3);
     if (!rank)
-        std::printf("[%s] unzip correctness vs analytic: %s\n", fast_tag,
-                    valid ? "PASS" : "FAIL");
+        std::printf("[%s] unzip correctness vs analytic: %s (batched=%d)\n",
+                    fast_tag, valid ? "PASS" : "FAIL", batched ? 1 : 0);
+
+    // (batched mode now uses unzip_scatter_batch with arrays of pointers
+    //  to the same u/u_unzip — no separate large allocations needed.)
+
+    // Pointer arrays for batched mode: same buffer pointer repeated n_vars
+    // times (this bench reuses the same data, just exercises the codepath).
+    std::vector<const double*> ins_arr;
+    std::vector<double*> outs_arr;
+    if (batched) {
+        ins_arr.assign(n_vars, u);
+        outs_arr.assign(n_vars, u_unzip);
+    }
+
+    auto run_once = [&]() {
+        if (batched) {
+            std::memset(u_unzip, 0, (size_t)unSz * sizeof(double));
+            mesh->unzip_scatter_batch(ins_arr.data(), outs_arr.data(),
+                                      n_vars);
+        } else {
+            std::memset(u_unzip, 0, (size_t)unSz * sizeof(double));
+            for (unsigned int v = 0; v < n_vars; ++v)
+                mesh->unzip(u, u_unzip, 1);
+        }
+    };
 
     // warm-up
-    for (unsigned int w = 0; w < 4; ++w) {
-        std::memset(u_unzip, 0, (size_t)unSz * sizeof(double));
-        for (unsigned int v = 0; v < n_vars; ++v)
-            mesh->unzip(u, u_unzip, 1);
-    }
+    for (unsigned int w = 0; w < 4; ++w) run_once();
 
     profiler_t t_unzip;
     t_unzip.start();
-    for (unsigned int i = 0; i < iter; ++i) {
-        std::memset(u_unzip, 0, (size_t)unSz * sizeof(double));
-        for (unsigned int v = 0; v < n_vars; ++v)
-            mesh->unzip(u, u_unzip, 1);
-    }
+    for (unsigned int i = 0; i < iter; ++i) run_once();
     t_unzip.stop();
 
     double t_local = t_unzip.seconds / (double)iter;
@@ -147,6 +171,51 @@ int main(int argc, char** argv) {
     double t_local_per_call = t_local / (double)n_vars;
     par::computeOverallStats(&t_local_per_call, t_stat, comm,
                              "unzip (gather) per call (dof=1)");
+
+    // ZIP timing (the inverse — unzipped block data back to CG vec).
+    // BSSN's CTX::zip is called after each RHS eval to assemble.
+    // First make sure we have a populated unzip buffer to zip from.
+    mesh->unzip(u, u_unzip, 1);
+
+    // warm-up zip
+    for (unsigned int w = 0; w < 4; ++w) {
+        for (unsigned int v = 0; v < n_vars; ++v) mesh->zip(u_unzip, u);
+    }
+    profiler_t t_zip;
+    t_zip.start();
+    for (unsigned int i = 0; i < iter; ++i) {
+        for (unsigned int v = 0; v < n_vars; ++v) mesh->zip(u_unzip, u);
+    }
+    t_zip.stop();
+
+    double t_zip_local          = t_zip.seconds / (double)iter;
+    par::computeOverallStats(&t_zip_local, t_stat, comm,
+                             "zip per step");
+    double t_zip_per_call       = t_zip_local / (double)n_vars;
+    par::computeOverallStats(&t_zip_per_call, t_stat, comm,
+                             "zip per call (dof=1)");
+
+    if (rank == 0) {
+        const double zip_frac = t_zip_local / (t_zip_local + t_local);
+        std::printf("[%s] zip share of (unzip+zip): %.1f%%\n", fast_tag,
+                    100.0 * zip_frac);
+    }
+
+    // Direct zip correctness check: run zip once and emit a checksum so two
+    // builds (or two thread counts) can be compared.
+    if (rank == 0) {
+        const size_t cgSz = mesh->getDegOfFreedom();
+        std::memset(u, 0, cgSz * sizeof(double));
+        mesh->zip(u_unzip, u);
+        double cs = 0.0, l2 = 0.0;
+        for (size_t i = 0; i < cgSz; i++) {
+            cs += u[i] * (double)((int64_t)i + 1);
+            l2 += u[i] * u[i];
+        }
+        std::printf("[%s] zip output: cg-checksum=%23.17e L2=%23.17e\n",
+                    fast_tag, cs, std::sqrt(l2));
+    }
+
 
     if (!out_file.empty() && rank == 0) {
         std::ofstream ofs(out_file, std::ios::binary | std::ios::trunc);
