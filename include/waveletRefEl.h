@@ -62,6 +62,15 @@ class WaveletEl {
     /**@biref: function to compute the wavelets in 3d unziped ele vector. */
     void compute_wavelets_3D(const double* in, const unsigned int* isz,
                              std::vector<double>& wc, bool isBdy = false);
+
+    // Thread-safe overload: caller supplies scratch for the internal
+    // RefElement::I3D_Parent2Child calls (size m_uiRefEl->m_uiNp each, i.e.
+    // (eleOrder+1)^3). The WaveletEl instance's own m_uiVIn/m_uiNVec/m_uiVOut
+    // are still per-instance, so each thread needs its own WaveletEl when
+    // calling this concurrently.
+    void compute_wavelets_3D(const double* in, const unsigned int* isz,
+                             std::vector<double>& wc, bool isBdy,
+                             double* im1, double* im2);
 };
 
 }  // namespace wavelet

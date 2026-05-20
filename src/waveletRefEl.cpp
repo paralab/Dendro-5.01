@@ -257,4 +257,148 @@ void WaveletEl::compute_wavelets_3D(const double* in, const unsigned int* isz,
     }
 }
 
+// Thread-safe variant — caller supplies im1/im2 for the I3D_Parent2Child
+// calls so multiple threads can call this concurrently (provided each has
+// its own WaveletEl instance for the m_uiVIn/m_uiNVec/m_uiVOut workspace).
+void WaveletEl::compute_wavelets_3D(const double* in, const unsigned int* isz,
+                                    std::vector<double>& wc, bool isBdy,
+                                    double* im1, double* im2) {
+    const unsigned int inx         = isz[0];
+    const unsigned int iny         = isz[1];
+
+    const unsigned int eleOrder    = m_uiRefEl->getElementOrder();
+    const unsigned int np_1d       = eleOrder + 1;
+
+    const unsigned int num_wc_1d   = m_uiCIndex.size();
+    const unsigned int num_wc      = num_wc_1d * num_wc_1d * num_wc_1d;
+
+    const double in_min            = 1.0;
+    const bool compute_relative_wc = true;
+
+    unsigned int wcount            = 0;
+    wc.resize(num_wc);
+    for (unsigned int i = 0; i < wc.size(); i++) wc[i] = 0;
+
+    if (isBdy) {
+        const unsigned int bdyEOrder    = eleOrder >> 1u;
+        const unsigned int pw           = eleOrder >> 1u;
+
+        const unsigned int bnp_1d       = (bdyEOrder + 1);
+        const unsigned int bnp_child_1d = 2 * bdyEOrder + 1;
+
+        for (unsigned int k = pw; k < (pw + eleOrder + 1); k += 2)
+            for (unsigned int j = pw; j < (pw + eleOrder + 1); j += 2)
+                for (unsigned int i = pw; i < (pw + eleOrder + 1); i += 2) {
+                    const unsigned int pp = k * (iny * inx) + j * (inx) + i;
+                    const unsigned int pp1 =
+                        ((k - pw) >> 1u) * (bnp_1d * bnp_1d) +
+                        ((j - pw) >> 1u) * bnp_1d + ((i - pw) >> 1u);
+                    m_uiVIn[pp1] = in[pp];
+                }
+
+        int bit[3];
+        for (unsigned int cnum = 0; cnum < NUM_CHILDREN; cnum++) {
+            m_uiRefElBdy->I3D_Parent2Child(m_uiVIn.data(), m_uiNVec.data(),
+                                           cnum, im1, im2);
+
+            bit[0]                = binOp::getBit(cnum, 0);
+            bit[1]                = binOp::getBit(cnum, 1);
+            bit[2]                = binOp::getBit(cnum, 2);
+
+            const unsigned int ib = bdyEOrder * bit[0];
+            const unsigned int jb = bdyEOrder * bit[1];
+            const unsigned int kb = bdyEOrder * bit[2];
+
+            for (unsigned int k = kb; k < (kb + (bdyEOrder + 1)); k++)
+                for (unsigned int j = jb; j < (jb + (bdyEOrder + 1)); j++)
+                    for (unsigned int i = ib; i < (ib + (bdyEOrder + 1)); i++)
+                        m_uiVOut[k * bnp_child_1d * bnp_child_1d +
+                                 j * bnp_child_1d + i] =
+                            m_uiNVec[(k - kb) * bnp_1d * bnp_1d +
+                                     (j - jb) * bnp_1d + (i - ib)];
+        }
+
+        if (compute_relative_wc) {
+            wcount = 0;
+            for (unsigned int k = pw + 1; k < (pw + eleOrder + 1); k += 2)
+                for (unsigned int j = pw + 1; j < (pw + eleOrder + 1); j += 2)
+                    for (unsigned int i = pw + 1; i < (pw + eleOrder + 1);
+                         i += 2, wcount++) {
+                        const unsigned int pp = k * (iny * inx) + j * (inx) + i;
+                        const unsigned int pp1 =
+                            (k - pw) * (bnp_child_1d * bnp_child_1d) +
+                            (j - pw) * bnp_child_1d + (i - pw);
+                        wc[wcount] =
+                            fabs(in[pp] - m_uiVOut[pp1]) /
+                            std::max(in_min, fabs(in[pp]));
+                    }
+        } else {
+            wcount = 0;
+            for (unsigned int k = pw + 1; k < (pw + eleOrder + 1); k += 2)
+                for (unsigned int j = pw + 1; j < (pw + eleOrder + 1); j += 2)
+                    for (unsigned int i = pw + 1; i < (pw + eleOrder + 1);
+                         i += 2, wcount++) {
+                        const unsigned int pp = k * (iny * inx) + j * (inx) + i;
+                        const unsigned int pp1 =
+                            (k - pw) * (bnp_child_1d * bnp_child_1d) +
+                            (j - pw) * bnp_child_1d + (i - pw);
+                        wc[wcount] = fabs(in[pp] - m_uiVOut[pp1]);
+                    }
+        }
+        return;
+    }
+
+    for (unsigned int k = 0; k < m_uiPIndex.size(); k++)
+        for (unsigned int j = 0; j < m_uiPIndex.size(); j++)
+            for (unsigned int i = 0; i < m_uiPIndex.size(); i++) {
+                const unsigned int pp = m_uiPIndex[k] * (iny * inx) +
+                                        m_uiPIndex[j] * (inx) + m_uiPIndex[i];
+                m_uiVIn[k * (np_1d) * (np_1d) + j * (np_1d) + i] = in[pp];
+            }
+
+    int bit[3];
+    for (unsigned int cnum = 0; cnum < NUM_CHILDREN; cnum++) {
+        m_uiRefEl->I3D_Parent2Child(m_uiVIn.data(), m_uiNVec.data(), cnum, im1,
+                                    im2);
+
+        bit[0]                = binOp::getBit(cnum, 0);
+        bit[1]                = binOp::getBit(cnum, 1);
+        bit[2]                = binOp::getBit(cnum, 2);
+
+        const unsigned int ib = eleOrder * bit[0];
+        const unsigned int jb = eleOrder * bit[1];
+        const unsigned int kb = eleOrder * bit[2];
+
+        for (unsigned int k = kb; k < (kb + (eleOrder + 1)); k++)
+            for (unsigned int j = jb; j < (jb + (eleOrder + 1)); j++)
+                for (unsigned int i = ib; i < (ib + (eleOrder + 1)); i++)
+                    m_uiVOut[k * iny * inx + j * inx + i] =
+                        m_uiNVec[(k - kb) * np_1d * np_1d + (j - jb) * np_1d +
+                                 (i - ib)];
+    }
+
+    if (compute_relative_wc) {
+        wcount = 0;
+        for (unsigned int k = 0; k < m_uiCIndex.size(); k++)
+            for (unsigned int j = 0; j < m_uiCIndex.size(); j++)
+                for (unsigned int i = 0; i < m_uiCIndex.size(); i++, wcount++) {
+                    const unsigned int pp = m_uiCIndex[k] * (iny * inx) +
+                                            m_uiCIndex[j] * (inx) +
+                                            m_uiCIndex[i];
+                    wc[wcount] = fabs(m_uiVOut[pp] - in[pp]) /
+                                 std::max(in_min, fabs(in[pp]));
+                }
+    } else {
+        wcount = 0;
+        for (unsigned int k = 0; k < m_uiCIndex.size(); k++)
+            for (unsigned int j = 0; j < m_uiCIndex.size(); j++)
+                for (unsigned int i = 0; i < m_uiCIndex.size(); i++, wcount++) {
+                    const unsigned int pp = m_uiCIndex[k] * (iny * inx) +
+                                            m_uiCIndex[j] * (inx) +
+                                            m_uiCIndex[i];
+                    wc[wcount] = fabs(m_uiVOut[pp] - in[pp]);
+                }
+    }
+}
+
 }  // namespace wavelet

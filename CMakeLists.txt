@@ -275,6 +275,7 @@ if(BUILD_DENDRO_EXAMPLES)
   dendro_add_example(benchUnzipSameLevel test/src/benchUnzipSameLevel.cpp)
   dendro_add_example(benchUnzipGather test/src/benchUnzipGather.cpp)
   dendro_add_example(testStabilityEvolution test/src/testStabilityEvolution.cpp)
+  dendro_add_example(testIsReMeshUnzip test/src/testIsReMeshUnzip.cpp)
 
   dendro_add_example(testLTSBlkVec ODE/examples/testLTSBlkVec.cpp)
   dendro_add_example(dgVecTest FEM/examples/src/dgVecTest.cpp)

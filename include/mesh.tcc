@@ -2591,7 +2591,6 @@ bool Mesh::isReMeshUnzip(
 
     if (this->isActive()) {
         RefElement* refEl                     = &m_uiRefEl;
-        wavelet::WaveletEl* wrefEl            = new wavelet::WaveletEl(refEl);
 
         const std::vector<ot::Block>& blkList = this->getLocalBlockList();
         const unsigned int eOrder             = m_uiElementOrder;
@@ -2601,110 +2600,111 @@ bool Mesh::isReMeshUnzip(
         refine_flags.clear();
         refine_flags.resize(numLocalElements, OCT_NO_CHANGE);
 
-        std::vector<T> blkIn;
-        std::vector<double> wCout;
         const ot::TreeNode* pNodes = m_uiAllElements.data();
 
         std::vector<double> eleWMax;
         eleWMax.resize(numLocalElements, 0);
 
-        const unsigned int eleOfst = m_uiElementLocalBegin;
+        const unsigned int eleOfst    = m_uiElementLocalBegin;
+        const size_t n_blocks         = blkList.size();
+        const unsigned int nx_uniform = (2 * eOrder + 1);
+        const unsigned int sz_per_dof = nx_uniform * nx_uniform * nx_uniform;
+        const unsigned int isz_uniform[] = {nx_uniform, nx_uniform,
+                                            nx_uniform};
+        // size of im_vec1/im_vec2 the refEl needs for I3D_Parent2Child
+        const unsigned int nPe = (eOrder + 1) * (eOrder + 1) * (eOrder + 1);
 
-        for (unsigned int blk = 0; blk < blkList.size(); blk++) {
-            const unsigned int pw = blkList[blk].get1DPadWidth();
-            if ((eOrder >> 1u) != pw) {
-                std::cout << " padding width should be half the eleOrder for "
-                             "generic wavelet computations. "
-                          << std::endl;
-                MPI_Abort(this->getMPICommunicator(), 0);
-            }
+#if defined(DENDRO_UNZIP_OMP)
+        // Block-parallel: each thread owns its own WaveletEl (which has its
+        // own m_uiVIn/m_uiNVec/m_uiVOut workspaces) and its own im1/im2
+        // scratch for the underlying I3D_Parent2Child calls (passed via the
+        // thread-safe overload).
+        #pragma omp parallel
+        {
+            wavelet::WaveletEl wrefEl_tls(refEl);
+            std::vector<double> im1_tls(nPe), im2_tls(nPe);
+            std::vector<T> blkIn_tls(numVars * sz_per_dof);
+            std::vector<double> wCout_tls(sz_per_dof);
 
-            const unsigned int nx = (2 * eOrder + 1);
-            const unsigned int ny = (2 * eOrder + 1);
-            const unsigned int nz = (2 * eOrder + 1);
+            #pragma omp for schedule(dynamic, 1)
+            for (size_t blk = 0; blk < n_blocks; blk++) {
+#else
+        {
+            // serial fallback — reuse the same per-block scratch vectors
+            wavelet::WaveletEl wrefEl_tls(refEl);
+            std::vector<double> im1_tls(nPe), im2_tls(nPe);
+            std::vector<T> blkIn_tls(numVars * sz_per_dof);
+            std::vector<double> wCout_tls(sz_per_dof);
 
-            // std::cout<<"nx "<<nx<<std::endl;
-
-            blkIn.resize(numVars * nx * ny * nz);
-            const unsigned int isz[] = {nx, ny, nz};
-            const unsigned int bflag = blkList[blk].getBlkNodeFlag();
-
-            for (unsigned int ele = blkList[blk].getLocalElementBegin();
-                 ele < blkList[blk].getLocalElementEnd(); ele++) {
+            for (size_t blk = 0; blk < n_blocks; blk++) {
+#endif
                 const unsigned int pw = blkList[blk].get1DPadWidth();
-                const bool isBdyOct   = this->isBoundaryOctant(ele);
-
-                const double oct_dx =
-                    (1u << (m_uiMaxDepth - pNodes[ele].getLevel())) /
-                    (double(m_uiElementOrder));
-                Point oct_pt1 = Point(pNodes[ele].minX(), pNodes[ele].minY(),
-                                      pNodes[ele].minZ());
-                Point oct_pt2 = Point(pNodes[ele].minX() + oct_dx,
-                                      pNodes[ele].minY() + oct_dx,
-                                      pNodes[ele].minZ() + oct_dx);
-                Point domain_pt1, domain_pt2, dx_domain;
-                this->octCoordToDomainCoord(oct_pt1, domain_pt1);
-                this->octCoordToDomainCoord(oct_pt2, domain_pt2);
-                dx_domain    = domain_pt2 - domain_pt1;
-                double hx[3] = {dx_domain.x(), dx_domain.y(), dx_domain.z()};
-                const double tol_ele = wavelet_tol(
-                    domain_pt1.x(), domain_pt1.y(), domain_pt1.z(), hx);
-
-                if (!includeBdy && isBdyOct) {
-                    // tol small enough to not refine but not to coarsen .
-                    eleWMax[ele - eleOfst] = amr_coarse_fac * tol_ele + 1e-8;
-                    continue;
+                if ((eOrder >> 1u) != pw) {
+                    std::cout
+                        << " padding width should be half the eleOrder for "
+                           "generic wavelet computations. "
+                        << std::endl;
+                    MPI_Abort(this->getMPICommunicator(), 0);
                 }
 
-                for (unsigned int v = 0; v < numVars; v++) {
-                    const unsigned int vid = varIds[v];
-                    this->getUnzipElementalNodalValues(
-                        unzippedVec[vid], blk, ele,
-                        blkIn.data() + v * (nx * ny * nz), true);
-                }
+                for (unsigned int ele = blkList[blk].getLocalElementBegin();
+                     ele < blkList[blk].getLocalElementEnd(); ele++) {
+                    const bool isBdyOct = this->isBoundaryOctant(ele);
 
-                // eleWMax[ele -
-                // eleOfst]=wavelet::compute_element_wavelet(this,(const
-                // wavelet::WaveletEl*)&wrefEl,blkIn.data(),tol_ele,numVars,isBdyOct);
-                //  compute the wavelet
-                {
-                    double wMax           = 0.0;
+                    const double oct_dx =
+                        (1u << (m_uiMaxDepth - pNodes[ele].getLevel())) /
+                        (double(m_uiElementOrder));
+                    Point oct_pt1    = Point(pNodes[ele].minX(),
+                                             pNodes[ele].minY(),
+                                             pNodes[ele].minZ());
+                    Point oct_pt2    = Point(pNodes[ele].minX() + oct_dx,
+                                             pNodes[ele].minY() + oct_dx,
+                                             pNodes[ele].minZ() + oct_dx);
+                    Point domain_pt1, domain_pt2, dx_domain;
+                    this->octCoordToDomainCoord(oct_pt1, domain_pt1);
+                    this->octCoordToDomainCoord(oct_pt2, domain_pt2);
+                    dx_domain = domain_pt2 - domain_pt1;
+                    double hx[3] = {dx_domain.x(), dx_domain.y(),
+                                    dx_domain.z()};
+                    const double tol_ele = wavelet_tol(
+                        domain_pt1.x(), domain_pt1.y(), domain_pt1.z(), hx);
 
-                    const unsigned int nx = (2 * eOrder + 1);
-                    const unsigned int ny = (2 * eOrder + 1);
-                    const unsigned int nz = (2 * eOrder + 1);
-                    assert(pw == (eOrder >> 1u));
-
-                    const unsigned int sz_per_dof = nx * ny * nz;
-                    const unsigned int isz[]      = {nx, ny, nz};
-                    wCout.resize(sz_per_dof);
-
-                    const unsigned int dof = numVars;
-                    for (unsigned int v = 0; v < dof; v++) {
-                        wrefEl->compute_wavelets_3D(
-                            (double*)(blkIn.data() + v * sz_per_dof), isz,
-                            wCout, isBdyOct);
-                        const double l_max =
-                            (normL2(wCout.data(), wCout.size())) /
-                            sqrt(wCout.size());
-
-                        if (wMax < l_max) wMax = l_max;
-
-                        // for early bail out.
-                        if (wMax > tol_ele) break;
+                    if (!includeBdy && isBdyOct) {
+                        eleWMax[ele - eleOfst] =
+                            amr_coarse_fac * tol_ele + 1e-8;
+                        continue;
                     }
 
+                    for (unsigned int v = 0; v < numVars; v++) {
+                        const unsigned int vid = varIds[v];
+                        this->getUnzipElementalNodalValues(
+                            unzippedVec[vid], blk, ele,
+                            blkIn_tls.data() + v * sz_per_dof, true);
+                    }
+
+                    double wMax = 0.0;
+                    for (unsigned int v = 0; v < numVars; v++) {
+#if defined(DENDRO_UNZIP_OMP)
+                        // thread-safe variant (uses external im1/im2)
+                        wrefEl_tls.compute_wavelets_3D(
+                            (double*)(blkIn_tls.data() + v * sz_per_dof),
+                            isz_uniform, wCout_tls, isBdyOct, im1_tls.data(),
+                            im2_tls.data());
+#else
+                        wrefEl_tls.compute_wavelets_3D(
+                            (double*)(blkIn_tls.data() + v * sz_per_dof),
+                            isz_uniform, wCout_tls, isBdyOct);
+#endif
+                        const double l_max =
+                            (normL2(wCout_tls.data(), wCout_tls.size())) /
+                            sqrt((double)wCout_tls.size());
+                        if (wMax < l_max) wMax = l_max;
+                        if (wMax > tol_ele) break;
+                    }
                     eleWMax[ele - eleOfst] = wMax;
                 }
-
-                // if(isBdyOct)
-                // std::cout<<"ele :  "<<ele<<" eleWMax:
-                // "<<eleWMax[ele-eleOfst]<<std::endl;
             }
         }
-
-        // delete the wavelet reference element.
-        delete wrefEl;
 
         // mark elements for refinement first.
         for (unsigned int ele = m_uiElementLocalBegin;
