@@ -44,6 +44,7 @@
 #include "skey.h"
 #include "stencil.h"
 #include "testUtils.h"
+#include "mesh_unzip_scatter_kernels.h"
 #include "treenode2vtk.h"
 #include "wavelet.h"
 
@@ -1786,8 +1787,17 @@ class Mesh {
      * @param[in] jy: j-index of the node.
      * @param[in] kz: k-index of the node.
      * */
-    bool isNodeHanging(unsigned int eleID, unsigned int ix, unsigned int jy,
-                       unsigned int kz) const;
+    inline bool isNodeHanging(unsigned int eleID, unsigned int ix,
+                              unsigned int jy, unsigned int kz) const {
+        if (!m_uiIsActive) return false;
+        const unsigned int npe = m_uiNpE;
+        const unsigned int eo1 = m_uiElementOrder + 1;
+        const unsigned int dg_idx =
+            m_uiE2NMapping_DG[eleID * npe + kz * eo1 * eo1 + jy * eo1 + ix];
+        const unsigned int owner = dg_idx / npe;
+        return m_uiAllElements[owner].getLevel() <
+               m_uiAllElements[eleID].getLevel();
+    }
 
     /**
      * @brief: Returns true if the specified node (e,i,j,k) is local.

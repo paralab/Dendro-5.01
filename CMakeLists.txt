@@ -37,6 +37,15 @@ option(BUILD_WITH_PETSC "Build dendro with PETSc" OFF)
 option(USE_FD_INTERP_FOR_UNZIP "Use FD style interpolation for unzip" OFF)
 option(MPIX_CUDA_AWARE_SUPPORT "Allow MPI to be aware of CUDA support" OFF)
 option(DVEC_ZERO_ALLOC "Initialize dvec memory to zero" OFF)
+option(DENDRO_UNZIP_SCATTER_FAST
+       "Use the integer-index same-level scatter fast path in Mesh::unzip_scatter (Phase 1 optimization)"
+       OFF)
+option(DENDRO_UNZIP_OMP
+       "Enable OpenMP block-parallel unzip path (reserved hook; implementation lives on a separate hybrid branch)"
+       OFF)
+option(DENDRO_TENSOR_SIMD
+       "Enable AVX2 SIMD specializations for the wavelet tensor kernels in FEM/src/tensor.cpp (M=7 for eO=6)"
+       OFF)
 
 # Configuration Variables
 set(KWAY 128 CACHE STRING "K parameter for alltoallv_kway")
@@ -135,6 +144,9 @@ dendro_add_def(ALLTOALL_SPARSE ALLTOALL_SPARSE)
 dendro_add_def(RK_SOLVER_OVERLAP_COMM_AND_COMP RK_SOLVER_OVERLAP_COMM_AND_COMP)
 dendro_add_def(USE_FD_INTERP_FOR_UNZIP USE_FD_INTERP_FOR_UNZIP)
 dendro_add_def(DVEC_ZERO_ALLOC DVEC_ZERO_ALLOC)
+dendro_add_def(DENDRO_UNZIP_SCATTER_FAST DENDRO_UNZIP_SCATTER_FAST)
+dendro_add_def(DENDRO_UNZIP_OMP DENDRO_UNZIP_OMP)
+dendro_add_def(DENDRO_TENSOR_SIMD DENDRO_TENSOR_SIMD)
 
 if(ALLTOALLV_FIX)
   target_compile_definitions(dendro_config INTERFACE ALLTOALLV_FIX KWAY=${KWAY})
@@ -260,6 +272,8 @@ if(BUILD_DENDRO_EXAMPLES)
   dendro_add_example(meshE2NCheck examples/src/meshE2NCheck.cpp)
   dendro_add_example(run_all_tests test/src/run_all_tests.cpp)
   dendro_add_example(benchUtils test/src/benchUtils.cpp)
+  dendro_add_example(benchUnzipSameLevel test/src/benchUnzipSameLevel.cpp)
+  dendro_add_example(benchUnzipGather test/src/benchUnzipGather.cpp)
 
   dendro_add_example(testLTSBlkVec ODE/examples/testLTSBlkVec.cpp)
   dendro_add_example(dgVecTest FEM/examples/src/dgVecTest.cpp)

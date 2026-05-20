@@ -33,6 +33,9 @@
 
 # additional excludes
 build/
+build_*/
+CMakeCache.txt
+CMakeFiles/
 __pycache__
 kde
 .kdev4
