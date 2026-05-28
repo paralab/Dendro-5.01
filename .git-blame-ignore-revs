@@ -1,0 +1,7 @@
+# Commits listed here are skipped by `git blame` (mechanical, no logic changes).
+# Activate locally with:
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+# GitHub honors this file automatically.
+
+# style: clang-format first-party source tree (baseline reformat)
+15c50f757df0703d4c39bdb1fb423eacbaba0c3a

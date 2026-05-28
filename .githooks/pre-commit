@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+#
+# Pre-commit hook: enforce .clang-format on staged C/C++ changes.
+#
+# Only the *changed lines* are checked (via git-clang-format), so this never
+# mass-reflows untouched code in large files. To enable for your clone:
+#
+#     git config core.hooksPath .githooks
+#
+# NOTE: jj does not run git hooks. If you commit through jujutsu, this hook
+# will NOT fire — run scripts/format-changed.sh before squashing/pushing.
+
+set -euo pipefail
+
+exts="tcc,h,hpp,cpp,cc,c"
+
+if ! command -v git-clang-format >/dev/null 2>&1; then
+    echo "pre-commit: git-clang-format not found in PATH; skipping format check." >&2
+    exit 0
+fi
+if ! command -v clang-format >/dev/null 2>&1; then
+    echo "pre-commit: clang-format not found in PATH; skipping format check." >&2
+    exit 0
+fi
+
+# Diff of what clang-format would change in the staged content, changed lines only.
+fmt_diff="$(git clang-format --staged --diff --extensions "$exts" 2>/dev/null || true)"
+
+case "$fmt_diff" in
+    "" | "no modified files to format" | "clang-format did not modify any files")
+        exit 0
+        ;;
+esac
+
+echo "✗ clang-format: staged changes do not match .clang-format." >&2
+echo "  Fix with:" >&2
+echo "    git clang-format --staged --extensions $exts" >&2
+echo "  then re-stage the affected files and commit again." >&2
+exit 1
