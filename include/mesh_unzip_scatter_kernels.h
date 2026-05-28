@@ -16,6 +16,30 @@
 #include <immintrin.h>
 #endif
 
+// Opt-in build banner (-DDENDRO_REPORT_BUILD_CONFIG). Fires wherever this
+// header compiles, including the downstream solver build — where these
+// header-template flags actually take effect, not just at libdendro5 build.
+#if defined(DENDRO_REPORT_BUILD_CONFIG)
+#if defined(DENDRO_UNZIP_SCATTER_FAST)
+#pragma message("[dendro] unzip integer-index fast path : ENABLED")
+#else
+#pragma message( \
+    "[dendro] unzip integer-index fast path : disabled (build with -DDENDRO_UNZIP_SCATTER_FAST=ON)")
+#endif
+#if defined(DENDRO_TENSOR_SIMD)
+#pragma message("[dendro] wavelet SIMD tensor kernels   : ENABLED")
+#else
+#pragma message( \
+    "[dendro] wavelet SIMD tensor kernels   : disabled (build with -DDENDRO_TENSOR_SIMD=ON)")
+#endif
+#if defined(DENDRO_UNZIP_OMP)
+#pragma message("[dendro] OpenMP block-parallel unzip   : ENABLED")
+#else
+#pragma message( \
+    "[dendro] OpenMP block-parallel unzip   : disabled (build with -DDENDRO_UNZIP_OMP=ON)")
+#endif
+#endif  // DENDRO_REPORT_BUILD_CONFIG
+
 namespace dendro {
 namespace unzip {
 
