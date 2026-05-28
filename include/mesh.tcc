@@ -273,11 +273,11 @@ T* Mesh::createVector(std::function<T(T, T, T)> func) const {
                         dg2eijk(nodeLookUp_DG, ownerID, ii_x, jj_y, kk_z);
                         len = 1u << (m_uiMaxDepth - pNodes[ownerID].getLevel());
                         x   = pNodes[ownerID].getX() +
-                            ii_x * (len / ((double)m_uiElementOrder));
-                        y = pNodes[ownerID].getY() +
-                            jj_y * (len / ((double)m_uiElementOrder));
-                        z = pNodes[ownerID].getZ() +
-                            kk_z * (len / ((double)m_uiElementOrder));
+                              ii_x * (len / ((double)m_uiElementOrder));
+                        y   = pNodes[ownerID].getY() +
+                              jj_y * (len / ((double)m_uiElementOrder));
+                        z   = pNodes[ownerID].getZ() +
+                              kk_z * (len / ((double)m_uiElementOrder));
                         vec[nodeLookUp_CG] = func(x, y, z);
                     }
                 }
@@ -340,11 +340,11 @@ void Mesh::createVector(std::vector<T>& vec,
                         dg2eijk(nodeLookUp_DG, ownerID, ii_x, jj_y, kk_z);
                         len = 1u << (m_uiMaxDepth - pNodes[ownerID].getLevel());
                         x   = pNodes[ownerID].getX() +
-                            ii_x * (len / ((double)m_uiElementOrder));
-                        y = pNodes[ownerID].getY() +
-                            jj_y * (len / ((double)m_uiElementOrder));
-                        z = pNodes[ownerID].getZ() +
-                            kk_z * (len / ((double)m_uiElementOrder));
+                              ii_x * (len / ((double)m_uiElementOrder));
+                        y   = pNodes[ownerID].getY() +
+                              jj_y * (len / ((double)m_uiElementOrder));
+                        z   = pNodes[ownerID].getZ() +
+                              kk_z * (len / ((double)m_uiElementOrder));
                         vec[nodeLookUp_CG] = func(x, y, z);
                     }
                 }
@@ -1036,9 +1036,9 @@ void Mesh::readFromGhostBeginElementVec(T* vec, unsigned int dof) {
     if (this->isActive()) {
         const unsigned int activeNpes = m_uiActiveNpes;
         const unsigned int sendBSz    = m_uiSendEleOffset[activeNpes - 1] +
-                                     m_uiSendEleCount[activeNpes - 1];
-        const unsigned int recvBSz = m_uiRecvEleOffset[activeNpes - 1] +
-                                     m_uiRecvEleCount[activeNpes - 1];
+                                        m_uiSendEleCount[activeNpes - 1];
+        const unsigned int recvBSz    = m_uiRecvEleOffset[activeNpes - 1] +
+                                        m_uiRecvEleCount[activeNpes - 1];
         unsigned int proc_id;
 
         AsyncExchangeContex ctx(vec);
@@ -1113,9 +1113,9 @@ void Mesh::readFromGhostEndElementVec(T* vec, unsigned int dof) {
     if (this->isActive()) {
         const unsigned int activeNpes = m_uiActiveNpes;
         const unsigned int sendBSz    = m_uiSendEleOffset[activeNpes - 1] +
-                                     m_uiSendEleCount[activeNpes - 1];
-        const unsigned int recvBSz = m_uiRecvEleOffset[activeNpes - 1] +
-                                     m_uiRecvEleCount[activeNpes - 1];
+                                        m_uiSendEleCount[activeNpes - 1];
+        const unsigned int recvBSz    = m_uiRecvEleOffset[activeNpes - 1] +
+                                        m_uiRecvEleCount[activeNpes - 1];
         unsigned int proc_id;
 
         int ctxIndex = -1;
@@ -1190,11 +1190,11 @@ void Mesh::readFromGhostBeginEleDGVec(T* vec, unsigned int dof) {
     if (this->isActive()) {
         const unsigned int activeNpes = m_uiActiveNpes;
         const unsigned int sendBSz    = (m_uiSendEleOffset[activeNpes - 1] +
-                                      m_uiSendEleCount[activeNpes - 1]) *
-                                     m_uiNpE;
-        const unsigned int recvBSz = (m_uiRecvEleOffset[activeNpes - 1] +
-                                      m_uiRecvEleCount[activeNpes - 1]) *
-                                     m_uiNpE;
+                                         m_uiSendEleCount[activeNpes - 1]) *
+                                        m_uiNpE;
+        const unsigned int recvBSz    = (m_uiRecvEleOffset[activeNpes - 1] +
+                                         m_uiRecvEleCount[activeNpes - 1]) *
+                                        m_uiNpE;
         unsigned int proc_id;
 
         AsyncExchangeContex ctx(vec);
@@ -1276,11 +1276,11 @@ void Mesh::readFromGhostEndEleDGVec(T* vec, unsigned int dof) {
     if (this->isActive()) {
         const unsigned int activeNpes = m_uiActiveNpes;
         const unsigned int sendBSz    = (m_uiSendEleOffset[activeNpes - 1] +
-                                      m_uiSendEleCount[activeNpes - 1]) *
-                                     m_uiNpE;
-        const unsigned int recvBSz = (m_uiRecvEleOffset[activeNpes - 1] +
-                                      m_uiRecvEleCount[activeNpes - 1]) *
-                                     m_uiNpE;
+                                         m_uiSendEleCount[activeNpes - 1]) *
+                                        m_uiNpE;
+        const unsigned int recvBSz    = (m_uiRecvEleOffset[activeNpes - 1] +
+                                         m_uiRecvEleCount[activeNpes - 1]) *
+                                        m_uiNpE;
         unsigned int proc_id;
 
         int ctxIndex = -1;
@@ -1772,7 +1772,7 @@ void Mesh::applyStencil(const std::vector<T>& in, std::vector<T>& out,
         // h=((1u<<(m_uiMaxDepth))*m_uiElementOrder)/((0.5-(-0.5)) *
         // ((1u<<(regLev-blkNode.getLevel()))));
         h         = ((blkNode.maxX() - blkNode.minX())) /
-            ((1u << (regLev - blkNode.getLevel())) * m_uiElementOrder);
+                    ((1u << (regLev - blkNode.getLevel())) * m_uiElementOrder);
         h         = 1.0 / h;
         blkNpe_1D = m_uiElementOrder * (1u << (regLev - blkNode.getLevel())) +
                     1 + 2 * paddWidth;
@@ -1785,9 +1785,9 @@ void Mesh::applyStencil(const std::vector<T>& in, std::vector<T>& out,
                                ((1u << (regLev - blkNode.getLevel())) *
                                 m_uiElementOrder) ==
                            0);
-                    sz = ((blkNode.maxX() - blkNode.minX())) /
-                         ((1u << (regLev - blkNode.getLevel())) *
-                          m_uiElementOrder);
+                    sz    = ((blkNode.maxX() - blkNode.minX())) /
+                            ((1u << (regLev - blkNode.getLevel())) *
+                             m_uiElementOrder);
                     regSz = 1u << (m_uiMaxDepth - regLev);
 
                     if ((i > paddWidth && i < (blkNpe_1D - paddWidth - 1)) &&
@@ -1979,9 +1979,9 @@ void Mesh::applyStencil(const std::vector<T>& in, std::vector<T>& out,
             // h=((1u<<(m_uiMaxDepth))*m_uiElementOrder)/((0.5-(-0.5)) *
             // ((1u<<(regLev-blkNode.getLevel()))));
             h         = ((blkNode.maxX() - blkNode.minX())) /
-                ((double)(1u << (regLev - blkNode.getLevel())) *
-                 m_uiElementOrder);
-            h = 1.0 / h;
+                        ((double)(1u << (regLev - blkNode.getLevel())) *
+                         m_uiElementOrder);
+            h         = 1.0 / h;
             blkNpe_1D =
                 m_uiElementOrder * (1u << (regLev - blkNode.getLevel())) + 1 +
                 2 * paddWidth;
@@ -2152,9 +2152,9 @@ void Mesh::applyStencil(const std::vector<T>& in, std::vector<T>& out,
             paddWidth = m_uiLocalBlockList[blk].get1DPadWidth();
 
             h         = ((blkNode.maxY() - blkNode.minY())) /
-                ((double)(1u << (regLev - blkNode.getLevel())) *
-                 m_uiElementOrder);
-            h = 1.0 / h;
+                        ((double)(1u << (regLev - blkNode.getLevel())) *
+                         m_uiElementOrder);
+            h         = 1.0 / h;
             blkNpe_1D =
                 m_uiElementOrder * (1u << (regLev - blkNode.getLevel())) + 1 +
                 2 * paddWidth;
@@ -2337,9 +2337,9 @@ void Mesh::applyStencil(const std::vector<T>& in, std::vector<T>& out,
             paddWidth = m_uiLocalBlockList[blk].get1DPadWidth();
 
             h         = ((blkNode.maxZ() - blkNode.minZ())) /
-                ((double)(1u << (regLev - blkNode.getLevel())) *
-                 m_uiElementOrder);
-            h = 1.0 / h;
+                        ((double)(1u << (regLev - blkNode.getLevel())) *
+                         m_uiElementOrder);
+            h         = 1.0 / h;
             blkNpe_1D =
                 m_uiElementOrder * (1u << (regLev - blkNode.getLevel())) + 1 +
                 2 * paddWidth;
@@ -4648,14 +4648,14 @@ void Mesh::OCT_DIR_LEFT_DOWN_Unzip(const ot::Block& blk, const T* zippedVec,
     const unsigned int regLev     = blk.getRegularGridLev();
     const unsigned int blkElem_1D = 1u
                                     << (regLev - blk.getBlockNode().getLevel());
-    const unsigned int paddWidth = blk.get1DPadWidth();
-    const unsigned int offset    = blk.getOffset();
-    const unsigned int lx        = blk.getAllocationSzX();
-    const unsigned int ly        = blk.getAllocationSzY();
-    const unsigned int lz        = blk.getAllocationSzZ();
+    const unsigned int paddWidth  = blk.get1DPadWidth();
+    const unsigned int offset     = blk.getOffset();
+    const unsigned int lx         = blk.getAllocationSzX();
+    const unsigned int ly         = blk.getAllocationSzY();
+    const unsigned int lz         = blk.getAllocationSzZ();
 
-    unsigned int edgeCount       = 0;
-    const unsigned int edgeDir   = (OCT_DIR_LEFT_DOWN - EDGE_OFFSET);
+    unsigned int edgeCount        = 0;
+    const unsigned int edgeDir    = (OCT_DIR_LEFT_DOWN - EDGE_OFFSET);
     lookUp = blk2diagMap[edgeDir * (2 * blkElem_1D) + 2 * edgeCount];
     if (lookUp == LOOK_UP_TABLE_DEFAULT) return;
 
@@ -4899,14 +4899,14 @@ void Mesh::OCT_DIR_LEFT_UP_Unzip(const ot::Block& blk, const T* zippedVec,
     const unsigned int regLev     = blk.getRegularGridLev();
     const unsigned int blkElem_1D = 1u
                                     << (regLev - blk.getBlockNode().getLevel());
-    const unsigned int paddWidth = blk.get1DPadWidth();
-    const unsigned int offset    = blk.getOffset();
-    const unsigned int lx        = blk.getAllocationSzX();
-    const unsigned int ly        = blk.getAllocationSzY();
-    const unsigned int lz        = blk.getAllocationSzZ();
+    const unsigned int paddWidth  = blk.get1DPadWidth();
+    const unsigned int offset     = blk.getOffset();
+    const unsigned int lx         = blk.getAllocationSzX();
+    const unsigned int ly         = blk.getAllocationSzY();
+    const unsigned int lz         = blk.getAllocationSzZ();
 
-    unsigned int edgeCount       = 0;
-    const unsigned int edgeDir   = (OCT_DIR_LEFT_UP - EDGE_OFFSET);
+    unsigned int edgeCount        = 0;
+    const unsigned int edgeDir    = (OCT_DIR_LEFT_UP - EDGE_OFFSET);
     lookUp = blk2diagMap[edgeDir * (2 * blkElem_1D) + 2 * edgeCount];
     if (lookUp == LOOK_UP_TABLE_DEFAULT) return;
 
@@ -5145,14 +5145,14 @@ void Mesh::OCT_DIR_LEFT_BACK_Unzip(const ot::Block& blk, const T* zippedVec,
     const unsigned int regLev     = blk.getRegularGridLev();
     const unsigned int blkElem_1D = 1u
                                     << (regLev - blk.getBlockNode().getLevel());
-    const unsigned int paddWidth = blk.get1DPadWidth();
-    const unsigned int offset    = blk.getOffset();
-    const unsigned int lx        = blk.getAllocationSzX();
-    const unsigned int ly        = blk.getAllocationSzY();
-    const unsigned int lz        = blk.getAllocationSzZ();
+    const unsigned int paddWidth  = blk.get1DPadWidth();
+    const unsigned int offset     = blk.getOffset();
+    const unsigned int lx         = blk.getAllocationSzX();
+    const unsigned int ly         = blk.getAllocationSzY();
+    const unsigned int lz         = blk.getAllocationSzZ();
 
-    unsigned int edgeCount       = 0;
-    const unsigned int edgeDir   = (OCT_DIR_LEFT_BACK - EDGE_OFFSET);
+    unsigned int edgeCount        = 0;
+    const unsigned int edgeDir    = (OCT_DIR_LEFT_BACK - EDGE_OFFSET);
     lookUp = blk2diagMap[edgeDir * (2 * blkElem_1D) + 2 * edgeCount];
     if (lookUp == LOOK_UP_TABLE_DEFAULT) return;
 
@@ -5392,14 +5392,14 @@ void Mesh::OCT_DIR_LEFT_FRONT_Unzip(const ot::Block& blk, const T* zippedVec,
     const unsigned int regLev     = blk.getRegularGridLev();
     const unsigned int blkElem_1D = 1u
                                     << (regLev - blk.getBlockNode().getLevel());
-    const unsigned int paddWidth = blk.get1DPadWidth();
-    const unsigned int offset    = blk.getOffset();
-    const unsigned int lx        = blk.getAllocationSzX();
-    const unsigned int ly        = blk.getAllocationSzY();
-    const unsigned int lz        = blk.getAllocationSzZ();
+    const unsigned int paddWidth  = blk.get1DPadWidth();
+    const unsigned int offset     = blk.getOffset();
+    const unsigned int lx         = blk.getAllocationSzX();
+    const unsigned int ly         = blk.getAllocationSzY();
+    const unsigned int lz         = blk.getAllocationSzZ();
 
-    unsigned int edgeCount       = 0;
-    const unsigned int edgeDir   = (OCT_DIR_LEFT_FRONT - EDGE_OFFSET);
+    unsigned int edgeCount        = 0;
+    const unsigned int edgeDir    = (OCT_DIR_LEFT_FRONT - EDGE_OFFSET);
     lookUp = blk2diagMap[edgeDir * (2 * blkElem_1D) + 2 * edgeCount];
     if (lookUp == LOOK_UP_TABLE_DEFAULT) return;
 
@@ -5639,14 +5639,14 @@ void Mesh::OCT_DIR_RIGHT_DOWN_Unzip(const ot::Block& blk, const T* zippedVec,
     const unsigned int regLev     = blk.getRegularGridLev();
     const unsigned int blkElem_1D = 1u
                                     << (regLev - blk.getBlockNode().getLevel());
-    const unsigned int paddWidth = blk.get1DPadWidth();
-    const unsigned int offset    = blk.getOffset();
-    const unsigned int lx        = blk.getAllocationSzX();
-    const unsigned int ly        = blk.getAllocationSzY();
-    const unsigned int lz        = blk.getAllocationSzZ();
+    const unsigned int paddWidth  = blk.get1DPadWidth();
+    const unsigned int offset     = blk.getOffset();
+    const unsigned int lx         = blk.getAllocationSzX();
+    const unsigned int ly         = blk.getAllocationSzY();
+    const unsigned int lz         = blk.getAllocationSzZ();
 
-    unsigned int edgeCount       = 0;
-    const unsigned int edgeDir   = (OCT_DIR_RIGHT_DOWN - EDGE_OFFSET);
+    unsigned int edgeCount        = 0;
+    const unsigned int edgeDir    = (OCT_DIR_RIGHT_DOWN - EDGE_OFFSET);
     lookUp = blk2diagMap[edgeDir * (2 * blkElem_1D) + 2 * edgeCount];
     if (lookUp == LOOK_UP_TABLE_DEFAULT) return;
 
@@ -5888,14 +5888,14 @@ void Mesh::OCT_DIR_RIGHT_UP_Unzip(const ot::Block& blk, const T* zippedVec,
     const unsigned int regLev     = blk.getRegularGridLev();
     const unsigned int blkElem_1D = 1u
                                     << (regLev - blk.getBlockNode().getLevel());
-    const unsigned int paddWidth = blk.get1DPadWidth();
-    const unsigned int offset    = blk.getOffset();
-    const unsigned int lx        = blk.getAllocationSzX();
-    const unsigned int ly        = blk.getAllocationSzY();
-    const unsigned int lz        = blk.getAllocationSzZ();
+    const unsigned int paddWidth  = blk.get1DPadWidth();
+    const unsigned int offset     = blk.getOffset();
+    const unsigned int lx         = blk.getAllocationSzX();
+    const unsigned int ly         = blk.getAllocationSzY();
+    const unsigned int lz         = blk.getAllocationSzZ();
 
-    unsigned int edgeCount       = 0;
-    const unsigned int edgeDir   = (OCT_DIR_RIGHT_UP - EDGE_OFFSET);
+    unsigned int edgeCount        = 0;
+    const unsigned int edgeDir    = (OCT_DIR_RIGHT_UP - EDGE_OFFSET);
     lookUp = blk2diagMap[edgeDir * (2 * blkElem_1D) + 2 * edgeCount];
     if (lookUp == LOOK_UP_TABLE_DEFAULT) return;
 
@@ -6132,14 +6132,14 @@ void Mesh::OCT_DIR_RIGHT_BACK_Unzip(const ot::Block& blk, const T* zippedVec,
     const unsigned int regLev     = blk.getRegularGridLev();
     const unsigned int blkElem_1D = 1u
                                     << (regLev - blk.getBlockNode().getLevel());
-    const unsigned int paddWidth = blk.get1DPadWidth();
-    const unsigned int offset    = blk.getOffset();
-    const unsigned int lx        = blk.getAllocationSzX();
-    const unsigned int ly        = blk.getAllocationSzY();
-    const unsigned int lz        = blk.getAllocationSzZ();
+    const unsigned int paddWidth  = blk.get1DPadWidth();
+    const unsigned int offset     = blk.getOffset();
+    const unsigned int lx         = blk.getAllocationSzX();
+    const unsigned int ly         = blk.getAllocationSzY();
+    const unsigned int lz         = blk.getAllocationSzZ();
 
-    unsigned int edgeCount       = 0;
-    const unsigned int edgeDir   = (OCT_DIR_RIGHT_BACK - EDGE_OFFSET);
+    unsigned int edgeCount        = 0;
+    const unsigned int edgeDir    = (OCT_DIR_RIGHT_BACK - EDGE_OFFSET);
     lookUp = blk2diagMap[edgeDir * (2 * blkElem_1D) + 2 * edgeCount];
     if (lookUp == LOOK_UP_TABLE_DEFAULT) return;
 
@@ -6379,14 +6379,14 @@ void Mesh::OCT_DIR_RIGHT_FRONT_Unzip(const ot::Block& blk, const T* zippedVec,
     const unsigned int regLev     = blk.getRegularGridLev();
     const unsigned int blkElem_1D = 1u
                                     << (regLev - blk.getBlockNode().getLevel());
-    const unsigned int paddWidth = blk.get1DPadWidth();
-    const unsigned int offset    = blk.getOffset();
-    const unsigned int lx        = blk.getAllocationSzX();
-    const unsigned int ly        = blk.getAllocationSzY();
-    const unsigned int lz        = blk.getAllocationSzZ();
+    const unsigned int paddWidth  = blk.get1DPadWidth();
+    const unsigned int offset     = blk.getOffset();
+    const unsigned int lx         = blk.getAllocationSzX();
+    const unsigned int ly         = blk.getAllocationSzY();
+    const unsigned int lz         = blk.getAllocationSzZ();
 
-    unsigned int edgeCount       = 0;
-    const unsigned int edgeDir   = (OCT_DIR_RIGHT_FRONT - EDGE_OFFSET);
+    unsigned int edgeCount        = 0;
+    const unsigned int edgeDir    = (OCT_DIR_RIGHT_FRONT - EDGE_OFFSET);
     lookUp = blk2diagMap[edgeDir * (2 * blkElem_1D) + 2 * edgeCount];
     if (lookUp == LOOK_UP_TABLE_DEFAULT) return;
 
@@ -6625,14 +6625,14 @@ void Mesh::OCT_DIR_DOWN_BACK_Unzip(const ot::Block& blk, const T* zippedVec,
     const unsigned int regLev     = blk.getRegularGridLev();
     const unsigned int blkElem_1D = 1u
                                     << (regLev - blk.getBlockNode().getLevel());
-    const unsigned int paddWidth = blk.get1DPadWidth();
-    const unsigned int offset    = blk.getOffset();
-    const unsigned int lx        = blk.getAllocationSzX();
-    const unsigned int ly        = blk.getAllocationSzY();
-    const unsigned int lz        = blk.getAllocationSzZ();
+    const unsigned int paddWidth  = blk.get1DPadWidth();
+    const unsigned int offset     = blk.getOffset();
+    const unsigned int lx         = blk.getAllocationSzX();
+    const unsigned int ly         = blk.getAllocationSzY();
+    const unsigned int lz         = blk.getAllocationSzZ();
 
-    unsigned int edgeCount       = 0;
-    const unsigned int edgeDir   = (OCT_DIR_DOWN_BACK - EDGE_OFFSET);
+    unsigned int edgeCount        = 0;
+    const unsigned int edgeDir    = (OCT_DIR_DOWN_BACK - EDGE_OFFSET);
     lookUp = blk2diagMap[edgeDir * (2 * blkElem_1D) + 2 * edgeCount];
     if (lookUp == LOOK_UP_TABLE_DEFAULT) return;
 
@@ -6873,14 +6873,14 @@ void Mesh::OCT_DIR_DOWN_FRONT_Unzip(const ot::Block& blk, const T* zippedVec,
     const unsigned int regLev     = blk.getRegularGridLev();
     const unsigned int blkElem_1D = 1u
                                     << (regLev - blk.getBlockNode().getLevel());
-    const unsigned int paddWidth = blk.get1DPadWidth();
-    const unsigned int offset    = blk.getOffset();
-    const unsigned int lx        = blk.getAllocationSzX();
-    const unsigned int ly        = blk.getAllocationSzY();
-    const unsigned int lz        = blk.getAllocationSzZ();
+    const unsigned int paddWidth  = blk.get1DPadWidth();
+    const unsigned int offset     = blk.getOffset();
+    const unsigned int lx         = blk.getAllocationSzX();
+    const unsigned int ly         = blk.getAllocationSzY();
+    const unsigned int lz         = blk.getAllocationSzZ();
 
-    unsigned int edgeCount       = 0;
-    const unsigned int edgeDir   = (OCT_DIR_DOWN_FRONT - EDGE_OFFSET);
+    unsigned int edgeCount        = 0;
+    const unsigned int edgeDir    = (OCT_DIR_DOWN_FRONT - EDGE_OFFSET);
     lookUp = blk2diagMap[edgeDir * (2 * blkElem_1D) + 2 * edgeCount];
     if (lookUp == LOOK_UP_TABLE_DEFAULT) return;
 
@@ -7119,14 +7119,14 @@ void Mesh::OCT_DIR_UP_BACK_Unzip(const ot::Block& blk, const T* zippedVec,
     const unsigned int regLev     = blk.getRegularGridLev();
     const unsigned int blkElem_1D = 1u
                                     << (regLev - blk.getBlockNode().getLevel());
-    const unsigned int paddWidth = blk.get1DPadWidth();
-    const unsigned int offset    = blk.getOffset();
-    const unsigned int lx        = blk.getAllocationSzX();
-    const unsigned int ly        = blk.getAllocationSzY();
-    const unsigned int lz        = blk.getAllocationSzZ();
+    const unsigned int paddWidth  = blk.get1DPadWidth();
+    const unsigned int offset     = blk.getOffset();
+    const unsigned int lx         = blk.getAllocationSzX();
+    const unsigned int ly         = blk.getAllocationSzY();
+    const unsigned int lz         = blk.getAllocationSzZ();
 
-    unsigned int edgeCount       = 0;
-    const unsigned int edgeDir   = (OCT_DIR_UP_BACK - EDGE_OFFSET);
+    unsigned int edgeCount        = 0;
+    const unsigned int edgeDir    = (OCT_DIR_UP_BACK - EDGE_OFFSET);
     lookUp = blk2diagMap[edgeDir * (2 * blkElem_1D) + 2 * edgeCount];
     if (lookUp == LOOK_UP_TABLE_DEFAULT) return;
 
@@ -7367,14 +7367,14 @@ void Mesh::OCT_DIR_UP_FRONT_Unzip(const ot::Block& blk, const T* zippedVec,
     const unsigned int regLev     = blk.getRegularGridLev();
     const unsigned int blkElem_1D = 1u
                                     << (regLev - blk.getBlockNode().getLevel());
-    const unsigned int paddWidth = blk.get1DPadWidth();
-    const unsigned int offset    = blk.getOffset();
-    const unsigned int lx        = blk.getAllocationSzX();
-    const unsigned int ly        = blk.getAllocationSzY();
-    const unsigned int lz        = blk.getAllocationSzZ();
+    const unsigned int paddWidth  = blk.get1DPadWidth();
+    const unsigned int offset     = blk.getOffset();
+    const unsigned int lx         = blk.getAllocationSzX();
+    const unsigned int ly         = blk.getAllocationSzY();
+    const unsigned int lz         = blk.getAllocationSzZ();
 
-    unsigned int edgeCount       = 0;
-    const unsigned int edgeDir   = (OCT_DIR_UP_FRONT - EDGE_OFFSET);
+    unsigned int edgeCount        = 0;
+    const unsigned int edgeDir    = (OCT_DIR_UP_FRONT - EDGE_OFFSET);
     lookUp = blk2diagMap[edgeDir * (2 * blkElem_1D) + 2 * edgeCount];
     if (lookUp == LOOK_UP_TABLE_DEFAULT) return;
 
@@ -7781,30 +7781,30 @@ void Mesh::OCT_DIR_RIGHT_DOWN_BACK_Unzip(const ot::Block& blk,
     const unsigned int blkElem_1D = 1u
                                     << (regLev - blk.getBlockNode().getLevel());
 
-    const unsigned int paddWidth = blk.get1DPadWidth();
-    const unsigned int sz        = 1u << (m_uiMaxDepth - regLev);
-    const ot::TreeNode blkNode   = blk.getBlockNode();
+    const unsigned int paddWidth  = blk.get1DPadWidth();
+    const unsigned int sz         = 1u << (m_uiMaxDepth - regLev);
+    const ot::TreeNode blkNode    = blk.getBlockNode();
 
-    const unsigned int ei        = blkElem_1D - 1;
-    const unsigned int ej        = 0;
-    const unsigned int ek        = 0;
+    const unsigned int ei         = blkElem_1D - 1;
+    const unsigned int ej         = 0;
+    const unsigned int ek         = 0;
 
-    const unsigned int lx        = blk.getAllocationSzX();
-    const unsigned int ly        = blk.getAllocationSzY();
-    const unsigned int lz        = blk.getAllocationSzZ();
+    const unsigned int lx         = blk.getAllocationSzX();
+    const unsigned int ly         = blk.getAllocationSzY();
+    const unsigned int lz         = blk.getAllocationSzZ();
 
-    const int i_offset           = (m_uiElementOrder + paddWidth);
-    const int j_offset           = -(m_uiElementOrder - paddWidth);
-    const int k_offset           = -(m_uiElementOrder - paddWidth);
+    const int i_offset            = (m_uiElementOrder + paddWidth);
+    const int j_offset            = -(m_uiElementOrder - paddWidth);
+    const int k_offset            = -(m_uiElementOrder - paddWidth);
 
-    const unsigned int kb        = (m_uiElementOrder - paddWidth);
-    const unsigned int ke        = (m_uiElementOrder + 1);
+    const unsigned int kb         = (m_uiElementOrder - paddWidth);
+    const unsigned int ke         = (m_uiElementOrder + 1);
 
-    const unsigned int jb        = (m_uiElementOrder - paddWidth);
-    const unsigned int je        = (m_uiElementOrder + 1);
+    const unsigned int jb         = (m_uiElementOrder - paddWidth);
+    const unsigned int je         = (m_uiElementOrder + 1);
 
-    const unsigned int ib        = 0;
-    const unsigned int ie        = paddWidth + 1;
+    const unsigned int ib         = 0;
+    const unsigned int ie         = paddWidth + 1;
 
     unsigned int cnum;
     bool isHanging;
@@ -7944,30 +7944,30 @@ void Mesh::OCT_DIR_LEFT_UP_BACK_Unzip(const ot::Block& blk, const T* zippedVec,
     const unsigned int blkElem_1D = 1u
                                     << (regLev - blk.getBlockNode().getLevel());
 
-    const unsigned int paddWidth = blk.get1DPadWidth();
-    const unsigned int sz        = 1u << (m_uiMaxDepth - regLev);
-    const ot::TreeNode blkNode   = blk.getBlockNode();
+    const unsigned int paddWidth  = blk.get1DPadWidth();
+    const unsigned int sz         = 1u << (m_uiMaxDepth - regLev);
+    const ot::TreeNode blkNode    = blk.getBlockNode();
 
-    const unsigned int ei        = 0;
-    const unsigned int ej        = blkElem_1D - 1;
-    const unsigned int ek        = 0;
+    const unsigned int ei         = 0;
+    const unsigned int ej         = blkElem_1D - 1;
+    const unsigned int ek         = 0;
 
-    const unsigned int lx        = blk.getAllocationSzX();
-    const unsigned int ly        = blk.getAllocationSzY();
-    const unsigned int lz        = blk.getAllocationSzZ();
+    const unsigned int lx         = blk.getAllocationSzX();
+    const unsigned int ly         = blk.getAllocationSzY();
+    const unsigned int lz         = blk.getAllocationSzZ();
 
-    const int i_offset           = -(m_uiElementOrder - paddWidth);
-    const int j_offset           = (m_uiElementOrder + paddWidth);
-    const int k_offset           = -(m_uiElementOrder - paddWidth);
+    const int i_offset            = -(m_uiElementOrder - paddWidth);
+    const int j_offset            = (m_uiElementOrder + paddWidth);
+    const int k_offset            = -(m_uiElementOrder - paddWidth);
 
-    const unsigned int kb        = (m_uiElementOrder - paddWidth);
-    const unsigned int ke        = (m_uiElementOrder + 1);
+    const unsigned int kb         = (m_uiElementOrder - paddWidth);
+    const unsigned int ke         = (m_uiElementOrder + 1);
 
-    const unsigned int jb        = 0;
-    const unsigned int je        = paddWidth + 1;
+    const unsigned int jb         = 0;
+    const unsigned int je         = paddWidth + 1;
 
-    const unsigned int ib        = (m_uiElementOrder - paddWidth);
-    const unsigned int ie        = (m_uiElementOrder + 1);
+    const unsigned int ib         = (m_uiElementOrder - paddWidth);
+    const unsigned int ie         = (m_uiElementOrder + 1);
 
     unsigned int cnum;
     bool isHanging;
@@ -8107,30 +8107,30 @@ void Mesh::OCT_DIR_RIGHT_UP_BACK_Unzip(const ot::Block& blk, const T* zippedVec,
     const unsigned int blkElem_1D = 1u
                                     << (regLev - blk.getBlockNode().getLevel());
 
-    const unsigned int paddWidth = blk.get1DPadWidth();
-    const unsigned int sz        = 1u << (m_uiMaxDepth - regLev);
-    const ot::TreeNode blkNode   = blk.getBlockNode();
+    const unsigned int paddWidth  = blk.get1DPadWidth();
+    const unsigned int sz         = 1u << (m_uiMaxDepth - regLev);
+    const ot::TreeNode blkNode    = blk.getBlockNode();
 
-    const unsigned int ei        = blkElem_1D - 1;
-    const unsigned int ej        = blkElem_1D - 1;
-    const unsigned int ek        = 0;
+    const unsigned int ei         = blkElem_1D - 1;
+    const unsigned int ej         = blkElem_1D - 1;
+    const unsigned int ek         = 0;
 
-    const unsigned int lx        = blk.getAllocationSzX();
-    const unsigned int ly        = blk.getAllocationSzY();
-    const unsigned int lz        = blk.getAllocationSzZ();
+    const unsigned int lx         = blk.getAllocationSzX();
+    const unsigned int ly         = blk.getAllocationSzY();
+    const unsigned int lz         = blk.getAllocationSzZ();
 
-    const int i_offset           = (m_uiElementOrder + paddWidth);
-    const int j_offset           = (m_uiElementOrder + paddWidth);
-    const int k_offset           = -(m_uiElementOrder - paddWidth);
+    const int i_offset            = (m_uiElementOrder + paddWidth);
+    const int j_offset            = (m_uiElementOrder + paddWidth);
+    const int k_offset            = -(m_uiElementOrder - paddWidth);
 
-    const unsigned int kb        = (m_uiElementOrder - paddWidth);
-    const unsigned int ke        = (m_uiElementOrder + 1);
+    const unsigned int kb         = (m_uiElementOrder - paddWidth);
+    const unsigned int ke         = (m_uiElementOrder + 1);
 
-    const unsigned int jb        = 0;
-    const unsigned int je        = paddWidth + 1;
+    const unsigned int jb         = 0;
+    const unsigned int je         = paddWidth + 1;
 
-    const unsigned int ib        = 0;
-    const unsigned int ie        = paddWidth + 1;
+    const unsigned int ib         = 0;
+    const unsigned int ie         = paddWidth + 1;
 
     unsigned int cnum;
     bool isHanging;
@@ -8275,26 +8275,26 @@ void Mesh::OCT_DIR_LEFT_DOWN_FRONT_Unzip(const ot::Block& blk,
     const unsigned int blkElem_1D = 1u
                                     << (regLev - blk.getBlockNode().getLevel());
 
-    const unsigned int ei = 0;
-    const unsigned int ej = 0;
-    const unsigned int ek = blkElem_1D - 1;
+    const unsigned int ei         = 0;
+    const unsigned int ej         = 0;
+    const unsigned int ek         = blkElem_1D - 1;
 
-    const unsigned int lx = blk.getAllocationSzX();
-    const unsigned int ly = blk.getAllocationSzY();
-    const unsigned int lz = blk.getAllocationSzZ();
+    const unsigned int lx         = blk.getAllocationSzX();
+    const unsigned int ly         = blk.getAllocationSzY();
+    const unsigned int lz         = blk.getAllocationSzZ();
 
-    const int i_offset    = -(m_uiElementOrder - paddWidth);
-    const int j_offset    = -(m_uiElementOrder - paddWidth);
-    const int k_offset    = (m_uiElementOrder + paddWidth);
+    const int i_offset            = -(m_uiElementOrder - paddWidth);
+    const int j_offset            = -(m_uiElementOrder - paddWidth);
+    const int k_offset            = (m_uiElementOrder + paddWidth);
 
-    const unsigned int kb = 0;
-    const unsigned int ke = paddWidth + 1;
+    const unsigned int kb         = 0;
+    const unsigned int ke         = paddWidth + 1;
 
-    const unsigned int jb = (m_uiElementOrder - paddWidth);
-    const unsigned int je = (m_uiElementOrder + 1);
+    const unsigned int jb         = (m_uiElementOrder - paddWidth);
+    const unsigned int je         = (m_uiElementOrder + 1);
 
-    const unsigned int ib = (m_uiElementOrder - paddWidth);
-    const unsigned int ie = (m_uiElementOrder + 1);
+    const unsigned int ib         = (m_uiElementOrder - paddWidth);
+    const unsigned int ie         = (m_uiElementOrder + 1);
 
     unsigned int cnum;
     bool isHanging;
@@ -8434,30 +8434,30 @@ void Mesh::OCT_DIR_RIGHT_DOWN_FRONT_Unzip(const ot::Block& blk,
     const unsigned int blkElem_1D = 1u
                                     << (regLev - blk.getBlockNode().getLevel());
 
-    const unsigned int paddWidth = blk.get1DPadWidth();
-    const unsigned int sz        = 1u << (m_uiMaxDepth - regLev);
-    const ot::TreeNode blkNode   = blk.getBlockNode();
+    const unsigned int paddWidth  = blk.get1DPadWidth();
+    const unsigned int sz         = 1u << (m_uiMaxDepth - regLev);
+    const ot::TreeNode blkNode    = blk.getBlockNode();
 
-    const unsigned int ei        = blkElem_1D - 1;
-    const unsigned int ej        = 0;
-    const unsigned int ek        = blkElem_1D - 1;
+    const unsigned int ei         = blkElem_1D - 1;
+    const unsigned int ej         = 0;
+    const unsigned int ek         = blkElem_1D - 1;
 
-    const unsigned int lx        = blk.getAllocationSzX();
-    const unsigned int ly        = blk.getAllocationSzY();
-    const unsigned int lz        = blk.getAllocationSzZ();
+    const unsigned int lx         = blk.getAllocationSzX();
+    const unsigned int ly         = blk.getAllocationSzY();
+    const unsigned int lz         = blk.getAllocationSzZ();
 
-    const int i_offset           = (m_uiElementOrder + paddWidth);
-    const int j_offset           = -(m_uiElementOrder - paddWidth);
-    const int k_offset           = (m_uiElementOrder + paddWidth);
+    const int i_offset            = (m_uiElementOrder + paddWidth);
+    const int j_offset            = -(m_uiElementOrder - paddWidth);
+    const int k_offset            = (m_uiElementOrder + paddWidth);
 
-    const unsigned int kb        = 0;
-    const unsigned int ke        = paddWidth + 1;
+    const unsigned int kb         = 0;
+    const unsigned int ke         = paddWidth + 1;
 
-    const unsigned int jb        = (m_uiElementOrder - paddWidth);
-    const unsigned int je        = (m_uiElementOrder + 1);
+    const unsigned int jb         = (m_uiElementOrder - paddWidth);
+    const unsigned int je         = (m_uiElementOrder + 1);
 
-    const unsigned int ib        = 0;
-    const unsigned int ie        = paddWidth + 1;
+    const unsigned int ib         = 0;
+    const unsigned int ie         = paddWidth + 1;
 
     unsigned int cnum;
     bool isHanging;
@@ -8597,30 +8597,30 @@ void Mesh::OCT_DIR_LEFT_UP_FRONT_Unzip(const ot::Block& blk, const T* zippedVec,
     const unsigned int blkElem_1D = 1u
                                     << (regLev - blk.getBlockNode().getLevel());
 
-    const unsigned int paddWidth = blk.get1DPadWidth();
-    const unsigned int sz        = 1u << (m_uiMaxDepth - regLev);
-    const ot::TreeNode blkNode   = blk.getBlockNode();
+    const unsigned int paddWidth  = blk.get1DPadWidth();
+    const unsigned int sz         = 1u << (m_uiMaxDepth - regLev);
+    const ot::TreeNode blkNode    = blk.getBlockNode();
 
-    const unsigned int ei        = 0;
-    const unsigned int ej        = blkElem_1D - 1;
-    const unsigned int ek        = blkElem_1D - 1;
+    const unsigned int ei         = 0;
+    const unsigned int ej         = blkElem_1D - 1;
+    const unsigned int ek         = blkElem_1D - 1;
 
-    const unsigned int lx        = blk.getAllocationSzX();
-    const unsigned int ly        = blk.getAllocationSzY();
-    const unsigned int lz        = blk.getAllocationSzZ();
+    const unsigned int lx         = blk.getAllocationSzX();
+    const unsigned int ly         = blk.getAllocationSzY();
+    const unsigned int lz         = blk.getAllocationSzZ();
 
-    const int i_offset           = -(m_uiElementOrder - paddWidth);
-    const int j_offset           = (m_uiElementOrder + paddWidth);
-    const int k_offset           = (m_uiElementOrder + paddWidth);
+    const int i_offset            = -(m_uiElementOrder - paddWidth);
+    const int j_offset            = (m_uiElementOrder + paddWidth);
+    const int k_offset            = (m_uiElementOrder + paddWidth);
 
-    const unsigned int kb        = 0;
-    const unsigned int ke        = paddWidth + 1;
+    const unsigned int kb         = 0;
+    const unsigned int ke         = paddWidth + 1;
 
-    const unsigned int jb        = 0;
-    const unsigned int je        = paddWidth + 1;
+    const unsigned int jb         = 0;
+    const unsigned int je         = paddWidth + 1;
 
-    const unsigned int ib        = (m_uiElementOrder - paddWidth);
-    const unsigned int ie        = (m_uiElementOrder + 1);
+    const unsigned int ib         = (m_uiElementOrder - paddWidth);
+    const unsigned int ie         = (m_uiElementOrder + 1);
 
     unsigned int cnum;
     bool isHanging;
@@ -8760,30 +8760,30 @@ void Mesh::OCT_DIR_RIGHT_UP_FRONT_Unzip(const ot::Block& blk,
     const unsigned int blkElem_1D = 1u
                                     << (regLev - blk.getBlockNode().getLevel());
 
-    const unsigned int paddWidth = blk.get1DPadWidth();
-    const unsigned int sz        = 1u << (m_uiMaxDepth - regLev);
-    const ot::TreeNode blkNode   = blk.getBlockNode();
+    const unsigned int paddWidth  = blk.get1DPadWidth();
+    const unsigned int sz         = 1u << (m_uiMaxDepth - regLev);
+    const ot::TreeNode blkNode    = blk.getBlockNode();
 
-    const unsigned int ei        = blkElem_1D - 1;
-    const unsigned int ej        = blkElem_1D - 1;
-    const unsigned int ek        = blkElem_1D - 1;
+    const unsigned int ei         = blkElem_1D - 1;
+    const unsigned int ej         = blkElem_1D - 1;
+    const unsigned int ek         = blkElem_1D - 1;
 
-    const unsigned int lx        = blk.getAllocationSzX();
-    const unsigned int ly        = blk.getAllocationSzY();
-    const unsigned int lz        = blk.getAllocationSzZ();
+    const unsigned int lx         = blk.getAllocationSzX();
+    const unsigned int ly         = blk.getAllocationSzY();
+    const unsigned int lz         = blk.getAllocationSzZ();
 
-    const int i_offset           = (m_uiElementOrder + paddWidth);
-    const int j_offset           = (m_uiElementOrder + paddWidth);
-    const int k_offset           = (m_uiElementOrder + paddWidth);
+    const int i_offset            = (m_uiElementOrder + paddWidth);
+    const int j_offset            = (m_uiElementOrder + paddWidth);
+    const int k_offset            = (m_uiElementOrder + paddWidth);
 
-    const unsigned int kb        = 0;
-    const unsigned int ke        = paddWidth + 1;
+    const unsigned int kb         = 0;
+    const unsigned int ke         = paddWidth + 1;
 
-    const unsigned int jb        = 0;
-    const unsigned int je        = paddWidth + 1;
+    const unsigned int jb         = 0;
+    const unsigned int je         = paddWidth + 1;
 
-    const unsigned int ib        = 0;
-    const unsigned int ie        = paddWidth + 1;
+    const unsigned int ib         = 0;
+    const unsigned int ie         = paddWidth + 1;
 
     unsigned int cnum;
     bool isHanging;
@@ -12740,12 +12740,12 @@ void Mesh::unzipDG(const T* in, T* out, const unsigned int* blkIDs,
         // internal copy.
         for (unsigned int elem = blkList[blk].getLocalElementBegin();
              elem < blkList[blk].getLocalElementEnd(); elem++) {
-            const unsigned int ei = (pNodes[elem].getX() - blkNode.getX()) >>
-                                    (m_uiMaxDepth - regLevel);
-            const unsigned int ej = (pNodes[elem].getY() - blkNode.getY()) >>
-                                    (m_uiMaxDepth - regLevel);
-            const unsigned int ek = (pNodes[elem].getZ() - blkNode.getZ()) >>
-                                    (m_uiMaxDepth - regLevel);
+            const unsigned int ei   = (pNodes[elem].getX() - blkNode.getX()) >>
+                                      (m_uiMaxDepth - regLevel);
+            const unsigned int ej   = (pNodes[elem].getY() - blkNode.getY()) >>
+                                      (m_uiMaxDepth - regLevel);
+            const unsigned int ek   = (pNodes[elem].getZ() - blkNode.getZ()) >>
+                                      (m_uiMaxDepth - regLevel);
 
             const unsigned int emin = 0;
             const unsigned int emax =

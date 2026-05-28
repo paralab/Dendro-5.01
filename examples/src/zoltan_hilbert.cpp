@@ -247,20 +247,20 @@ void ZoltanHibertLBandSort(DendroIntL grainSz, unsigned int dim,
     auto zz_splitter_start = std::chrono::system_clock::now();  // MPI_Wtime();
 
     rc                     = Zoltan_LB_Partition(
-        zz, /*input (all remaining fields are output)*/
-        &changes, /* 1 if partitioning was changed, 0 otherwise */
-        &numGidEntries, /*Number of integers used for a global ID */
-        &numLidEntries, /*Number of integers used for a local ID */
-        &numImport, /*Number of vertices to be sent to me */
+        zz,                /*input (all remaining fields are output)*/
+        &changes,          /* 1 if partitioning was changed, 0 otherwise */
+        &numGidEntries,    /*Number of integers used for a global ID */
+        &numLidEntries,    /*Number of integers used for a local ID */
+        &numImport,        /*Number of vertices to be sent to me */
         &importGlobalGids, /* Global IDs of vertices to be sent to me*/
-        &importLocalGids, /*Local IDs of vertices to be sent to me*/
-        &importProcs, /*Process rank for source of each incoming vertex*/
-        &importToPart, /*New partition for each incoming vertex*/
-        &numExport, /*Number of vertices I must send to other processes*/
+        &importLocalGids,  /*Local IDs of vertices to be sent to me*/
+        &importProcs,      /*Process rank for source of each incoming vertex*/
+        &importToPart,     /*New partition for each incoming vertex*/
+        &numExport,        /*Number of vertices I must send to other processes*/
         &exportGlobalGids, /*Global IDs of the vertices I must send*/
-        &exportLocalGids, /*Local IDs of the vertices I must send*/
-        &exportProcs, /*Process to which I send each of the vertices*/
-        &exportToPart); /*Partition to which each vertex will belong*/
+        &exportLocalGids,  /*Local IDs of the vertices I must send*/
+        &exportProcs,      /*Process to which I send each of the vertices*/
+        &exportToPart);    /*Partition to which each vertex will belong*/
 
     auto zz_splitter_end  = std::chrono::system_clock::now();  // MPI_Wtime();
 
@@ -425,7 +425,7 @@ void ZoltanHibertLBandSort(DendroIntL grainSz, unsigned int dim,
     Zoltan_Order(zz, NUM_GID_SIZE, mesh.numLocalPts, mesh.globalIds,
                  permutedIds);
 
-    auto zz_local_end = std::chrono::system_clock::now();  // MPI_Wtime();
+    auto zz_local_end  = std::chrono::system_clock::now();  // MPI_Wtime();
 
     /*
     MESH_DATA  sortedMesh;
@@ -464,24 +464,24 @@ void ZoltanHibertLBandSort(DendroIntL grainSz, unsigned int dim,
 
     std::cout<<" rank "<<rank<<" Missed pts count: "<<count<<std::endl;*/
 
-    auto zz_end       = std::chrono::system_clock::now();  // MPI_Wtime();
+    auto zz_end        = std::chrono::system_clock::now();  // MPI_Wtime();
 
-    double zz_time    = (std::chrono::duration_cast<std::chrono::milliseconds>(
-                          (zz_end - zz_start))
-                          .count()) /
-                     (MILLISECOND_CONVERSION);
+    double zz_time     = (std::chrono::duration_cast<std::chrono::milliseconds>(
+                              (zz_end - zz_start))
+                              .count()) /
+                         (MILLISECOND_CONVERSION);
     double zz_splitter = (std::chrono::duration_cast<std::chrono::milliseconds>(
                               (zz_splitter_end - zz_splitter_start))
                               .count()) /
                          (MILLISECOND_CONVERSION);
-    double zz_all2all = (std::chrono::duration_cast<std::chrono::milliseconds>(
-                             (zz_all2all_end - zz_all2all_start))
-                             .count()) /
-                        (MILLISECOND_CONVERSION);
-    double zz_local = (std::chrono::duration_cast<std::chrono::milliseconds>(
-                           (zz_local_end - zz_local_start))
-                           .count()) /
-                      (MILLISECOND_CONVERSION);
+    double zz_all2all  = (std::chrono::duration_cast<std::chrono::milliseconds>(
+                              (zz_all2all_end - zz_all2all_start))
+                              .count()) /
+                         (MILLISECOND_CONVERSION);
+    double zz_local    = (std::chrono::duration_cast<std::chrono::milliseconds>(
+                              (zz_local_end - zz_local_start))
+                              .count()) /
+                         (MILLISECOND_CONVERSION);
 
     double zz_time_g[3];
     double zz_splitter_g[3];

@@ -107,7 +107,7 @@ int main(int argc, char** argv) {
             tmpNodes, pNodesSorted, pNodesConstructed, pNodesBalanced, tol,
             maxDepth, root, ROOT_ROT_ID, 1, TS_BALANCE_OCTREE, sf_k, comm);
         auto t2 = MPI_Wtime();  // std::chrono::high_resolution_clock::now();
-        t_bal   = t2 -
+        t_bal = t2 -
                 t1;  // std::chrono::duration_cast<std::chrono::milliseconds>(t2
                      // - t1).count();
         if (!rank) std::cout << RED << "2:1 balance end" << NRM << std::endl;
@@ -154,7 +154,7 @@ int main(int argc, char** argv) {
             tmpNodes, pNodesSorted, pNodesConstructed, pNodesBalanced, tol,
             maxDepth, root, ROOT_ROT_ID, 1, TS_BALANCE_OCTREE, sf_k, comm);
         auto t2 = MPI_Wtime();  // std::chrono::high_resolution_clock::now();
-        t_bal   = t2 -
+        t_bal = t2 -
                 t1;  // std::chrono::duration_cast<std::chrono::milliseconds>(t2
                      // - t1).count();
         if (!rank) std::cout << RED << "2:1 balance end" << NRM << std::endl;

@@ -240,8 +240,8 @@ void WaveletEl::compute_wavelets_3D(const double* in, const unsigned int* isz,
                     const unsigned int pp = m_uiCIndex[k] * (iny * inx) +
                                             m_uiCIndex[j] * (inx) +
                                             m_uiCIndex[i];
-                    wc[wcount] = fabs(m_uiVOut[pp] - in[pp]) /
-                                 std::max(in_min, fabs(in[pp]));
+                    wc[wcount]            = fabs(m_uiVOut[pp] - in[pp]) /
+                                            std::max(in_min, fabs(in[pp]));
                 }
 
     } else {

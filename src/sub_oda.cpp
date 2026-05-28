@@ -140,15 +140,15 @@ ot::subDA::subDA(ot::DA* da,
                                           j * (eleOrder + 1) + i) +
                                2] = zFac * (pNodes[ownerID].getZ() +
                                             kk_z * (len / (eleOrder)));
-                        x         = coords[m_uiDim *
+                        x = coords[m_uiDim *
                                        (k * (eleOrder + 1) * (eleOrder + 1) +
                                         j * (eleOrder + 1) + i) +
                                    0];
-                        y         = coords[m_uiDim *
+                        y = coords[m_uiDim *
                                        (k * (eleOrder + 1) * (eleOrder + 1) +
                                         j * (eleOrder + 1) + i) +
                                    1];
-                        z         = coords[m_uiDim *
+                        z = coords[m_uiDim *
                                        (k * (eleOrder + 1) * (eleOrder + 1) +
                                         j * (eleOrder + 1) + i) +
                                    2];
@@ -287,13 +287,13 @@ ot::subDA::subDA(ot::DA* da,
                                   m_uiNumLocalElements +
                                   m_uiNumPostGhostElements;
 
-        m_uiNodePreGhostBegin  = 0;
-        m_uiNodePreGhostEnd    = m_uiNumPreGhostNodes;
+        m_uiNodePreGhostBegin   = 0;
+        m_uiNodePreGhostEnd     = m_uiNumPreGhostNodes;
 
-        m_uiNodeLocalBegin     = m_uiNumPreGhostNodes;
-        m_uiNodeLocalEnd       = m_uiNumPreGhostNodes + m_uiNumLocalNodes;
+        m_uiNodeLocalBegin      = m_uiNumPreGhostNodes;
+        m_uiNodeLocalEnd        = m_uiNumPreGhostNodes + m_uiNumLocalNodes;
 
-        m_uiNodePostGhostBegin = m_uiNumPreGhostNodes + m_uiNumLocalNodes;
+        m_uiNodePostGhostBegin  = m_uiNumPreGhostNodes + m_uiNumLocalNodes;
         m_uiNodePostGhostEnd =
             m_uiNumPreGhostNodes + m_uiNumLocalNodes + m_uiNumPostGhostNodes;
 

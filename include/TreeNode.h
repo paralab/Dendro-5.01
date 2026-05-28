@@ -538,8 +538,8 @@ inline bool TreeNode::operator<(TreeNode const &other) const {
 
         // index1=(b_z<<2) + ((b_x^b_z)<<1) + (b_x^b_y^b_z);
         index1      = ((((ncaZ & (1u << mid_bit)) >> mid_bit) << 2u) |
-                  (((ncaY & (1u << mid_bit)) >> mid_bit) << 1u) |
-                  ((ncaX & (1u << mid_bit)) >> mid_bit));
+                       (((ncaY & (1u << mid_bit)) >> mid_bit) << 1u) |
+                       ((ncaX & (1u << mid_bit)) >> mid_bit));
         // index_temp=rotations[rot_offset*current_rot+num_children+index1]-'0';
         current_rot = HILBERT_TABLE[current_rot * num_children + index1];
     }

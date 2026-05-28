@@ -4609,11 +4609,11 @@ void Mesh::buildE2N_DG() {
     m_uiNodePostGhostEnd   = m_uiElementPostGhostEnd * m_uiNpE;
 
     m_uiNumActualNodes     = (m_uiNodePreGhostEnd - m_uiNodePreGhostBegin) +
-                         (m_uiNodeLocalEnd - m_uiNodeLocalBegin) +
-                         (m_uiNodeLocalEnd - m_uiNodeLocalBegin);
+                             (m_uiNodeLocalEnd - m_uiNodeLocalBegin) +
+                             (m_uiNodeLocalEnd - m_uiNodeLocalBegin);
 
-    m_uiE2NMapping_DG = m_uiE2NMapping_CG;
-    m_uiCG2DG         = m_uiE2NMapping_CG;
+    m_uiE2NMapping_DG      = m_uiE2NMapping_CG;
+    m_uiCG2DG              = m_uiE2NMapping_CG;
     // m_uiCG2DG.resize(m_uiE2NMapping_CG.size(),1);
 
     dendro::logger::info(dendro::logger::Scope{"MESH"},
@@ -13949,12 +13949,12 @@ void Mesh::blkUnzipElementIDs(unsigned int blk,
 
         for (unsigned int elem = blkList[blk].getLocalElementBegin();
              elem < blkList[blk].getLocalElementEnd(); elem++) {
-            const unsigned int ei = (pNodes[elem].getX() - blkNode.getX()) >>
-                                    (m_uiMaxDepth - regLevel);
-            const unsigned int ej = (pNodes[elem].getY() - blkNode.getY()) >>
-                                    (m_uiMaxDepth - regLevel);
-            const unsigned int ek = (pNodes[elem].getZ() - blkNode.getZ()) >>
-                                    (m_uiMaxDepth - regLevel);
+            const unsigned int ei   = (pNodes[elem].getX() - blkNode.getX()) >>
+                                      (m_uiMaxDepth - regLevel);
+            const unsigned int ej   = (pNodes[elem].getY() - blkNode.getY()) >>
+                                      (m_uiMaxDepth - regLevel);
+            const unsigned int ek   = (pNodes[elem].getZ() - blkNode.getZ()) >>
+                                      (m_uiMaxDepth - regLevel);
 
             const unsigned int emin = 0;
             const unsigned int emax =

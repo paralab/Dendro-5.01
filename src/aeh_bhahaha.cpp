@@ -10,22 +10,22 @@ void AEH_BHaHAHA::reseed_common_horizon_geometric_() {
     const int inspiral_bh2   = 1;
     const int common_horizon = 2;
 
-    const double x1 = x_center_m1_[inspiral_bh1];
-    const double y1 = y_center_m1_[inspiral_bh1];
-    const double z1 = z_center_m1_[inspiral_bh1];
-    const double x2 = x_center_m1_[inspiral_bh2];
-    const double y2 = y_center_m1_[inspiral_bh2];
-    const double z2 = z_center_m1_[inspiral_bh2];
-    const double r1 = r_max_m1_[inspiral_bh1];
-    const double r2 = r_max_m1_[inspiral_bh2];
+    const double x1          = x_center_m1_[inspiral_bh1];
+    const double y1          = y_center_m1_[inspiral_bh1];
+    const double z1          = z_center_m1_[inspiral_bh1];
+    const double x2          = x_center_m1_[inspiral_bh2];
+    const double y2          = y_center_m1_[inspiral_bh2];
+    const double z2          = z_center_m1_[inspiral_bh2];
+    const double r1          = r_max_m1_[inspiral_bh1];
+    const double r2          = r_max_m1_[inspiral_bh2];
 
-    const double sep    = dist(x1, x2, y1, y2, z1, z2);
-    const double mid_x  = 0.5 * (x1 + x2);
-    const double mid_y  = 0.5 * (y1 + y2);
-    const double mid_z  = 0.5 * (z1 + z2);
-    const double r_geom = std::min(0.5 * sep + std::max(r1, r2) +
-                                       bah_ah3_radius_padding_,
-                                   bah_max_search_radius_[common_horizon]);
+    const double sep         = dist(x1, x2, y1, y2, z1, z2);
+    const double mid_x       = 0.5 * (x1 + x2);
+    const double mid_y       = 0.5 * (y1 + y2);
+    const double mid_z       = 0.5 * (z1 + z2);
+    const double r_geom =
+        std::min(0.5 * sep + std::max(r1, r2) + bah_ah3_radius_padding_,
+                 bah_max_search_radius_[common_horizon]);
 
     x_center_m1_[common_horizon] = mid_x;
     y_center_m1_[common_horizon] = mid_y;
@@ -60,11 +60,11 @@ void AEH_BHaHAHA::reseed_common_horizon_geometric_() {
               prev_horizon_m3_.begin() + horizon_offset + horizon_data_size,
               0.0);
 
-    x_guess_[common_horizon]     = mid_x;
-    y_guess_[common_horizon]     = mid_y;
-    z_guess_[common_horizon]     = mid_z;
-    r_min_guess_[common_horizon] = 0.0;
-    r_max_guess_[common_horizon] = r_geom;
+    x_guess_[common_horizon]                                   = mid_x;
+    y_guess_[common_horizon]                                   = mid_y;
+    z_guess_[common_horizon]                                   = mid_z;
+    r_min_guess_[common_horizon]                               = 0.0;
+    r_max_guess_[common_horizon]                               = r_geom;
 
     bah_use_fixed_radius_guess_on_full_sphere_[common_horizon] = 1;
     failed_last_find_[common_horizon]                          = false;
@@ -169,18 +169,19 @@ void AEH_BHaHAHA::find_horizons(
             const double dx          = x_center - x_center_m1_[which_horizon];
             const double dy          = y_center - y_center_m1_[which_horizon];
             const double dz          = z_center - z_center_m1_[which_horizon];
-            const double drift = std::sqrt(dx * dx + dy * dy + dz * dz);
+            const double drift       = std::sqrt(dx * dx + dy * dy + dz * dz);
             const bool nonfinite     = !std::isfinite(x_center) ||
-                                   !std::isfinite(y_center) ||
-                                   !std::isfinite(z_center);
-            const bool too_far       = (t_m1_[which_horizon] >= 0.0) &&
-                                 (drift > k_clamp * r_search);
+                                       !std::isfinite(y_center) ||
+                                       !std::isfinite(z_center);
+            const bool too_far =
+                (t_m1_[which_horizon] >= 0.0) && (drift > k_clamp * r_search);
             if (nonfinite || too_far) {
                 if (bah_verbosity_level_ > 0 && rankActive == 0) {
                     std::cout
-                        << GRN << "[BAH]: extrapolation clamp h="
-                        << which_horizon << " guess=(" << x_center << ","
-                        << y_center << "," << z_center << ") drift=" << drift
+                        << GRN
+                        << "[BAH]: extrapolation clamp h=" << which_horizon
+                        << " guess=(" << x_center << "," << y_center << ","
+                        << z_center << ") drift=" << drift
                         << " -> falling back to last-known ("
                         << x_center_m1_[which_horizon] << ","
                         << y_center_m1_[which_horizon] << ","
@@ -270,7 +271,6 @@ void AEH_BHaHAHA::find_horizons(
                           prev_horizon_m3_.begin() + horizon_offset +
                               horizon_data_size,
                           0.0);
-
             }
         }
 
@@ -315,8 +315,7 @@ void AEH_BHaHAHA::find_horizons(
                 bah_horizon_active_[inspiral_bh1] = 0;
                 bah_horizon_active_[inspiral_bh2] = 0;
                 if (bah_verbosity_level_ > 0 && rankActive == 0) {
-                    std::cout << GRN
-                              << "BBH BHBH_MIN_SEPARATION reached (sep="
+                    std::cout << GRN << "BBH BHBH_MIN_SEPARATION reached (sep="
                               << std::fixed << std::setprecision(6) << sep_bhbh
                               << " < " << bah_bhbh_min_separation_
                               << "): disabling AH1/AH2." << NRM << std::endl;
@@ -346,15 +345,17 @@ void AEH_BHaHAHA::find_horizons(
             // check last found times
             if (!globalRank && bah_verbosity_level_ > 1) {
                 // BH1
-                std::cout << "[BAH]: last found BH1 time: " << time_bh1_last_found << std::endl;
-                std::cout << "[BAH]: last found BH1 position: (" 
-                  << x_bh1_last << ',' << y_bh1_last << ',' << z_bh1_last 
-                  << ')' << std::endl;
+                std::cout << "[BAH]: last found BH1 time: "
+                          << time_bh1_last_found << std::endl;
+                std::cout << "[BAH]: last found BH1 position: (" << x_bh1_last
+                          << ',' << y_bh1_last << ',' << z_bh1_last << ')'
+                          << std::endl;
                 // BH2
-                std::cout << "[BAH]: last found BH2 time: " << time_bh2_last_found << std::endl;
-                std::cout << "[BAH]: last found BH2 position: (" 
-                  << x_bh2_last << ',' << y_bh2_last << ',' << z_bh2_last 
-                  << ')' << std::endl;
+                std::cout << "[BAH]: last found BH2 time: "
+                          << time_bh2_last_found << std::endl;
+                std::cout << "[BAH]: last found BH2 position: (" << x_bh2_last
+                          << ',' << y_bh2_last << ',' << z_bh2_last << ')'
+                          << std::endl;
             }
 
             // if they've both been found, then we can check their centers
@@ -387,11 +388,10 @@ void AEH_BHaHAHA::find_horizons(
                     threshold_diameter) {
                     bah_horizon_active_[common_horizon] = 1;
                     if (bah_verbosity_level_ > 0 && rankActive == 0) {
-                        std::cout
-                            << GRN
-                            << "BBH COMMON HORIZON ACTIVATED (geometric "
-                               "reseed in step 3.e)."
-                            << NRM << std::endl;
+                        std::cout << GRN
+                                  << "BBH COMMON HORIZON ACTIVATED (geometric "
+                                     "reseed in step 3.e)."
+                                  << NRM << std::endl;
                     }
                     // Geometric reseed is performed unconditionally below in
                     // step 3.e (since use_fixed_radius_guess_on_full_sphere_
@@ -400,7 +400,8 @@ void AEH_BHaHAHA::find_horizons(
             } else {
                 // sanity check: make sure horizons found when expected
                 if (rankActive == 0 && bah_verbosity_level_ > 1) {
-                    std::cout << "[BAH]: Horizon never found before!" << std::endl;
+                    std::cout << "[BAH]: Horizon never found before!"
+                              << std::endl;
                 }
             }
         }
@@ -431,17 +432,16 @@ void AEH_BHaHAHA::find_horizons(
             const bool insane = (r3 <= 0.0) || (d31 > k_r3) || (d32 > k_r3);
             if (insane) {
                 if (bah_verbosity_level_ > 0 && rankActive == 0) {
-                    std::cout << GRN
-                              << "BBH AH3 SANITY FAIL: r3=" << std::fixed
-                              << std::setprecision(6) << r3
-                              << ", d(c3,c1)=" << d31 << ", d(c3,c2)=" << d32
-                              << ", k*r3=" << k_r3
-                              << " -> wiping AH3 history, geometric reseed."
-                              << NRM << std::endl;
+                    std::cout
+                        << GRN << "BBH AH3 SANITY FAIL: r3=" << std::fixed
+                        << std::setprecision(6) << r3 << ", d(c3,c1)=" << d31
+                        << ", d(c3,c2)=" << d32 << ", k*r3=" << k_r3
+                        << " -> wiping AH3 history, geometric reseed." << NRM
+                        << std::endl;
                 }
                 bah_use_fixed_radius_guess_on_full_sphere_[common_horizon] = 1;
-                failed_last_find_[common_horizon]                          = true;
-                failed_last_find_int_[common_horizon]                      = 1;
+                failed_last_find_[common_horizon]     = true;
+                failed_last_find_int_[common_horizon] = 1;
             }
         }
 
@@ -604,26 +604,31 @@ void AEH_BHaHAHA::find_horizons(
 
                 // revert to full-sphere guess
                 bah_use_fixed_radius_guess_on_full_sphere_[which_horizon] = 1;
-                r_min_guess_[which_horizon] = 0.0;
-                r_max_guess_[which_horizon] = bah_max_search_radius_[which_horizon];
+                r_min_guess_[which_horizon]                               = 0.0;
+                r_max_guess_[which_horizon] =
+                    bah_max_search_radius_[which_horizon];
 
                 // update the guess with the BH data for this horizon
                 // taken from the bh history if possible
                 if (!tracked_location_data.empty() &&
                     which_horizon != common_horizon) {
                     if (bah_verbosity_level_ > 0) {
-                        std::cout << "\tAH NOTICE rank " << std::setw(4)
-                                  << rankActive << " horizon " << std::setw(4)
-                                  << (which_horizon + 1)
-                                  << ": Last find failed, overwriting guess points "
-                                     "to tracked puncture location: "
-                                  << tracked_location_data[which_horizon]
-                                  << std::endl;
+                        std::cout
+                            << "\tAH NOTICE rank " << std::setw(4) << rankActive
+                            << " horizon " << std::setw(4)
+                            << (which_horizon + 1)
+                            << ": Last find failed, overwriting guess points "
+                               "to tracked puncture location: "
+                            << tracked_location_data[which_horizon]
+                            << std::endl;
                     }
                     // update center location
-                    x_guess_[which_horizon] = tracked_location_data[which_horizon].x();
-                    y_guess_[which_horizon] = tracked_location_data[which_horizon].y();
-                    z_guess_[which_horizon] = tracked_location_data[which_horizon].z();
+                    x_guess_[which_horizon] =
+                        tracked_location_data[which_horizon].x();
+                    y_guess_[which_horizon] =
+                        tracked_location_data[which_horizon].y();
+                    z_guess_[which_horizon] =
+                        tracked_location_data[which_horizon].z();
                 }
             }
         }

@@ -70,13 +70,13 @@ void elementMassMatvec(const T* f_rhs, const ot::TreeNode& elem,
     const unsigned int nrp = eleOrder + 1;
 
     const double szX       = fem::domain::gridX_to_X(elem.maxX()) -
-                       fem::domain::gridX_to_X(elem.minX());
-    const double szY = fem::domain::gridY_to_Y(elem.maxY()) -
-                       fem::domain::gridY_to_Y(elem.minY());
-    const double szZ = fem::domain::gridZ_to_Z(elem.maxZ()) -
-                       fem::domain::gridZ_to_Z(elem.minZ());
+                             fem::domain::gridX_to_X(elem.minX());
+    const double szY       = fem::domain::gridY_to_Y(elem.maxY()) -
+                             fem::domain::gridY_to_Y(elem.minY());
+    const double szZ       = fem::domain::gridZ_to_Z(elem.maxZ()) -
+                             fem::domain::gridZ_to_Z(elem.minZ());
 
-    const double refElSz = refEl->getElementSz();
+    const double refElSz   = refEl->getElementSz();
 
     // interpolate to quadrature points.
     DENDRO_TENSOR_IIAX_APPLY_ELEM(nrp, Q1d, f_rhs, imV1);
@@ -110,17 +110,17 @@ void elementMassMatvec(const T* f_rhs, const ot::TreeNode& elem,
                     i] = 1.0;
 
 #endif
-                /*if(elem.minX()==0 && elem.minY()==0 && elem.minZ()==0)
-                {
-                    std::cout<<"elem: "<<elem<<std::endl;
-                    for(unsigned int k=0;k<(eleOrder+1);k++)
-                      for(unsigned int j=0;j<(eleOrder+1);j++)
-                        for(unsigned int i=0;i<(eleOrder+1);i++)
-                            std::cout<<"i: "<<i<<" j: "<<j<<" k: "<<k<<" MF
-                "<<out[k*(eleOrder+1)*(eleOrder+1)+j*(eleOrder+1)+i]<<" F
-                "<<f_rhs[k*(eleOrder+1)*(eleOrder+1)+j*(eleOrder+1)+i]<<std::endl;
+    /*if(elem.minX()==0 && elem.minY()==0 && elem.minZ()==0)
+    {
+        std::cout<<"elem: "<<elem<<std::endl;
+        for(unsigned int k=0;k<(eleOrder+1);k++)
+          for(unsigned int j=0;j<(eleOrder+1);j++)
+            for(unsigned int i=0;i<(eleOrder+1);i++)
+                std::cout<<"i: "<<i<<" j: "<<j<<" k: "<<k<<" MF
+    "<<out[k*(eleOrder+1)*(eleOrder+1)+j*(eleOrder+1)+i]<<" F
+    "<<f_rhs[k*(eleOrder+1)*(eleOrder+1)+j*(eleOrder+1)+i]<<std::endl;
 
-                }*/
+    }*/
 
 #ifdef MATVEC_PROFILE
     dendro::timer::sfcmatvec::t_elemMvec.stop();
@@ -174,9 +174,9 @@ void elementStiffnessMatvec(const T* in, const ot::TreeNode& elem,
     const double szZ = fem::domain::gridZ_to_Z(elem.maxZ()) -
                        fem::domain::gridZ_to_Z(elem.minZ());
 
-    const double Jx = 1.0 / (refElSz / (double(szX)));
-    const double Jy = 1.0 / (refElSz / (double(szY)));
-    const double Jz = 1.0 / (refElSz / (double(szZ)));
+    const double Jx  = 1.0 / (refElSz / (double(szX)));
+    const double Jy  = 1.0 / (refElSz / (double(szY)));
+    const double Jz  = 1.0 / (refElSz / (double(szZ)));
 
     // std::cout<<"Stifness:  elem: "<<elem<<" ele Sz:
     // "<<(elem.maxX()-elem.minX())<<" szX: "<<szX<<" Jx: "<<Jx<<" J:

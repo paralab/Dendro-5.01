@@ -255,11 +255,11 @@ void meshWAMRConvergence(
                                                << (m_uiMaxDepth -
                                                    pNodes[ownerID].getLevel()));
                                 x   = pNodes[ownerID].getX() +
-                                    ii_x * (len / (double)(eleOrder));
-                                y = pNodes[ownerID].getY() +
-                                    jj_y * (len / (double)(eleOrder));
-                                z = pNodes[ownerID].getZ() +
-                                    kk_z * (len / (double)(eleOrder));
+                                      ii_x * (len / (double)(eleOrder));
+                                y   = pNodes[ownerID].getY() +
+                                      jj_y * (len / (double)(eleOrder));
+                                z   = pNodes[ownerID].getZ() +
+                                      kk_z * (len / (double)(eleOrder));
 
                                 func((double)x, (double)y, (double)z, var);
                                 for (unsigned int v = 0; v < numVars; v++)
@@ -334,12 +334,12 @@ void computeBlockUnzipGhostNodes(const ot::Mesh* pMesh, unsigned int blk,
 
         for (unsigned int elem = blkList[blk].getLocalElementBegin();
              elem < blkList[blk].getLocalElementEnd(); elem++) {
-            const unsigned int ei = (pNodes[elem].getX() - blkNode.getX()) >>
-                                    (m_uiMaxDepth - regLevel);
-            const unsigned int ej = (pNodes[elem].getY() - blkNode.getY()) >>
-                                    (m_uiMaxDepth - regLevel);
-            const unsigned int ek = (pNodes[elem].getZ() - blkNode.getZ()) >>
-                                    (m_uiMaxDepth - regLevel);
+            const unsigned int ei   = (pNodes[elem].getX() - blkNode.getX()) >>
+                                      (m_uiMaxDepth - regLevel);
+            const unsigned int ej   = (pNodes[elem].getY() - blkNode.getY()) >>
+                                      (m_uiMaxDepth - regLevel);
+            const unsigned int ek   = (pNodes[elem].getZ() - blkNode.getZ()) >>
+                                      (m_uiMaxDepth - regLevel);
 
             const unsigned int emin = 0;
             const unsigned int emax =

@@ -31,16 +31,14 @@ struct HangingInfo {
 #ifdef __CUDACC__
     __host__ __device__
 #endif
-        unsigned int
-        get_fcnum(unsigned int dir) const {
+        unsigned int get_fcnum(unsigned int dir) const {
         return ((fcnum & (3u << (2 * dir))) >> ((2 * dir)));
     }
 
 #ifdef __CUDACC__
     __host__ __device__
 #endif
-        bool
-        is_hanging(unsigned int dir) const {
+        bool is_hanging(unsigned int dir) const {
         return (hflag & (1u << dir));
     }
 
@@ -48,8 +46,7 @@ struct HangingInfo {
 #ifdef __CUDACC__
     __host__ __device__
 #endif
-        unsigned int
-        get_ecnum(unsigned int dir) const {
+        unsigned int get_ecnum(unsigned int dir) const {
         return ((ecnum & (1u << (dir - NUM_FACES))) >> ((dir - NUM_FACES)));
     }
 };
