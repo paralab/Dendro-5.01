@@ -224,9 +224,9 @@ void RK45Transport::applyBoundaryConditions(const double time, T* vec) {
                                 owner, ii_x, jj_y, kk_z);
                             sz = 1u
                                  << (m_uiMaxDepth - pNodes[owner].getLevel());
-                            x = pNodes[owner].getX() + ii_x * (sz / eleOrder);
-                            y = pNodes[owner].getY() + jj_y * (sz / eleOrder);
-                            z = pNodes[owner].getZ() + kk_z * (sz / eleOrder);
+                            x  = pNodes[owner].getX() + ii_x * (sz / eleOrder);
+                            y  = pNodes[owner].getY() + jj_y * (sz / eleOrder);
+                            z  = pNodes[owner].getZ() + kk_z * (sz / eleOrder);
                             if (((x == grid_min) || (y == grid_min) ||
                                  (z == grid_min))) {
                                 assert(!m_uiMesh->isNodeHanging(owner, ii_x,

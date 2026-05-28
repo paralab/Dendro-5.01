@@ -2598,9 +2598,9 @@ bool ot::test::isSphereInterpValid(
         }
 
     Point domain_limit[2] = {d_min, d_max};
-    Point grid_limit[2]   = {Point(0, 0, 0), Point((double)(1u << m_uiMaxDepth),
-                                                   (double)(1u << m_uiMaxDepth),
-                                                   (double)(1u << m_uiMaxDepth))};
+    Point grid_limit[2] = {Point(0, 0, 0), Point((double)(1u << m_uiMaxDepth),
+                                                 (double)(1u << m_uiMaxDepth),
+                                                 (double)(1u << m_uiMaxDepth))};
 
     ot::da::interpolateToCoords(pMesh, vec, &(*(coords.begin())), coords.size(),
                                 grid_limit, domain_limit,

@@ -112,14 +112,12 @@ class ETS_MSRK : public ETS<T, Ctx> {
 
     /**@brief: standard RK4 stage weight matrix for bootstrap steps. */
     static constexpr DendroScalar RK4_STD_Aij[16] = {
-        0.0, 0.0,       0.0, 0.0,
-        0.5, 0.0,       0.0, 0.0,
-        0.0, 0.5,       0.0, 0.0,
-        0.0, 0.0,       1.0, 0.0};
+        0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0,
+        0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0};
 
     /**@brief: standard RK4 final weights for bootstrap steps. */
-    static constexpr DendroScalar RK4_STD_Bi[4] = {
-        1.0 / 6.0, 1.0 / 3.0, 1.0 / 3.0, 1.0 / 6.0};
+    static constexpr DendroScalar RK4_STD_Bi[4] = {1.0 / 6.0, 1.0 / 3.0,
+                                                   1.0 / 3.0, 1.0 / 6.0};
 
     /**@brief: standard RK4 time coefficients for bootstrap steps. */
     static constexpr DendroScalar RK4_STD_Ci[4] = {0.0, 0.5, 0.5, 1.0};
@@ -205,7 +203,7 @@ constexpr DendroScalar ETS_MSRK<T, Ctx>::RK4_STD_Ci[4];
 template <typename T, typename Ctx>
 ETS_MSRK<T, Ctx>::ETS_MSRK(Ctx* appCtx, ETSType msrkType)
     : ETS<T, Ctx>(appCtx) {
-    m_uiMSRKType = msrkType;
+    m_uiMSRKType  = msrkType;
 
     // All MSRK variants use 4 logical stages.
     m_uiNumStages = 4;
@@ -283,28 +281,28 @@ void ETS_MSRK<T, Ctx>::set_msrk_coefficients(ETSType type) {
          *---------------------------------------------------------*/
 
         // Final weights b_i.
-        m_uiMSRK_Bi[0] = -643.0 / 1536.0;
-        m_uiMSRK_Bi[1] = -4237.0 / 1092.0;
-        m_uiMSRK_Bi[2] = 38125.0 / 10752.0;
-        m_uiMSRK_Bi[3] = 4375.0 / 2496.0;
+        m_uiMSRK_Bi[0]          = -643.0 / 1536.0;
+        m_uiMSRK_Bi[1]          = -4237.0 / 1092.0;
+        m_uiMSRK_Bi[2]          = 38125.0 / 10752.0;
+        m_uiMSRK_Bi[3]          = 4375.0 / 2496.0;
 
         // Time coefficients c_i.  c0 is unused (history stage).
         // c1 = 0 (evaluation at t_n).
-        m_uiMSRK_Ci[0] = 0.0;
-        m_uiMSRK_Ci[1] = 0.0;
-        m_uiMSRK_Ci[2] = 7.0 / 25.0;
-        m_uiMSRK_Ci[3] = -13.0 / 25.0;
+        m_uiMSRK_Ci[0]          = 0.0;
+        m_uiMSRK_Ci[1]          = 0.0;
+        m_uiMSRK_Ci[2]          = 7.0 / 25.0;
+        m_uiMSRK_Ci[3]          = -13.0 / 25.0;
 
         // Stage weight matrix a_ij.
         // Row 0: history stage (all zeros).
         // Row 1: f(t_n, y_n) — no previous-stage contributions.
         // Row 2:
-        m_uiMSRK_Aij[2 * 4 + 0] = -49.0 / 1250.0;    // a20
-        m_uiMSRK_Aij[2 * 4 + 1] = 399.0 / 1250.0;     // a21
+        m_uiMSRK_Aij[2 * 4 + 0] = -49.0 / 1250.0;  // a20
+        m_uiMSRK_Aij[2 * 4 + 1] = 399.0 / 1250.0;  // a21
         // Row 3:
-        m_uiMSRK_Aij[3 * 4 + 0] = 7033.0 / 960000.0;  // a30
+        m_uiMSRK_Aij[3 * 4 + 0] = 7033.0 / 960000.0;     // a30
         m_uiMSRK_Aij[3 * 4 + 1] = -217633.0 / 210000.0;  // a31
-        m_uiMSRK_Aij[3 * 4 + 2] = 5473.0 / 10752.0;   // a32
+        m_uiMSRK_Aij[3 * 4 + 2] = 5473.0 / 10752.0;      // a32
 
         dendro::logger::debug(dendro::logger::Scope{"ETS_MSRK"},
                               "Coefficients set for RK4-2(1)");
@@ -319,15 +317,15 @@ void ETS_MSRK<T, Ctx>::set_msrk_coefficients(ETSType type) {
          * Imaginary-axis stability intercept: 2.46.
          *---------------------------------------------------------*/
 
-        m_uiMSRK_Bi[0] = -191.0 / 882.0;
-        m_uiMSRK_Bi[1] = 48241.0 / 59994.0;
-        m_uiMSRK_Bi[2] = 193750.0 / 4351347.0;
-        m_uiMSRK_Bi[3] = 100000.0 / 271791.0;
+        m_uiMSRK_Bi[0]          = -191.0 / 882.0;
+        m_uiMSRK_Bi[1]          = 48241.0 / 59994.0;
+        m_uiMSRK_Bi[2]          = 193750.0 / 4351347.0;
+        m_uiMSRK_Bi[3]          = 100000.0 / 271791.0;
 
-        m_uiMSRK_Ci[0] = 0.0;
-        m_uiMSRK_Ci[1] = 0.0;
-        m_uiMSRK_Ci[2] = -99.0 / 50.0;
-        m_uiMSRK_Ci[3] = 101.0 / 100.0;
+        m_uiMSRK_Ci[0]          = 0.0;
+        m_uiMSRK_Ci[1]          = 0.0;
+        m_uiMSRK_Ci[2]          = -99.0 / 50.0;
+        m_uiMSRK_Ci[3]          = 101.0 / 100.0;
 
         m_uiMSRK_Aij[2 * 4 + 0] = 1309.0 / 15500.0;
         m_uiMSRK_Aij[2 * 4 + 1] = -31999.0 / 15500.0;
@@ -356,16 +354,16 @@ void ETS_MSRK<T, Ctx>::set_msrk_coefficients(ETSType type) {
          * y_{n+1} = y_n + h*(b0*k0 + b1*k1 + b2*k2 + b3*k3)
          *---------------------------------------------------------*/
 
-        m_uiMSRK_Bi[0] = -85.0 / 1416.0;
-        m_uiMSRK_Bi[1] = 131.0 / 408.0;
-        m_uiMSRK_Bi[2] = -29.0 / 24.0;
-        m_uiMSRK_Bi[3] = 15625.0 / 8024.0;
+        m_uiMSRK_Bi[0]          = -85.0 / 1416.0;
+        m_uiMSRK_Bi[1]          = 131.0 / 408.0;
+        m_uiMSRK_Bi[2]          = -29.0 / 24.0;
+        m_uiMSRK_Bi[3]          = 15625.0 / 8024.0;
 
         // c0, c1 unused (history stages).  c2 = 0 (evaluation at t_n).
-        m_uiMSRK_Ci[0] = 0.0;
-        m_uiMSRK_Ci[1] = 0.0;
-        m_uiMSRK_Ci[2] = 0.0;
-        m_uiMSRK_Ci[3] = 9.0 / 25.0;
+        m_uiMSRK_Ci[0]          = 0.0;
+        m_uiMSRK_Ci[1]          = 0.0;
+        m_uiMSRK_Ci[2]          = 0.0;
+        m_uiMSRK_Ci[3]          = 9.0 / 25.0;
 
         // Only stage 3 has non-trivial Aij entries.
         m_uiMSRK_Aij[3 * 4 + 0] = 2511.0 / 62500.0;
@@ -401,10 +399,9 @@ int ETS_MSRK<T, Ctx>::allocate_history_vars() {
 
     m_uiHistVec.resize(m_uiNumHistorySlots);
     for (unsigned int i = 0; i < m_uiNumHistorySlots; i++)
-        m_uiHistVec[i].create_vector(m_uiAppCtx->get_mesh(),
-                                     m_uiEVar.get_type(), m_uiEVar.get_loc(),
-                                     m_uiEVar.get_dof(),
-                                     m_uiEVar.is_ghost_allocated());
+        m_uiHistVec[i].create_vector(
+            m_uiAppCtx->get_mesh(), m_uiEVar.get_type(), m_uiEVar.get_loc(),
+            m_uiEVar.get_dof(), m_uiEVar.is_ghost_allocated());
 
     m_uiIsHistoryAlloc = true;
     return 0;
@@ -533,10 +530,9 @@ void ETS_MSRK<T, Ctx>::evolve() {
 
 template <typename T, typename Ctx>
 void ETS_MSRK<T, Ctx>::evolve_bootstrap() {
-    dendro::logger::info(
-        dendro::logger::Scope{"ETS_MSRK"},
-        "Bootstrap step ({} remaining) — using standard RK4",
-        m_uiBootstrapRemaining);
+    dendro::logger::info(dendro::logger::Scope{"ETS_MSRK"},
+                         "Bootstrap step ({} remaining) — using standard RK4",
+                         m_uiBootstrapRemaining);
 
     const ot::Mesh* pMesh  = m_uiAppCtx->get_mesh();
     const double current_t = m_uiTimeInfo._m_uiT;
@@ -550,9 +546,9 @@ void ETS_MSRK<T, Ctx>::evolve_bootstrap() {
 
     if (pMesh->isActive()) {
         for (unsigned int stage = 0; stage < m_uiNumStages; stage++) {
-            dendro::logger::debug(
-                dendro::logger::Scope{"ETS_MSRK"},
-                "Bootstrap RK4 stage {}/{}", stage + 1, m_uiNumStages);
+            dendro::logger::debug(dendro::logger::Scope{"ETS_MSRK"},
+                                  "Bootstrap RK4 stage {}/{}", stage + 1,
+                                  m_uiNumStages);
 
             m_uiEVecTmp[0].copy_data(m_uiEVar);
 
@@ -573,8 +569,7 @@ void ETS_MSRK<T, Ctx>::evolve_bootstrap() {
 
         // Final update: y_{n+1} = y_n + sum(b_i * k_i * dt).
         for (unsigned int k = 0; k < m_uiNumStages; k++)
-            DVec::axpy(pMesh, m_uiBi[k] * dt, m_uiStVec[k],
-                       m_uiEVar);
+            DVec::axpy(pMesh, m_uiBi[k] * dt, m_uiStVec[k], m_uiEVar);
     }
 
     m_uiAppCtx->post_timestep(m_uiEVar);
@@ -657,10 +652,10 @@ void ETS_MSRK<T, Ctx>::evolve_bootstrap() {
 
 template <typename T, typename Ctx>
 void ETS_MSRK<T, Ctx>::evolve_msrk() {
-    dendro::logger::debug(
-        dendro::logger::Scope{"ETS_MSRK"},
-        "MSRK evolve step (step={}, fresh_stages={})",
-        m_uiTimeInfo._m_uiStep, m_uiNumStages - m_uiFirstFreshStage);
+    dendro::logger::debug(dendro::logger::Scope{"ETS_MSRK"},
+                          "MSRK evolve step (step={}, fresh_stages={})",
+                          m_uiTimeInfo._m_uiStep,
+                          m_uiNumStages - m_uiFirstFreshStage);
 
     const ot::Mesh* pMesh  = m_uiAppCtx->get_mesh();
     const double current_t = m_uiTimeInfo._m_uiT;
@@ -679,11 +674,11 @@ void ETS_MSRK<T, Ctx>::evolve_msrk() {
         }
 
         // Compute fresh stages.
-        for (unsigned int stage = m_uiFirstFreshStage;
-             stage < m_uiNumStages; stage++) {
+        for (unsigned int stage = m_uiFirstFreshStage; stage < m_uiNumStages;
+             stage++) {
             dendro::logger::debug(dendro::logger::Scope{"ETS_MSRK"},
-                                  "Computing fresh stage {}/{}",
-                                  stage + 1, m_uiNumStages);
+                                  "Computing fresh stage {}/{}", stage + 1,
+                                  m_uiNumStages);
 
             m_uiEVecTmp[0].copy_data(m_uiEVar);
 
@@ -691,11 +686,9 @@ void ETS_MSRK<T, Ctx>::evolve_msrk() {
             // history stages) via the Aij tableau.  Skip zero coefficients
             // to avoid unnecessary axpy work on large vectors.
             for (unsigned int p = 0; p < stage; p++) {
-                const DendroScalar aip =
-                    m_uiAij[stage * m_uiNumStages + p];
+                const DendroScalar aip = m_uiAij[stage * m_uiNumStages + p];
                 if (aip != 0.0)
-                    DVec::axpy(pMesh, aip * dt,
-                               m_uiStVec[p], m_uiEVecTmp[0]);
+                    DVec::axpy(pMesh, aip * dt, m_uiStVec[p], m_uiEVecTmp[0]);
             }
 
             m_uiAppCtx->post_timestep(m_uiEVecTmp[0]);
@@ -711,8 +704,7 @@ void ETS_MSRK<T, Ctx>::evolve_msrk() {
         dendro::logger::debug(dendro::logger::Scope{"ETS_MSRK"},
                               "Computing final update");
         for (unsigned int k = 0; k < m_uiNumStages; k++)
-            DVec::axpy(pMesh, m_uiBi[k] * dt,
-                       m_uiStVec[k], m_uiEVar);
+            DVec::axpy(pMesh, m_uiBi[k] * dt, m_uiStVec[k], m_uiEVar);
     }
 
     m_uiAppCtx->post_timestep(m_uiEVar);

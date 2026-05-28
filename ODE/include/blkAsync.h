@@ -465,11 +465,11 @@ class BlockAsyncVector {
             const unsigned int regLev = blkList[m_uiBlkID].getRegularGridLev();
 
             const unsigned int ei     = (pNodes[ele].getX() - blkNode.getX()) >>
-                                    (m_uiMaxDepth - regLev);
-            const unsigned int ej = (pNodes[ele].getY() - blkNode.getY()) >>
-                                    (m_uiMaxDepth - regLev);
-            const unsigned int ek = (pNodes[ele].getZ() - blkNode.getZ()) >>
-                                    (m_uiMaxDepth - regLev);
+                                        (m_uiMaxDepth - regLev);
+            const unsigned int ej     = (pNodes[ele].getY() - blkNode.getY()) >>
+                                        (m_uiMaxDepth - regLev);
+            const unsigned int ek     = (pNodes[ele].getZ() - blkNode.getZ()) >>
+                                        (m_uiMaxDepth - regLev);
             const unsigned int eleIDMax = blkList[m_uiBlkID].getElemSz1D();
 
             const unsigned int eOrder   = pMesh->getElementOrder();
@@ -601,11 +601,11 @@ class BlockAsyncVector {
             const unsigned int regLev = blkList[m_uiBlkID].getRegularGridLev();
 
             const unsigned int ei     = (pNodes[ele].getX() - blkNode.getX()) >>
-                                    (m_uiMaxDepth - regLev);
-            const unsigned int ej = (pNodes[ele].getY() - blkNode.getY()) >>
-                                    (m_uiMaxDepth - regLev);
-            const unsigned int ek = (pNodes[ele].getZ() - blkNode.getZ()) >>
-                                    (m_uiMaxDepth - regLev);
+                                        (m_uiMaxDepth - regLev);
+            const unsigned int ej     = (pNodes[ele].getY() - blkNode.getY()) >>
+                                        (m_uiMaxDepth - regLev);
+            const unsigned int ek     = (pNodes[ele].getZ() - blkNode.getZ()) >>
+                                        (m_uiMaxDepth - regLev);
             const unsigned int eleIDMax = blkList[m_uiBlkID].getElemSz1D();
 
             const unsigned int eOrder   = pMesh->getElementOrder();

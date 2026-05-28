@@ -4609,11 +4609,11 @@ void Mesh::buildE2N_DG() {
     m_uiNodePostGhostEnd   = m_uiElementPostGhostEnd * m_uiNpE;
 
     m_uiNumActualNodes     = (m_uiNodePreGhostEnd - m_uiNodePreGhostBegin) +
-                         (m_uiNodeLocalEnd - m_uiNodeLocalBegin) +
-                         (m_uiNodeLocalEnd - m_uiNodeLocalBegin);
+                             (m_uiNodeLocalEnd - m_uiNodeLocalBegin) +
+                             (m_uiNodeLocalEnd - m_uiNodeLocalBegin);
 
-    m_uiE2NMapping_DG = m_uiE2NMapping_CG;
-    m_uiCG2DG         = m_uiE2NMapping_CG;
+    m_uiE2NMapping_DG      = m_uiE2NMapping_CG;
+    m_uiCG2DG              = m_uiE2NMapping_CG;
     // m_uiCG2DG.resize(m_uiE2NMapping_CG.size(),1);
 
     dendro::logger::info(dendro::logger::Scope{"MESH"},
@@ -10604,19 +10604,8 @@ bool Mesh::isFaceHanging(unsigned int elementId, unsigned int faceId,
     return isHanging;
 }
 
-bool Mesh::isNodeHanging(unsigned int eleID, unsigned int ix, unsigned int jy,
-                         unsigned int kz) const {
-    // should not be called if the mesh is not active
-    if (!m_uiIsActive) return false;
-
-    return m_uiAllElements[(m_uiE2NMapping_DG[eleID * m_uiNpE +
-                                              kz * (m_uiElementOrder + 1) *
-                                                  (m_uiElementOrder + 1) +
-                                              jy * (m_uiElementOrder + 1) +
-                                              ix] /
-                            m_uiNpE)]
-               .getLevel() < m_uiAllElements[eleID].getLevel();
-}
+// isNodeHanging moved to mesh.h as inline — was 18% of unzip gather runtime
+// when out-of-line.
 
 ot::Mesh *Mesh::ReMesh(unsigned int grainSz, double ld_tol, unsigned int sfK,
                        unsigned int (*getWeight)(const ot::TreeNode *),
@@ -13960,12 +13949,12 @@ void Mesh::blkUnzipElementIDs(unsigned int blk,
 
         for (unsigned int elem = blkList[blk].getLocalElementBegin();
              elem < blkList[blk].getLocalElementEnd(); elem++) {
-            const unsigned int ei = (pNodes[elem].getX() - blkNode.getX()) >>
-                                    (m_uiMaxDepth - regLevel);
-            const unsigned int ej = (pNodes[elem].getY() - blkNode.getY()) >>
-                                    (m_uiMaxDepth - regLevel);
-            const unsigned int ek = (pNodes[elem].getZ() - blkNode.getZ()) >>
-                                    (m_uiMaxDepth - regLevel);
+            const unsigned int ei   = (pNodes[elem].getX() - blkNode.getX()) >>
+                                      (m_uiMaxDepth - regLevel);
+            const unsigned int ej   = (pNodes[elem].getY() - blkNode.getY()) >>
+                                      (m_uiMaxDepth - regLevel);
+            const unsigned int ek   = (pNodes[elem].getZ() - blkNode.getZ()) >>
+                                      (m_uiMaxDepth - regLevel);
 
             const unsigned int emin = 0;
             const unsigned int emax =

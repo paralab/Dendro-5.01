@@ -177,7 +177,7 @@ double rsNormLp(const ot::Mesh* pMesh, const T* v1, const T* v2,
                                                 (j + 1) * (DD + 1) + (i + 1)]) *
                                        invNC;
 
-                    double cell_avg = cell_avg1 - cell_avg2;
+                    double cell_avg  = cell_avg1 - cell_avg2;
                     rs += (pow(cell_avg, p) * hx * hy * hz);
                 }
     }

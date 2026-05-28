@@ -100,9 +100,9 @@ namespace checkpoint {
 template <typename T>
 int writeVecToFile(const char* fName, const ot::Mesh* pMesh, const T* vec) {
     dendro::logger::debug("Writing vec to file: ", fName);
-    unsigned int numNodes = pMesh->getNumLocalMeshNodes() +
-                            pMesh->getNumPreMeshNodes() +
-                            pMesh->getNumPostMeshNodes();
+    unsigned int numNodes    = pMesh->getNumLocalMeshNodes() +
+                               pMesh->getNumPreMeshNodes() +
+                               pMesh->getNumPostMeshNodes();
     unsigned int nLocalBegin = pMesh->getNodeLocalBegin();
     unsigned int nLocalEnd   = pMesh->getNodeLocalEnd();
 
@@ -128,9 +128,9 @@ template <typename T>
 int writeVecToFile(const char* fName, const ot::Mesh* pMesh, const T** vec,
                    const unsigned int numVars) {
     dendro::logger::debug("Writing vec to file: ", fName);
-    unsigned int numNodes = pMesh->getNumLocalMeshNodes() +
-                            pMesh->getNumPreMeshNodes() +
-                            pMesh->getNumPostMeshNodes();
+    unsigned int numNodes    = pMesh->getNumLocalMeshNodes() +
+                               pMesh->getNumPreMeshNodes() +
+                               pMesh->getNumPostMeshNodes();
     unsigned int nLocalBegin = pMesh->getNodeLocalBegin();
     unsigned int nLocalEnd   = pMesh->getNodeLocalEnd();
 

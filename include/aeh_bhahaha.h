@@ -224,7 +224,7 @@ class AEH_BHaHAHA {
                 const std::vector<int>& nphi_array   = {16, 32, 64},
                 const int enable_eta_varying_alg     = 0,
                 const int verbosity_level            = 1,
-                const double bah_bhbh_min_separation         = 0.01,
+                const double bah_bhbh_min_separation = 0.01,
                 const double bah_ah3_sanity_k        = 2.0,
                 const double bah_ah3_radius_padding  = 0.5)
         : num_horizons_(n_horizons),

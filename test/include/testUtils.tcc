@@ -212,9 +212,9 @@ bool checkE2EMapping(const std::vector<unsigned int>& E2EMap,
 
         for (unsigned int k = 1; k <= k_s; k++) {
             if ((myX + k * mySz) < domain_max) {
-                tmp         = ot::TreeNode((myX + k * mySz), myY, myZ,
-                                           (OCT_KEY_RIGHT | m_uiMaxDepth), m_uiDim,
-                                           m_uiMaxDepth);
+                tmp = ot::TreeNode((myX + k * mySz), myY, myZ,
+                                   (OCT_KEY_RIGHT | m_uiMaxDepth), m_uiDim,
+                                   m_uiMaxDepth);
                 lookUPIndex = E2EMap[i * k_s * numDirections +
                                      (OCT_DIR_RIGHT * k_s + k - 1)];
                 // assert(lookUPIndex!=UINT_MAX);
@@ -233,9 +233,9 @@ bool checkE2EMapping(const std::vector<unsigned int>& E2EMap,
             }
 
             if (myX > 0) {
-                tmp         = ot::TreeNode((myX - 1), myY, myZ,
-                                           (OCT_KEY_LEFT | m_uiMaxDepth), m_uiDim,
-                                           m_uiMaxDepth);
+                tmp = ot::TreeNode((myX - 1), myY, myZ,
+                                   (OCT_KEY_LEFT | m_uiMaxDepth), m_uiDim,
+                                   m_uiMaxDepth);
                 lookUPIndex = E2EMap[i * k_s * numDirections +
                                      OCT_DIR_LEFT * k_s + k - 1];
                 // assert(lookUPIndex!=UINT_MAX);
@@ -272,9 +272,9 @@ bool checkE2EMapping(const std::vector<unsigned int>& E2EMap,
             }
 
             if (myY > 0) {
-                tmp         = ot::TreeNode(myX, (myY - 1), myZ,
-                                           (OCT_KEY_DOWN | m_uiMaxDepth), m_uiDim,
-                                           m_uiMaxDepth);
+                tmp = ot::TreeNode(myX, (myY - 1), myZ,
+                                   (OCT_KEY_DOWN | m_uiMaxDepth), m_uiDim,
+                                   m_uiMaxDepth);
                 lookUPIndex = E2EMap[i * k_s * numDirections +
                                      OCT_DIR_DOWN * k_s + k - 1];
                 // assert(lookUPIndex!=UINT_MAX);
@@ -297,9 +297,9 @@ bool checkE2EMapping(const std::vector<unsigned int>& E2EMap,
 
             if (m_uiDim == 3) {
                 if ((myZ + k * mySz) < domain_max) {
-                    tmp         = ot::TreeNode(myX, myY, (myZ + k * mySz),
-                                               (OCT_KEY_FRONT | m_uiMaxDepth), m_uiDim,
-                                               m_uiMaxDepth);
+                    tmp = ot::TreeNode(myX, myY, (myZ + k * mySz),
+                                       (OCT_KEY_FRONT | m_uiMaxDepth), m_uiDim,
+                                       m_uiMaxDepth);
                     lookUPIndex = E2EMap[i * k_s * numDirections +
                                          OCT_DIR_FRONT * k_s + k - 1];
                     // assert(lookUPIndex!=UINT_MAX);
@@ -317,9 +317,9 @@ bool checkE2EMapping(const std::vector<unsigned int>& E2EMap,
                 }
 
                 if (myZ > 0) {
-                    tmp         = ot::TreeNode(myX, myY, (myZ - 1),
-                                               (OCT_KEY_BACK | m_uiMaxDepth), m_uiDim,
-                                               m_uiMaxDepth);
+                    tmp = ot::TreeNode(myX, myY, (myZ - 1),
+                                       (OCT_KEY_BACK | m_uiMaxDepth), m_uiDim,
+                                       m_uiMaxDepth);
                     lookUPIndex = E2EMap[i * k_s * numDirections +
                                          OCT_DIR_BACK * k_s + k - 1];
                     // assert(lookUPIndex!=UINT_MAX);

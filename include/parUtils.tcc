@@ -1920,9 +1920,9 @@ int sampleSort(std::vector<T> &arr, std::vector<T> &SortedElem,
              .count()) /
         (MILLISECOND_CONVERSION);
     double all2all   = (std::chrono::duration_cast<std::chrono::milliseconds>(
-                          (all2all_end - all2all_start))
-                          .count() /
-                      (MILLISECOND_CONVERSION));
+                            (all2all_end - all2all_start))
+                            .count() /
+                        (MILLISECOND_CONVERSION));
     double localSort = (std::chrono::duration_cast<std::chrono::milliseconds>(
                             (localSort_end - localSort_start))
                             .count() /

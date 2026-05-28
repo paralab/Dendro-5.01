@@ -52,7 +52,9 @@ void ptBucketRoofline(const Point* ptList, unsigned int numPts,
             cnum                        = (i % NUM_CHILDREN);
             ptChild[cnum][counts[cnum]] = ptList[i];
 #pragma omp critical
-            { counts[cnum]++; }
+            {
+                counts[cnum]++;
+            }
         }
     }
 

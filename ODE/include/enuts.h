@@ -1625,12 +1625,12 @@ void ExplicitNUTS<T, Ctx>::sync_blk_timestep(unsigned int blk,
     if (rk_s == 0) {
         for (unsigned int elem = blkList[blk].getLocalElementBegin();
              elem < blkList[blk].getLocalElementEnd(); elem++) {
-            const unsigned int ei = (pNodes[elem].getX() - blkNode.getX()) >>
-                                    (m_uiMaxDepth - regLevel);
-            const unsigned int ej = (pNodes[elem].getY() - blkNode.getY()) >>
-                                    (m_uiMaxDepth - regLevel);
-            const unsigned int ek = (pNodes[elem].getZ() - blkNode.getZ()) >>
-                                    (m_uiMaxDepth - regLevel);
+            const unsigned int ei   = (pNodes[elem].getX() - blkNode.getX()) >>
+                                      (m_uiMaxDepth - regLevel);
+            const unsigned int ej   = (pNodes[elem].getY() - blkNode.getY()) >>
+                                      (m_uiMaxDepth - regLevel);
+            const unsigned int ek   = (pNodes[elem].getZ() - blkNode.getZ()) >>
+                                      (m_uiMaxDepth - regLevel);
 
             const unsigned int emin = 0;
             const unsigned int emax =
@@ -1670,12 +1670,12 @@ void ExplicitNUTS<T, Ctx>::sync_blk_timestep(unsigned int blk,
     } else {
         for (unsigned int elem = blkList[blk].getLocalElementBegin();
              elem < blkList[blk].getLocalElementEnd(); elem++) {
-            const unsigned int ei = (pNodes[elem].getX() - blkNode.getX()) >>
-                                    (m_uiMaxDepth - regLevel);
-            const unsigned int ej = (pNodes[elem].getY() - blkNode.getY()) >>
-                                    (m_uiMaxDepth - regLevel);
-            const unsigned int ek = (pNodes[elem].getZ() - blkNode.getZ()) >>
-                                    (m_uiMaxDepth - regLevel);
+            const unsigned int ei   = (pNodes[elem].getX() - blkNode.getX()) >>
+                                      (m_uiMaxDepth - regLevel);
+            const unsigned int ej   = (pNodes[elem].getY() - blkNode.getY()) >>
+                                      (m_uiMaxDepth - regLevel);
+            const unsigned int ek   = (pNodes[elem].getZ() - blkNode.getZ()) >>
+                                      (m_uiMaxDepth - regLevel);
 
             const unsigned int emin = 0;
             const unsigned int emax =

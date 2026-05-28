@@ -1,0 +1,12 @@
+# Vendored / third-party sources — never reformat (keeps upstream diffs clean).
+# Honored by clang-format >= 18 and by some editors/CI. NOTE: not all local
+# clang-format builds honor this file, so scripts/format-all.sh also bakes in
+# the same exclusions. Keep the two lists in sync.
+IO/zlib/*
+lib/BHaHAHA/*
+IO/vtk/include/json.hpp
+IO/vtk/include/json_fwd.hpp
+IO/vtk/include/base.h
+IO/vtk/include/cencode.h
+IO/vtk/include/cdecode.h
+include/dollar.hpp

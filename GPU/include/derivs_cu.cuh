@@ -30,15 +30,15 @@ template <int pw, int pencils, int pencil_sz>
 inline DEVICE_FUNC void __deriv644_x(DEVICE_REAL* const Du,
                                      const DEVICE_REAL* const u,
                                      const BlockGPU3D* const blk) {
-    const DEVICE_INT i = GPUDevice::thread_id_x();
-    const DEVICE_INT j = GPUDevice::block_id_x() * GPUDevice::block_dim_y() +
-                         GPUDevice::thread_id_y();
-    const DEVICE_INT k          = GPUDevice::block_id_y();
+    const DEVICE_INT i    = GPUDevice::thread_id_x();
+    const DEVICE_INT j    = GPUDevice::block_id_x() * GPUDevice::block_dim_y() +
+                            GPUDevice::thread_id_y();
+    const DEVICE_INT k    = GPUDevice::block_id_y();
 
-    const DEVICE_INT si         = GPUDevice::thread_id_x();
-    const DEVICE_INT sj         = GPUDevice::thread_id_y();
+    const DEVICE_INT si   = GPUDevice::thread_id_x();
+    const DEVICE_INT sj   = GPUDevice::thread_id_y();
 
-    const DEVICE_REAL idx       = 1.0 / blk->m_dx[0];
+    const DEVICE_REAL idx = 1.0 / blk->m_dx[0];
     const DEVICE_REAL idx_by_60 = idx / 60.0;
 
     const DEVICE_INT nx         = blk->m_aligned_sz[0];
@@ -122,13 +122,13 @@ template <int pw, int pencils, int pencil_sz>
 inline DEVICE_FUNC void __deriv644_xx(DEVICE_REAL* const DDu,
                                       const DEVICE_REAL* const u,
                                       const BlockGPU3D* const blk) {
-    const DEVICE_INT i = GPUDevice::thread_id_x();
-    const DEVICE_INT j = GPUDevice::block_id_x() * GPUDevice::block_dim_y() +
-                         GPUDevice::thread_id_y();
-    const DEVICE_INT k                = GPUDevice::block_id_y();
+    const DEVICE_INT i  = GPUDevice::thread_id_x();
+    const DEVICE_INT j  = GPUDevice::block_id_x() * GPUDevice::block_dim_y() +
+                          GPUDevice::thread_id_y();
+    const DEVICE_INT k  = GPUDevice::block_id_y();
 
-    const DEVICE_INT si               = GPUDevice::thread_id_x();
-    const DEVICE_INT sj               = GPUDevice::thread_id_y();
+    const DEVICE_INT si = GPUDevice::thread_id_x();
+    const DEVICE_INT sj = GPUDevice::thread_id_y();
 
     const DEVICE_REAL idx_sqrd        = 1.0 / (blk->m_dx[0] * blk->m_dx[0]);
     const DEVICE_REAL idx_sqrd_by_180 = idx_sqrd / 180.0;
@@ -151,10 +151,10 @@ inline DEVICE_FUNC void __deriv644_xx(DEVICE_REAL* const DDu,
     const DEVICE_INT sb = si + pw;
     globalIdx           = k * nx * ny + j * nx + (sb % nx);
     DDu[globalIdx]      = (2.0 * s_u[sj][sb - 3] - 27.0 * s_u[sj][sb - 2] +
-                      270.0 * s_u[sj][sb - 1] - 490.0 * s_u[sj][sb] +
-                      270.0 * s_u[sj][sb + 1] - 27.0 * s_u[sj][sb + 2] +
-                      2.0 * s_u[sj][sb + 3]) *
-                     idx_sqrd_by_180;
+                           270.0 * s_u[sj][sb - 1] - 490.0 * s_u[sj][sb] +
+                           270.0 * s_u[sj][sb + 1] - 27.0 * s_u[sj][sb + 2] +
+                           2.0 * s_u[sj][sb + 3]) *
+                          idx_sqrd_by_180;
 
     const DEVICE_UINT bflag = blk->m_bflag;
 
@@ -223,15 +223,15 @@ inline DEVICE_FUNC void __deriv644_y(DEVICE_REAL* const Du,
                                      const DEVICE_REAL* const u,
                                      const BlockGPU3D* const blk) {
     // Coalaced mem. access - high bandwidth
-    const DEVICE_INT i = GPUDevice::block_id_x() * GPUDevice::block_dim_x() +
-                         GPUDevice::thread_id_x();
-    const DEVICE_INT j          = GPUDevice::thread_id_y();
-    const DEVICE_INT k          = GPUDevice::block_id_y();
+    const DEVICE_INT i    = GPUDevice::block_id_x() * GPUDevice::block_dim_x() +
+                            GPUDevice::thread_id_x();
+    const DEVICE_INT j    = GPUDevice::thread_id_y();
+    const DEVICE_INT k    = GPUDevice::block_id_y();
 
-    const DEVICE_INT si         = GPUDevice::thread_id_x();
-    const DEVICE_INT sj         = GPUDevice::thread_id_y();
+    const DEVICE_INT si   = GPUDevice::thread_id_x();
+    const DEVICE_INT sj   = GPUDevice::thread_id_y();
 
-    const DEVICE_REAL idx       = 1.0 / blk->m_dx[1];
+    const DEVICE_REAL idx = 1.0 / blk->m_dx[1];
     const DEVICE_REAL idx_by_60 = idx / 60.0;
 
     const DEVICE_INT nx         = blk->m_aligned_sz[0];
@@ -321,13 +321,13 @@ inline DEVICE_FUNC void __deriv644_yy(DEVICE_REAL* const DDu,
                                       const DEVICE_REAL* const u,
                                       const BlockGPU3D* const blk) {
     // Coalaced mem. access - high bandwidth
-    const DEVICE_INT i = GPUDevice::block_id_x() * GPUDevice::block_dim_x() +
-                         GPUDevice::thread_id_x();
-    const DEVICE_INT j                = GPUDevice::thread_id_y();
-    const DEVICE_INT k                = GPUDevice::block_id_y();
+    const DEVICE_INT i  = GPUDevice::block_id_x() * GPUDevice::block_dim_x() +
+                          GPUDevice::thread_id_x();
+    const DEVICE_INT j  = GPUDevice::thread_id_y();
+    const DEVICE_INT k  = GPUDevice::block_id_y();
 
-    const DEVICE_INT si               = GPUDevice::thread_id_x();
-    const DEVICE_INT sj               = GPUDevice::thread_id_y();
+    const DEVICE_INT si = GPUDevice::thread_id_x();
+    const DEVICE_INT sj = GPUDevice::thread_id_y();
 
     const DEVICE_REAL idx_sqrd        = 1.0 / (blk->m_dx[1] * blk->m_dx[1]);
     const DEVICE_REAL idx_sqrd_by_180 = idx_sqrd / 180.0;
@@ -353,10 +353,10 @@ inline DEVICE_FUNC void __deriv644_yy(DEVICE_REAL* const DDu,
     globalIdx           = k * nx * ny + (sb % ny) * nx + i;
 
     DDu[globalIdx]      = (2.0 * s_u[sb - 3][si] - 27.0 * s_u[sb - 2][si] +
-                      270.0 * s_u[sb - 1][si] - 490.0 * s_u[sb][si] +
-                      270.0 * s_u[sb + 1][si] - 27.0 * s_u[sb + 2][si] +
-                      2.0 * s_u[sb + 3][si]) *
-                     idx_sqrd_by_180;
+                           270.0 * s_u[sb - 1][si] - 490.0 * s_u[sb][si] +
+                           270.0 * s_u[sb + 1][si] - 27.0 * s_u[sb + 2][si] +
+                           2.0 * s_u[sb + 3][si]) *
+                          idx_sqrd_by_180;
 
     const DEVICE_UINT bflag = blk->m_bflag;
 
@@ -427,15 +427,15 @@ inline DEVICE_FUNC void __deriv644_z(DEVICE_REAL* const Du,
                                      const DEVICE_REAL* const u,
                                      const BlockGPU3D* const blk) {
     // coalaced mem. access.
-    const DEVICE_INT i = GPUDevice::block_id_x() * GPUDevice::block_dim_x() +
-                         GPUDevice::thread_id_x();
-    const DEVICE_INT j          = GPUDevice::block_id_y();
-    const DEVICE_INT k          = GPUDevice::thread_id_y();
+    const DEVICE_INT i    = GPUDevice::block_id_x() * GPUDevice::block_dim_x() +
+                            GPUDevice::thread_id_x();
+    const DEVICE_INT j    = GPUDevice::block_id_y();
+    const DEVICE_INT k    = GPUDevice::thread_id_y();
 
-    const DEVICE_INT si         = GPUDevice::thread_id_x();
-    const DEVICE_INT sk         = GPUDevice::thread_id_y();
+    const DEVICE_INT si   = GPUDevice::thread_id_x();
+    const DEVICE_INT sk   = GPUDevice::thread_id_y();
 
-    const DEVICE_REAL idx       = 1.0 / blk->m_dx[2];
+    const DEVICE_REAL idx = 1.0 / blk->m_dx[2];
     const DEVICE_REAL idx_by_60 = idx / 60.0;
 
     const DEVICE_INT nx         = blk->m_aligned_sz[0];
@@ -525,13 +525,13 @@ inline DEVICE_FUNC void __deriv644_zz(DEVICE_REAL* const DDu,
                                       const DEVICE_REAL* const u,
                                       const BlockGPU3D* const blk) {
     // coalaced mem. access.
-    const DEVICE_INT i = GPUDevice::block_id_x() * GPUDevice::block_dim_x() +
-                         GPUDevice::thread_id_x();
-    const DEVICE_INT j                = GPUDevice::block_id_y();
-    const DEVICE_INT k                = GPUDevice::thread_id_y();
+    const DEVICE_INT i  = GPUDevice::block_id_x() * GPUDevice::block_dim_x() +
+                          GPUDevice::thread_id_x();
+    const DEVICE_INT j  = GPUDevice::block_id_y();
+    const DEVICE_INT k  = GPUDevice::thread_id_y();
 
-    const DEVICE_INT si               = GPUDevice::thread_id_x();
-    const DEVICE_INT sk               = GPUDevice::thread_id_y();
+    const DEVICE_INT si = GPUDevice::thread_id_x();
+    const DEVICE_INT sk = GPUDevice::thread_id_y();
 
     const DEVICE_REAL idx_sqrd        = 1.0 / (blk->m_dx[2] * blk->m_dx[2]);
     const DEVICE_REAL idx_sqrd_by_180 = idx_sqrd / 180.0;
@@ -556,10 +556,10 @@ inline DEVICE_FUNC void __deriv644_zz(DEVICE_REAL* const DDu,
     globalIdx           = (sb % nz) * nx * ny + j * nx + i;
 
     DDu[globalIdx]      = (2.0 * s_u[sb - 3][si] - 27.0 * s_u[sb - 2][si] +
-                      270.0 * s_u[sb - 1][si] - 490.0 * s_u[sb][si] +
-                      270.0 * s_u[sb + 1][si] - 27.0 * s_u[sb + 2][si] +
-                      2.0 * s_u[sb + 3][si]) *
-                     idx_sqrd_by_180;
+                           270.0 * s_u[sb - 1][si] - 490.0 * s_u[sb][si] +
+                           270.0 * s_u[sb + 1][si] - 27.0 * s_u[sb + 2][si] +
+                           2.0 * s_u[sb + 3][si]) *
+                          idx_sqrd_by_180;
 
     const DEVICE_UINT bflag = blk->m_bflag;
 
@@ -620,16 +620,16 @@ template <int pw, int pencils, int pencil_sz>
 inline DEVICE_FUNC void __ko_deriv42_x(DEVICE_REAL* const Du,
                                        const DEVICE_REAL* const u,
                                        const BlockGPU3D* const blk) {
-    const DEVICE_INT i = GPUDevice::thread_id_x();
-    const DEVICE_INT j = GPUDevice::block_id_x() * GPUDevice::block_dim_y() +
-                         GPUDevice::thread_id_y();
-    const DEVICE_INT k                = GPUDevice::block_id_y();
+    const DEVICE_INT i    = GPUDevice::thread_id_x();
+    const DEVICE_INT j    = GPUDevice::block_id_x() * GPUDevice::block_dim_y() +
+                            GPUDevice::thread_id_y();
+    const DEVICE_INT k    = GPUDevice::block_id_y();
 
-    const DEVICE_INT si               = GPUDevice::thread_id_x();
-    const DEVICE_INT sj               = GPUDevice::thread_id_y();
+    const DEVICE_INT si   = GPUDevice::thread_id_x();
+    const DEVICE_INT sj   = GPUDevice::thread_id_y();
 
-    const DEVICE_REAL dx              = blk->m_dx[0];
-    const DEVICE_REAL idx             = 1.0 / blk->m_dx[0];
+    const DEVICE_REAL dx  = blk->m_dx[0];
+    const DEVICE_REAL idx = 1.0 / blk->m_dx[0];
     const DEVICE_REAL pre_factor_6_dx = -1.0 / 64.0 / dx;
 
     const DEVICE_INT nx               = blk->m_aligned_sz[0];
@@ -667,8 +667,8 @@ inline DEVICE_FUNC void __ko_deriv42_x(DEVICE_REAL* const Du,
             const DEVICE_REAL spr1 = smr1;
 
             Du[globalIdx]          = (s_u[sj][sb + 3] - 3.0 * s_u[sj][sb + 2] +
-                             3.0 * s_u[sj][sb + 1] - s_u[sj][sb]) /
-                            smr3;
+                                      3.0 * s_u[sj][sb + 1] - s_u[sj][sb]) /
+                                     smr3;
             Du[globalIdx + 1] = (s_u[sj][sb + 4] - 6.0 * s_u[sj][sb + 3] +
                                  12.0 * s_u[sj][sb + 2] -
                                  10.0 * s_u[sj][sb + 1] + 3.0 * s_u[sj][sb]) /
@@ -704,9 +704,9 @@ inline DEVICE_FUNC void __ko_deriv42_x(DEVICE_REAL* const Du,
                                  10.0 * s_u[sj][sb - 1] + 3.0 * s_u[sj][sb]) /
                                 spr2;
 
-            Du[globalIdx] = (s_u[sj][sb - 3] - 3.0 * s_u[sj][sb - 2] +
-                             3.0 * s_u[sj][sb - 1] - s_u[sj][sb]) /
-                            spr3;
+            Du[globalIdx]     = (s_u[sj][sb - 3] - 3.0 * s_u[sj][sb - 2] +
+                                 3.0 * s_u[sj][sb - 1] - s_u[sj][sb]) /
+                                spr3;
         }
     }
 }
@@ -715,16 +715,16 @@ template <int pw, int pencils, int pencil_sz>
 inline DEVICE_FUNC void __ko_deriv42_y(DEVICE_REAL* const Du,
                                        const DEVICE_REAL* const u,
                                        const BlockGPU3D* const blk) {
-    const DEVICE_INT i = GPUDevice::block_id_x() * GPUDevice::block_dim_x() +
-                         GPUDevice::thread_id_x();
-    const DEVICE_INT j                = GPUDevice::thread_id_y();
-    const DEVICE_INT k                = GPUDevice::block_id_y();
+    const DEVICE_INT i    = GPUDevice::block_id_x() * GPUDevice::block_dim_x() +
+                            GPUDevice::thread_id_x();
+    const DEVICE_INT j    = GPUDevice::thread_id_y();
+    const DEVICE_INT k    = GPUDevice::block_id_y();
 
-    const DEVICE_INT si               = GPUDevice::thread_id_x();
-    const DEVICE_INT sj               = GPUDevice::thread_id_y();
+    const DEVICE_INT si   = GPUDevice::thread_id_x();
+    const DEVICE_INT sj   = GPUDevice::thread_id_y();
 
-    const DEVICE_REAL dx              = blk->m_dx[1];
-    const DEVICE_REAL idx             = 1.0 / blk->m_dx[1];
+    const DEVICE_REAL dx  = blk->m_dx[1];
+    const DEVICE_REAL idx = 1.0 / blk->m_dx[1];
     const DEVICE_REAL pre_factor_6_dx = -1.0 / 64.0 / dx;
 
     const DEVICE_INT nx               = blk->m_aligned_sz[0];
@@ -762,8 +762,8 @@ inline DEVICE_FUNC void __ko_deriv42_y(DEVICE_REAL* const Du,
             const DEVICE_REAL spr1 = smr1;
 
             Du[globalIdx]          = (s_u[sb + 3][si] - 3.0 * s_u[sb + 2][si] +
-                             3.0 * s_u[sb + 1][si] - s_u[sb][si]) /
-                            smr3;
+                                      3.0 * s_u[sb + 1][si] - s_u[sb][si]) /
+                                     smr3;
 
             Du[globalIdx + 1 * nx] =
                 (s_u[sb + 4][si] - 6.0 * s_u[sb + 3][si] +
@@ -814,16 +814,16 @@ inline DEVICE_FUNC void __ko_deriv42_z(DEVICE_REAL* const Du,
                                        const DEVICE_REAL* const u,
                                        const BlockGPU3D* const blk) {
     // coalaced mem. access.
-    const DEVICE_INT i = GPUDevice::block_id_x() * GPUDevice::block_dim_x() +
-                         GPUDevice::thread_id_x();
-    const DEVICE_INT j                = GPUDevice::block_id_y();
-    const DEVICE_INT k                = GPUDevice::thread_id_y();
+    const DEVICE_INT i    = GPUDevice::block_id_x() * GPUDevice::block_dim_x() +
+                            GPUDevice::thread_id_x();
+    const DEVICE_INT j    = GPUDevice::block_id_y();
+    const DEVICE_INT k    = GPUDevice::thread_id_y();
 
-    const DEVICE_INT si               = GPUDevice::thread_id_x();
-    const DEVICE_INT sk               = GPUDevice::thread_id_y();
+    const DEVICE_INT si   = GPUDevice::thread_id_x();
+    const DEVICE_INT sk   = GPUDevice::thread_id_y();
 
-    const DEVICE_REAL dx              = blk->m_dx[2];
-    const DEVICE_REAL idx             = 1.0 / blk->m_dx[2];
+    const DEVICE_REAL dx  = blk->m_dx[2];
+    const DEVICE_REAL idx = 1.0 / blk->m_dx[2];
     const DEVICE_REAL pre_factor_6_dx = -1.0 / 64.0 / dx;
 
     const DEVICE_INT nx               = blk->m_aligned_sz[0];
@@ -862,8 +862,8 @@ inline DEVICE_FUNC void __ko_deriv42_z(DEVICE_REAL* const Du,
             const DEVICE_REAL spr1 = smr1;
 
             Du[globalIdx]          = (s_u[sb + 3][si] - 3.0 * s_u[sb + 2][si] +
-                             3.0 * s_u[sb + 1][si] - s_u[sb][si]) /
-                            smr3;
+                                      3.0 * s_u[sb + 1][si] - s_u[sb][si]) /
+                                     smr3;
 
             Du[globalIdx + 1 * nx * ny] =
                 (s_u[sb + 4][si] - 6.0 * s_u[sb + 3][si] +
@@ -1987,12 +1987,12 @@ DEVICE_FUNC __inline__ void __blk1_deriv644_y(
                 for (DEVICE_INT si = i; si < actual_nx; si += inx) {
                     const DEVICE_INT globalIdx = IDX_B(si, sj, sk);
 
-                    Du[globalIdx]              = (-25.0 * s_u[globalIdx] +
-                                     48.0 * s_u[globalIdx + 1 * ss] -
-                                     36.0 * s_u[globalIdx + 2 * ss] +
-                                     16.0 * s_u[globalIdx + 3 * ss] -
-                                     3.0 * s_u[globalIdx + 4 * ss]) *
-                                    idx_by_12;
+                    Du[globalIdx]          = (-25.0 * s_u[globalIdx] +
+                                              48.0 * s_u[globalIdx + 1 * ss] -
+                                              36.0 * s_u[globalIdx + 2 * ss] +
+                                              16.0 * s_u[globalIdx + 3 * ss] -
+                                              3.0 * s_u[globalIdx + 4 * ss]) *
+                                             idx_by_12;
 
                     Du[globalIdx + 1 * ss] = (-3.0 * s_u[globalIdx] -
                                               10.0 * s_u[globalIdx + 1 * ss] +
@@ -2033,12 +2033,12 @@ DEVICE_FUNC __inline__ void __blk1_deriv644_y(
                                               3.0 * s_u[globalIdx]) *
                                              idx_by_12;
 
-                    Du[globalIdx] = (3.0 * s_u[globalIdx - 4 * ss] -
-                                     16.0 * s_u[globalIdx - 3 * ss] +
-                                     36.0 * s_u[globalIdx - 2 * ss] -
-                                     48.0 * s_u[globalIdx - 1 * ss] +
-                                     25.0 * s_u[globalIdx]) *
-                                    idx_by_12;
+                    Du[globalIdx]          = (3.0 * s_u[globalIdx - 4 * ss] -
+                                              16.0 * s_u[globalIdx - 3 * ss] +
+                                              36.0 * s_u[globalIdx - 2 * ss] -
+                                              48.0 * s_u[globalIdx - 1 * ss] +
+                                              25.0 * s_u[globalIdx]) *
+                                             idx_by_12;
                 }
     }
 
@@ -2092,12 +2092,12 @@ DEVICE_FUNC __inline__ void __blk1_deriv644_z(
                 for (DEVICE_INT si = i; si < actual_nx; si += inx) {
                     const DEVICE_INT globalIdx = IDX_B(si, sj, sk);
 
-                    Du[globalIdx]              = (-25.0 * s_u[globalIdx] +
-                                     48.0 * s_u[globalIdx + 1 * ss] -
-                                     36.0 * s_u[globalIdx + 2 * ss] +
-                                     16.0 * s_u[globalIdx + 3 * ss] -
-                                     3.0 * s_u[globalIdx + 4 * ss]) *
-                                    idx_by_12;
+                    Du[globalIdx]          = (-25.0 * s_u[globalIdx] +
+                                              48.0 * s_u[globalIdx + 1 * ss] -
+                                              36.0 * s_u[globalIdx + 2 * ss] +
+                                              16.0 * s_u[globalIdx + 3 * ss] -
+                                              3.0 * s_u[globalIdx + 4 * ss]) *
+                                             idx_by_12;
 
                     Du[globalIdx + 1 * ss] = (-3.0 * s_u[globalIdx] -
                                               10.0 * s_u[globalIdx + 1 * ss] +
@@ -2138,12 +2138,12 @@ DEVICE_FUNC __inline__ void __blk1_deriv644_z(
                                               3.0 * s_u[globalIdx]) *
                                              idx_by_12;
 
-                    Du[globalIdx] = (3.0 * s_u[globalIdx - 4 * ss] -
-                                     16.0 * s_u[globalIdx - 3 * ss] +
-                                     36.0 * s_u[globalIdx - 2 * ss] -
-                                     48.0 * s_u[globalIdx - 1 * ss] +
-                                     25.0 * s_u[globalIdx]) *
-                                    idx_by_12;
+                    Du[globalIdx]          = (3.0 * s_u[globalIdx - 4 * ss] -
+                                              16.0 * s_u[globalIdx - 3 * ss] +
+                                              36.0 * s_u[globalIdx - 2 * ss] -
+                                              48.0 * s_u[globalIdx - 1 * ss] +
+                                              25.0 * s_u[globalIdx]) *
+                                             idx_by_12;
                 }
     }
 

@@ -182,7 +182,7 @@ struct OctreeComp {
 
         uint128_t a1 = 0;
         uint128_t a2 = 0;
-        a1           = (((uint128_t)first.getLevel()) << 96u) |
+        a1 = (((uint128_t)first.getLevel()) << 96u) |
              (((uint128_t)first.getX()) << 64u) |
              (((uint128_t)first.getY()) << 32u) | (((uint128_t)first.getZ()));
         a2 = (((uint128_t)other.getLevel()) << 96u) |
@@ -230,7 +230,7 @@ struct OctreeHash {
         return (h4^(h3^((h2 ^ (h1 << 16))<<16))<<16); // or use
         boost::hash_combine*/
         uint128_t a1 = 0;
-        a1           = (((uint128_t)first.getLevel()) << 96u) |
+        a1 = (((uint128_t)first.getLevel()) << 96u) |
              (((uint128_t)first.getX()) << 64u) |
              (((uint128_t)first.getY()) << 32u) | (((uint128_t)first.getZ()));
         return a1;
@@ -545,12 +545,12 @@ void SFC_treeSort(T* pNodes, DendroIntL n, std::vector<T>& pOutSorted,
                 numElements = count[cnum + 2] - count[cnum_prev];
                 if ((options & TS_CONSTRUCT_OCTREE) |
                     (options & TS_BALANCE_OCTREE)) {
-                    x = parent.getX() +
-                        (((int)((bool)(cnum & 1u))) << (pMaxDepthBit));
-                    y = parent.getY() +
-                        (((int)((bool)(cnum & 2u))) << (pMaxDepthBit));
-                    z = parent.getZ() +
-                        (((int)((bool)(cnum & 4u))) << (pMaxDepthBit));
+                    x    = parent.getX() +
+                           (((int)((bool)(cnum & 1u))) << (pMaxDepthBit));
+                    y    = parent.getY() +
+                           (((int)((bool)(cnum & 2u))) << (pMaxDepthBit));
+                    z    = parent.getZ() +
+                           (((int)((bool)(cnum & 4u))) << (pMaxDepthBit));
                     temp = T(x, y, z, (lev + 1), parent.getDim(), pMaxDepth);
                 }
                 if (numElements > k) {
@@ -863,8 +863,8 @@ void SFC_treeSortLocalOptimal(T* pNodes, DendroIntL n,
         hindex = (rotations[2 * NUM_CHILDREN * rot_id + bucketIndex] - '0');
         index  = HILBERT_TABLE[NUM_CHILDREN * rot_id + bucketIndex];
         (bucketIndex == (NUM_CHILDREN - 1))
-             ? hindexN = bucketIndex + 1
-             : hindexN =
+            ? hindexN = bucketIndex + 1
+            : hindexN =
                   (rotations[2 * NUM_CHILDREN * rot_id + bucketIndex + 1] -
                    '0');
 
@@ -1209,7 +1209,7 @@ inline void SFC_SplitterFix(std::vector<T>& pNodes, unsigned int pMaxDepth,
                                   << splitBucketIndex[i] << std::endl;
 #endif
 
-                        // unsigned int maxDepthBuckets = 0;
+                // unsigned int maxDepthBuckets = 0;
 
 #ifdef DEBUG_TREE_SORT
                 if (!rank) {
@@ -1907,7 +1907,7 @@ void SFC_treeSort(std::vector<T>& pNodes, std::vector<T>& pOutSorted,
                               << splitBucketIndex[i] << std::endl;
 #endif
 
-                    // unsigned int maxDepthBuckets = 0;
+            // unsigned int maxDepthBuckets = 0;
 
 #ifdef DEBUG_TREE_SORT
             if (!rank) {
@@ -2147,7 +2147,7 @@ void SFC_treeSort(std::vector<T>& pNodes, std::vector<T>& pOutSorted,
                         std::chrono::high_resolution_clock::now() - t2)
                         .count();
     // MPI_Barrier(pcomm);
-    t2 = std::chrono::high_resolution_clock::now();  // MPI_Wtime();
+    t2            = std::chrono::high_resolution_clock::now();  // MPI_Wtime();
 #endif
 
     int* sendCounts = new int[npes];

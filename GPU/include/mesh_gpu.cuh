@@ -409,15 +409,15 @@ DEVICE_FUNC DEVICE_BOOL is_face_hanging(DEVICE_UINT sx, DEVICE_UINT sy,
                 ownerID = lookup;
                 mid_bit = m_uiMaxDepth -
                           dptr_mesh->m_all_elements[ownerID].m_level - 1;
-                cnum = ((((((dptr_mesh->m_all_elements[elementId].m_z) -
-                            (dptr_mesh->m_all_elements[ownerID].m_z)) >>
-                           mid_bit) &
-                          1u)
-                         << 1u) |
-                        ((((dptr_mesh->m_all_elements[elementId].m_y) -
-                           (dptr_mesh->m_all_elements[ownerID].m_y)) >>
-                          mid_bit) &
-                         1u));
+                cnum    = ((((((dptr_mesh->m_all_elements[elementId].m_z) -
+                               (dptr_mesh->m_all_elements[ownerID].m_z)) >>
+                              mid_bit) &
+                             1u)
+                            << 1u) |
+                           ((((dptr_mesh->m_all_elements[elementId].m_y) -
+                              (dptr_mesh->m_all_elements[ownerID].m_y)) >>
+                             mid_bit) &
+                            1u));
 
                 break;
 
@@ -425,15 +425,15 @@ DEVICE_FUNC DEVICE_BOOL is_face_hanging(DEVICE_UINT sx, DEVICE_UINT sy,
                 ownerID = lookup;
                 mid_bit = m_uiMaxDepth -
                           dptr_mesh->m_all_elements[ownerID].m_level - 1;
-                cnum = ((((((dptr_mesh->m_all_elements[elementId].m_z) -
-                            (dptr_mesh->m_all_elements[ownerID].m_z)) >>
-                           mid_bit) &
-                          1u)
-                         << 1u) |
-                        ((((dptr_mesh->m_all_elements[elementId].m_y) -
-                           (dptr_mesh->m_all_elements[ownerID].m_y)) >>
-                          mid_bit) &
-                         1u));
+                cnum    = ((((((dptr_mesh->m_all_elements[elementId].m_z) -
+                               (dptr_mesh->m_all_elements[ownerID].m_z)) >>
+                              mid_bit) &
+                             1u)
+                            << 1u) |
+                           ((((dptr_mesh->m_all_elements[elementId].m_y) -
+                              (dptr_mesh->m_all_elements[ownerID].m_y)) >>
+                             mid_bit) &
+                            1u));
 
                 break;
 
@@ -441,60 +441,60 @@ DEVICE_FUNC DEVICE_BOOL is_face_hanging(DEVICE_UINT sx, DEVICE_UINT sy,
                 ownerID = lookup;
                 mid_bit = m_uiMaxDepth -
                           dptr_mesh->m_all_elements[ownerID].m_level - 1;
-                cnum = ((((((dptr_mesh->m_all_elements[elementId].m_z) -
-                            (dptr_mesh->m_all_elements[ownerID].m_z)) >>
-                           mid_bit) &
-                          1u)
-                         << 1u) |
-                        ((((dptr_mesh->m_all_elements[elementId].m_x) -
-                           (dptr_mesh->m_all_elements[ownerID].m_x)) >>
-                          mid_bit) &
-                         1u));
+                cnum    = ((((((dptr_mesh->m_all_elements[elementId].m_z) -
+                               (dptr_mesh->m_all_elements[ownerID].m_z)) >>
+                              mid_bit) &
+                             1u)
+                            << 1u) |
+                           ((((dptr_mesh->m_all_elements[elementId].m_x) -
+                              (dptr_mesh->m_all_elements[ownerID].m_x)) >>
+                             mid_bit) &
+                            1u));
                 break;
 
             case OCT_DIR_UP:
                 ownerID = lookup;
                 mid_bit = m_uiMaxDepth -
                           dptr_mesh->m_all_elements[ownerID].m_level - 1;
-                cnum = ((((((dptr_mesh->m_all_elements[elementId].m_z) -
-                            (dptr_mesh->m_all_elements[ownerID].m_z)) >>
-                           mid_bit) &
-                          1u)
-                         << 1u) |
-                        ((((dptr_mesh->m_all_elements[elementId].m_x) -
-                           (dptr_mesh->m_all_elements[ownerID].m_x)) >>
-                          mid_bit) &
-                         1u));
+                cnum    = ((((((dptr_mesh->m_all_elements[elementId].m_z) -
+                               (dptr_mesh->m_all_elements[ownerID].m_z)) >>
+                              mid_bit) &
+                             1u)
+                            << 1u) |
+                           ((((dptr_mesh->m_all_elements[elementId].m_x) -
+                              (dptr_mesh->m_all_elements[ownerID].m_x)) >>
+                             mid_bit) &
+                            1u));
                 break;
 
             case OCT_DIR_BACK:
                 ownerID = lookup;
                 mid_bit = m_uiMaxDepth -
                           dptr_mesh->m_all_elements[ownerID].m_level - 1;
-                cnum = ((((((dptr_mesh->m_all_elements[elementId].m_y) -
-                            (dptr_mesh->m_all_elements[ownerID].m_y)) >>
-                           mid_bit) &
-                          1u)
-                         << 1u) |
-                        ((((dptr_mesh->m_all_elements[elementId].m_x) -
-                           (dptr_mesh->m_all_elements[ownerID].m_x)) >>
-                          mid_bit) &
-                         1u));
+                cnum    = ((((((dptr_mesh->m_all_elements[elementId].m_y) -
+                               (dptr_mesh->m_all_elements[ownerID].m_y)) >>
+                              mid_bit) &
+                             1u)
+                            << 1u) |
+                           ((((dptr_mesh->m_all_elements[elementId].m_x) -
+                              (dptr_mesh->m_all_elements[ownerID].m_x)) >>
+                             mid_bit) &
+                            1u));
                 break;
 
             case OCT_DIR_FRONT:
                 ownerID = lookup;
                 mid_bit = m_uiMaxDepth -
                           dptr_mesh->m_all_elements[ownerID].m_level - 1;
-                cnum = ((((((dptr_mesh->m_all_elements[elementId].m_y) -
-                            (dptr_mesh->m_all_elements[ownerID].m_y)) >>
-                           mid_bit) &
-                          1u)
-                         << 1u) |
-                        ((((dptr_mesh->m_all_elements[elementId].m_x) -
-                           (dptr_mesh->m_all_elements[ownerID].m_x)) >>
-                          mid_bit) &
-                         1u));
+                cnum    = ((((((dptr_mesh->m_all_elements[elementId].m_y) -
+                               (dptr_mesh->m_all_elements[ownerID].m_y)) >>
+                              mid_bit) &
+                             1u)
+                            << 1u) |
+                           ((((dptr_mesh->m_all_elements[elementId].m_x) -
+                              (dptr_mesh->m_all_elements[ownerID].m_x)) >>
+                             mid_bit) &
+                            1u));
                 break;
         }
     }
@@ -1585,8 +1585,8 @@ GLOBAL_FUNC void __unzip_cg1__2(const MeshGPU* const dptr_mesh,
         GPUDevice::sync_threads();
         DEVICE_UINT mid_bit = max_depth - elem_node.m_level;
         DEVICE_UINT cnum    = ((((elem_node.m_z >> mid_bit) & 1u) << 2u) |
-                            (((elem_node.m_y >> mid_bit) & 1u) << 1u) |
-                            ((elem_node.m_x >> mid_bit) & 1u));
+                               (((elem_node.m_y >> mid_bit) & 1u) << 1u) |
+                               ((elem_node.m_x >> mid_bit) & 1u));
         __p2c_3d__<DEVICE_REAL, p>(refEL, cnum, v3[0], v3[1], v1, v2);
 
         if (tx < nx && ty < nx) {

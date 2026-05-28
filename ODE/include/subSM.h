@@ -137,9 +137,9 @@ void SubScatterMap::readFromGhostBegin(T* vec, unsigned int l,
         const unsigned int total_sz_zip = m_uiMesh->getDegOfFreedom();
 
         const unsigned int sendBSz      = m_uiSendOffset[l][activeNpes - 1] +
-                                     m_uiSendCount[l][activeNpes - 1];
-        const unsigned int recvBSz = m_uiRecvOffset[l][activeNpes - 1] +
-                                     m_uiRecvCount[l][activeNpes - 1];
+                                          m_uiSendCount[l][activeNpes - 1];
+        const unsigned int recvBSz      = m_uiRecvOffset[l][activeNpes - 1] +
+                                          m_uiRecvCount[l][activeNpes - 1];
 
         ot::AsyncCommByLev ctx(vec, l);
         if (recvBSz) {
@@ -211,11 +211,11 @@ void SubScatterMap::readFromGhostEnd(T* vec, unsigned int l, unsigned int dof) {
         const unsigned int total_sz_zip = m_uiMesh->getDegOfFreedom();
 
         const unsigned int sendBSz      = m_uiSendOffset[l][activeNpes - 1] +
-                                     m_uiSendCount[l][activeNpes - 1];
-        const unsigned int recvBSz = m_uiRecvOffset[l][activeNpes - 1] +
-                                     m_uiRecvCount[l][activeNpes - 1];
+                                          m_uiSendCount[l][activeNpes - 1];
+        const unsigned int recvBSz      = m_uiRecvOffset[l][activeNpes - 1] +
+                                          m_uiRecvCount[l][activeNpes - 1];
 
-        int ctxIndex = -1;
+        int ctxIndex                    = -1;
         for (unsigned int i = 0; i < m_uiAsyncCtxList.size(); i++) {
             if (m_uiAsyncCtxList[i].getBuffer() == vec &&
                 m_uiAsyncCtxList[i].getLevel() == l) {

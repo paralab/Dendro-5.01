@@ -109,9 +109,9 @@ static int vtk_write_compressed(FILE *vtkfile, char *numeric_data,
     base64_init_encodestate(&encode_state);
     for (theblock = 0; theblock < numregularblocks; ++theblock) {
         comp_length = code_length;
-        retval      = compress2((Bytef *)comp_data, &comp_length,
-                                (const Bytef *)(numeric_data + theblock * blocksize),
-                                (uLong)blocksize, Z_BEST_COMPRESSION);
+        retval = compress2((Bytef *)comp_data, &comp_length,
+                           (const Bytef *)(numeric_data + theblock * blocksize),
+                           (uLong)blocksize, Z_BEST_COMPRESSION);
         assert(retval == Z_OK);
         compression_header[3 + theblock] = comp_length;
         base_length = base64_encode_block(comp_data, comp_length, base_data,
@@ -124,9 +124,9 @@ static int vtk_write_compressed(FILE *vtkfile, char *numeric_data,
     /* write odd-sized last block if necessary */
     if (lastsize > 0) {
         comp_length = code_length;
-        retval      = compress2((Bytef *)comp_data, &comp_length,
-                                (const Bytef *)(numeric_data + theblock * blocksize),
-                                (uLong)lastsize, Z_BEST_COMPRESSION);
+        retval = compress2((Bytef *)comp_data, &comp_length,
+                           (const Bytef *)(numeric_data + theblock * blocksize),
+                           (uLong)lastsize, Z_BEST_COMPRESSION);
         assert(retval == Z_OK);
         compression_header[3 + theblock] = comp_length;
         base_length = base64_encode_block(comp_data, comp_length, base_data,

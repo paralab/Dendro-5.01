@@ -435,8 +435,7 @@ int ETS<T, Ctx>::set_ets_coefficients(ETSType type) {
         m_uiNumStages                     = 6;
 
         static const DendroScalar ETS_C[] = {
-            7.0 / 90.0, 0.0, 32.0 / 90.0, 12.0 / 90.0, 32.0 / 90.0,
-            7.0 / 90.0};
+            7.0 / 90.0, 0.0, 32.0 / 90.0, 12.0 / 90.0, 32.0 / 90.0, 7.0 / 90.0};
 
         static const DendroScalar ETS_T[] = {0.0,       1.0 / 4.0, 1.0 / 4.0,
                                              1.0 / 2.0, 3.0 / 4.0, 1.0};
@@ -451,12 +450,13 @@ int ETS<T, Ctx>::set_ets_coefficients(ETSType type) {
            -3.0 / 7.0,  2.0 / 7.0, 12.0 / 7.0,-12.0 / 7.0,  8.0 / 7.0,  0.0};
         // clang-format on
 
-        m_uiCi  = (DendroScalar*)ETS_T;
-        m_uiBi  = (DendroScalar*)ETS_C;
-        m_uiAij = (DendroScalar*)ETS_U;
+        m_uiCi                            = (DendroScalar*)ETS_T;
+        m_uiBi                            = (DendroScalar*)ETS_C;
+        m_uiAij                           = (DendroScalar*)ETS_U;
 
-        dendro::logger::debug(dendro::logger::Scope{"ETS"},
-                              "ETS Coefficients set for RK5 (Butcher, 6 stages)");
+        dendro::logger::debug(
+            dendro::logger::Scope{"ETS"},
+            "ETS Coefficients set for RK5 (Butcher, 6 stages)");
 
     } else {
         dendro::logger::error(dendro::logger::Scope{"ETS"},

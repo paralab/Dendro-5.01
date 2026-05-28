@@ -1,0 +1,153 @@
+Phases 1 + 2a + 2b + 2d — full BSSN unzip optimization stack
+==============================================================
+
+CMake flags (both default OFF; enable for production):
+  DENDRO_UNZIP_SCATTER_FAST   — integer-index reindex in unzip_scatter
+                                (Phases 1, 2a, 2b)
+  DENDRO_TENSOR_SIMD          — AVX2 SIMD for wavelet tensor kernels
+                                (Phase 2d, FEM/src/tensor.cpp)
+
+Reserved hook (no implementation here):
+  DENDRO_UNZIP_OMP            — OpenMP block-parallel unzip; the hybrid
+                                MPI+OpenMP branch fills this in later.
+
+Date: 2026-05-20
+Branch: master (jj on top of unzip-speedup)
+Compiler: GCC 15.2.1 -O3 -march=native
+Build: build_avx2/  (single rank, single thread)
+Benches:
+  - test/src/benchUnzipGather.cpp      (calls Mesh::unzip — the BSSN path)
+  - test/src/benchUnzipSameLevel.cpp   (calls Mesh::unzip_scatter directly)
+
+
+HEADLINE — BSSN unzip on eO=6 depth=8 (24 vars per step, 32 steps):
+
+  config                                ms/call    speedup vs baseline
+  ------------------------------------  ---------  ------------------
+  baseline (FAST=OFF, TENSOR_SIMD=OFF)  7.20 ms    1.00x
+  FAST=ON, TENSOR_SIMD=OFF              3.06 ms    2.35x
+  FAST=ON, TENSOR_SIMD=ON (AVX2)        2.07 ms    3.47x
+  FAST=ON, TENSOR_SIMD=ON (AVX-512+ILP) 1.50 ms    4.80x  <-- BEST
+
+Bench: benchUnzipGather. Path: CTX::unzip -> Mesh::unzip ->
+Mesh::unzip_scatter (mesh.tcc:11390).
+
+
+How the BSSN path actually reaches unzip:
+  CTX::unzip()  (ODE/include/ctx.h:570)
+    -> m_uiMesh->unzip(in, out, dof)
+    -> Mesh::unzip(in, out, dof)            (mesh.tcc:11380)
+    -> Mesh::unzip_scatter(in, out, dof)    (mesh.tcc:11390, delegates)
+  The older block-IDs gather variant at mesh.tcc:8970 still exists but
+  is no longer dispatched to by the 3-arg wrapper, so its FP-coord-
+  math sections do not need optimization.
+
+
+Branches optimized:
+  Phase 1   same-level scatter      mesh.tcc:11091  std::round/fabs -> int math
+  Phase 2a  fine-to-coarse scatter  mesh.tcc:11169  std::round/fabs -> int math (even eOrder)
+  Phase 2b  coarse-to-fine scatter  mesh.tcc:11261  same-level int-math after
+                                                    wavelet interp
+  Phase 2d  wavelet tensor kernels  FEM/src/tensor.cpp
+                                                    AVX2 SIMD for M=5,7,9 in:
+                                                    AIIX, IIAX, IAIX,
+                                                    IAX_2D, AIX_2D
+
+
+Cumulative per-call (eO=6 d=8, gather bench):
+
+  cumulative                              per-call    cum. speedup
+  --------------------------------------  --------    ------------
+  baseline                                7.20 ms     1.00x
+  + same-level (Phase 1)                  5.08 ms     1.42x  (scatter
+                                                              measurement
+                                                              shown)
+  + fine-to-coarse (Phase 2a)             4.47 ms     1.61x
+  + coarse-to-fine (Phase 2b)             3.06 ms     2.35x
+  + AVX2 tensor kernels (Phase 2d)        2.17 ms     3.32x
+  + 2D-face tensor kernels (Phase 2d)     2.07 ms     3.47x
+  + AVX-512 + 4-wide ILP (Phase 2e)       1.64 ms     4.39x
+  + AVX-512 masked row copy (Phase 2f)    1.55 ms     4.65x
+  + always_inline scatter kernels (2g)    1.50 ms     4.80x
+
+
+Verification:
+
+  Pure-integer paths (Phases 1, 2a, 2b) are bit-exact (cmp byte-for-
+  byte) vs the original FP code. Cross-path comparison gather FAST=OFF
+  vs scatter FAST=OFF confirms unzip == unzip_scatter.
+
+  SIMD paths (Phase 2d) are NOT bit-exact vs scalar (FMA fuses two
+  rounds into one, reordering changes ULP results), but
+    max abs diff:  2.78e-16  (machine epsilon)
+    max rel diff:  2.94e-11
+  vs the all-OFF baseline on the eO=6 d=8 grid. Analytic-field check
+  isUnzipValid(..., 1e-3) passes for every measured config.
+
+
+Full per-config matrix (per-call mean, dof=1):
+
+  bench                eO  depth  FAST=OFF   FAST=ON  FAST+SIMD  speedup
+  -------------------- --  -----  ---------  -------  ---------  -------
+  Gather (BSSN path)   6   8      7.20 ms    3.06 ms  2.07 ms    3.47x  <-- PRIMARY
+  Scatter (direct)     6   8      7.38 ms    3.15 ms  ~2.07 ms   ~3.57x
+  Scatter              6   7      7.25 ms    3.11 ms  -          -
+  Scatter              4   7      7.61 ms    3.14 ms  -          -
+  Scatter              4   8      8.86 ms    4.03 ms  -          -
+
+
+Hotspot evolution (perf sampling, eO=6 d=8):
+
+  Function                          all-OFF    FAST=ON,AVX2   FAST+AVX512+ILP
+  --------------------------------- --------   ------------   ---------------
+  Mesh::unzip_scatter (incl inline) 9.4 %      ~42 % (1)      42.9 %
+  scatter_same_level_dispatch       n/a        23.0 %         inlined ↑
+  std::__insertion_sort (mesh setup) 8.1 %     11.4 %         17.0 %
+  Mesh::getElementNodalValues       4.6 %      5.7 %          8.5 %
+  DENDRO_TENSOR_IAIX                21.5 %     10.5 %         3.1 %
+  DENDRO_TENSOR_IIAX                20.4 %     15.7 %         3.9 %
+  DENDRO_TENSOR_AIIX                7.0 %      2.7 %          4.1 %
+  DENDRO_TENSOR_IAX_2D              2.4 %      3.0 %          2.5 %
+  DENDRO_TENSOR_AIX_2D              2.1 %      3.2 %          1.7 %
+
+  (1) After always_inline, scatter_same_level_dispatch folds into the
+      unzip_scatter symbol — the percentage moves but isn't a regression.
+
+  After all optimizations:
+  - Tensor wavelet kernels: 49% → 13% of runtime
+  - std::__insertion_sort is mesh SETUP, not in the timed loop — discount
+  - Remaining unzip_scatter body (~50% post-inline) is: per-(ele,blk)
+    index math + the 7×7 = 49 row-copy memcpys per pair + cache-bound
+    scatter writes into the unzip buffer
+
+  Theoretical memory floor for this benchmark (~3.8 GB unzip writes
+  over the 32-step loop at ~50 GB/s memory bandwidth single-core) is
+  ~0.1 ms / dof=1 call. We're at 1.50 ms — there's still ~15× over the
+  memory floor, mostly index arithmetic + cache misses on scattered
+  writes. Further wins would need:
+    - block-parallel processing across blocks (the hybrid OpenMP path)
+    - tiling: process all elements feeding one block before moving on
+      (the original gather variant at mesh.tcc:8970 has this shape
+       but was abandoned in favor of unzip_scatter)
+    - reducing getElementNodalValues cost (8.5% of runtime)
+
+
+Notes:
+  - SIMD code targets M ∈ {5, 7, 9}, covering eOrder ∈ {4, 6, 8}.
+    Other M values fall back to scalar.
+  - isUnzipValid fails at eO=2 on this mesh in ALL configs (pre-
+    existing tolerance issue with the analytic field; not a regression).
+  - All measurements sequential (no OpenMP, per MPI-first directive).
+
+
+Build invocations:
+  cmake -S . -B build_avx2 -DCMAKE_BUILD_TYPE=Release \
+        -DBUILD_DENDRO_EXAMPLES=ON \
+        -DCMAKE_CXX_FLAGS="-march=native -O3" \
+        -DDENDRO_UNZIP_SCATTER_FAST=<OFF|ON> \
+        -DDENDRO_TENSOR_SIMD=<OFF|ON>
+  cmake --build build_avx2 -j --target benchUnzipSameLevel benchUnzipGather
+
+Bench invocations:
+  mpirun -n 1 ./build_avx2/benchUnzipGather    <maxDepth> 1e-4 0.1 <eOrder> 32 24 /tmp/<out.bin>
+  mpirun -n 1 ./build_avx2/benchUnzipSameLevel <maxDepth> 1e-4 0.1 <eOrder> 32 24 /tmp/<out.bin>
