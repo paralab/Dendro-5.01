@@ -16,10 +16,8 @@
 #include <immintrin.h>
 #endif
 
-// Opt-in build banner (-DDENDRO_REPORT_BUILD_CONFIG). Fires wherever this
-// header compiles, including the downstream solver build — where these
-// header-template flags actually take effect, not just at libdendro5 build.
-#if defined(DENDRO_REPORT_BUILD_CONFIG)
+// Build banner (always emitted). Header-template flags, so this reports what
+// the including build — e.g. a downstream solver — actually compiled with.
 #if defined(DENDRO_UNZIP_SCATTER_FAST)
 #pragma message("[dendro] unzip integer-index fast path : ENABLED")
 #else
@@ -38,7 +36,6 @@
 #pragma message( \
     "[dendro] OpenMP block-parallel unzip   : disabled (build with -DDENDRO_UNZIP_OMP=ON)")
 #endif
-#endif  // DENDRO_REPORT_BUILD_CONFIG
 
 namespace dendro {
 namespace unzip {

@@ -46,9 +46,6 @@ option(DENDRO_UNZIP_OMP
 option(DENDRO_TENSOR_SIMD
        "Enable AVX2 SIMD specializations for the wavelet tensor kernels in FEM/src/tensor.cpp (M=7 for eO=6)"
        OFF)
-option(DENDRO_REPORT_BUILD_CONFIG
-       "Emit #pragma message banners at compile time reporting which unzip/SIMD optimizations are active (diagnostic)"
-       OFF)
 
 # Configuration Variables
 set(KWAY 128 CACHE STRING "K parameter for alltoallv_kway")
@@ -150,7 +147,6 @@ dendro_add_def(DVEC_ZERO_ALLOC DVEC_ZERO_ALLOC)
 dendro_add_def(DENDRO_UNZIP_SCATTER_FAST DENDRO_UNZIP_SCATTER_FAST)
 dendro_add_def(DENDRO_UNZIP_OMP DENDRO_UNZIP_OMP)
 dendro_add_def(DENDRO_TENSOR_SIMD DENDRO_TENSOR_SIMD)
-dendro_add_def(DENDRO_REPORT_BUILD_CONFIG DENDRO_REPORT_BUILD_CONFIG)
 
 if(ALLTOALLV_FIX)
   target_compile_definitions(dendro_config INTERFACE ALLTOALLV_FIX KWAY=${KWAY})
