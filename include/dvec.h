@@ -327,8 +327,13 @@ void DVector<T, I>::axpy(const ot::Mesh* const pMesh, T a,
                          bool local_only) {
     if (y.m_data_ptr == nullptr) return;
 
-    const T* const x_ptr = x.m_data_ptr;
-    T* const y_ptr       = y.m_data_ptr;
+    // __restrict__ tells the compiler that x_ptr and y_ptr do not alias,
+    // which removes the runtime alias check the compiler would otherwise
+    // emit (with -O3 it emits versioned vectorized + scalar fallback loops).
+    // Callers must not pass the same DVector as both x and y here — this is
+    // a contract, not enforced.
+    const T* __restrict__ x_ptr = x.m_data_ptr;
+    T* __restrict__ y_ptr       = y.m_data_ptr;
 
     if (x.m_vec_loc == DVEC_LOC::HOST) {
         if (!local_only) {
@@ -377,8 +382,9 @@ void DVector<T, I>::axpby(const ot::Mesh* const pMesh, T a,
                           bool local_only) {
     if (y.m_data_ptr == nullptr) return;
 
-    const T* const x_ptr = x.m_data_ptr;
-    T* const y_ptr       = y.m_data_ptr;
+    // See note on axpy() above — __restrict__ promises x and y don't alias.
+    const T* __restrict__ x_ptr = x.m_data_ptr;
+    T* __restrict__ y_ptr       = y.m_data_ptr;
 
     if (!local_only) {
         for (unsigned int i = 0; i < x.m_size; i++)

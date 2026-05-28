@@ -365,8 +365,8 @@ static inline void aix_2d_avx2(const double* __restrict__ A,
 /**
  * Along the Z axis
  * */
-void DENDRO_TENSOR_AIIX_APPLY_ELEM(const int M, const double* A,
-                                   const double* X, double* Y) {
+void DENDRO_TENSOR_AIIX_APPLY_ELEM(const int M, const double* __restrict__ A,
+                                   const double* __restrict__ X, double* __restrict__ Y) {
 #if defined(DENDRO_TENSOR_SIMD)
 #if defined(__AVX512F__)
     if (M == 7) { aiix_avx512<7>(A, X, Y); return; }
@@ -396,8 +396,8 @@ void DENDRO_TENSOR_AIIX_APPLY_ELEM(const int M, const double* A,
  * Along the X axis
  * */
 
-void DENDRO_TENSOR_IIAX_APPLY_ELEM(const int M, const double* A,
-                                   const double* X, double* Y) {
+void DENDRO_TENSOR_IIAX_APPLY_ELEM(const int M, const double* __restrict__ A,
+                                   const double* __restrict__ X, double* __restrict__ Y) {
 #if defined(DENDRO_TENSOR_SIMD)
 #if defined(__AVX512F__)
     if (M == 7) { iiax_avx512<7>(A, X, Y); return; }
@@ -425,8 +425,8 @@ void DENDRO_TENSOR_IIAX_APPLY_ELEM(const int M, const double* A,
  * Along the X axis. (in face interpolations. )
  * */
 
-void DENDRO_TENSOR_IAX_APPLY_ELEM_2D(const int M, const double* A,
-                                     const double* X, double* Y) {
+void DENDRO_TENSOR_IAX_APPLY_ELEM_2D(const int M, const double* __restrict__ A,
+                                     const double* __restrict__ X, double* __restrict__ Y) {
 #if defined(DENDRO_TENSOR_SIMD)
     if (M == 7) { iax_2d_avx2<7>(A, X, Y); return; }
     if (M == 5) { iax_2d_avx2<5>(A, X, Y); return; }
@@ -450,8 +450,8 @@ void DENDRO_TENSOR_IAX_APPLY_ELEM_2D(const int M, const double* A,
 /**
  * Along the Y axis
  * */
-void DENDRO_TENSOR_IAIX_APPLY_ELEM(const int M, const double* A,
-                                   const double* X, double* Y) {
+void DENDRO_TENSOR_IAIX_APPLY_ELEM(const int M, const double* __restrict__ A,
+                                   const double* __restrict__ X, double* __restrict__ Y) {
 #if defined(DENDRO_TENSOR_SIMD)
 #if defined(__AVX512F__)
     if (M == 7) { iaix_avx512<7>(A, X, Y); return; }
@@ -482,8 +482,8 @@ void DENDRO_TENSOR_IAIX_APPLY_ELEM(const int M, const double* A,
 /**
  * Along the Y axis for (2D face interpolations. )
  * */
-void DENDRO_TENSOR_AIX_APPLY_ELEM_2D(const int M, const double* A,
-                                     const double* X, double* Y) {
+void DENDRO_TENSOR_AIX_APPLY_ELEM_2D(const int M, const double* __restrict__ A,
+                                     const double* __restrict__ X, double* __restrict__ Y) {
 #if defined(DENDRO_TENSOR_SIMD)
     if (M == 7) { aix_2d_avx2<7>(A, X, Y); return; }
     if (M == 5) { aix_2d_avx2<5>(A, X, Y); return; }
