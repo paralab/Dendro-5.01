@@ -21,6 +21,19 @@
 #include <immintrin.h>
 #endif
 
+// Library-side build banner (tensor.cpp compiles into libdendro5).
+#if defined(DENDRO_TENSOR_SIMD)
+#if defined(__AVX512F__)
+#pragma message( \
+    "[dendro] libdendro5 wavelet kernels : SIMD ENABLED (AVX-512 path available)")
+#else
+#pragma message("[dendro] libdendro5 wavelet kernels : SIMD ENABLED (AVX2)")
+#endif
+#else
+#pragma message( \
+    "[dendro] libdendro5 wavelet kernels : scalar (build libdendro5 with -DDENDRO_TENSOR_SIMD=ON)")
+#endif
+
 #if defined(DENDRO_TENSOR_SIMD)
 namespace {
 

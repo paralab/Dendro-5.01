@@ -16,6 +16,27 @@
 #include <immintrin.h>
 #endif
 
+// Build banner (always emitted). Header-template flags, so this reports what
+// the including build — e.g. a downstream solver — actually compiled with.
+#if defined(DENDRO_UNZIP_SCATTER_FAST)
+#pragma message("[dendro] unzip integer-index fast path : ENABLED")
+#else
+#pragma message( \
+    "[dendro] unzip integer-index fast path : disabled (build with -DDENDRO_UNZIP_SCATTER_FAST=ON)")
+#endif
+#if defined(DENDRO_TENSOR_SIMD)
+#pragma message("[dendro] wavelet SIMD tensor kernels   : ENABLED")
+#else
+#pragma message( \
+    "[dendro] wavelet SIMD tensor kernels   : disabled (build with -DDENDRO_TENSOR_SIMD=ON)")
+#endif
+#if defined(DENDRO_UNZIP_OMP)
+#pragma message("[dendro] OpenMP block-parallel unzip   : ENABLED")
+#else
+#pragma message( \
+    "[dendro] OpenMP block-parallel unzip   : disabled (build with -DDENDRO_UNZIP_OMP=ON)")
+#endif
+
 namespace dendro {
 namespace unzip {
 
