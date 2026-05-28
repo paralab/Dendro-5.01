@@ -23,7 +23,8 @@
  *
  */
 void DENDRO_TENSOR_AIIX_APPLY_ELEM(const int M, const double* __restrict__ A,
-                                   const double* __restrict__ X, double* __restrict__ Y);
+                                   const double* __restrict__ X,
+                                   double* __restrict__ Y);
 
 /** Apply the 1D interpolation for the input vector x and output the
  interpolated values in the vector Y.
@@ -35,7 +36,8 @@ void DENDRO_TENSOR_AIIX_APPLY_ELEM(const int M, const double* __restrict__ A,
  *
  */
 void DENDRO_TENSOR_IIAX_APPLY_ELEM(const int M, const double* __restrict__ A,
-                                   const double* __restrict__ X, double* __restrict__ Y);
+                                   const double* __restrict__ X,
+                                   double* __restrict__ Y);
 
 /** Apply the 1D interpolation for the input vector x and output the
  interpolated values in the vector Y.
@@ -47,7 +49,8 @@ void DENDRO_TENSOR_IIAX_APPLY_ELEM(const int M, const double* __restrict__ A,
  *
  */
 void DENDRO_TENSOR_IAIX_APPLY_ELEM(const int M, const double* __restrict__ A,
-                                   const double* __restrict__ X, double* __restrict__ Y);
+                                   const double* __restrict__ X,
+                                   double* __restrict__ Y);
 
 /** Apply the 1D interpolation for the input vector x and output the
  interpolated values in the vector Y.
@@ -59,7 +62,8 @@ void DENDRO_TENSOR_IAIX_APPLY_ELEM(const int M, const double* __restrict__ A,
  *
  */
 void DENDRO_TENSOR_IAX_APPLY_ELEM_2D(const int M, const double* __restrict__ A,
-                                     const double* __restrict__ X, double* __restrict__ Y);
+                                     const double* __restrict__ X,
+                                     double* __restrict__ Y);
 
 /** Apply the 1D interpolation for the input vector x and output the
  interpolated values in the vector Y.
@@ -71,6 +75,7 @@ void DENDRO_TENSOR_IAX_APPLY_ELEM_2D(const int M, const double* __restrict__ A,
  *
  */
 void DENDRO_TENSOR_AIX_APPLY_ELEM_2D(const int M, const double* __restrict__ A,
-                                     const double* __restrict__ X, double* __restrict__ Y);
+                                     const double* __restrict__ X,
+                                     double* __restrict__ Y);
 
 #endif  // SFCSORTBENCH_DENDROTENSOR_H

@@ -58,10 +58,10 @@ int main(int argc, char** argv) {
     const char* omp_tag = "OMP=OFF";
 #endif
     if (!rank)
-        std::printf("testIsReMeshUnzip [%s] maxDepth=%d wavelet_tol=%g "
-                    "eleOrder=%u iter=%u n_vars=%u\n",
-                    omp_tag, m_uiMaxDepth, wavelet_tol_v, eOrder, iter,
-                    n_vars);
+        std::printf(
+            "testIsReMeshUnzip [%s] maxDepth=%d wavelet_tol=%g "
+            "eleOrder=%u iter=%u n_vars=%u\n",
+            omp_tag, m_uiMaxDepth, wavelet_tol_v, eOrder, iter, n_vars);
 
     _InitializeHcurve(m_uiDim);
     const double d_min = -10.0;
@@ -79,20 +79,18 @@ int main(int argc, char** argv) {
             const double rrb  = (x - cb[0]) * (x - cb[0]) +
                                 (y - cb[1]) * (y - cb[1]) +
                                 (z - cb[2]) * (z - cb[2]);
-            var[0] = std::exp(-rra) + std::exp(-rrb);
+            var[0]            = std::exp(-rra) + std::exp(-rrb);
         };
-    std::function<double(double, double, double)> fr =
-        [func, d_min, d_max](double x, double y, double z) {
-            const double xx =
-                (x / (1u << m_uiMaxDepth)) * (d_max - d_min) + d_min;
-            const double yy =
-                (y / (1u << m_uiMaxDepth)) * (d_max - d_min) + d_min;
-            const double zz =
-                (z / (1u << m_uiMaxDepth)) * (d_max - d_min) + d_min;
-            double v;
-            func(xx, yy, zz, &v);
-            return v;
-        };
+    std::function<double(double, double, double)> fr = [func, d_min, d_max](
+                                                           double x, double y,
+                                                           double z) {
+        const double xx = (x / (1u << m_uiMaxDepth)) * (d_max - d_min) + d_min;
+        const double yy = (y / (1u << m_uiMaxDepth)) * (d_max - d_min) + d_min;
+        const double zz = (z / (1u << m_uiMaxDepth)) * (d_max - d_min) + d_min;
+        double v;
+        func(xx, yy, zz, &v);
+        return v;
+    };
 
     std::vector<ot::TreeNode> tmpNodes;
     function2Octree(fr, tmpNodes, m_uiMaxDepth, wavelet_tol_v, eOrder, comm);
@@ -126,8 +124,8 @@ int main(int argc, char** argv) {
         };
 
     // Warm-up + correctness check (single call).
-    bool ret0 = mesh->isReMeshUnzip(unzippedVec.data(), varIds.data(), n_vars,
-                                    wtol);
+    bool ret0 =
+        mesh->isReMeshUnzip(unzippedVec.data(), varIds.data(), n_vars, wtol);
     if (rank == 0)
         std::printf("[%s] isReMeshUnzip returned: %s\n", omp_tag,
                     ret0 ? "true" : "false");
@@ -137,16 +135,15 @@ int main(int argc, char** argv) {
     t_amr.start();
     bool any_changed = false;
     for (unsigned int i = 0; i < iter; i++) {
-        bool r = mesh->isReMeshUnzip(unzippedVec.data(), varIds.data(),
-                                     n_vars, wtol);
+        bool r = mesh->isReMeshUnzip(unzippedVec.data(), varIds.data(), n_vars,
+                                     wtol);
         any_changed = any_changed || r;
     }
     t_amr.stop();
 
     double t_local = t_amr.seconds / (double)iter;
     double t_stat[3];
-    par::computeOverallStats(&t_local, t_stat, comm,
-                             "isReMeshUnzip per call");
+    par::computeOverallStats(&t_local, t_stat, comm, "isReMeshUnzip per call");
 
     if (rank == 0)
         std::printf("[%s] any iteration changed mesh? %s\n", omp_tag,

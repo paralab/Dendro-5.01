@@ -34,6 +34,7 @@
 #include "dendroProfileParams.h"  // only need to profile unzip_asyn for bssn. remove this header file later.
 #include "key.h"
 #include "logger.h"
+#include "mesh_unzip_scatter_kernels.h"
 #include "mpi.h"
 #include "node.h"
 #include "octUtils.h"
@@ -44,7 +45,6 @@
 #include "skey.h"
 #include "stencil.h"
 #include "testUtils.h"
-#include "mesh_unzip_scatter_kernels.h"
 #include "treenode2vtk.h"
 #include "wavelet.h"
 

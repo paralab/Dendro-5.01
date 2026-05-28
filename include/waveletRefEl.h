@@ -69,8 +69,8 @@ class WaveletEl {
     // are still per-instance, so each thread needs its own WaveletEl when
     // calling this concurrently.
     void compute_wavelets_3D(const double* in, const unsigned int* isz,
-                             std::vector<double>& wc, bool isBdy,
-                             double* im1, double* im2);
+                             std::vector<double>& wc, bool isBdy, double* im1,
+                             double* im2);
 };
 
 }  // namespace wavelet

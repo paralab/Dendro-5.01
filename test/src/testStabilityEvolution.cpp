@@ -75,11 +75,12 @@ int main(int argc, char** argv) {
 #endif
 
     if (!rank) {
-        std::printf("testStabilityEvolution [%s %s %s] maxDepth=%d "
-                    "wavelet_tol=%g partition_tol=%g eleOrder=%u n_steps=%u "
-                    "n_vars=%u dt=%g\n",
-                    fast_tag, simd_tag, omp_tag, m_uiMaxDepth, wavelet_tol,
-                    partition_tol, eOrder, n_steps, n_vars, dt);
+        std::printf(
+            "testStabilityEvolution [%s %s %s] maxDepth=%d "
+            "wavelet_tol=%g partition_tol=%g eleOrder=%u n_steps=%u "
+            "n_vars=%u dt=%g\n",
+            fast_tag, simd_tag, omp_tag, m_uiMaxDepth, wavelet_tol,
+            partition_tol, eOrder, n_steps, n_vars, dt);
     }
 
     _InitializeHcurve(m_uiDim);
@@ -100,20 +101,18 @@ int main(int argc, char** argv) {
             const double rrb  = (x - cb[0]) * (x - cb[0]) +
                                 (y - cb[1]) * (y - cb[1]) +
                                 (z - cb[2]) * (z - cb[2]);
-            var[0] = std::exp(-rra) + std::exp(-rrb);
+            var[0]            = std::exp(-rra) + std::exp(-rrb);
         };
-    std::function<double(double, double, double)> fr =
-        [func, d_min, d_max](double x, double y, double z) {
-            const double xx =
-                (x / (1u << m_uiMaxDepth)) * (d_max - d_min) + d_min;
-            const double yy =
-                (y / (1u << m_uiMaxDepth)) * (d_max - d_min) + d_min;
-            const double zz =
-                (z / (1u << m_uiMaxDepth)) * (d_max - d_min) + d_min;
-            double v;
-            func(xx, yy, zz, &v);
-            return v;
-        };
+    std::function<double(double, double, double)> fr = [func, d_min, d_max](
+                                                           double x, double y,
+                                                           double z) {
+        const double xx = (x / (1u << m_uiMaxDepth)) * (d_max - d_min) + d_min;
+        const double yy = (y / (1u << m_uiMaxDepth)) * (d_max - d_min) + d_min;
+        const double zz = (z / (1u << m_uiMaxDepth)) * (d_max - d_min) + d_min;
+        double v;
+        func(xx, yy, zz, &v);
+        return v;
+    };
 
     std::vector<ot::TreeNode> tmpNodes;
     function2Octree(fr, tmpNodes, m_uiMaxDepth, wavelet_tol, eOrder, comm);
@@ -125,11 +124,10 @@ int main(int argc, char** argv) {
     const size_t cgSz = mesh->getDegOfFreedom();
     const size_t unSz = mesh->getDegOfFreedomUnZip();
 
-    if (!rank)
-        std::printf("mesh: cgSz=%zu unSz=%zu\n", cgSz, unSz);
+    if (!rank) std::printf("mesh: cgSz=%zu unSz=%zu\n", cgSz, unSz);
 
-    double* u       = mesh->createCGVector<double>(func, 1);
-    double* u_unzip = mesh->createUnZippedVector<double>(1);
+    double* u          = mesh->createCGVector<double>(func, 1);
+    double* u_unzip    = mesh->createUnZippedVector<double>(1);
 
     auto compute_norms = [&](const double* v, const char* label) {
         double l1 = 0, l2sq = 0, linf = 0, checksum = 0;
@@ -146,17 +144,17 @@ int main(int argc, char** argv) {
             MPI_Reduce(&l1, &g_l1, 1, MPI_DOUBLE, MPI_SUM, 0, comm);
             MPI_Reduce(&l2sq, &g_l2sq, 1, MPI_DOUBLE, MPI_SUM, 0, comm);
             MPI_Reduce(&linf, &g_linf, 1, MPI_DOUBLE, MPI_MAX, 0, comm);
-            MPI_Reduce(&checksum, &g_checksum, 1, MPI_DOUBLE, MPI_SUM, 0,
-                       comm);
+            MPI_Reduce(&checksum, &g_checksum, 1, MPI_DOUBLE, MPI_SUM, 0, comm);
             l1       = g_l1;
             l2sq     = g_l2sq;
             linf     = g_linf;
             checksum = g_checksum;
         }
         if (rank == 0) {
-            std::printf("[%s] L1=%23.17e L2=%23.17e Linf=%23.17e "
-                        "checksum=%23.17e\n",
-                        label, l1, std::sqrt(l2sq), linf, checksum);
+            std::printf(
+                "[%s] L1=%23.17e L2=%23.17e Linf=%23.17e "
+                "checksum=%23.17e\n",
+                label, l1, std::sqrt(l2sq), linf, checksum);
         }
     };
 

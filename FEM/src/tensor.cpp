@@ -70,8 +70,7 @@ inline void aiix_avx512<7>(const double* __restrict__ A,
             for (j = 0; j + 8 <= 49; j += 8) {
                 const __m512d vx = _mm512_loadu_pd(X + 49 * k + j);
                 const __m512d vy = _mm512_loadu_pd(Y + i * 49 + j);
-                _mm512_storeu_pd(Y + i * 49 + j,
-                                 _mm512_fmadd_pd(vd, vx, vy));
+                _mm512_storeu_pd(Y + i * 49 + j, _mm512_fmadd_pd(vd, vx, vy));
             }
             for (; j < 49; ++j) Y[i * 49 + j] += A[i + k * 7] * X[49 * k + j];
         }
@@ -94,41 +93,41 @@ inline void iiax_avx512<7>(const double* __restrict__ A,
     const __m512d A5 = _mm512_maskz_loadu_pd(K7, A + 5 * 7);
     const __m512d A6 = _mm512_maskz_loadu_pd(K7, A + 6 * 7);
 
-    int i = 0;
+    int i            = 0;
     // 4-wide outer unroll for ILP
     for (; i + 4 <= 49; i += 4) {
         const double* Xa = X + (i + 0) * 7;
         const double* Xb = X + (i + 1) * 7;
         const double* Xc = X + (i + 2) * 7;
         const double* Xd = X + (i + 3) * 7;
-        __m512d Ya = _mm512_mul_pd(_mm512_set1_pd(Xa[0]), A0);
-        __m512d Yb = _mm512_mul_pd(_mm512_set1_pd(Xb[0]), A0);
-        __m512d Yc = _mm512_mul_pd(_mm512_set1_pd(Xc[0]), A0);
-        __m512d Yd = _mm512_mul_pd(_mm512_set1_pd(Xd[0]), A0);
-        Ya = _mm512_fmadd_pd(_mm512_set1_pd(Xa[1]), A1, Ya);
-        Yb = _mm512_fmadd_pd(_mm512_set1_pd(Xb[1]), A1, Yb);
-        Yc = _mm512_fmadd_pd(_mm512_set1_pd(Xc[1]), A1, Yc);
-        Yd = _mm512_fmadd_pd(_mm512_set1_pd(Xd[1]), A1, Yd);
-        Ya = _mm512_fmadd_pd(_mm512_set1_pd(Xa[2]), A2, Ya);
-        Yb = _mm512_fmadd_pd(_mm512_set1_pd(Xb[2]), A2, Yb);
-        Yc = _mm512_fmadd_pd(_mm512_set1_pd(Xc[2]), A2, Yc);
-        Yd = _mm512_fmadd_pd(_mm512_set1_pd(Xd[2]), A2, Yd);
-        Ya = _mm512_fmadd_pd(_mm512_set1_pd(Xa[3]), A3, Ya);
-        Yb = _mm512_fmadd_pd(_mm512_set1_pd(Xb[3]), A3, Yb);
-        Yc = _mm512_fmadd_pd(_mm512_set1_pd(Xc[3]), A3, Yc);
-        Yd = _mm512_fmadd_pd(_mm512_set1_pd(Xd[3]), A3, Yd);
-        Ya = _mm512_fmadd_pd(_mm512_set1_pd(Xa[4]), A4, Ya);
-        Yb = _mm512_fmadd_pd(_mm512_set1_pd(Xb[4]), A4, Yb);
-        Yc = _mm512_fmadd_pd(_mm512_set1_pd(Xc[4]), A4, Yc);
-        Yd = _mm512_fmadd_pd(_mm512_set1_pd(Xd[4]), A4, Yd);
-        Ya = _mm512_fmadd_pd(_mm512_set1_pd(Xa[5]), A5, Ya);
-        Yb = _mm512_fmadd_pd(_mm512_set1_pd(Xb[5]), A5, Yb);
-        Yc = _mm512_fmadd_pd(_mm512_set1_pd(Xc[5]), A5, Yc);
-        Yd = _mm512_fmadd_pd(_mm512_set1_pd(Xd[5]), A5, Yd);
-        Ya = _mm512_fmadd_pd(_mm512_set1_pd(Xa[6]), A6, Ya);
-        Yb = _mm512_fmadd_pd(_mm512_set1_pd(Xb[6]), A6, Yb);
-        Yc = _mm512_fmadd_pd(_mm512_set1_pd(Xc[6]), A6, Yc);
-        Yd = _mm512_fmadd_pd(_mm512_set1_pd(Xd[6]), A6, Yd);
+        __m512d Ya       = _mm512_mul_pd(_mm512_set1_pd(Xa[0]), A0);
+        __m512d Yb       = _mm512_mul_pd(_mm512_set1_pd(Xb[0]), A0);
+        __m512d Yc       = _mm512_mul_pd(_mm512_set1_pd(Xc[0]), A0);
+        __m512d Yd       = _mm512_mul_pd(_mm512_set1_pd(Xd[0]), A0);
+        Ya               = _mm512_fmadd_pd(_mm512_set1_pd(Xa[1]), A1, Ya);
+        Yb               = _mm512_fmadd_pd(_mm512_set1_pd(Xb[1]), A1, Yb);
+        Yc               = _mm512_fmadd_pd(_mm512_set1_pd(Xc[1]), A1, Yc);
+        Yd               = _mm512_fmadd_pd(_mm512_set1_pd(Xd[1]), A1, Yd);
+        Ya               = _mm512_fmadd_pd(_mm512_set1_pd(Xa[2]), A2, Ya);
+        Yb               = _mm512_fmadd_pd(_mm512_set1_pd(Xb[2]), A2, Yb);
+        Yc               = _mm512_fmadd_pd(_mm512_set1_pd(Xc[2]), A2, Yc);
+        Yd               = _mm512_fmadd_pd(_mm512_set1_pd(Xd[2]), A2, Yd);
+        Ya               = _mm512_fmadd_pd(_mm512_set1_pd(Xa[3]), A3, Ya);
+        Yb               = _mm512_fmadd_pd(_mm512_set1_pd(Xb[3]), A3, Yb);
+        Yc               = _mm512_fmadd_pd(_mm512_set1_pd(Xc[3]), A3, Yc);
+        Yd               = _mm512_fmadd_pd(_mm512_set1_pd(Xd[3]), A3, Yd);
+        Ya               = _mm512_fmadd_pd(_mm512_set1_pd(Xa[4]), A4, Ya);
+        Yb               = _mm512_fmadd_pd(_mm512_set1_pd(Xb[4]), A4, Yb);
+        Yc               = _mm512_fmadd_pd(_mm512_set1_pd(Xc[4]), A4, Yc);
+        Yd               = _mm512_fmadd_pd(_mm512_set1_pd(Xd[4]), A4, Yd);
+        Ya               = _mm512_fmadd_pd(_mm512_set1_pd(Xa[5]), A5, Ya);
+        Yb               = _mm512_fmadd_pd(_mm512_set1_pd(Xb[5]), A5, Yb);
+        Yc               = _mm512_fmadd_pd(_mm512_set1_pd(Xc[5]), A5, Yc);
+        Yd               = _mm512_fmadd_pd(_mm512_set1_pd(Xd[5]), A5, Yd);
+        Ya               = _mm512_fmadd_pd(_mm512_set1_pd(Xa[6]), A6, Ya);
+        Yb               = _mm512_fmadd_pd(_mm512_set1_pd(Xb[6]), A6, Yb);
+        Yc               = _mm512_fmadd_pd(_mm512_set1_pd(Xc[6]), A6, Yc);
+        Yd               = _mm512_fmadd_pd(_mm512_set1_pd(Xd[6]), A6, Yd);
         _mm512_mask_storeu_pd(Y + (i + 0) * 7, K7, Ya);
         _mm512_mask_storeu_pd(Y + (i + 1) * 7, K7, Yb);
         _mm512_mask_storeu_pd(Y + (i + 2) * 7, K7, Yc);
@@ -137,13 +136,13 @@ inline void iiax_avx512<7>(const double* __restrict__ A,
     // tail i in [48, 49): scalar per element of M*M=49 leaves 1 left
     for (; i < 49; ++i) {
         const double* Xi = X + i * 7;
-        __m512d Yi = _mm512_mul_pd(_mm512_set1_pd(Xi[0]), A0);
-        Yi = _mm512_fmadd_pd(_mm512_set1_pd(Xi[1]), A1, Yi);
-        Yi = _mm512_fmadd_pd(_mm512_set1_pd(Xi[2]), A2, Yi);
-        Yi = _mm512_fmadd_pd(_mm512_set1_pd(Xi[3]), A3, Yi);
-        Yi = _mm512_fmadd_pd(_mm512_set1_pd(Xi[4]), A4, Yi);
-        Yi = _mm512_fmadd_pd(_mm512_set1_pd(Xi[5]), A5, Yi);
-        Yi = _mm512_fmadd_pd(_mm512_set1_pd(Xi[6]), A6, Yi);
+        __m512d Yi       = _mm512_mul_pd(_mm512_set1_pd(Xi[0]), A0);
+        Yi               = _mm512_fmadd_pd(_mm512_set1_pd(Xi[1]), A1, Yi);
+        Yi               = _mm512_fmadd_pd(_mm512_set1_pd(Xi[2]), A2, Yi);
+        Yi               = _mm512_fmadd_pd(_mm512_set1_pd(Xi[3]), A3, Yi);
+        Yi               = _mm512_fmadd_pd(_mm512_set1_pd(Xi[4]), A4, Yi);
+        Yi               = _mm512_fmadd_pd(_mm512_set1_pd(Xi[5]), A5, Yi);
+        Yi               = _mm512_fmadd_pd(_mm512_set1_pd(Xi[6]), A6, Yi);
         _mm512_mask_storeu_pd(Y + i * 7, K7, Yi);
     }
 }
@@ -158,20 +157,20 @@ inline void iaix_avx512<7>(const double* __restrict__ A,
         const double* Xib = X + ib * 49;
         double* Yib       = Y + ib * 49;
         // Load X rows once per ib block
-        const __m512d X0 = _mm512_maskz_loadu_pd(K7, Xib + 0 * 7);
-        const __m512d X1 = _mm512_maskz_loadu_pd(K7, Xib + 1 * 7);
-        const __m512d X2 = _mm512_maskz_loadu_pd(K7, Xib + 2 * 7);
-        const __m512d X3 = _mm512_maskz_loadu_pd(K7, Xib + 3 * 7);
-        const __m512d X4 = _mm512_maskz_loadu_pd(K7, Xib + 4 * 7);
-        const __m512d X5 = _mm512_maskz_loadu_pd(K7, Xib + 5 * 7);
-        const __m512d X6 = _mm512_maskz_loadu_pd(K7, Xib + 6 * 7);
-        int i = 0;
+        const __m512d X0  = _mm512_maskz_loadu_pd(K7, Xib + 0 * 7);
+        const __m512d X1  = _mm512_maskz_loadu_pd(K7, Xib + 1 * 7);
+        const __m512d X2  = _mm512_maskz_loadu_pd(K7, Xib + 2 * 7);
+        const __m512d X3  = _mm512_maskz_loadu_pd(K7, Xib + 3 * 7);
+        const __m512d X4  = _mm512_maskz_loadu_pd(K7, Xib + 4 * 7);
+        const __m512d X5  = _mm512_maskz_loadu_pd(K7, Xib + 5 * 7);
+        const __m512d X6  = _mm512_maskz_loadu_pd(K7, Xib + 6 * 7);
+        int i             = 0;
         for (; i + 4 <= 7; i += 4) {
             __m512d Ya = _mm512_mul_pd(_mm512_set1_pd(A[(i + 0) + 0 * 7]), X0);
             __m512d Yb = _mm512_mul_pd(_mm512_set1_pd(A[(i + 1) + 0 * 7]), X0);
             __m512d Yc = _mm512_mul_pd(_mm512_set1_pd(A[(i + 2) + 0 * 7]), X0);
             __m512d Yd = _mm512_mul_pd(_mm512_set1_pd(A[(i + 3) + 0 * 7]), X0);
-#define ACC(k, Xk) \
+#define ACC(k, Xk)                                                      \
     Ya = _mm512_fmadd_pd(_mm512_set1_pd(A[(i + 0) + (k) * 7]), Xk, Ya); \
     Yb = _mm512_fmadd_pd(_mm512_set1_pd(A[(i + 1) + (k) * 7]), Xk, Yb); \
     Yc = _mm512_fmadd_pd(_mm512_set1_pd(A[(i + 2) + (k) * 7]), Xk, Yc); \
@@ -191,12 +190,12 @@ inline void iaix_avx512<7>(const double* __restrict__ A,
         // tail i in [4, 7)
         for (; i < 7; ++i) {
             __m512d Yi = _mm512_mul_pd(_mm512_set1_pd(A[i + 0 * 7]), X0);
-            Yi = _mm512_fmadd_pd(_mm512_set1_pd(A[i + 1 * 7]), X1, Yi);
-            Yi = _mm512_fmadd_pd(_mm512_set1_pd(A[i + 2 * 7]), X2, Yi);
-            Yi = _mm512_fmadd_pd(_mm512_set1_pd(A[i + 3 * 7]), X3, Yi);
-            Yi = _mm512_fmadd_pd(_mm512_set1_pd(A[i + 4 * 7]), X4, Yi);
-            Yi = _mm512_fmadd_pd(_mm512_set1_pd(A[i + 5 * 7]), X5, Yi);
-            Yi = _mm512_fmadd_pd(_mm512_set1_pd(A[i + 6 * 7]), X6, Yi);
+            Yi         = _mm512_fmadd_pd(_mm512_set1_pd(A[i + 1 * 7]), X1, Yi);
+            Yi         = _mm512_fmadd_pd(_mm512_set1_pd(A[i + 2 * 7]), X2, Yi);
+            Yi         = _mm512_fmadd_pd(_mm512_set1_pd(A[i + 3 * 7]), X3, Yi);
+            Yi         = _mm512_fmadd_pd(_mm512_set1_pd(A[i + 4 * 7]), X4, Yi);
+            Yi         = _mm512_fmadd_pd(_mm512_set1_pd(A[i + 5 * 7]), X5, Yi);
+            Yi         = _mm512_fmadd_pd(_mm512_set1_pd(A[i + 6 * 7]), X6, Yi);
             _mm512_mask_storeu_pd(Yib + i * 7, K7, Yi);
         }
     }
@@ -230,8 +229,7 @@ static inline void aiix_avx2(const double* __restrict__ A,
             for (j = 0; j < simd_end; j += 4) {
                 const __m256d vx = _mm256_loadu_pd(X + MM * k + j);
                 const __m256d vy = _mm256_loadu_pd(Y + i * MM + j);
-                _mm256_storeu_pd(Y + i * MM + j,
-                                 _mm256_fmadd_pd(vd, vx, vy));
+                _mm256_storeu_pd(Y + i * MM + j, _mm256_fmadd_pd(vd, vx, vy));
             }
             const double d = A[i + k * M];
             for (; j < MM; ++j) Y[i * MM + j] += d * X[MM * k + j];
@@ -264,8 +262,7 @@ static inline void iiax_avx2(const double* __restrict__ A,
             const __m256d vy = _mm256_loadu_pd(Y + i * M);
             _mm256_storeu_pd(Y + i * M, _mm256_fmadd_pd(vx, va, vy));
             const double x = X[i * M + k];
-            for (int j = simd_end; j < M; ++j)
-                Y[i * M + j] += x * A[k * M + j];
+            for (int j = simd_end; j < M; ++j) Y[i * M + j] += x * A[k * M + j];
         }
     }
 }
@@ -325,8 +322,7 @@ static inline void iax_2d_avx2(const double* __restrict__ A,
             const __m256d vy = _mm256_loadu_pd(Y + i * M);
             _mm256_storeu_pd(Y + i * M, _mm256_fmadd_pd(vx, va, vy));
             const double x = X[i * M + k];
-            for (int j = simd_end; j < M; ++j)
-                Y[i * M + j] += x * A[k * M + j];
+            for (int j = simd_end; j < M; ++j) Y[i * M + j] += x * A[k * M + j];
         }
     }
 }
@@ -352,8 +348,7 @@ static inline void aix_2d_avx2(const double* __restrict__ A,
             const __m256d vx = _mm256_loadu_pd(X + k * M);
             const __m256d vy = _mm256_loadu_pd(Y + i * M);
             _mm256_storeu_pd(Y + i * M, _mm256_fmadd_pd(vd, vx, vy));
-            for (int j = simd_end; j < M; ++j)
-                Y[i * M + j] += d * X[k * M + j];
+            for (int j = simd_end; j < M; ++j) Y[i * M + j] += d * X[k * M + j];
         }
     }
     (void)MM;
@@ -366,14 +361,27 @@ static inline void aix_2d_avx2(const double* __restrict__ A,
  * Along the Z axis
  * */
 void DENDRO_TENSOR_AIIX_APPLY_ELEM(const int M, const double* __restrict__ A,
-                                   const double* __restrict__ X, double* __restrict__ Y) {
+                                   const double* __restrict__ X,
+                                   double* __restrict__ Y) {
 #if defined(DENDRO_TENSOR_SIMD)
 #if defined(__AVX512F__)
-    if (M == 7) { aiix_avx512<7>(A, X, Y); return; }
+    if (M == 7) {
+        aiix_avx512<7>(A, X, Y);
+        return;
+    }
 #endif
-    if (M == 7) { aiix_avx2<7>(A, X, Y); return; }
-    if (M == 5) { aiix_avx2<5>(A, X, Y); return; }
-    if (M == 9) { aiix_avx2<9>(A, X, Y); return; }
+    if (M == 7) {
+        aiix_avx2<7>(A, X, Y);
+        return;
+    }
+    if (M == 5) {
+        aiix_avx2<5>(A, X, Y);
+        return;
+    }
+    if (M == 9) {
+        aiix_avx2<9>(A, X, Y);
+        return;
+    }
 #endif
     int i, j, k;
     double d, e;
@@ -397,14 +405,27 @@ void DENDRO_TENSOR_AIIX_APPLY_ELEM(const int M, const double* __restrict__ A,
  * */
 
 void DENDRO_TENSOR_IIAX_APPLY_ELEM(const int M, const double* __restrict__ A,
-                                   const double* __restrict__ X, double* __restrict__ Y) {
+                                   const double* __restrict__ X,
+                                   double* __restrict__ Y) {
 #if defined(DENDRO_TENSOR_SIMD)
 #if defined(__AVX512F__)
-    if (M == 7) { iiax_avx512<7>(A, X, Y); return; }
+    if (M == 7) {
+        iiax_avx512<7>(A, X, Y);
+        return;
+    }
 #endif
-    if (M == 7) { iiax_avx2<7>(A, X, Y); return; }
-    if (M == 5) { iiax_avx2<5>(A, X, Y); return; }
-    if (M == 9) { iiax_avx2<9>(A, X, Y); return; }
+    if (M == 7) {
+        iiax_avx2<7>(A, X, Y);
+        return;
+    }
+    if (M == 5) {
+        iiax_avx2<5>(A, X, Y);
+        return;
+    }
+    if (M == 9) {
+        iiax_avx2<9>(A, X, Y);
+        return;
+    }
 #endif
     int i, j, k;
     double e;
@@ -426,11 +447,21 @@ void DENDRO_TENSOR_IIAX_APPLY_ELEM(const int M, const double* __restrict__ A,
  * */
 
 void DENDRO_TENSOR_IAX_APPLY_ELEM_2D(const int M, const double* __restrict__ A,
-                                     const double* __restrict__ X, double* __restrict__ Y) {
+                                     const double* __restrict__ X,
+                                     double* __restrict__ Y) {
 #if defined(DENDRO_TENSOR_SIMD)
-    if (M == 7) { iax_2d_avx2<7>(A, X, Y); return; }
-    if (M == 5) { iax_2d_avx2<5>(A, X, Y); return; }
-    if (M == 9) { iax_2d_avx2<9>(A, X, Y); return; }
+    if (M == 7) {
+        iax_2d_avx2<7>(A, X, Y);
+        return;
+    }
+    if (M == 5) {
+        iax_2d_avx2<5>(A, X, Y);
+        return;
+    }
+    if (M == 9) {
+        iax_2d_avx2<9>(A, X, Y);
+        return;
+    }
 #endif
     int i, j, k;
     double e;
@@ -451,14 +482,27 @@ void DENDRO_TENSOR_IAX_APPLY_ELEM_2D(const int M, const double* __restrict__ A,
  * Along the Y axis
  * */
 void DENDRO_TENSOR_IAIX_APPLY_ELEM(const int M, const double* __restrict__ A,
-                                   const double* __restrict__ X, double* __restrict__ Y) {
+                                   const double* __restrict__ X,
+                                   double* __restrict__ Y) {
 #if defined(DENDRO_TENSOR_SIMD)
 #if defined(__AVX512F__)
-    if (M == 7) { iaix_avx512<7>(A, X, Y); return; }
+    if (M == 7) {
+        iaix_avx512<7>(A, X, Y);
+        return;
+    }
 #endif
-    if (M == 7) { iaix_avx2<7>(A, X, Y); return; }
-    if (M == 5) { iaix_avx2<5>(A, X, Y); return; }
-    if (M == 9) { iaix_avx2<9>(A, X, Y); return; }
+    if (M == 7) {
+        iaix_avx2<7>(A, X, Y);
+        return;
+    }
+    if (M == 5) {
+        iaix_avx2<5>(A, X, Y);
+        return;
+    }
+    if (M == 9) {
+        iaix_avx2<9>(A, X, Y);
+        return;
+    }
 #endif
     int i, j, k, ib;
     double d, e;
@@ -483,11 +527,21 @@ void DENDRO_TENSOR_IAIX_APPLY_ELEM(const int M, const double* __restrict__ A,
  * Along the Y axis for (2D face interpolations. )
  * */
 void DENDRO_TENSOR_AIX_APPLY_ELEM_2D(const int M, const double* __restrict__ A,
-                                     const double* __restrict__ X, double* __restrict__ Y) {
+                                     const double* __restrict__ X,
+                                     double* __restrict__ Y) {
 #if defined(DENDRO_TENSOR_SIMD)
-    if (M == 7) { aix_2d_avx2<7>(A, X, Y); return; }
-    if (M == 5) { aix_2d_avx2<5>(A, X, Y); return; }
-    if (M == 9) { aix_2d_avx2<9>(A, X, Y); return; }
+    if (M == 7) {
+        aix_2d_avx2<7>(A, X, Y);
+        return;
+    }
+    if (M == 5) {
+        aix_2d_avx2<5>(A, X, Y);
+        return;
+    }
+    if (M == 9) {
+        aix_2d_avx2<9>(A, X, Y);
+        return;
+    }
 #endif
     int i, j, k, ib = 0;
     double d, e;

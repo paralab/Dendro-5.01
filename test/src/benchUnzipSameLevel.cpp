@@ -11,8 +11,10 @@
 // DENDRO_UNZIP_SCATTER_FAST=ON, run, and `cmp` the two output files.
 //
 // Usage:
-//   mpirun -n <N> ./benchUnzipSameLevel <maxDepth> <wavelet_tol> <partition_tol>
-//                                       <eleOrder> [iters] [num_vars] [out_file]
+//   mpirun -n <N> ./benchUnzipSameLevel <maxDepth> <wavelet_tol>
+//   <partition_tol>
+//                                       <eleOrder> [iters] [num_vars]
+//                                       [out_file]
 
 #include <cmath>
 #include <cstdio>
@@ -64,10 +66,11 @@ int main(int argc, char** argv) {
 #endif
 
     if (!rank) {
-        std::printf("benchUnzipSameLevel [%s] maxDepth=%d wavelet_tol=%g "
-                    "partition_tol=%g eleOrder=%u iter=%u n_vars=%u\n",
-                    fast_tag, m_uiMaxDepth, wavelet_tol, partition_tol, eOrder,
-                    iter, n_vars);
+        std::printf(
+            "benchUnzipSameLevel [%s] maxDepth=%d wavelet_tol=%g "
+            "partition_tol=%g eleOrder=%u iter=%u n_vars=%u\n",
+            fast_tag, m_uiMaxDepth, wavelet_tol, partition_tol, eOrder, iter,
+            n_vars);
     }
 
     _InitializeHcurve(m_uiDim);
@@ -90,21 +93,19 @@ int main(int argc, char** argv) {
             const double rrb  = (x - cb[0]) * (x - cb[0]) +
                                 (y - cb[1]) * (y - cb[1]) +
                                 (z - cb[2]) * (z - cb[2]);
-            var[0] = std::exp(-rra) + std::exp(-rrb);
+            var[0]            = std::exp(-rra) + std::exp(-rrb);
         };
 
-    std::function<double(double, double, double)> fr =
-        [func, d_min, d_max](double x, double y, double z) {
-            const double xx =
-                (x / (1u << m_uiMaxDepth)) * (d_max - d_min) + d_min;
-            const double yy =
-                (y / (1u << m_uiMaxDepth)) * (d_max - d_min) + d_min;
-            const double zz =
-                (z / (1u << m_uiMaxDepth)) * (d_max - d_min) + d_min;
-            double v;
-            func(xx, yy, zz, &v);
-            return v;
-        };
+    std::function<double(double, double, double)> fr = [func, d_min, d_max](
+                                                           double x, double y,
+                                                           double z) {
+        const double xx = (x / (1u << m_uiMaxDepth)) * (d_max - d_min) + d_min;
+        const double yy = (y / (1u << m_uiMaxDepth)) * (d_max - d_min) + d_min;
+        const double zz = (z / (1u << m_uiMaxDepth)) * (d_max - d_min) + d_min;
+        double v;
+        func(xx, yy, zz, &v);
+        return v;
+    };
 
     std::vector<ot::TreeNode> tmpNodes;
     function2Octree(fr, tmpNodes, m_uiMaxDepth, wavelet_tol, eOrder, comm);
@@ -116,12 +117,11 @@ int main(int argc, char** argv) {
 
     unsigned int lmin, lmax;
     mesh->computeMinMaxLevel(lmin, lmax);
-    if (!rank)
-        std::printf("mesh lev_min=%u lev_max=%u\n", lmin, lmax);
+    if (!rank) std::printf("mesh lev_min=%u lev_max=%u\n", lmin, lmax);
 
     // One CG vector + one unzipped vector for measurement.
-    double* u       = mesh->createCGVector<double>(func, 1);
-    double* u_unzip = mesh->createUnZippedVector<double>(1);
+    double* u               = mesh->createCGVector<double>(func, 1);
+    double* u_unzip         = mesh->createUnZippedVector<double>(1);
 
     const unsigned int unSz = mesh->getDegOfFreedomUnZip();
 

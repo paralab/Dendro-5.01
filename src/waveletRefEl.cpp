@@ -328,9 +328,8 @@ void WaveletEl::compute_wavelets_3D(const double* in, const unsigned int* isz,
                         const unsigned int pp1 =
                             (k - pw) * (bnp_child_1d * bnp_child_1d) +
                             (j - pw) * bnp_child_1d + (i - pw);
-                        wc[wcount] =
-                            fabs(in[pp] - m_uiVOut[pp1]) /
-                            std::max(in_min, fabs(in[pp]));
+                        wc[wcount] = fabs(in[pp] - m_uiVOut[pp1]) /
+                                     std::max(in_min, fabs(in[pp]));
                     }
         } else {
             wcount = 0;
@@ -385,8 +384,8 @@ void WaveletEl::compute_wavelets_3D(const double* in, const unsigned int* isz,
                     const unsigned int pp = m_uiCIndex[k] * (iny * inx) +
                                             m_uiCIndex[j] * (inx) +
                                             m_uiCIndex[i];
-                    wc[wcount] = fabs(m_uiVOut[pp] - in[pp]) /
-                                 std::max(in_min, fabs(in[pp]));
+                    wc[wcount]            = fabs(m_uiVOut[pp] - in[pp]) /
+                                            std::max(in_min, fabs(in[pp]));
                 }
     } else {
         wcount = 0;
@@ -396,7 +395,7 @@ void WaveletEl::compute_wavelets_3D(const double* in, const unsigned int* isz,
                     const unsigned int pp = m_uiCIndex[k] * (iny * inx) +
                                             m_uiCIndex[j] * (inx) +
                                             m_uiCIndex[i];
-                    wc[wcount] = fabs(m_uiVOut[pp] - in[pp]);
+                    wc[wcount]            = fabs(m_uiVOut[pp] - in[pp]);
                 }
     }
 }

@@ -573,36 +573,28 @@ class RefElement {
         (void)im2;
         switch (childNum) {
             case 0:
-                DENDRO_TENSOR_IAX_APPLY_ELEM_2D(m_uiNrp,
-                                                &(*(ip_1D_0.begin())), in,
-                                                im1);
-                DENDRO_TENSOR_AIX_APPLY_ELEM_2D(m_uiNrp,
-                                                &(*(ip_1D_0.begin())), im1,
-                                                out);
+                DENDRO_TENSOR_IAX_APPLY_ELEM_2D(m_uiNrp, &(*(ip_1D_0.begin())),
+                                                in, im1);
+                DENDRO_TENSOR_AIX_APPLY_ELEM_2D(m_uiNrp, &(*(ip_1D_0.begin())),
+                                                im1, out);
                 break;
             case 1:
-                DENDRO_TENSOR_IAX_APPLY_ELEM_2D(m_uiNrp,
-                                                &(*(ip_1D_1.begin())), in,
-                                                im1);
-                DENDRO_TENSOR_AIX_APPLY_ELEM_2D(m_uiNrp,
-                                                &(*(ip_1D_0.begin())), im1,
-                                                out);
+                DENDRO_TENSOR_IAX_APPLY_ELEM_2D(m_uiNrp, &(*(ip_1D_1.begin())),
+                                                in, im1);
+                DENDRO_TENSOR_AIX_APPLY_ELEM_2D(m_uiNrp, &(*(ip_1D_0.begin())),
+                                                im1, out);
                 break;
             case 2:
-                DENDRO_TENSOR_IAX_APPLY_ELEM_2D(m_uiNrp,
-                                                &(*(ip_1D_0.begin())), in,
-                                                im1);
-                DENDRO_TENSOR_AIX_APPLY_ELEM_2D(m_uiNrp,
-                                                &(*(ip_1D_1.begin())), im1,
-                                                out);
+                DENDRO_TENSOR_IAX_APPLY_ELEM_2D(m_uiNrp, &(*(ip_1D_0.begin())),
+                                                in, im1);
+                DENDRO_TENSOR_AIX_APPLY_ELEM_2D(m_uiNrp, &(*(ip_1D_1.begin())),
+                                                im1, out);
                 break;
             case 3:
-                DENDRO_TENSOR_IAX_APPLY_ELEM_2D(m_uiNrp,
-                                                &(*(ip_1D_1.begin())), in,
-                                                im1);
-                DENDRO_TENSOR_AIX_APPLY_ELEM_2D(m_uiNrp,
-                                                &(*(ip_1D_1.begin())), im1,
-                                                out);
+                DENDRO_TENSOR_IAX_APPLY_ELEM_2D(m_uiNrp, &(*(ip_1D_1.begin())),
+                                                in, im1);
+                DENDRO_TENSOR_AIX_APPLY_ELEM_2D(m_uiNrp, &(*(ip_1D_1.begin())),
+                                                im1, out);
                 break;
             default:
                 std::cout << "[refel][error]: invalid child number specified "

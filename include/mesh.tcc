@@ -2605,28 +2605,27 @@ bool Mesh::isReMeshUnzip(
         std::vector<double> eleWMax;
         eleWMax.resize(numLocalElements, 0);
 
-        const unsigned int eleOfst    = m_uiElementLocalBegin;
-        const size_t n_blocks         = blkList.size();
-        const unsigned int nx_uniform = (2 * eOrder + 1);
-        const unsigned int sz_per_dof = nx_uniform * nx_uniform * nx_uniform;
-        const unsigned int isz_uniform[] = {nx_uniform, nx_uniform,
-                                            nx_uniform};
+        const unsigned int eleOfst       = m_uiElementLocalBegin;
+        const size_t n_blocks            = blkList.size();
+        const unsigned int nx_uniform    = (2 * eOrder + 1);
+        const unsigned int sz_per_dof    = nx_uniform * nx_uniform * nx_uniform;
+        const unsigned int isz_uniform[] = {nx_uniform, nx_uniform, nx_uniform};
         // size of im_vec1/im_vec2 the refEl needs for I3D_Parent2Child
         const unsigned int nPe = (eOrder + 1) * (eOrder + 1) * (eOrder + 1);
 
 #if defined(DENDRO_UNZIP_OMP)
-        // Block-parallel: each thread owns its own WaveletEl (which has its
-        // own m_uiVIn/m_uiNVec/m_uiVOut workspaces) and its own im1/im2
-        // scratch for the underlying I3D_Parent2Child calls (passed via the
-        // thread-safe overload).
-        #pragma omp parallel
+// Block-parallel: each thread owns its own WaveletEl (which has its
+// own m_uiVIn/m_uiNVec/m_uiVOut workspaces) and its own im1/im2
+// scratch for the underlying I3D_Parent2Child calls (passed via the
+// thread-safe overload).
+#pragma omp parallel
         {
             wavelet::WaveletEl wrefEl_tls(refEl);
             std::vector<double> im1_tls(nPe), im2_tls(nPe);
             std::vector<T> blkIn_tls(numVars * sz_per_dof);
             std::vector<double> wCout_tls(sz_per_dof);
 
-            #pragma omp for schedule(dynamic, 1)
+#pragma omp for schedule(dynamic, 1)
             for (size_t blk = 0; blk < n_blocks; blk++) {
 #else
         {
@@ -2654,18 +2653,18 @@ bool Mesh::isReMeshUnzip(
                     const double oct_dx =
                         (1u << (m_uiMaxDepth - pNodes[ele].getLevel())) /
                         (double(m_uiElementOrder));
-                    Point oct_pt1    = Point(pNodes[ele].minX(),
-                                             pNodes[ele].minY(),
-                                             pNodes[ele].minZ());
-                    Point oct_pt2    = Point(pNodes[ele].minX() + oct_dx,
-                                             pNodes[ele].minY() + oct_dx,
-                                             pNodes[ele].minZ() + oct_dx);
+                    Point oct_pt1 =
+                        Point(pNodes[ele].minX(), pNodes[ele].minY(),
+                              pNodes[ele].minZ());
+                    Point oct_pt2 = Point(pNodes[ele].minX() + oct_dx,
+                                          pNodes[ele].minY() + oct_dx,
+                                          pNodes[ele].minZ() + oct_dx);
                     Point domain_pt1, domain_pt2, dx_domain;
                     this->octCoordToDomainCoord(oct_pt1, domain_pt1);
                     this->octCoordToDomainCoord(oct_pt2, domain_pt2);
-                    dx_domain = domain_pt2 - domain_pt1;
-                    double hx[3] = {dx_domain.x(), dx_domain.y(),
-                                    dx_domain.z()};
+                    dx_domain            = domain_pt2 - domain_pt1;
+                    double hx[3]         = {dx_domain.x(), dx_domain.y(),
+                                            dx_domain.z()};
                     const double tol_ele = wavelet_tol(
                         domain_pt1.x(), domain_pt1.y(), domain_pt1.z(), hx);
 
@@ -3008,8 +3007,7 @@ bool Mesh::isReMeshUnzip(
 // for that).
 template <typename T>
 void Mesh::getElementNodalValues(const T* vec, T* nodalValues,
-                                 unsigned int elementID,
-                                 bool isDGVec) const {
+                                 unsigned int elementID, bool isDGVec) const {
     this->getElementNodalValues(vec, nodalValues, elementID, isDGVec,
                                 m_uiRefEl.getImVec1(), m_uiRefEl.getImVec2());
 }
@@ -3077,7 +3075,8 @@ void Mesh::getElementNodalValues(const T* vec, T* nodalValues,
             faceInpIn[index] = vec[m_uiE2NMapping_CG[faceIndex[index]]];
 
         this->parent2ChildInterpolation(&(*(faceInpIn.begin())),
-                                        &(*(faceInpOut.begin())), cnum, 2, im1, im2);
+                                        &(*(faceInpOut.begin())), cnum, 2, im1,
+                                        im2);
 
         for (unsigned int k = 0; k < (m_uiElementOrder + 1); k++)
             for (unsigned int j = 0; j < (m_uiElementOrder + 1); j++)
@@ -3116,7 +3115,8 @@ void Mesh::getElementNodalValues(const T* vec, T* nodalValues,
             faceInpIn[index] = vec[m_uiE2NMapping_CG[faceIndex[index]]];
 
         this->parent2ChildInterpolation(&(*(faceInpIn.begin())),
-                                        &(*(faceInpOut.begin())), cnum, 2, im1, im2);
+                                        &(*(faceInpOut.begin())), cnum, 2, im1,
+                                        im2);
 
         for (unsigned int k = 0; k < (m_uiElementOrder + 1); k++)
             for (unsigned int j = 0; j < (m_uiElementOrder + 1); j++)
@@ -3156,7 +3156,8 @@ void Mesh::getElementNodalValues(const T* vec, T* nodalValues,
             faceInpIn[index] = vec[m_uiE2NMapping_CG[faceIndex[index]]];
 
         this->parent2ChildInterpolation(&(*(faceInpIn.begin())),
-                                        &(*(faceInpOut.begin())), cnum, 2, im1, im2);
+                                        &(*(faceInpOut.begin())), cnum, 2, im1,
+                                        im2);
 
         for (unsigned int k = 0; k < (m_uiElementOrder + 1); k++)
             for (unsigned int i = 0; i < (m_uiElementOrder + 1); i++)
@@ -3195,7 +3196,8 @@ void Mesh::getElementNodalValues(const T* vec, T* nodalValues,
             faceInpIn[index] = vec[m_uiE2NMapping_CG[faceIndex[index]]];
 
         this->parent2ChildInterpolation(&(*(faceInpIn.begin())),
-                                        &(*(faceInpOut.begin())), cnum, 2, im1, im2);
+                                        &(*(faceInpOut.begin())), cnum, 2, im1,
+                                        im2);
 
         for (unsigned int k = 0; k < (m_uiElementOrder + 1); k++)
             for (unsigned int i = 0; i < (m_uiElementOrder + 1); i++)
@@ -3235,7 +3237,8 @@ void Mesh::getElementNodalValues(const T* vec, T* nodalValues,
             faceInpIn[index] = vec[m_uiE2NMapping_CG[faceIndex[index]]];
 
         this->parent2ChildInterpolation(&(*(faceInpIn.begin())),
-                                        &(*(faceInpOut.begin())), cnum, 2, im1, im2);
+                                        &(*(faceInpOut.begin())), cnum, 2, im1,
+                                        im2);
 
         for (unsigned int j = 0; j < (m_uiElementOrder + 1); j++)
             for (unsigned int i = 0; i < (m_uiElementOrder + 1); i++)
@@ -3274,7 +3277,8 @@ void Mesh::getElementNodalValues(const T* vec, T* nodalValues,
             faceInpIn[index] = vec[m_uiE2NMapping_CG[faceIndex[index]]];
 
         this->parent2ChildInterpolation(&(*(faceInpIn.begin())),
-                                        &(*(faceInpOut.begin())), cnum, 2, im1, im2);
+                                        &(*(faceInpOut.begin())), cnum, 2, im1,
+                                        im2);
 
         for (unsigned int j = 0; j < (m_uiElementOrder + 1); j++)
             for (unsigned int i = 0; i < (m_uiElementOrder + 1); i++)
@@ -3317,7 +3321,8 @@ void Mesh::getElementNodalValues(const T* vec, T* nodalValues,
                 edgeInpIn[index] = vec[m_uiE2NMapping_CG[edgeIndex[index]]];
 
             this->parent2ChildInterpolation(&(*(edgeInpIn.begin())),
-                                            &(*(edgeInpOut.begin())), cnum, 1, im1, im2);
+                                            &(*(edgeInpOut.begin())), cnum, 1,
+                                            im1, im2);
 
             for (unsigned int k = 0; k < (m_uiElementOrder + 1); k++)
                 nodalValues[k * (m_uiElementOrder + 1) *
@@ -3350,7 +3355,8 @@ void Mesh::getElementNodalValues(const T* vec, T* nodalValues,
                 edgeInpIn[index] = vec[m_uiE2NMapping_CG[edgeIndex[index]]];
 
             this->parent2ChildInterpolation(&(*(edgeInpIn.begin())),
-                                            &(*(edgeInpOut.begin())), cnum, 1, im1, im2);
+                                            &(*(edgeInpOut.begin())), cnum, 1,
+                                            im1, im2);
 
             for (unsigned int k = 0; k < (m_uiElementOrder + 1); k++)
                 nodalValues[k * (m_uiElementOrder + 1) *
@@ -3385,7 +3391,8 @@ void Mesh::getElementNodalValues(const T* vec, T* nodalValues,
                 edgeInpIn[index] = vec[m_uiE2NMapping_CG[edgeIndex[index]]];
 
             this->parent2ChildInterpolation(&(*(edgeInpIn.begin())),
-                                            &(*(edgeInpOut.begin())), cnum, 1, im1, im2);
+                                            &(*(edgeInpOut.begin())), cnum, 1,
+                                            im1, im2);
 
             for (unsigned int j = 0; j < (m_uiElementOrder + 1); j++)
                 nodalValues[0 * (m_uiElementOrder + 1) *
@@ -3418,7 +3425,8 @@ void Mesh::getElementNodalValues(const T* vec, T* nodalValues,
                 edgeInpIn[index] = vec[m_uiE2NMapping_CG[edgeIndex[index]]];
 
             this->parent2ChildInterpolation(&(*(edgeInpIn.begin())),
-                                            &(*(edgeInpOut.begin())), cnum, 1, im1, im2);
+                                            &(*(edgeInpOut.begin())), cnum, 1,
+                                            im1, im2);
 
             for (unsigned int j = 0; j < (m_uiElementOrder + 1); j++)
                 nodalValues[m_uiElementOrder * (m_uiElementOrder + 1) *
@@ -3452,7 +3460,8 @@ void Mesh::getElementNodalValues(const T* vec, T* nodalValues,
                 edgeInpIn[index] = vec[m_uiE2NMapping_CG[edgeIndex[index]]];
 
             this->parent2ChildInterpolation(&(*(edgeInpIn.begin())),
-                                            &(*(edgeInpOut.begin())), cnum, 1, im1, im2);
+                                            &(*(edgeInpOut.begin())), cnum, 1,
+                                            im1, im2);
 
             for (unsigned int k = 0; k < (m_uiElementOrder + 1); k++)
                 nodalValues[k * (m_uiElementOrder + 1) *
@@ -3487,7 +3496,8 @@ void Mesh::getElementNodalValues(const T* vec, T* nodalValues,
                 edgeInpIn[index] = vec[m_uiE2NMapping_CG[edgeIndex[index]]];
 
             this->parent2ChildInterpolation(&(*(edgeInpIn.begin())),
-                                            &(*(edgeInpOut.begin())), cnum, 1, im1, im2);
+                                            &(*(edgeInpOut.begin())), cnum, 1,
+                                            im1, im2);
 
             for (unsigned int k = 0; k < (m_uiElementOrder + 1); k++)
                 nodalValues[k * (m_uiElementOrder + 1) *
@@ -3524,7 +3534,8 @@ void Mesh::getElementNodalValues(const T* vec, T* nodalValues,
                 edgeInpIn[index] = vec[m_uiE2NMapping_CG[edgeIndex[index]]];
 
             this->parent2ChildInterpolation(&(*(edgeInpIn.begin())),
-                                            &(*(edgeInpOut.begin())), cnum, 1, im1, im2);
+                                            &(*(edgeInpOut.begin())), cnum, 1,
+                                            im1, im2);
 
             for (unsigned int j = 0; j < (m_uiElementOrder + 1); j++)
                 nodalValues[0 * (m_uiElementOrder + 1) *
@@ -3559,7 +3570,8 @@ void Mesh::getElementNodalValues(const T* vec, T* nodalValues,
                 edgeInpIn[index] = vec[m_uiE2NMapping_CG[edgeIndex[index]]];
 
             this->parent2ChildInterpolation(&(*(edgeInpIn.begin())),
-                                            &(*(edgeInpOut.begin())), cnum, 1, im1, im2);
+                                            &(*(edgeInpOut.begin())), cnum, 1,
+                                            im1, im2);
 
             for (unsigned int j = 0; j < (m_uiElementOrder + 1); j++)
                 nodalValues[m_uiElementOrder * (m_uiElementOrder + 1) *
@@ -3594,7 +3606,8 @@ void Mesh::getElementNodalValues(const T* vec, T* nodalValues,
                 edgeInpIn[index] = vec[m_uiE2NMapping_CG[edgeIndex[index]]];
 
             this->parent2ChildInterpolation(&(*(edgeInpIn.begin())),
-                                            &(*(edgeInpOut.begin())), cnum, 1, im1, im2);
+                                            &(*(edgeInpOut.begin())), cnum, 1,
+                                            im1, im2);
 
             for (unsigned int i = 0; i < (m_uiElementOrder + 1); i++)
                 nodalValues[0 * (m_uiElementOrder + 1) *
@@ -3627,7 +3640,8 @@ void Mesh::getElementNodalValues(const T* vec, T* nodalValues,
                 edgeInpIn[index] = vec[m_uiE2NMapping_CG[edgeIndex[index]]];
 
             this->parent2ChildInterpolation(&(*(edgeInpIn.begin())),
-                                            &(*(edgeInpOut.begin())), cnum, 1, im1, im2);
+                                            &(*(edgeInpOut.begin())), cnum, 1,
+                                            im1, im2);
 
             for (unsigned int i = 0; i < (m_uiElementOrder + 1); i++)
                 nodalValues[m_uiElementOrder * (m_uiElementOrder + 1) *
@@ -3661,7 +3675,8 @@ void Mesh::getElementNodalValues(const T* vec, T* nodalValues,
                 edgeInpIn[index] = vec[m_uiE2NMapping_CG[edgeIndex[index]]];
 
             this->parent2ChildInterpolation(&(*(edgeInpIn.begin())),
-                                            &(*(edgeInpOut.begin())), cnum, 1, im1, im2);
+                                            &(*(edgeInpOut.begin())), cnum, 1,
+                                            im1, im2);
 
             for (unsigned int i = 0; i < (m_uiElementOrder + 1); i++)
                 nodalValues[0 * (m_uiElementOrder + 1) *
@@ -3696,7 +3711,8 @@ void Mesh::getElementNodalValues(const T* vec, T* nodalValues,
                 edgeInpIn[index] = vec[m_uiE2NMapping_CG[edgeIndex[index]]];
 
             this->parent2ChildInterpolation(&(*(edgeInpIn.begin())),
-                                            &(*(edgeInpOut.begin())), cnum, 1, im1, im2);
+                                            &(*(edgeInpOut.begin())), cnum, 1,
+                                            im1, im2);
 
             for (unsigned int i = 0; i < (m_uiElementOrder + 1); i++)
                 nodalValues[m_uiElementOrder * (m_uiElementOrder + 1) *
@@ -4577,13 +4593,13 @@ void Mesh::zip(const T* unzippedVec, T* zippedVec) {
     // reads from its own slice of unzippedVec. So #pragma omp parallel for
     // over blocks is race-free without any extra bookkeeping.
 #if defined(DENDRO_UNZIP_OMP)
-    #pragma omp parallel for schedule(dynamic, 1)
+#pragma omp parallel for schedule(dynamic, 1)
 #endif
     for (size_t blk = 0; blk < n_blocks; blk++) {
-        const ot::TreeNode blkNode   = blkList[blk].getBlockNode();
-        const unsigned int regLev    = blkList[blk].getRegularGridLev();
-        const unsigned int lx        = blkList[blk].getAllocationSzX();
-        const unsigned int ly        = blkList[blk].getAllocationSzY();
+        const ot::TreeNode blkNode          = blkList[blk].getBlockNode();
+        const unsigned int regLev           = blkList[blk].getRegularGridLev();
+        const unsigned int lx               = blkList[blk].getAllocationSzX();
+        const unsigned int ly               = blkList[blk].getAllocationSzY();
         const unsigned int /*lz*/ lz_unused = blkList[blk].getAllocationSzZ();
         (void)lz_unused;
         const unsigned int offset    = blkList[blk].getOffset();
@@ -11050,9 +11066,9 @@ void Mesh::unzip_scatter(const T* in, T* out, unsigned int dof) {
 
     const unsigned int dgSz    = nPe;
 
-    T* uzWVec = out;
+    T* uzWVec                  = out;
 
-    const double d_compar_tol = 1e-10;
+    const double d_compar_tol  = 1e-10;
 
 #if defined(DENDRO_UNZIP_OMP)
     // OpenMP block-parallel path. Builds a block-to-element map (inverse
@@ -11079,7 +11095,7 @@ void Mesh::unzip_scatter(const T* in, T* out, unsigned int dof) {
         if (m_e2b_unzip_counts[ele] == 0) continue;
         const unsigned int eo = m_e2b_unzip_offset[ele];
         for (unsigned int i = 0; i < m_e2b_unzip_counts[ele]; i++) {
-            const unsigned int blk = m_e2b_unzip_map[eo + i];
+            const unsigned int blk                    = m_e2b_unzip_map[eo + i];
             b2e_map[b2e_offset[blk] + b2e_cur[blk]++] = ele;
         }
     }
@@ -11095,14 +11111,13 @@ void Mesh::unzip_scatter(const T* in, T* out, unsigned int dof) {
     std::vector<T> all_dg((std::size_t)m_uiNumTotalElements * dof * dgSz);
     for (unsigned int ele = 0; ele < m_uiNumTotalElements; ele++) {
         if (m_e2b_unzip_counts[ele] == 0) continue;
-        T* base = all_dg.data() +
-                  (std::size_t)ele * dof * dgSz;
+        T* base = all_dg.data() + (std::size_t)ele * dof * dgSz;
         for (unsigned int v = 0; v < dof; v++)
             this->getElementNodalValues(in + v * cgSz, base + v * dgSz, ele,
                                         false);
     }
 
-    #pragma omp parallel
+#pragma omp parallel
     {
         std::vector<T> p2cI_all_tls(NUM_CHILDREN * dof * nPe);
         std::vector<double> im1_tls(nPe), im2_tls(nPe);
@@ -11111,11 +11126,11 @@ void Mesh::unzip_scatter(const T* in, T* out, unsigned int dof) {
         bool p2c_interp_valid_tls[NUM_CHILDREN];
         unsigned int last_ele_tls = UINT_MAX;
 
-        T* p2cI_base_t      = p2cI_all_tls.data();
-        double* const im1_t = im1_tls.data();
-        double* const im2_t = im2_tls.data();
+        T* p2cI_base_t            = p2cI_all_tls.data();
+        double* const im1_t       = im1_tls.data();
+        double* const im2_t       = im2_tls.data();
 
-        #pragma omp for schedule(dynamic, 1)
+#pragma omp for schedule(dynamic, 1)
         for (size_t blk_idx = 0; blk_idx < n_blocks; blk_idx++) {
             const unsigned int blk     = (unsigned int)blk_idx;
             const ot::TreeNode blkNode = blkList[blk].getBlockNode();
@@ -11133,8 +11148,7 @@ void Mesh::unzip_scatter(const T* in, T* out, unsigned int dof) {
             for (unsigned int idx = e_start; idx < e_end; idx++) {
                 const unsigned int ele = b2e_map[idx];
                 // dgWVec_t is just a pointer into the precomputed all_dg.
-                T* dgWVec_t =
-                    all_dg.data() + (std::size_t)ele * dof * dgSz;
+                T* dgWVec_t = all_dg.data() + (std::size_t)ele * dof * dgSz;
 
                 if (ele != last_ele_tls) {
                     last_ele_tls = ele;
@@ -11160,8 +11174,8 @@ void Mesh::unzip_scatter(const T* in, T* out, unsigned int dof) {
                     const int k0 = ek * (int)eOrder + (int)PW;
                     dendro::unzip::scatter_same_level_dispatch<T>(
                         dgWVec_t, uzWVec, eOrder, dof, (std::size_t)unSz,
-                        (std::size_t)dgSz, (std::size_t)offset, lx, ly, lz,
-                        i0, j0, k0);
+                        (std::size_t)dgSz, (std::size_t)offset, lx, ly, lz, i0,
+                        j0, k0);
                 } else if (pNodes[ele].getLevel() > bLev) {
                     // fine -> coarse (even eOrder only; odd falls back below)
                     if ((eOrder % 2u) == 0) {
@@ -11182,9 +11196,9 @@ void Mesh::unzip_scatter(const T* in, T* out, unsigned int dof) {
                         const int j0      = ej * half_eO + (int)PW;
                         const int k0      = ek * half_eO + (int)PW;
                         dendro::unzip::scatter_fine_to_coarse_dispatch<T>(
-                            dgWVec_t, uzWVec, eOrder, dof,
-                            (std::size_t)unSz, (std::size_t)dgSz,
-                            (std::size_t)offset, lx, ly, lz, i0, j0, k0);
+                            dgWVec_t, uzWVec, eOrder, dof, (std::size_t)unSz,
+                            (std::size_t)dgSz, (std::size_t)offset, lx, ly, lz,
+                            i0, j0, k0);
                     }
                     // odd eOrder fall-through skipped in OMP path — not
                     // supported here. (Set DENDRO_UNZIP_OMP=OFF for odd
@@ -11228,9 +11242,8 @@ void Mesh::unzip_scatter(const T* in, T* out, unsigned int dof) {
                         const T* p2cI_base_child =
                             p2cI_base_t + cnum * dof * nPe;
                         const uint64_t sz_ele_child =
-                            ((uint64_t)1u
-                             << (m_uiMaxDepth -
-                                 childOct_tls[child].getLevel()));
+                            ((uint64_t)1u << (m_uiMaxDepth -
+                                              childOct_tls[child].getLevel()));
                         const int64_t ddx =
                             (int64_t)childOct_tls[child].getX() -
                             (int64_t)blkNode.getX();
@@ -11240,12 +11253,9 @@ void Mesh::unzip_scatter(const T* in, T* out, unsigned int dof) {
                         const int64_t ddz =
                             (int64_t)childOct_tls[child].getZ() -
                             (int64_t)blkNode.getZ();
-                        const int ei =
-                            (int)(ddx / (int64_t)sz_ele_child);
-                        const int ej =
-                            (int)(ddy / (int64_t)sz_ele_child);
-                        const int ek =
-                            (int)(ddz / (int64_t)sz_ele_child);
+                        const int ei = (int)(ddx / (int64_t)sz_ele_child);
+                        const int ej = (int)(ddy / (int64_t)sz_ele_child);
+                        const int ek = (int)(ddz / (int64_t)sz_ele_child);
                         const int i0 = ei * (int)eOrder + (int)PW;
                         const int j0 = ej * (int)eOrder + (int)PW;
                         const int k0 = ek * (int)eOrder + (int)PW;
@@ -11314,10 +11324,10 @@ void Mesh::unzip_scatter(const T* in, T* out, unsigned int dof) {
             // no interpolation needed just copy.
             if (pNodes[ele].getLevel() == bLev) {
 #if defined(DENDRO_UNZIP_SCATTER_FAST)
-                // Phase-1 fast path: integer-index reindex + contiguous row
-                // memcpy. Same-level scatter is a deterministic re-indexing —
-                // the original FP coord math + std::round/fabs/tolerance
-                // snapping is unnecessary work. See
+                // Fast path: integer-index reindex + contiguous row memcpy.
+                // Same-level scatter is a deterministic re-indexing — the
+                // original FP coord math + std::round/fabs/tolerance snapping
+                // is unnecessary work. See
                 // include/mesh_unzip_scatter_kernels.h.
                 const uint64_t sz_morton =
                     ((uint64_t)1u << (m_uiMaxDepth - bLev));
@@ -11521,30 +11531,26 @@ void Mesh::unzip_scatter(const T* in, T* out, unsigned int dof) {
                     // Re-use scatter_same_level_dispatch with p2cI_all as the
                     // virtual DG source (layout: cnum*dof*nPe + v*nPe).
                     {
-                        const T* p2cI_base =
-                            p2cI_all.data() + cnum * dof * nPe;
+                        const T* p2cI_base = p2cI_all.data() + cnum * dof * nPe;
                         const uint64_t sz_ele_child =
                             ((uint64_t)1u
                              << (m_uiMaxDepth - childOct[child].getLevel()));
-                        const int64_t ddx =
-                            (int64_t)childOct[child].getX() -
-                            (int64_t)blkNode.getX();
-                        const int64_t ddy =
-                            (int64_t)childOct[child].getY() -
-                            (int64_t)blkNode.getY();
-                        const int64_t ddz =
-                            (int64_t)childOct[child].getZ() -
-                            (int64_t)blkNode.getZ();
-                        const int ei = (int)(ddx / (int64_t)sz_ele_child);
-                        const int ej = (int)(ddy / (int64_t)sz_ele_child);
-                        const int ek = (int)(ddz / (int64_t)sz_ele_child);
-                        const int i0 = ei * (int)eOrder + (int)PW;
-                        const int j0 = ej * (int)eOrder + (int)PW;
-                        const int k0 = ek * (int)eOrder + (int)PW;
+                        const int64_t ddx = (int64_t)childOct[child].getX() -
+                                            (int64_t)blkNode.getX();
+                        const int64_t ddy = (int64_t)childOct[child].getY() -
+                                            (int64_t)blkNode.getY();
+                        const int64_t ddz = (int64_t)childOct[child].getZ() -
+                                            (int64_t)blkNode.getZ();
+                        const int ei      = (int)(ddx / (int64_t)sz_ele_child);
+                        const int ej      = (int)(ddy / (int64_t)sz_ele_child);
+                        const int ek      = (int)(ddz / (int64_t)sz_ele_child);
+                        const int i0      = ei * (int)eOrder + (int)PW;
+                        const int j0      = ej * (int)eOrder + (int)PW;
+                        const int k0      = ek * (int)eOrder + (int)PW;
                         dendro::unzip::scatter_same_level_dispatch<T>(
-                            p2cI_base, uzWVec, eOrder, dof,
-                            (std::size_t)unSz, (std::size_t)nPe,
-                            (std::size_t)offset, lx, ly, lz, i0, j0, k0);
+                            p2cI_base, uzWVec, eOrder, dof, (std::size_t)unSz,
+                            (std::size_t)nPe, (std::size_t)offset, lx, ly, lz,
+                            i0, j0, k0);
                     }
 #else
                     for (unsigned int v = 0; v < dof; v++) {
@@ -11618,7 +11624,7 @@ void Mesh::unzip_scatter_batch(const T* const* ins, T* const* outs,
     const unsigned int dgSz    = nPe;
 
     // Build b2e map ONCE (mesh structure doesn't change across variables)
-    const size_t n_blocks = m_uiLocalBlockList.size();
+    const size_t n_blocks      = m_uiLocalBlockList.size();
     std::vector<unsigned int> b2e_count(n_blocks, 0);
     for (unsigned int ele = 0; ele < m_uiNumTotalElements; ele++) {
         if (m_e2b_unzip_counts[ele] == 0) continue;
@@ -11636,7 +11642,7 @@ void Mesh::unzip_scatter_batch(const T* const* ins, T* const* outs,
         if (m_e2b_unzip_counts[ele] == 0) continue;
         const unsigned int eo = m_e2b_unzip_offset[ele];
         for (unsigned int i = 0; i < m_e2b_unzip_counts[ele]; i++) {
-            const unsigned int blk = m_e2b_unzip_map[eo + i];
+            const unsigned int blk                    = m_e2b_unzip_map[eo + i];
             b2e_map[b2e_offset[blk] + b2e_cur[blk]++] = ele;
         }
     }
@@ -11644,9 +11650,9 @@ void Mesh::unzip_scatter_batch(const T* const* ins, T* const* outs,
     // Per-variable scratch (reused across vars, size for ONE variable's DG).
     std::vector<T> all_dg((std::size_t)m_uiNumTotalElements * dgSz);
 
-    // ONE parallel region for ALL variables. The fork/join cost is paid once
-    // total, not n_vars times.
-    #pragma omp parallel
+// ONE parallel region for ALL variables. The fork/join cost is paid once
+// total, not n_vars times.
+#pragma omp parallel
     {
         std::vector<T> p2cI_all_tls(NUM_CHILDREN * nPe);  // dof=1
         std::vector<double> im1_tls(nPe), im2_tls(nPe);
@@ -11655,9 +11661,9 @@ void Mesh::unzip_scatter_batch(const T* const* ins, T* const* outs,
         bool p2c_interp_valid_tls[NUM_CHILDREN];
         unsigned int last_ele_tls = UINT_MAX;
 
-        T* p2cI_base_t      = p2cI_all_tls.data();
-        double* const im1_t = im1_tls.data();
-        double* const im2_t = im2_tls.data();
+        T* p2cI_base_t            = p2cI_all_tls.data();
+        double* const im1_t       = im1_tls.data();
+        double* const im2_t       = im2_tls.data();
 
         // Per-thread scratch for the parallel precompute (separate from the
         // wavelet scratch above so the precompute can run concurrently).
@@ -11669,23 +11675,22 @@ void Mesh::unzip_scatter_batch(const T* const* ins, T* const* outs,
             const T* in_v = ins[v];
             T* uzWVec     = outs[v];
 
-            // PARALLEL precompute (now thread-safe via the explicit-scratch
-            // overload of getElementNodalValues — it routes parent2Child
-            // calls through the im1_t/im2_t scratch instead of RefElement's
-            // shared im_vec1/im_vec2).
-            #pragma omp for schedule(static)
-            for (unsigned int ele = 0; ele < m_uiNumTotalElements;
-                 ele++) {
+// PARALLEL precompute (now thread-safe via the explicit-scratch
+// overload of getElementNodalValues — it routes parent2Child
+// calls through the im1_t/im2_t scratch instead of RefElement's
+// shared im_vec1/im_vec2).
+#pragma omp for schedule(static)
+            for (unsigned int ele = 0; ele < m_uiNumTotalElements; ele++) {
                 if (m_e2b_unzip_counts[ele] == 0) continue;
                 this->getElementNodalValues(
-                    in_v, all_dg.data() + (std::size_t)ele * dgSz, ele,
-                    false, pre_im1_t, pre_im2_t);
+                    in_v, all_dg.data() + (std::size_t)ele * dgSz, ele, false,
+                    pre_im1_t, pre_im2_t);
             }
-            // implicit barrier at end of `omp for`
+// implicit barrier at end of `omp for`
 
-            // PARALLEL scatter — reuse the same logic as the OMP path in
-            // unzip_scatter, but with dof=1 fixed.
-            #pragma omp for schedule(dynamic, 1)
+// PARALLEL scatter — reuse the same logic as the OMP path in
+// unzip_scatter, but with dof=1 fixed.
+#pragma omp for schedule(dynamic, 1)
             for (size_t blk_idx = 0; blk_idx < n_blocks; blk_idx++) {
                 const unsigned int blk     = (unsigned int)blk_idx;
                 const ot::TreeNode blkNode = blkList[blk].getBlockNode();
@@ -11709,8 +11714,7 @@ void Mesh::unzip_scatter_batch(const T* const* ins, T* const* outs,
 
                 for (unsigned int idx = e_start; idx < e_end; idx++) {
                     const unsigned int ele = b2e_map[idx];
-                    const T* dgWVec_t =
-                        all_dg.data() + (std::size_t)ele * dgSz;
+                    const T* dgWVec_t = all_dg.data() + (std::size_t)ele * dgSz;
 
                     if (ele != last_ele_tls) {
                         last_ele_tls = ele;
@@ -11727,21 +11731,21 @@ void Mesh::unzip_scatter_batch(const T* const* ins, T* const* outs,
                                             (int64_t)blkNode.getY();
                         const int64_t ddz = (int64_t)pNodes[ele].getZ() -
                                             (int64_t)blkNode.getZ();
-                        const int ei = (int)(ddx / (int64_t)sz_morton);
-                        const int ej = (int)(ddy / (int64_t)sz_morton);
-                        const int ek = (int)(ddz / (int64_t)sz_morton);
-                        const int i0 = ei * (int)eOrder + (int)PW;
-                        const int j0 = ej * (int)eOrder + (int)PW;
-                        const int k0 = ek * (int)eOrder + (int)PW;
+                        const int ei      = (int)(ddx / (int64_t)sz_morton);
+                        const int ej      = (int)(ddy / (int64_t)sz_morton);
+                        const int ek      = (int)(ddz / (int64_t)sz_morton);
+                        const int i0      = ei * (int)eOrder + (int)PW;
+                        const int j0      = ej * (int)eOrder + (int)PW;
+                        const int k0      = ek * (int)eOrder + (int)PW;
                         dendro::unzip::scatter_same_level_dispatch<T>(
-                            dgWVec_t, uzWVec, eOrder, 1u,
-                            (std::size_t)unSz, (std::size_t)dgSz,
-                            (std::size_t)offset, lx, ly, lz, i0, j0, k0);
+                            dgWVec_t, uzWVec, eOrder, 1u, (std::size_t)unSz,
+                            (std::size_t)dgSz, (std::size_t)offset, lx, ly, lz,
+                            i0, j0, k0);
                     } else if (pNodes[ele].getLevel() > bLev) {
                         if ((eOrder % 2u) == 0) {
                             const uint64_t sz_ele =
-                                ((uint64_t)1u <<
-                                 (m_uiMaxDepth - pNodes[ele].getLevel()));
+                                ((uint64_t)1u
+                                 << (m_uiMaxDepth - pNodes[ele].getLevel()));
                             const int64_t ddx = (int64_t)pNodes[ele].getX() -
                                                 (int64_t)blkNode.getX();
                             const int64_t ddy = (int64_t)pNodes[ele].getY() -
@@ -11756,9 +11760,9 @@ void Mesh::unzip_scatter_batch(const T* const* ins, T* const* outs,
                             const int j0      = ej * half_eO + (int)PW;
                             const int k0      = ek * half_eO + (int)PW;
                             dendro::unzip::scatter_fine_to_coarse_dispatch<T>(
-                                dgWVec_t, uzWVec, eOrder, 1u,
-                                (std::size_t)unSz, (std::size_t)dgSz,
-                                (std::size_t)offset, lx, ly, lz, i0, j0, k0);
+                                dgWVec_t, uzWVec, eOrder, 1u, (std::size_t)unSz,
+                                (std::size_t)dgSz, (std::size_t)offset, lx, ly,
+                                lz, i0, j0, k0);
                         }
                     } else {
                         childOct_tls.clear();
@@ -11784,16 +11788,15 @@ void Mesh::unzip_scatter_batch(const T* const* ins, T* const* outs,
                                 childOct_tls[child].getMortonIndex();
                             if (!p2c_interp_valid_tls[cnum]) {
                                 this->parent2ChildInterpolation(
-                                    dgWVec_t, p2cI_base_t + cnum * nPe,
-                                    cnum, m_uiDim, im1_t, im2_t);
+                                    dgWVec_t, p2cI_base_t + cnum * nPe, cnum,
+                                    m_uiDim, im1_t, im2_t);
                                 p2c_interp_valid_tls[cnum] = true;
                             }
-                            const T* p2cI_base_child =
-                                p2cI_base_t + cnum * nPe;
+                            const T* p2cI_base_child = p2cI_base_t + cnum * nPe;
                             const uint64_t sz_ele_child =
-                                ((uint64_t)1u <<
-                                 (m_uiMaxDepth -
-                                  childOct_tls[child].getLevel()));
+                                ((uint64_t)1u
+                                 << (m_uiMaxDepth -
+                                     childOct_tls[child].getLevel()));
                             const int64_t ddx =
                                 (int64_t)childOct_tls[child].getX() -
                                 (int64_t)blkNode.getX();
@@ -11803,20 +11806,16 @@ void Mesh::unzip_scatter_batch(const T* const* ins, T* const* outs,
                             const int64_t ddz =
                                 (int64_t)childOct_tls[child].getZ() -
                                 (int64_t)blkNode.getZ();
-                            const int ei =
-                                (int)(ddx / (int64_t)sz_ele_child);
-                            const int ej =
-                                (int)(ddy / (int64_t)sz_ele_child);
-                            const int ek =
-                                (int)(ddz / (int64_t)sz_ele_child);
+                            const int ei = (int)(ddx / (int64_t)sz_ele_child);
+                            const int ej = (int)(ddy / (int64_t)sz_ele_child);
+                            const int ek = (int)(ddz / (int64_t)sz_ele_child);
                             const int i0 = ei * (int)eOrder + (int)PW;
                             const int j0 = ej * (int)eOrder + (int)PW;
                             const int k0 = ek * (int)eOrder + (int)PW;
                             dendro::unzip::scatter_same_level_dispatch<T>(
                                 p2cI_base_child, uzWVec, eOrder, 1u,
                                 (std::size_t)unSz, (std::size_t)nPe,
-                                (std::size_t)offset, lx, ly, lz, i0, j0,
-                                k0);
+                                (std::size_t)offset, lx, ly, lz, i0, j0, k0);
                         }
                     }
                 }

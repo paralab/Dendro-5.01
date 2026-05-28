@@ -55,10 +55,11 @@ int main(int argc, char** argv) {
 #endif
 
     if (!rank) {
-        std::printf("benchUnzipGather [%s] maxDepth=%d wavelet_tol=%g "
-                    "partition_tol=%g eleOrder=%u iter=%u n_vars=%u\n",
-                    fast_tag, m_uiMaxDepth, wavelet_tol, partition_tol, eOrder,
-                    iter, n_vars);
+        std::printf(
+            "benchUnzipGather [%s] maxDepth=%d wavelet_tol=%g "
+            "partition_tol=%g eleOrder=%u iter=%u n_vars=%u\n",
+            fast_tag, m_uiMaxDepth, wavelet_tol, partition_tol, eOrder, iter,
+            n_vars);
     }
 
     _InitializeHcurve(m_uiDim);
@@ -78,21 +79,19 @@ int main(int argc, char** argv) {
             const double rrb  = (x - cb[0]) * (x - cb[0]) +
                                 (y - cb[1]) * (y - cb[1]) +
                                 (z - cb[2]) * (z - cb[2]);
-            var[0] = std::exp(-rra) + std::exp(-rrb);
+            var[0]            = std::exp(-rra) + std::exp(-rrb);
         };
 
-    std::function<double(double, double, double)> fr =
-        [func, d_min, d_max](double x, double y, double z) {
-            const double xx =
-                (x / (1u << m_uiMaxDepth)) * (d_max - d_min) + d_min;
-            const double yy =
-                (y / (1u << m_uiMaxDepth)) * (d_max - d_min) + d_min;
-            const double zz =
-                (z / (1u << m_uiMaxDepth)) * (d_max - d_min) + d_min;
-            double v;
-            func(xx, yy, zz, &v);
-            return v;
-        };
+    std::function<double(double, double, double)> fr = [func, d_min, d_max](
+                                                           double x, double y,
+                                                           double z) {
+        const double xx = (x / (1u << m_uiMaxDepth)) * (d_max - d_min) + d_min;
+        const double yy = (y / (1u << m_uiMaxDepth)) * (d_max - d_min) + d_min;
+        const double zz = (z / (1u << m_uiMaxDepth)) * (d_max - d_min) + d_min;
+        double v;
+        func(xx, yy, zz, &v);
+        return v;
+    };
 
     std::vector<ot::TreeNode> tmpNodes;
     function2Octree(fr, tmpNodes, m_uiMaxDepth, wavelet_tol, eOrder, comm);
@@ -104,11 +103,10 @@ int main(int argc, char** argv) {
 
     unsigned int lmin, lmax;
     mesh->computeMinMaxLevel(lmin, lmax);
-    if (!rank)
-        std::printf("mesh lev_min=%u lev_max=%u\n", lmin, lmax);
+    if (!rank) std::printf("mesh lev_min=%u lev_max=%u\n", lmin, lmax);
 
-    double* u       = mesh->createCGVector<double>(func, 1);
-    double* u_unzip = mesh->createUnZippedVector<double>(1);
+    double* u               = mesh->createCGVector<double>(func, 1);
+    double* u_unzip         = mesh->createUnZippedVector<double>(1);
 
     const unsigned int unSz = mesh->getDegOfFreedomUnZip();
 
@@ -116,9 +114,8 @@ int main(int argc, char** argv) {
     // BENCH_BATCHED=1 to enable. The default mimics the BSSN per-variable
     // dof=1 pattern; batched is useful for testing the OMP region-count
     // ceiling.
-    const bool batched =
-        (std::getenv("BENCH_BATCHED") != nullptr &&
-         std::atoi(std::getenv("BENCH_BATCHED")) != 0);
+    const bool batched      = (std::getenv("BENCH_BATCHED") != nullptr &&
+                               std::atoi(std::getenv("BENCH_BATCHED")) != 0);
 
     mesh->readFromGhostBegin(u, 1);
     mesh->readFromGhostEnd(u, 1);
@@ -146,8 +143,7 @@ int main(int argc, char** argv) {
     auto run_once = [&]() {
         if (batched) {
             std::memset(u_unzip, 0, (size_t)unSz * sizeof(double));
-            mesh->unzip_scatter_batch(ins_arr.data(), outs_arr.data(),
-                                      n_vars);
+            mesh->unzip_scatter_batch(ins_arr.data(), outs_arr.data(), n_vars);
         } else {
             std::memset(u_unzip, 0, (size_t)unSz * sizeof(double));
             for (unsigned int v = 0; v < n_vars; ++v)
@@ -165,8 +161,7 @@ int main(int argc, char** argv) {
 
     double t_local = t_unzip.seconds / (double)iter;
     double t_stat[3];
-    par::computeOverallStats(&t_local, t_stat, comm,
-                             "unzip (gather) per step");
+    par::computeOverallStats(&t_local, t_stat, comm, "unzip (gather) per step");
 
     double t_local_per_call = t_local / (double)n_vars;
     par::computeOverallStats(&t_local_per_call, t_stat, comm,
@@ -188,10 +183,9 @@ int main(int argc, char** argv) {
     }
     t_zip.stop();
 
-    double t_zip_local          = t_zip.seconds / (double)iter;
-    par::computeOverallStats(&t_zip_local, t_stat, comm,
-                             "zip per step");
-    double t_zip_per_call       = t_zip_local / (double)n_vars;
+    double t_zip_local = t_zip.seconds / (double)iter;
+    par::computeOverallStats(&t_zip_local, t_stat, comm, "zip per step");
+    double t_zip_per_call = t_zip_local / (double)n_vars;
     par::computeOverallStats(&t_zip_per_call, t_stat, comm,
                              "zip per call (dof=1)");
 
@@ -215,7 +209,6 @@ int main(int argc, char** argv) {
         std::printf("[%s] zip output: cg-checksum=%23.17e L2=%23.17e\n",
                     fast_tag, cs, std::sqrt(l2));
     }
-
 
     if (!out_file.empty() && rank == 0) {
         std::ofstream ofs(out_file, std::ios::binary | std::ios::trunc);
