@@ -1,10 +1,10 @@
 #include "BHaH_defines.h"
 #include "BHaH_function_prototypes.h"
+
 /**
  * Set up numerical grid for BHaHAHA 2D evolution grids; Nxx0 = Nr = 1.
  */
 void bah_numgrid__evol_set_up(commondata_struct *restrict commondata, griddata_struct *restrict griddata, const int Nx_evol_grid[3]) {
-
   // Step 1: Set default parameters in griddata.params
   bah_params_struct_set_to_default(commondata, griddata);
 
@@ -15,7 +15,8 @@ void bah_numgrid__evol_set_up(commondata_struct *restrict commondata, griddata_s
   const int grid = 0;
   params_struct *restrict params = &griddata[grid].params;
 
-  params->grid_physical_size = 1.0; // Unused, since h sets the actual radius
+  snprintf(params->CoordSystemName, 100, "Spherical"); // Must be set, or valgrind will complain about reading this in set_CodeParameters.h
+  params->grid_physical_size = 1.0;                    // Unused, since h sets the actual radius
 
   // Set grid sizes from Nx_evol_grid
   params->Nxx0 = Nx_evol_grid[0];
@@ -70,7 +71,7 @@ void bah_numgrid__evol_set_up(commondata_struct *restrict commondata, griddata_s
     commondata->bcstruct_Nxx_plus_2NGHOSTS0 = params->Nxx_plus_2NGHOSTS0;
     commondata->bcstruct_Nxx_plus_2NGHOSTS1 = params->Nxx_plus_2NGHOSTS1;
     commondata->bcstruct_Nxx_plus_2NGHOSTS2 = params->Nxx_plus_2NGHOSTS2;
-    bah_bcstruct_set_up(commondata, griddata[grid].xx, &griddata[grid].bcstruct);
+    bah_bcstruct_set_up(commondata, params, griddata[grid].xx, &griddata[grid].bcstruct);
   }
 
   // Step 9: Initialize time-stepping parameters
@@ -78,4 +79,4 @@ void bah_numgrid__evol_set_up(commondata_struct *restrict commondata, griddata_s
   commondata->nn_0 = 0;
   commondata->t_0 = 0.0;
   commondata->time = 0.0;
-} // END FUNCTION bah_numgrid__evol_set_up
+} // END FUNCTION: bah_numgrid__evol_set_up

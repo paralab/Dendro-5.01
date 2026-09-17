@@ -1,10 +1,10 @@
 #include "BHaH_defines.h"
 #include "BHaH_function_prototypes.h"
+
 /**
  * Read 3D metric data (in Cartesian basis) from file, basis transform, apply BCs, compute h_{ij,k}, then set up initial guess h(r,theta)
  */
 int bah_initial_data(commondata_struct *restrict commondata, griddata_struct *restrict griddata) {
-
   const int grid = 0;
   const params_struct *restrict params = &griddata[grid].params;
 
@@ -64,7 +64,7 @@ int bah_initial_data(commondata_struct *restrict commondata, griddata_struct *re
     // set VVGF = eta * HHGF,
     //  so that partial_t h = VVGF - eta * HHGF = 0 at t=0. Otherwise we get really ugly dynamics.
     griddata[grid].gridfuncs.y_n_gfs[IDX4(VVGF, i0, i1, i2)] = eta_damping * griddata[grid].gridfuncs.y_n_gfs[IDX4(HHGF, i0, i1, i2)];
-  } // END LOOP over all gridpoints
+  } // END LOOP: for i0/i1/i2 over all gridpoints
   if (commondata->use_coarse_horizon)
     free(coarse_to_fine);
 
@@ -73,4 +73,4 @@ int bah_initial_data(commondata_struct *restrict commondata, griddata_struct *re
   commondata->use_coarse_horizon = 1; // for next time initial_data() is called
 
   return BHAHAHA_SUCCESS;
-} // END FUNCTION bah_initial_data
+} // END FUNCTION: bah_initial_data

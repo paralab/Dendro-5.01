@@ -34,13 +34,12 @@ static void display_spin(const char *spin_label, const double spin_from_ratio1, 
  * at specified iteration intervals and may include interpolation, centroid
  * calculations, norm evaluations, and detailed final iteration analyses.
  *
- * @param commondata Pointer to the common data structure containing simulation parameters and state.
- * @param griddata Pointer to the grid data structure containing grid-related parameters and functions.
+ * @param[in,out] commondata Pointer to the common data structure containing simulation parameters and state.
+ * @param[in,out] griddata Pointer to the grid data structure containing grid-related parameters and functions.
  *
  * @note This function updates the error_flag within commondata based on diagnostic outcomes.
  */
 void bah_diagnostics(commondata_struct *restrict commondata, griddata_struct *restrict griddata) {
-
   // Check if diagnostics should be performed at the current iteration.
   if (commondata->nn % commondata->output_diagnostics_every_nn == 0) {
     {
@@ -56,7 +55,7 @@ void bah_diagnostics(commondata_struct *restrict commondata, griddata_struct *re
       // Exit diagnostics if interpolation fails.
       if (commondata->error_flag != BHAHAHA_SUCCESS)
         return;
-    } // END BLOCK: Interpolation and grid size setup
+    } // END BLOCK: prepare interpolated horizon data and local grid extents
 
     // Calculate area centroid and theta norms for the apparent horizon.
     bah_diagnostics_area_centroid_and_Theta_norms(commondata, griddata);
@@ -72,7 +71,7 @@ void bah_diagnostics(commondata_struct *restrict commondata, griddata_struct *re
                commondata->bhahaha_params_and_data->Theta_L2_times_M_tolerance);
         printf("#Iter |min_r |max_r |maxsrch_r|Linf_Theta|L2_Theta|      Area      |   M_irr   |Nth|Nph|N_Theta_eval|\n");
         printf("#-----|------|------|---------|----------|--------|----------------|-----------|---|---|------------|\n");
-      } // END IF nn == 0
+      } // END IF: nn == 0
 
       // Access the diagnostics structure for current iteration values.
       bhahaha_diagnostics_struct *restrict bhahaha_diags = commondata->bhahaha_diagnostics;
@@ -87,7 +86,7 @@ void bah_diagnostics(commondata_struct *restrict commondata, griddata_struct *re
              commondata->max_radius_wrt_grid_center, r_max_interior, bhahaha_diags->Theta_Linf_times_M, bhahaha_diags->Theta_L2_times_M,
              bhahaha_diags->area, sqrt(bhahaha_diags->area / (16 * M_PI)), griddata[0].params.Nxx1, griddata[0].params.Nxx2,
              bhahaha_diags->Theta_eval_points_counter);
-    } // END IF verbosity level == 2
+    } // END IF: verbosity level == 2
 
     // Verify that the minimum coordinate radius meets the required threshold.
     if (commondata->min_radius_wrt_grid_center < 3.0 * commondata->external_input_dxx0) {
@@ -106,68 +105,67 @@ void bah_diagnostics(commondata_struct *restrict commondata, griddata_struct *re
         return;
 
       // Display detailed final iteration diagnostics if verbosity is enabled.
-      if (commondata->bhahaha_params_and_data->verbosity_level > 0) {
+      {
         bhahaha_diagnostics_struct *restrict bhahaha_diags = commondata->bhahaha_diagnostics;
 
-        printf("#-={ BHaHAHA Horizon %d / %d Diagnostics, t=%.3f }=-\n", commondata->bhahaha_params_and_data->which_horizon,
-               commondata->bhahaha_params_and_data->num_horizons, commondata->bhahaha_params_and_data->time_external_input);
+        if (commondata->bhahaha_params_and_data->verbosity_level > 0) {
+          printf("#-={ BHaHAHA Horizon %d / %d Diagnostics, t=%.3f }=-\n", commondata->bhahaha_params_and_data->which_horizon,
+                 commondata->bhahaha_params_and_data->num_horizons, commondata->bhahaha_params_and_data->time_external_input);
+          printf("#Final iteration: %d, at (Nr x Ntheta x Nphi) = (%d x %d x %d)\n", commondata->nn, commondata->external_input_Nxx0,
+                 griddata[0].params.Nxx1, griddata[0].params.Nxx2);
+          printf("#(%5.5e, %5.5e) = (L_inf Theta, L2 Theta)\n", bhahaha_diags->Theta_Linf_times_M, bhahaha_diags->Theta_L2_times_M);
+          printf("#(%5.5e, %5.5e) = (Area, M_irr)\n", bhahaha_diags->area, sqrt(bhahaha_diags->area / (16 * M_PI)));
+          printf("#(%+4.4e, %+4.4e, %+4.4e) = (x, y, z) centroid, wrt input grid origin\n", bhahaha_diags->x_centroid_wrt_coord_origin,
+                 bhahaha_diags->y_centroid_wrt_coord_origin, bhahaha_diags->z_centroid_wrt_coord_origin);
+        } // END IF: verbosity_level > 0, then print the diagnostics
 
-        printf("#Final iteration: %d, at (Nr x Ntheta x Nphi) = (%d x %d x %d)\n", commondata->nn, commondata->external_input_Nxx0,
-               griddata[0].params.Nxx1, griddata[0].params.Nxx2);
+        BHA_REAL x_center, y_center, z_center, r_min, r_max;
+        bah_xyz_center_r_minmax(commondata->bhahaha_params_and_data, &x_center, &y_center, &z_center, &r_min, &r_max);
 
-        printf("#(%5.5e, %5.5e) = (L_inf Theta, L2 Theta)\n", bhahaha_diags->Theta_Linf_times_M, bhahaha_diags->Theta_L2_times_M);
+        // Cycle data from previous horizon finds. _m1 data depend on centroids being computed in bah_diagnostics()
+        commondata->bhahaha_params_and_data->t_m3 = commondata->bhahaha_params_and_data->t_m2;
+        commondata->bhahaha_params_and_data->t_m2 = commondata->bhahaha_params_and_data->t_m1;
+        commondata->bhahaha_params_and_data->t_m1 = commondata->bhahaha_params_and_data->time_external_input;
+        commondata->bhahaha_params_and_data->x_center_m3 = commondata->bhahaha_params_and_data->x_center_m2;
+        commondata->bhahaha_params_and_data->y_center_m3 = commondata->bhahaha_params_and_data->y_center_m2;
+        commondata->bhahaha_params_and_data->z_center_m3 = commondata->bhahaha_params_and_data->z_center_m2;
+        commondata->bhahaha_params_and_data->x_center_m2 = commondata->bhahaha_params_and_data->x_center_m1;
+        commondata->bhahaha_params_and_data->y_center_m2 = commondata->bhahaha_params_and_data->y_center_m1;
+        commondata->bhahaha_params_and_data->z_center_m2 = commondata->bhahaha_params_and_data->z_center_m1;
+        commondata->bhahaha_params_and_data->x_center_m1 = x_center + bhahaha_diags->x_centroid_wrt_coord_origin;
+        commondata->bhahaha_params_and_data->y_center_m1 = y_center + bhahaha_diags->y_centroid_wrt_coord_origin;
+        commondata->bhahaha_params_and_data->z_center_m1 = z_center + bhahaha_diags->z_centroid_wrt_coord_origin;
+        commondata->bhahaha_params_and_data->r_min_m3 = commondata->bhahaha_params_and_data->r_min_m2;
+        commondata->bhahaha_params_and_data->r_max_m3 = commondata->bhahaha_params_and_data->r_max_m2;
+        commondata->bhahaha_params_and_data->r_min_m2 = commondata->bhahaha_params_and_data->r_min_m1;
+        commondata->bhahaha_params_and_data->r_max_m2 = commondata->bhahaha_params_and_data->r_max_m1;
+        commondata->bhahaha_params_and_data->r_min_m1 = commondata->bhahaha_diagnostics->min_coord_radius_wrt_centroid;
+        commondata->bhahaha_params_and_data->r_max_m1 = commondata->bhahaha_diagnostics->max_coord_radius_wrt_centroid;
 
-        printf("#(%5.5e, %5.5e) = (Area, M_irr)\n", bhahaha_diags->area, sqrt(bhahaha_diags->area / (16 * M_PI)));
-
-        printf("#(%+4.4e, %+4.4e, %+4.4e) = (x, y, z) centroid, wrt input grid origin\n", bhahaha_diags->x_centroid_wrt_coord_origin,
-               bhahaha_diags->y_centroid_wrt_coord_origin, bhahaha_diags->z_centroid_wrt_coord_origin);
-
-        {
-          BHA_REAL x_center, y_center, z_center, r_min, r_max;
-          bah_xyz_center_r_minmax(commondata->bhahaha_params_and_data, &x_center, &y_center, &z_center, &r_min, &r_max);
-
-          // Cycle data from previous horizon finds. _m1 data depend on centroids being computed in bah_diagnostics()
-          commondata->bhahaha_params_and_data->t_m3 = commondata->bhahaha_params_and_data->t_m2;
-          commondata->bhahaha_params_and_data->t_m2 = commondata->bhahaha_params_and_data->t_m1;
-          commondata->bhahaha_params_and_data->t_m1 = commondata->bhahaha_params_and_data->time_external_input;
-          commondata->bhahaha_params_and_data->x_center_m3 = commondata->bhahaha_params_and_data->x_center_m2;
-          commondata->bhahaha_params_and_data->y_center_m3 = commondata->bhahaha_params_and_data->y_center_m2;
-          commondata->bhahaha_params_and_data->z_center_m3 = commondata->bhahaha_params_and_data->z_center_m2;
-          commondata->bhahaha_params_and_data->x_center_m2 = commondata->bhahaha_params_and_data->x_center_m1;
-          commondata->bhahaha_params_and_data->y_center_m2 = commondata->bhahaha_params_and_data->y_center_m1;
-          commondata->bhahaha_params_and_data->z_center_m2 = commondata->bhahaha_params_and_data->z_center_m1;
-          commondata->bhahaha_params_and_data->x_center_m1 = x_center + bhahaha_diags->x_centroid_wrt_coord_origin;
-          commondata->bhahaha_params_and_data->y_center_m1 = y_center + bhahaha_diags->y_centroid_wrt_coord_origin;
-          commondata->bhahaha_params_and_data->z_center_m1 = z_center + bhahaha_diags->z_centroid_wrt_coord_origin;
-          commondata->bhahaha_params_and_data->r_min_m3 = commondata->bhahaha_params_and_data->r_min_m2;
-          commondata->bhahaha_params_and_data->r_max_m3 = commondata->bhahaha_params_and_data->r_max_m2;
-          commondata->bhahaha_params_and_data->r_min_m2 = commondata->bhahaha_params_and_data->r_min_m1;
-          commondata->bhahaha_params_and_data->r_max_m2 = commondata->bhahaha_params_and_data->r_max_m1;
-          commondata->bhahaha_params_and_data->r_min_m1 = commondata->bhahaha_diagnostics->min_coord_radius_wrt_centroid;
-          commondata->bhahaha_params_and_data->r_max_m1 = commondata->bhahaha_diagnostics->max_coord_radius_wrt_centroid;
-
+        if (commondata->bhahaha_params_and_data->verbosity_level > 0)
           printf("#(%+4.4e, %+4.4e, %+4.4e) = (x, y, z) centroid, wrt global origin\n", commondata->bhahaha_params_and_data->x_center_m1,
                  commondata->bhahaha_params_and_data->y_center_m1, commondata->bhahaha_params_and_data->z_center_m1);
-        }
 
-        printf("#(%5.5e, %5.5e, %5.5e) = (min, max, mean) coord radii, relative to centroid\n", bhahaha_diags->min_coord_radius_wrt_centroid,
-               bhahaha_diags->max_coord_radius_wrt_centroid, bhahaha_diags->mean_coord_radius_wrt_centroid);
+        if (commondata->bhahaha_params_and_data->verbosity_level > 0) {
+          printf("#(%5.5e, %5.5e, %5.5e) = (min, max, mean) coord radii, relative to centroid\n", bhahaha_diags->min_coord_radius_wrt_centroid,
+                 bhahaha_diags->max_coord_radius_wrt_centroid, bhahaha_diags->mean_coord_radius_wrt_centroid);
 
-        printf("#(%5.5e, %5.5e, %5.5e) = (xy, xz, yz) proper circumferences\n", bhahaha_diags->xy_plane_circumference,
-               bhahaha_diags->xz_plane_circumference, bhahaha_diags->yz_plane_circumference);
+          printf("#(%5.5e, %5.5e, %5.5e) = (xy, xz, yz) proper circumferences\n", bhahaha_diags->xy_plane_circumference,
+                 bhahaha_diags->xz_plane_circumference, bhahaha_diags->yz_plane_circumference);
 
-        // Display spin_x based on (xy/yz, xz/yz) ratios
-        display_spin("spin_x", bhahaha_diags->spin_a_x_from_xy_over_yz_prop_circumfs, bhahaha_diags->spin_a_x_from_xz_over_yz_prop_circumfs, //
-                     "xy/yz", "xz/yz");
+          // Display spin_x based on (xy/yz, xz/yz) ratios
+          display_spin("spin_x", bhahaha_diags->spin_a_x_from_xy_over_yz_prop_circumfs, bhahaha_diags->spin_a_x_from_xz_over_yz_prop_circumfs, //
+                       "xy/yz", "xz/yz");
 
-        // Display spin_y based on (xy/xz, yz/xz) ratios
-        display_spin("spin_y", bhahaha_diags->spin_a_y_from_xy_over_xz_prop_circumfs, bhahaha_diags->spin_a_y_from_yz_over_xz_prop_circumfs, //
-                     "xy/xz", "yz/xz");
+          // Display spin_y based on (xy/xz, yz/xz) ratios
+          display_spin("spin_y", bhahaha_diags->spin_a_y_from_xy_over_xz_prop_circumfs, bhahaha_diags->spin_a_y_from_yz_over_xz_prop_circumfs, //
+                       "xy/xz", "yz/xz");
 
-        // Display spin_z based on (xz/xy, yz/xy) ratios
-        display_spin("spin_z", bhahaha_diags->spin_a_z_from_xz_over_xy_prop_circumfs, bhahaha_diags->spin_a_z_from_yz_over_xy_prop_circumfs, //
-                     "xz/xy", "yz/xy");
-      } // END IF verbosity level > 0
-    } // END IF final iteration
-  } // END IF output diagnostics
-} // END FUNCTION bah_diagnostics
+          // Display spin_z based on (xz/xy, yz/xy) ratios
+          display_spin("spin_z", bhahaha_diags->spin_a_z_from_xz_over_xy_prop_circumfs, bhahaha_diags->spin_a_z_from_yz_over_xy_prop_circumfs, //
+                       "xz/xy", "yz/xy");
+        } // END IF: verbosity level > 0
+      } // END BLOCK: compute final diagnostics and update stored horizon history
+    } // END IF: final iteration
+  } // END IF: output diagnostics
+} // END FUNCTION: bah_diagnostics

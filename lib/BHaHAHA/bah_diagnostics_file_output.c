@@ -1,5 +1,5 @@
 #include "BHaH_defines.h"
-#include "BHaH_function_prototypes.h"
+
 /**
  * Outputs BHaHAHA diagnostic data to two files:
  * 1. A diagnostics file (appended) for the given horizon
@@ -7,25 +7,23 @@
  *
  * Operations performed:
  * 1. Generates filenames based on the horizon index and iteration, placing them
- * in the given output directory.
+ *    in the given output directory.
  * 2. Opens/creates the diagnostics file in append mode.
  * 3. Writes headers during the first simulation iteration (i.e., when file is new).
  * 4. Outputs diagnostic metrics, including geometric properties and spin magnitudes.
  * 5. Writes horizon surface data in a separate file, in a gnuplot-compatible format.
  *
- * @param diags                     Pointer to the BHaHAHA data structure containing diagnostic info.
- * @param bhahaha_params_and_data   Pointer to the BHaHAHA data structure containing horizon parameters and data.
+ * @param[in] diags                 Pointer to the BHaHAHA data structure containing diagnostic info.
+ * @param[in] bhahaha_params_and_data Pointer to the BHaHAHA data structure containing horizon parameters and data.
  * @param N_horizons                Total number of horizons being tracked.
  * @param x_center_input            x-position on the global grid input into BHaHAHA.
  * @param y_center_input            y-position on the global grid input into BHaHAHA.
  * @param z_center_input            z-position on the global grid input into BHaHAHA.
- * @param output_directory          Path where all output files will be written (e.g., ".", "/path/to/dir/", etc.).
- *
+ * @param[in] output_directory      Path where all output files will be written (e.g., ".", "/path/to/dir/", etc.).
  */
 void bah_diagnostics_file_output(const bhahaha_diagnostics_struct *diags, const bhahaha_params_and_data_struct *bhahaha_params_and_data,
                                  int N_horizons, const BHA_REAL x_center_input, const BHA_REAL y_center_input, const BHA_REAL z_center_input,
                                  const char *output_directory) {
-
   // For safety, ensure output_directory is valid; fallback to "."
   if (!output_directory || output_directory[0] == '\0') {
     output_directory = ".";
@@ -48,7 +46,7 @@ void bah_diagnostics_file_output(const bhahaha_diagnostics_struct *diags, const 
   if (fileptr == NULL) {
     fprintf(stderr, "Can't open BH-diagnostics output file \"%s\" for writing/appending!\n", file_name_buffer);
     return;
-  } // END IF problem opening file
+  } // END IF: problem opening file
 
   // Determine if file is newly created by checking its size.
   fseek(fileptr, 0, SEEK_END);
@@ -79,7 +77,7 @@ void bah_diagnostics_file_output(const bhahaha_diagnostics_struct *diags, const 
     fprintf(fileptr, "# column 20 = Spin z-component (based on xz/xy)\n");
     fprintf(fileptr, "# column 21 = Spin z-component (based on yz/xy)\n");
     fflush(fileptr);
-  } // END IF file size zero -> need to write header
+  } // END IF: file size zero -> need to write header
 
   // Calculate irreducible mass from horizon area.
   BHA_REAL M_irr = sqrt(diags->area / (16.0 * M_PI));
@@ -132,7 +130,7 @@ void bah_diagnostics_file_output(const bhahaha_diagnostics_struct *diags, const 
   if (fileptr == NULL) {
     fprintf(stderr, "Can't open horizon surface data output file \"%s\" for writing!\n", file_name_buffer);
     return;
-  } // END IF problem opening file
+  } // END IF: problem opening file
 
   // Write headers for the gnuplot-compatible horizon surface data file.
   fprintf(fileptr, "# gnuplot-compatible horizon surface data, at time %.3f.\n", bhahaha_params_and_data->time_external_input);
@@ -174,17 +172,17 @@ void bah_diagnostics_file_output(const bhahaha_diagnostics_struct *diags, const 
         first_x = x;
         first_y = y;
         first_z = z;
-      } // END IF iphi==0
+      } // END IF: iphi == 0
 
       // Output the Cartesian coordinates.
       fprintf(fileptr, "%.10e %.10e %.10e\n", x, y, z);
-    } // END LOOP over phi
+    } // END LOOP: for iphi over phi
 
     // Close the loop by reprinting the first point of this theta-ring.
     fprintf(fileptr, "%.10e %.10e %.10e\n", first_x, first_y, first_z);
     fprintf(fileptr, "\n"); // Blank line to separate slices in gnuplot format
-  } // END LOOP over theta
+  } // END LOOP: for itheta over theta
 
   fflush(fileptr);
   fclose(fileptr);
-} // END FUNCTION bah_diagnostics_file_output
+} // END FUNCTION: bah_diagnostics_file_output

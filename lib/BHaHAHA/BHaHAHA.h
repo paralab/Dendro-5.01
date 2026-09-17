@@ -3,16 +3,13 @@
 
 #ifdef __cplusplus
 extern "C" {
+#define BHA_RESTRICT __restrict__
+#else
+#define BHA_RESTRICT restrict
 #endif
 
-// 'restrict' isn't supported in C++, so it needs to be replaced
-#if defined(__cplusplus)
-  // C++ compatible restrict (enforces restriction the same as c)
-  #define BHA_RESTRICT __restrict__
-#else
-  // C99 compatible restrict
-  #define BHA_RESTRICT restrict
-#endif
+typedef struct bhahaha_params_and_data_struct bhahaha_params_and_data_struct;
+typedef struct bhahaha_diagnostics_struct bhahaha_diagnostics_struct;
 
 // Definition of BHA_REAL data type, using double by default.
 #ifndef BHA_REAL
@@ -55,17 +52,11 @@ enum {
 //   for (int itheta = 0; itheta < NUM_THETA; itheta++) {
 //     const double theta = ((double)itheta + 0.5) * M_PI / ((double)NUM_THETA);
 //     printf("%e %e %e\n", theta, phi, horizon_guess[IDX2(itheta, iphi)]);
-//   } // END LOOP over theta (inner loop)
-// } // END LOOP over phi (outer loop)
+//   } // END LOOP: for itheta over theta (inner loop)
+// } // END LOOP: for iphi over phi (outer loop)
 // Macro definition:
 #define IDX2(itheta, iphi) ((itheta) + NUM_THETA * (iphi))
 #define MAX_RESOLUTIONS 16
-
-//===============================================
-// Forward declare structs for C++
-//===============================================
-typedef struct bhahaha_params_and_data_struct bhahaha_params_and_data_struct;
-typedef struct bhahaha_diagnostics_struct bhahaha_diagnostics_struct;
 
 //===============================================
 // C struct: bhahaha_params_and_data_struct
@@ -76,11 +67,11 @@ struct bhahaha_params_and_data_struct {
   // Metric and grid setup
   //==========================
   BHA_REAL *BHA_RESTRICT input_metric_data; // Stores gamma_{ij} and K_{ij} in Cartesian
-                                    // basis on Nr x Ntheta x Nphi grid.
-                                    // Indexing: input_metric_data[(i + Nr * (j
-                                    // + Ntheta * (k + Nphi * gf)))], where gf
-                                    // is the gridfunction (gxx=0, gxy=1, gxz=2,
-                                    // gyy=3, gyz=4, gzz=5, kxx=6, kxy=7, etc.).
+                           // basis on Nr x Ntheta x Nphi grid.
+                           // Indexing: input_metric_data[(i + Nr * (j
+                           // + Ntheta * (k + Nphi * gf)))], where gf
+                           // is the gridfunction (gxx=0, gxy=1, gxz=2,
+                           // gyy=3, gyz=4, gzz=5, kxx=6, kxy=7, etc.).
 
   //==========================
   // External Input Numerical Grid: Radial parameters
@@ -228,6 +219,12 @@ struct bhahaha_diagnostics_struct {
   BHA_REAL spin_a_z_from_xz_over_xy_prop_circumfs;
   BHA_REAL spin_a_z_from_yz_over_xy_prop_circumfs;
 
+  //==========================
+  // Used in general circumference ratio calculation
+  BHA_REAL BHAHAHA_SPIN_AXIS_X, BHAHAHA_SPIN_AXIS_Y, BHAHAHA_SPIN_AXIS_Z;
+  BHA_REAL BHAHAHA_CIRC_GENERAL_POLAR, BHAHAHA_CIRC_GENERAL_EQUATOR;
+  BHA_REAL BHAHAHA_CIRC_GENERAL_SPIN;
+
   // Benchmarking: Counts number of points where Theta is evaluated.
   long Theta_eval_points_counter;
   //==========================
@@ -242,11 +239,10 @@ void bah_poisoning_set_inputs(bhahaha_params_and_data_struct *BHA_RESTRICT param
 // (highly recommended) Call bah_poisoning_check_inputs() right before bah_find_horizon(), to check whether external NR code has set inputs properly.
 void bah_poisoning_check_inputs(const bhahaha_params_and_data_struct *BHA_RESTRICT params);
 // (required): Set up the (holey) spherical grid for BHaHAHA
-#if defined(__cplusplus) || !defined(__STDC_VERSION__) || (__STDC_VERSION__ < 199901L)
-// DFVK (May 2025) addition: C++ doesn't support variable length arrays
+#ifdef __cplusplus
 void bah_radial_grid_cell_centered_set_up(const int Nr_interp_max, const BHA_REAL max_search_radius, const BHA_REAL input_r_min, const BHA_REAL input_r_max,
                                           int *BHA_RESTRICT output_Nr_interp, BHA_REAL *BHA_RESTRICT output_r_min, BHA_REAL *BHA_RESTRICT output_dr,
-                                          BHA_REAL* radii);
+                                          BHA_REAL *radii);
 #else
 void bah_radial_grid_cell_centered_set_up(const int Nr_interp_max, const BHA_REAL max_search_radius, const BHA_REAL input_r_min, const BHA_REAL input_r_max,
                                           int *BHA_RESTRICT output_Nr_interp, BHA_REAL *BHA_RESTRICT output_r_min, BHA_REAL *BHA_RESTRICT output_dr,

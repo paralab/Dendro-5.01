@@ -1,11 +1,11 @@
 #include "BHaH_defines.h"
+
 /**
- * Compute Cartesian coordinates {x, y, z} = {xCart[0], xCart[1], xCart[2]} in terms of
- * local grid coordinates {xx[0][i0], xx[1][i1], xx[2][i2]} = {xx0, xx1, xx2},
+ * Compute Cartesian coordinates {x, y, z} = {xCart[0], xCart[1], xCart[2]} from the
+ * local coordinate vector {xx[0], xx[1], xx[2]} = {xx0, xx1, xx2},
  * taking into account the possibility that the origin of this grid is off-center.
  */
-void bah_xx_to_Cart(const params_struct *restrict params, BHA_REAL xx[3], BHA_REAL xCart[3]) {
-
+void bah_xx_to_Cart(const params_struct *restrict params, const BHA_REAL xx[3], BHA_REAL xCart[3]) {
   const BHA_REAL xx0 = xx[0];
   const BHA_REAL xx1 = xx[1];
   const BHA_REAL xx2 = xx[2];
@@ -21,4 +21,4 @@ void bah_xx_to_Cart(const params_struct *restrict params, BHA_REAL xx[3], BHA_RE
     xCart[1] = params->Cart_originy + tmp0 * sin(xx2);
     xCart[2] = params->Cart_originz + xx0 * cos(xx1);
   }
-} // END FUNCTION bah_xx_to_Cart
+} // END FUNCTION: bah_xx_to_Cart

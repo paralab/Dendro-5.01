@@ -6,9 +6,9 @@
 /**
  * Converts two timeval structures to milliseconds and returns the elapsed time.
  *
- * @param start - The starting time.
- * @param end - The ending time.
- * @return - The elapsed time in milliseconds.
+ * @param start The starting time.
+ * @param end The ending time.
+ * @return The elapsed time in milliseconds.
  */
 static BHA_REAL timeval_to_milliseconds(struct timeval start, struct timeval end) {
   double start_ms = start.tv_sec * 1000.0 + start.tv_usec / 1000.0;
@@ -20,8 +20,8 @@ static BHA_REAL timeval_to_milliseconds(struct timeval start, struct timeval end
  * Frees all dynamically allocated memory associated with griddata,
  * except for external input grid functions.
  *
- * @param commondata - Pointer to the common data structure containing shared parameters.
- * @param griddata - Pointer to the grid data structure to be freed.
+ * @param[in,out] commondata Pointer to the common data structure containing shared parameters.
+ * @param[in,out] griddata Pointer to the grid data structure to be freed.
  */
 static void free_all_but_external_input_gfs(commondata_struct *restrict commondata, griddata_struct *restrict griddata) {
   const int grid = 0;
@@ -36,16 +36,17 @@ static void free_all_but_external_input_gfs(commondata_struct *restrict commonda
   // Free pure outer boundary condition arrays.
   for (int ng = 0; ng < NGHOSTS * 3; ng++) {
     free(griddata[grid].bcstruct.pure_outer_bc_array[ng]);
-  } // END LOOP: freeing pure outer boundary condition arrays
+  } // END LOOP: for grid over pure outer boundary condition arrays
 
-  // Free grid functions allocated by the Method of Lines.
-  bah_MoL_free_memory_y_n_gfs(&griddata[grid].gridfuncs);
-  bah_MoL_free_memory_non_y_n_gfs(&griddata[grid].gridfuncs);
+  // Free y_n_gfs, intermediate-stage gfs, and auxevol_gfs, needed by MoL.
+  BHAH_FREE(griddata[grid].gridfuncs.y_n_gfs);
+  bah_MoL_free_intermediate_stage_gfs(&griddata[grid].gridfuncs);
+  BHAH_FREE(griddata[grid].gridfuncs.auxevol_gfs);
 
   // Free coordinate arrays for each dimension.
   for (int i = 0; i < 3; i++) {
     free(griddata[grid].xx[i]);
-  } // END LOOP: freeing coordinate arrays
+  } // END LOOP: for grid over coordinate arrays
 
   // Free the griddata structure itself.
   free(griddata);
@@ -56,7 +57,7 @@ static void free_all_but_external_input_gfs(commondata_struct *restrict commonda
   // Free interpolation source coordinate arrays for each dimension.
   for (int i = 0; i < 3; i++) {
     free(commondata->interp_src_r_theta_phi[i]);
-  } // END LOOP: freeing interpolation source coordinate arrays
+  } // END LOOP: for dim over interpolation source coordinate arrays
 
   // Free previous horizon guess array, used for overstep.
   if (commondata->h_p != NULL)
@@ -64,19 +65,17 @@ static void free_all_but_external_input_gfs(commondata_struct *restrict commonda
 } // END FUNCTION: free_all_but_external_input_gfs
 
 /**
- *
  * Finds the apparent horizon using BHaHAHA.
  *
  * This driver function initializes necessary data structures, sets up grids, and runs the main simulation loop
  * to identify the apparent horizon with progressively refined grid resolutions.
  *
- * @param bhahaha_params_and_data - Input parameters and data for the algorithm.
- * @param bhahaha_diags - Diagnostics data structure to be updated during execution.
- * @return - Returns BHaHAHA (0) on success or a nonzero error code on failure.
+ * @param[in,out] bhahaha_params_and_data Input parameters and data for the algorithm.
+ * @param[out] bhahaha_diags Diagnostics data structure to be updated during execution.
+ * @return Returns BHaHAHA (0) on success or a nonzero error code on failure.
  *
  */
 int bah_find_horizon(bhahaha_params_and_data_struct *restrict bhahaha_params_and_data, bhahaha_diagnostics_struct *restrict bhahaha_diags) {
-
   // Step 1.a: Start global timer.
   struct timeval start_time;
   {
@@ -84,16 +83,16 @@ int bah_find_horizon(bhahaha_params_and_data_struct *restrict bhahaha_params_and
     if (gettimeofday(&start_time, NULL) != 0) {
       return FIND_HORIZON_GETTIMEOFDAY_BROKEN;
     }
-  } // END BLOCK: gettimeofday() sanity check.
+  } // END BLOCK: gettimeofday() sanity check
 
   commondata_struct commondata; // Structure containing parameters common to all grids.
 
-  // Assign input diagnostics and parameters to commondata for widespread access.
-  commondata.bhahaha_diagnostics = bhahaha_diags;
-  commondata.bhahaha_params_and_data = bhahaha_params_and_data;
-
   // Step 1.b: Initialize commondata parameters to their default values.
   bah_commondata_struct_set_to_default(&commondata);
+  // Assign input diagnostics and parameters after defaults are set so zero-initialization
+  // does not clobber these caller-owned pointers.
+  commondata.bhahaha_diagnostics = bhahaha_diags;
+  commondata.bhahaha_params_and_data = bhahaha_params_and_data;
   commondata.eta_damping = bhahaha_params_and_data->eta_damping_times_M / bhahaha_params_and_data->M_scale;
   commondata.CFL_FACTOR = bhahaha_params_and_data->cfl_factor;
   commondata.KO_diss_strength = commondata.bhahaha_params_and_data->KO_strength;
@@ -147,8 +146,9 @@ int bah_find_horizon(bhahaha_params_and_data_struct *restrict bhahaha_params_and
       return commondata.error_flag;
     }
 
-    // Step 2.c: Allocate memory for griddata structure.
-    griddata = (griddata_struct *restrict)malloc(sizeof(griddata_struct));
+    // Step 2.c: Allocate memory for MAXNUMGRIDS griddata structures.
+    // bah_params_struct_set_to_default() initializes all MAXNUMGRIDS entries.
+    griddata = (griddata_struct *restrict)malloc(sizeof(griddata_struct) * MAXNUMGRIDS);
 
     // Step 2.d: Initialize griddata parameters to their default values.
     bah_params_struct_set_to_default(&commondata, griddata);
@@ -160,15 +160,17 @@ int bah_find_horizon(bhahaha_params_and_data_struct *restrict bhahaha_params_and
     const int Nxx_plus_2NGHOSTS0 = params->Nxx_plus_2NGHOSTS0;
     const int Nxx_plus_2NGHOSTS1 = params->Nxx_plus_2NGHOSTS1;
     const int Nxx_plus_2NGHOSTS2 = params->Nxx_plus_2NGHOSTS2;
+    const int Nxx_plus_2NGHOSTS_tot = Nxx_plus_2NGHOSTS0 * Nxx_plus_2NGHOSTS1 * Nxx_plus_2NGHOSTS2;
 
     {
       const int grid = 0;
 
       // Step 3.a: Allocate storage for initial grid functions (y_n_gfs).
-      bah_MoL_malloc_y_n_gfs(&commondata, params, &griddata[grid].gridfuncs);
+      BHAH_MALLOC(griddata[grid].gridfuncs.y_n_gfs, NUM_EVOL_GFS * Nxx_plus_2NGHOSTS_tot * sizeof(BHA_REAL));
 
       // Step 3.b: Allocate storage for additional grid functions required for time-stepping.
-      bah_MoL_malloc_non_y_n_gfs(&commondata, params, &griddata[grid].gridfuncs);
+      bah_MoL_malloc_intermediate_stage_gfs(&commondata, params, &griddata[grid].gridfuncs);
+      BHAH_MALLOC(griddata[grid].gridfuncs.auxevol_gfs, NUM_AUXEVOL_GFS * Nxx_plus_2NGHOSTS_tot * sizeof(BHA_REAL));
 
       // Step 3.c: Initialize commondata.h_p = NULL, so that if Step 5.a (interp 1D) fails,
       //   it doesn't trigger a double free() of h_p.
@@ -218,20 +220,20 @@ int bah_find_horizon(bhahaha_params_and_data_struct *restrict bhahaha_params_and
         if (resolution >= 2)
           eta_max_times_M = 30.0;
 
-        const BHA_REAL eta_damping_times_M = MAX(eta_min_times_M, eta_max_times_M * sqrt(bhahaha_diags->Theta_Linf_times_M));
+        const BHA_REAL eta_damping_times_M = NRPYMAX(eta_min_times_M, eta_max_times_M * sqrt(bhahaha_diags->Theta_Linf_times_M));
         commondata.eta_damping = eta_damping_times_M / bhahaha_params_and_data->M_scale;
 
         LOOP_OMP("omp parallel for", i0, NGHOSTS, NGHOSTS + 1, i1, 0, Nxx_plus_2NGHOSTS1, i2, 0, Nxx_plus_2NGHOSTS2) {
           griddata[grid].gridfuncs.y_n_gfs[IDX4(VVGF, i0, i1, i2)] =
               commondata.eta_damping * griddata[grid].gridfuncs.y_n_gfs[IDX4(HHGF, i0, i1, i2)];
-        } // END LOOP over all gridpoints on horizon surface.
-      } // END time-varying eta prescription.
+        } // END LOOP: for i0/i1/i2 over all gridpoints on horizon surface
+      } // END IF: time-varying eta prescription
 
       // Step 5.e: Output diagnostic information.
       bah_diagnostics(&commondata, griddata);
       if (commondata.error_flag != BHAHAHA_SUCCESS) {
         break;
-      } // END IF: Check for diagnostic errors
+      } // END IF: diagnostics routine returned an error
 
       // Step 5.f: Determine if stop conditions are met to exit the simulation loop.
       if (commondata.nn > bhahaha_params_and_data->max_iterations) {
@@ -243,15 +245,15 @@ int bah_find_horizon(bhahaha_params_and_data_struct *restrict bhahaha_params_and
                  bhahaha_diags->Theta_L2_times_M <= bhahaha_params_and_data->Theta_L2_times_M_tolerance) {
         stop_condition = 1;
         break;
-      } // END IF: Check multiple stop conditions
+      } // END IF: convergence or iteration-limit stop conditions
 
       // Step 5.g: Advance the simulation using the Method of Lines with Runge-Kutta-like integration.
       if (!stop_condition)
         bah_MoL_step_forward_in_time(&commondata, griddata);
       if (commondata.error_flag != BHAHAHA_SUCCESS) {
         break;
-      } // END IF: Check for time-stepping errors
-    } // END LOOP: Main simulation loop
+      } // END IF: time stepper returned an error
+    } // END LOOP: for resolution over main simulation loop
 
     {
       // End timing for the current resolution and display elapsed time.
@@ -262,7 +264,7 @@ int bah_find_horizon(bhahaha_params_and_data_struct *restrict bhahaha_params_and
         printf("#Nth x Nph = %d x %d elapsed time = %.1f ms / %.1f ms so far...\n", params->Nxx1, params->Nxx2,
                timeval_to_milliseconds(res_start_time, end_time), timeval_to_milliseconds(start_time, end_time));
       }
-    } // END BLOCK: Timing and logging
+    } // END BLOCK: record and optionally print per-resolution timing
 
     if (commondata.error_flag == BHAHAHA_SUCCESS) {
       // Step 6: Save the coarse horizon for subsequent resolutions or output final diagnostics.
@@ -277,8 +279,8 @@ int bah_find_horizon(bhahaha_params_and_data_struct *restrict bhahaha_params_and
         for (int i2 = 0; i2 < Nxx_plus_2NGHOSTS2; i2++) {
           for (int i1 = 0; i1 < Nxx_plus_2NGHOSTS1; i1++) {
             commondata.coarse_horizon[IDX2(i1, i2)] = griddata[grid].gridfuncs.y_n_gfs[IDX4(HHGF, NGHOSTS, i1, i2)];
-          } // END LOOP: theta indices
-        } // END LOOP: phi indices
+          } // END LOOP: for i1 over theta indices
+        } // END LOOP: for i2 over phi indices
 
         // Save grid parameters for the coarse horizon to maintain consistency.
         commondata.coarse_horizon_dxx1 = params->dxx1;
@@ -290,17 +292,17 @@ int bah_find_horizon(bhahaha_params_and_data_struct *restrict bhahaha_params_and
         commondata.coarse_horizon_r_theta_phi[0] = malloc(sizeof(BHA_REAL) * Nxx_plus_2NGHOSTS0);
         for (int i0 = 0; i0 < Nxx_plus_2NGHOSTS0; i0++) {
           commondata.coarse_horizon_r_theta_phi[0][i0] = griddata[grid].xx[0][i0];
-        } // END LOOP: radial coordinates
+        } // END LOOP: for i0 over radial coordinates
 
         commondata.coarse_horizon_r_theta_phi[1] = malloc(sizeof(BHA_REAL) * Nxx_plus_2NGHOSTS1);
         for (int i1 = 0; i1 < Nxx_plus_2NGHOSTS1; i1++) {
           commondata.coarse_horizon_r_theta_phi[1][i1] = griddata[grid].xx[1][i1];
-        } // END LOOP: theta coordinates
+        } // END LOOP: for i1 over theta coordinates
 
         commondata.coarse_horizon_r_theta_phi[2] = malloc(sizeof(BHA_REAL) * Nxx_plus_2NGHOSTS2);
         for (int i2 = 0; i2 < Nxx_plus_2NGHOSTS2; i2++) {
           commondata.coarse_horizon_r_theta_phi[2][i2] = griddata[grid].xx[2][i2];
-        } // END LOOP: phi coordinates
+        } // END LOOP: for i2 over phi coordinates
       } else { // IF: Horizon found at final resolution
 
         // Store the final horizon data and perform a last diagnostic output.
@@ -314,13 +316,13 @@ int bah_find_horizon(bhahaha_params_and_data_struct *restrict bhahaha_params_and
           for (int i1 = 0; i1 < params->Nxx1; i1++) {
             commondata.bhahaha_params_and_data->prev_horizon_m1[IDX2(i1, i2)] =
                 griddata[grid].gridfuncs.y_n_gfs[IDX4(HHGF, NGHOSTS, i1 + NGHOSTS, i2 + NGHOSTS)];
-          } // END LOOP: theta indices
-        } // END LOOP: phi indices
+          } // END LOOP: for i1 over theta indices
+        } // END LOOP: for i2 over phi indices
 
         // Adjust setting for the final iteration, to trigger diagnostics and compute additional diagnostics.
         commondata.is_final_iteration = 1;
 
-      } // END IF/ELSE: Handling final resolution
+      } // END ELSE: handling final resolution
     } else if (commondata.error_flag == INTERP1D_HORIZON_TOO_LARGE) {
       // Handle specific error when the horizon exceeds interpolation limits.
       BHA_REAL max_radius = -1e10;
@@ -331,8 +333,8 @@ int bah_find_horizon(bhahaha_params_and_data_struct *restrict bhahaha_params_and
           if (current_radius > max_radius) {
             max_radius = current_radius;
           }
-        } // END LOOP: theta indices
-      } // END LOOP: phi indices
+        } // END LOOP: for i1 over theta indices
+      } // END LOOP: for i2 over phi indices
 
       if (commondata.bhahaha_params_and_data->verbosity_level > 0) {
         // r_max_interior = r_min_external_input + ((Nr_external_input-BHAHAHA_NGHOSTS) + 0.5)*dr
@@ -343,7 +345,7 @@ int bah_find_horizon(bhahaha_params_and_data_struct *restrict bhahaha_params_and
                "Try either increasing search radius or decreasing cfl_factor.\n",
                max_radius, r_max_interior);
       }
-    } // END IF: Handling specific error conditions
+    } // END IF: handle interpolation-too-large horizon error
 
     // Step 7: Horizon found! Compute final diagnostics.
     if (commondata.error_flag == BHAHAHA_SUCCESS) {
@@ -353,15 +355,15 @@ int bah_find_horizon(bhahaha_params_and_data_struct *restrict bhahaha_params_and
       //   as they depend on centroids being computed, and r_{min,max} for good measure.
       bah_diagnostics(&commondata, griddata);
       commondata.output_diagnostics_every_nn = orig_output_diagnostics_every_nn;
-    } // END BLOCK: Freeing current grid resolution memory
+    } // END BLOCK: final diagnostics after a successful horizon find
 
     // Step 8: Release all allocated memory for the current grid resolution.
     free_all_but_external_input_gfs(&commondata, griddata);
 
     if (commondata.error_flag != BHAHAHA_SUCCESS) {
       break;
-    } // END IF: Check for errors after freeing memory
-  } // END LOOP: Iterating over grid resolutions
+    } // END IF: error persisted after freeing current-resolution memory
+  } // END LOOP: for resolution over grid resolutions
 
   // Step 9: After processing all resolutions, release external input memory.
   for (int i = 0; i < 3; i++) {
@@ -378,4 +380,4 @@ int bah_find_horizon(bhahaha_params_and_data_struct *restrict bhahaha_params_and
   }
 
   return commondata.error_flag;
-} // END FUNCTION bah_find_horizon
+} // END FUNCTION: bah_find_horizon

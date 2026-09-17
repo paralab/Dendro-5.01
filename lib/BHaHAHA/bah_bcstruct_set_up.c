@@ -1,5 +1,32 @@
 #include "BHaH_defines.h"
-#include "BHaH_function_prototypes.h"
+
+/**
+ * Compute origin-free Cartesian coordinates from Spherical coordinates for BHaHAHA inner-boundary setup.
+ *
+ * This helper intentionally omits Cartesian-origin offsets and remains local to bah_bcstruct_set_up.c.
+ *
+ * @param[in] commondata Pointer to common grid and boundary-condition data.
+ * @param[in] params Pointer to coordinate-map parameters, or NULL when the selected map has no params dependency.
+ * @param[in] xx Local coordinate vector.
+ * @param[out] xCart Origin-free Cartesian coordinate vector.
+ * @return BHAHAHA_SUCCESS on success, or BCSTRUCT_EIGENCOORD_FAILURE if required params are unavailable.
+ */
+static int xx_to_Cart_no_origin__rfm__Spherical(const commondata_struct *restrict commondata, const params_struct *restrict params, const BHA_REAL xx[3],
+                                                BHA_REAL xCart[3]) {
+  (void)commondata;
+
+  (void)params;
+
+  const BHA_REAL xx0 = xx[0];
+  const BHA_REAL xx1 = xx[1];
+  const BHA_REAL xx2 = xx[2];
+  const BHA_REAL tmp0 = xx0 * sin(xx1);
+  xCart[0] = tmp0 * cos(xx2);
+  xCart[1] = tmp0 * sin(xx2);
+  xCart[2] = xx0 * cos(xx1);
+
+  return BHAHAHA_SUCCESS;
+} // END FUNCTION: xx_to_Cart_no_origin__rfm__Spherical
 /**
  * EigenCoord_set_x0x1x2_inbounds__i0i1i2_inbounds_single_pt():
  * An "eigencoordinate" represents the simplest member of a given coordinate family,
@@ -24,11 +51,10 @@
  * The process of filling such boundary points requires copying data, and when the data represents
  * vectors or tensors, it might involve multiplying by either +1 or -1 to ensure proper orientation
  * and consistency in the transformation.
- *
  */
-static int EigenCoord_set_x0x1x2_inbounds__i0i1i2_inbounds_single_pt(const commondata_struct *restrict commondata, BHA_REAL *restrict xx[3], const int i0,
+static int EigenCoord_set_x0x1x2_inbounds__i0i1i2_inbounds_single_pt(const commondata_struct *restrict commondata,
+                                                                     const params_struct *restrict params, BHA_REAL *restrict xx[3], const int i0,
                                                                      const int i1, const int i2, BHA_REAL x0x1x2_inbounds[3], int i0i1i2_inbounds[3]) {
-
   // Step 0: Unpack grid spacings dxx0, dxx1, dxx2
   const BHA_REAL dxx0 = commondata->bcstruct_dxx0;
   const BHA_REAL dxx1 = commondata->bcstruct_dxx1;
@@ -55,26 +81,16 @@ static int EigenCoord_set_x0x1x2_inbounds__i0i1i2_inbounds_single_pt(const commo
   //         (Cartx,Carty,Cartz) == (Cartx(x0(i0)),Carty(x1(i1)),Cartz(x2(i2)))
   //         If not, error out!
 
+  (void)params;
+
   // Step 1: Convert the (curvilinear) coordinate (x0,x1,x2) to Cartesian coordinates
   BHA_REAL xCart[3]; // where (x,y,z) is output
   {
     // xx_to_Cart for EigenCoordinate Spherical (original coord = Spherical):
-    BHA_REAL xx0 = xx[0][i0];
-    BHA_REAL xx1 = xx[1][i1];
-    BHA_REAL xx2 = xx[2][i2];
-    /*
-     *  Original SymPy expressions:
-     *  "[xCart[0] = xx0*sin(xx1)*cos(xx2)]"
-     *  "[xCart[1] = xx0*sin(xx1)*sin(xx2)]"
-     *  "[xCart[2] = xx0*cos(xx1)]"
-     */
-    {
-      const BHA_REAL tmp0 = xx0 * sin(xx1);
-      xCart[0] = tmp0 * cos(xx2);
-      xCart[1] = tmp0 * sin(xx2);
-      xCart[2] = xx0 * cos(xx1);
-    }
-  }
+    const BHA_REAL xx_at_point[3] = {xx[0][i0], xx[1][i1], xx[2][i2]};
+    if (xx_to_Cart_no_origin__rfm__Spherical(commondata, params, xx_at_point, xCart) != BHAHAHA_SUCCESS)
+      return BCSTRUCT_EIGENCOORD_FAILURE;
+  } // END BLOCK: Step 1 origin-free xx-to-Cart map
 
   BHA_REAL Cartx = xCart[0];
   BHA_REAL Carty = xCart[1];
@@ -122,44 +138,31 @@ static int EigenCoord_set_x0x1x2_inbounds__i0i1i2_inbounds_single_pt(const commo
   BHA_REAL xCart_from_xx, yCart_from_xx, zCart_from_xx;
   {
     // xx_to_Cart for Coordinate Spherical:
-    BHA_REAL xx0 = xx[0][i0];
-    BHA_REAL xx1 = xx[1][i1];
-    BHA_REAL xx2 = xx[2][i2];
-    /*
-     *  Original SymPy expressions:
-     *  "[xCart_from_xx = xx0*sin(xx1)*cos(xx2)]"
-     *  "[yCart_from_xx = xx0*sin(xx1)*sin(xx2)]"
-     *  "[zCart_from_xx = xx0*cos(xx1)]"
-     */
-    const BHA_REAL tmp0 = xx0 * sin(xx1);
-    xCart_from_xx = tmp0 * cos(xx2);
-    yCart_from_xx = tmp0 * sin(xx2);
-    zCart_from_xx = xx0 * cos(xx1);
-  }
+    const BHA_REAL xx_at_point[3] = {xx[0][i0], xx[1][i1], xx[2][i2]};
+    BHA_REAL xCart_from_xx_arr[3];
+    if (xx_to_Cart_no_origin__rfm__Spherical(commondata, params, xx_at_point, xCart_from_xx_arr) != BHAHAHA_SUCCESS)
+      return BCSTRUCT_EIGENCOORD_FAILURE;
+    xCart_from_xx = xCart_from_xx_arr[0];
+    yCart_from_xx = xCart_from_xx_arr[1];
+    zCart_from_xx = xCart_from_xx_arr[2];
+  } // END BLOCK: Step 3.a origin-free xx-to-Cart map
 
   // Step 3.b: Compute {x,y,z}Cart_from_xx_inbounds, as a
   //           function of i0_inbounds,i1_inbounds,i2_inbounds
   BHA_REAL xCart_from_xx_inbounds, yCart_from_xx_inbounds, zCart_from_xx_inbounds;
   {
     // xx_to_Cart_inbounds for Coordinate Spherical:
-    BHA_REAL xx0 = xx[0][i0_inbounds];
-    BHA_REAL xx1 = xx[1][i1_inbounds];
-    BHA_REAL xx2 = xx[2][i2_inbounds];
-    /*
-     *  Original SymPy expressions:
-     *  "[xCart_from_xx_inbounds = xx0*sin(xx1)*cos(xx2)]"
-     *  "[yCart_from_xx_inbounds = xx0*sin(xx1)*sin(xx2)]"
-     *  "[zCart_from_xx_inbounds = xx0*cos(xx1)]"
-     */
-    const BHA_REAL tmp0 = xx0 * sin(xx1);
-    xCart_from_xx_inbounds = tmp0 * cos(xx2);
-    yCart_from_xx_inbounds = tmp0 * sin(xx2);
-    zCart_from_xx_inbounds = xx0 * cos(xx1);
-  }
+    const BHA_REAL xx_at_point[3] = {xx[0][i0_inbounds], xx[1][i1_inbounds], xx[2][i2_inbounds]};
+    BHA_REAL xCart_from_xx_inbounds_arr[3];
+    if (xx_to_Cart_no_origin__rfm__Spherical(commondata, params, xx_at_point, xCart_from_xx_inbounds_arr) != BHAHAHA_SUCCESS)
+      return BCSTRUCT_EIGENCOORD_FAILURE;
+    xCart_from_xx_inbounds = xCart_from_xx_inbounds_arr[0];
+    yCart_from_xx_inbounds = xCart_from_xx_inbounds_arr[1];
+    zCart_from_xx_inbounds = xCart_from_xx_inbounds_arr[2];
+  } // END BLOCK: Step 3.b origin-free xx-to-Cart map
 
   // Step 3.c: Compare xCart_from_xx to xCart_from_xx_inbounds;
   //           they should be identical!!!
-
 #define EPS_REL 1e-8
 
   const BHA_REAL norm_factor = sqrt(xCart_from_xx * xCart_from_xx + yCart_from_xx * yCart_from_xx + zCart_from_xx * zCart_from_xx) + 1e-15;
@@ -189,33 +192,51 @@ static int EigenCoord_set_x0x1x2_inbounds__i0i1i2_inbounds_single_pt(const commo
 
   return BHAHAHA_SUCCESS;
 #undef EPS_REL
-} // END FUNCTION EigenCoord_set_x0x1x2_inbounds__i0i1i2_inbounds_single_pt
+} // END FUNCTION: EigenCoord_set_x0x1x2_inbounds__i0i1i2_inbounds_single_pt
 /**
- * set_parity_for_inner_boundary_single_pt():
- * Given (x0,x1,x2)=(xx0,xx1,xx2) and
- * (x0,x1,x2)'=(x0x1x2_inbounds[0],x0x1x2_inbounds[1],x0x1x2_inbounds[2])
- * (see description of
- * EigenCoord_set_x0x1x2_inbounds__i0i1i2_inbounds_single_pt()
- * above for more details), here we compute the parity conditions
- * for all 10 tensor types supported by NRPy, plus 18 for h_{ij,k}.
+ * Compute base-field parities and partial-derivative Jacobian parities for one inner-boundary point.
+ *
+ * 1. Convert the symbolic base parity expressions to signed integer parity data
+ *    using unit-vector dot products in the selected reference-metric coordinate system.
+ * 2. Evaluate the closed-form coordinate Jacobian for stored partial derivatives.
+ *    The stored convention is
+ *    deriv_jacobian[dst][src] = dxx_inbounds[src] / dxx_ghost[dst].
+ *    Both chain-rule factors are SymPy expressions emitted at codegen time via
+ *    nrpy.c_codegen.
+ *
+ * The derivative Jacobian must reduce to a signed permutation matrix. If it does
+ * not, then the inner-boundary map is not representable by parity-only derivative
+ * boundary conditions and the function returns an error instead of applying an
+ * incorrect sign.
+ *
+ * @param[in] commondata Pointer to common grid and boundary-condition data.
+ * @param[in] params Pointer to coordinate-map parameters, or NULL when the selected map has no params dependency.
+ * @param xx0 Original point's x0 coordinate.
+ * @param xx1 Original point's x1 coordinate.
+ * @param xx2 Original point's x2 coordinate.
+ * @param[in] x0x1x2_inbounds Interior point coordinates associated with the mapped Cartesian location.
+ * @param idx Index into innerpt_bc_arr for the boundary point being populated.
+ * @param[in,out] innerpt_bc_arr Inner-boundary metadata array to update in place.
+ * @return BHAHAHA_SUCCESS on success, or BCSTRUCT_SET_PARITY_ERROR if a parity sanity check fails.
  */
-static int set_parity_for_inner_boundary_single_pt(const commondata_struct *restrict commondata, const BHA_REAL xx0, const BHA_REAL xx1, const BHA_REAL xx2,
-                                                   const BHA_REAL x0x1x2_inbounds[3], const int idx, innerpt_bc_struct *restrict innerpt_bc_arr) {
-
+static int set_parity_for_inner_boundary_single_pt(const commondata_struct *restrict commondata, const params_struct *restrict params, const BHA_REAL xx0,
+                                                   const BHA_REAL xx1, const BHA_REAL xx2, const BHA_REAL x0x1x2_inbounds[3], const int idx,
+                                                   innerpt_bc_struct *restrict innerpt_bc_arr) {
 #define EPS_REL 1e-8
-
+  (void)commondata;
+  (void)params;
   const BHA_REAL xx0_inbounds = x0x1x2_inbounds[0];
   const BHA_REAL xx1_inbounds = x0x1x2_inbounds[1];
   const BHA_REAL xx2_inbounds = x0x1x2_inbounds[2];
 
-  BHA_REAL REAL_parity_array[28];
+  BHA_REAL REAL_parity_array[10];
   {
     // Evaluate dot products needed for setting parity
     //     conditions at a given point (xx0,xx1,xx2),
     //     using C code generated by NRPy
     /*
 NRPy Curvilinear Boundary Conditions: Unit vector dot products for all
-     twenty-eight parity conditions, in given coordinate system.
+     ten base parity conditions, in given coordinate system.
      Needed for automatically determining the sign of tensors across coordinate boundaries.
 Documented in: Tutorial-Start_to_Finish-Curvilinear_BCs.ipynb
 */
@@ -239,51 +260,6 @@ Documented in: Tutorial-Start_to_Finish-Curvilinear_BCs.ipynb
      *  "[REAL_parity_array[8] = (sin(xx2)*sin(xx2_inbounds) + cos(xx2)*cos(xx2_inbounds))*(sin(xx1)*sin(xx1_inbounds) +
      * sin(xx2)*sin(xx2_inbounds)*cos(xx1)*cos(xx1_inbounds) + cos(xx1)*cos(xx1_inbounds)*cos(xx2)*cos(xx2_inbounds))]"
      *  "[REAL_parity_array[9] = (sin(xx2)*sin(xx2_inbounds) + cos(xx2)*cos(xx2_inbounds))**2]"
-     *  "[REAL_parity_array[10] = (sin(xx1)*sin(xx1_inbounds)*sin(xx2)*sin(xx2_inbounds) + sin(xx1)*sin(xx1_inbounds)*cos(xx2)*cos(xx2_inbounds) +
-     * cos(xx1)*cos(xx1_inbounds))**3]"
-     *  "[REAL_parity_array[11] = (sin(xx1)*sin(xx1_inbounds) + sin(xx2)*sin(xx2_inbounds)*cos(xx1)*cos(xx1_inbounds) +
-     * cos(xx1)*cos(xx1_inbounds)*cos(xx2)*cos(xx2_inbounds))*(sin(xx1)*sin(xx1_inbounds)*sin(xx2)*sin(xx2_inbounds) +
-     * sin(xx1)*sin(xx1_inbounds)*cos(xx2)*cos(xx2_inbounds) + cos(xx1)*cos(xx1_inbounds))**2]"
-     *  "[REAL_parity_array[12] = (sin(xx2)*sin(xx2_inbounds) + cos(xx2)*cos(xx2_inbounds))*(sin(xx1)*sin(xx1_inbounds)*sin(xx2)*sin(xx2_inbounds) +
-     * sin(xx1)*sin(xx1_inbounds)*cos(xx2)*cos(xx2_inbounds) + cos(xx1)*cos(xx1_inbounds))**2]"
-     *  "[REAL_parity_array[13] = (sin(xx1)*sin(xx1_inbounds) + sin(xx2)*sin(xx2_inbounds)*cos(xx1)*cos(xx1_inbounds) +
-     * cos(xx1)*cos(xx1_inbounds)*cos(xx2)*cos(xx2_inbounds))**2*(sin(xx1)*sin(xx1_inbounds)*sin(xx2)*sin(xx2_inbounds) +
-     * sin(xx1)*sin(xx1_inbounds)*cos(xx2)*cos(xx2_inbounds) + cos(xx1)*cos(xx1_inbounds))]"
-     *  "[REAL_parity_array[14] = (sin(xx2)*sin(xx2_inbounds) + cos(xx2)*cos(xx2_inbounds))*(sin(xx1)*sin(xx1_inbounds) +
-     * sin(xx2)*sin(xx2_inbounds)*cos(xx1)*cos(xx1_inbounds) +
-     * cos(xx1)*cos(xx1_inbounds)*cos(xx2)*cos(xx2_inbounds))*(sin(xx1)*sin(xx1_inbounds)*sin(xx2)*sin(xx2_inbounds) +
-     * sin(xx1)*sin(xx1_inbounds)*cos(xx2)*cos(xx2_inbounds) + cos(xx1)*cos(xx1_inbounds))]"
-     *  "[REAL_parity_array[15] = (sin(xx2)*sin(xx2_inbounds) + cos(xx2)*cos(xx2_inbounds))**2*(sin(xx1)*sin(xx1_inbounds)*sin(xx2)*sin(xx2_inbounds)
-     * + sin(xx1)*sin(xx1_inbounds)*cos(xx2)*cos(xx2_inbounds) + cos(xx1)*cos(xx1_inbounds))]"
-     *  "[REAL_parity_array[16] = (sin(xx1)*sin(xx1_inbounds) + sin(xx2)*sin(xx2_inbounds)*cos(xx1)*cos(xx1_inbounds) +
-     * cos(xx1)*cos(xx1_inbounds)*cos(xx2)*cos(xx2_inbounds))*(sin(xx1)*sin(xx1_inbounds)*sin(xx2)*sin(xx2_inbounds) +
-     * sin(xx1)*sin(xx1_inbounds)*cos(xx2)*cos(xx2_inbounds) + cos(xx1)*cos(xx1_inbounds))**2]"
-     *  "[REAL_parity_array[17] = (sin(xx1)*sin(xx1_inbounds) + sin(xx2)*sin(xx2_inbounds)*cos(xx1)*cos(xx1_inbounds) +
-     * cos(xx1)*cos(xx1_inbounds)*cos(xx2)*cos(xx2_inbounds))**2*(sin(xx1)*sin(xx1_inbounds)*sin(xx2)*sin(xx2_inbounds) +
-     * sin(xx1)*sin(xx1_inbounds)*cos(xx2)*cos(xx2_inbounds) + cos(xx1)*cos(xx1_inbounds))]"
-     *  "[REAL_parity_array[18] = (sin(xx2)*sin(xx2_inbounds) + cos(xx2)*cos(xx2_inbounds))*(sin(xx1)*sin(xx1_inbounds) +
-     * sin(xx2)*sin(xx2_inbounds)*cos(xx1)*cos(xx1_inbounds) +
-     * cos(xx1)*cos(xx1_inbounds)*cos(xx2)*cos(xx2_inbounds))*(sin(xx1)*sin(xx1_inbounds)*sin(xx2)*sin(xx2_inbounds) +
-     * sin(xx1)*sin(xx1_inbounds)*cos(xx2)*cos(xx2_inbounds) + cos(xx1)*cos(xx1_inbounds))]"
-     *  "[REAL_parity_array[19] = (sin(xx1)*sin(xx1_inbounds) + sin(xx2)*sin(xx2_inbounds)*cos(xx1)*cos(xx1_inbounds) +
-     * cos(xx1)*cos(xx1_inbounds)*cos(xx2)*cos(xx2_inbounds))**3]"
-     *  "[REAL_parity_array[20] = (sin(xx2)*sin(xx2_inbounds) + cos(xx2)*cos(xx2_inbounds))*(sin(xx1)*sin(xx1_inbounds) +
-     * sin(xx2)*sin(xx2_inbounds)*cos(xx1)*cos(xx1_inbounds) + cos(xx1)*cos(xx1_inbounds)*cos(xx2)*cos(xx2_inbounds))**2]"
-     *  "[REAL_parity_array[21] = (sin(xx2)*sin(xx2_inbounds) + cos(xx2)*cos(xx2_inbounds))**2*(sin(xx1)*sin(xx1_inbounds) +
-     * sin(xx2)*sin(xx2_inbounds)*cos(xx1)*cos(xx1_inbounds) + cos(xx1)*cos(xx1_inbounds)*cos(xx2)*cos(xx2_inbounds))]"
-     *  "[REAL_parity_array[22] = (sin(xx2)*sin(xx2_inbounds) + cos(xx2)*cos(xx2_inbounds))*(sin(xx1)*sin(xx1_inbounds)*sin(xx2)*sin(xx2_inbounds) +
-     * sin(xx1)*sin(xx1_inbounds)*cos(xx2)*cos(xx2_inbounds) + cos(xx1)*cos(xx1_inbounds))**2]"
-     *  "[REAL_parity_array[23] = (sin(xx2)*sin(xx2_inbounds) + cos(xx2)*cos(xx2_inbounds))*(sin(xx1)*sin(xx1_inbounds) +
-     * sin(xx2)*sin(xx2_inbounds)*cos(xx1)*cos(xx1_inbounds) +
-     * cos(xx1)*cos(xx1_inbounds)*cos(xx2)*cos(xx2_inbounds))*(sin(xx1)*sin(xx1_inbounds)*sin(xx2)*sin(xx2_inbounds) +
-     * sin(xx1)*sin(xx1_inbounds)*cos(xx2)*cos(xx2_inbounds) + cos(xx1)*cos(xx1_inbounds))]"
-     *  "[REAL_parity_array[24] = (sin(xx2)*sin(xx2_inbounds) + cos(xx2)*cos(xx2_inbounds))**2*(sin(xx1)*sin(xx1_inbounds)*sin(xx2)*sin(xx2_inbounds)
-     * + sin(xx1)*sin(xx1_inbounds)*cos(xx2)*cos(xx2_inbounds) + cos(xx1)*cos(xx1_inbounds))]"
-     *  "[REAL_parity_array[25] = (sin(xx2)*sin(xx2_inbounds) + cos(xx2)*cos(xx2_inbounds))*(sin(xx1)*sin(xx1_inbounds) +
-     * sin(xx2)*sin(xx2_inbounds)*cos(xx1)*cos(xx1_inbounds) + cos(xx1)*cos(xx1_inbounds)*cos(xx2)*cos(xx2_inbounds))**2]"
-     *  "[REAL_parity_array[26] = (sin(xx2)*sin(xx2_inbounds) + cos(xx2)*cos(xx2_inbounds))**2*(sin(xx1)*sin(xx1_inbounds) +
-     * sin(xx2)*sin(xx2_inbounds)*cos(xx1)*cos(xx1_inbounds) + cos(xx1)*cos(xx1_inbounds)*cos(xx2)*cos(xx2_inbounds))]"
-     *  "[REAL_parity_array[27] = (sin(xx2)*sin(xx2_inbounds) + cos(xx2)*cos(xx2_inbounds))**3]"
      */
     {
       const BHA_REAL tmp0 = cos(xx1) * cos(xx1_inbounds);
@@ -293,42 +269,20 @@ Documented in: Tutorial-Start_to_Finish-Curvilinear_BCs.ipynb
       const BHA_REAL tmp4 = tmp0 + tmp1 * tmp2 + tmp1 * tmp3;
       const BHA_REAL tmp5 = tmp0 * tmp2 + tmp0 * tmp3 + tmp1;
       const BHA_REAL tmp6 = tmp2 + tmp3;
-      const BHA_REAL tmp7 = ((tmp4) * (tmp4));
-      const BHA_REAL tmp9 = ((tmp5) * (tmp5));
-      const BHA_REAL tmp10 = ((tmp6) * (tmp6));
-      const BHA_REAL tmp14 = tmp4 * tmp5 * tmp6;
       REAL_parity_array[0] = 1;
       REAL_parity_array[1] = tmp4;
       REAL_parity_array[2] = tmp5;
       REAL_parity_array[3] = tmp6;
-      REAL_parity_array[4] = tmp7;
+      REAL_parity_array[4] = ((tmp4) * (tmp4));
       REAL_parity_array[5] = tmp4 * tmp5;
       REAL_parity_array[6] = tmp4 * tmp6;
-      REAL_parity_array[7] = tmp9;
+      REAL_parity_array[7] = ((tmp5) * (tmp5));
       REAL_parity_array[8] = tmp5 * tmp6;
-      REAL_parity_array[9] = tmp10;
-      REAL_parity_array[10] = ((tmp4) * (tmp4) * (tmp4));
-      REAL_parity_array[11] = tmp5 * tmp7;
-      REAL_parity_array[12] = tmp6 * tmp7;
-      REAL_parity_array[13] = tmp4 * tmp9;
-      REAL_parity_array[14] = tmp14;
-      REAL_parity_array[15] = tmp10 * tmp4;
-      REAL_parity_array[16] = tmp5 * tmp7;
-      REAL_parity_array[17] = tmp4 * tmp9;
-      REAL_parity_array[18] = tmp14;
-      REAL_parity_array[19] = ((tmp5) * (tmp5) * (tmp5));
-      REAL_parity_array[20] = tmp6 * tmp9;
-      REAL_parity_array[21] = tmp10 * tmp5;
-      REAL_parity_array[22] = tmp6 * tmp7;
-      REAL_parity_array[23] = tmp14;
-      REAL_parity_array[24] = tmp10 * tmp4;
-      REAL_parity_array[25] = tmp6 * tmp9;
-      REAL_parity_array[26] = tmp10 * tmp5;
-      REAL_parity_array[27] = ((tmp6) * (tmp6) * (tmp6));
+      REAL_parity_array[9] = ((tmp6) * (tmp6));
     }
   }
   // Next perform sanity check on parity array output: should be +1 or -1 to within 8 significant digits:
-  for (int whichparity = 0; whichparity < 28; whichparity++) {
+  for (int whichparity = 0; whichparity < 10; whichparity++) {
     if (fabs(REAL_parity_array[whichparity]) < 1 - EPS_REL || fabs(REAL_parity_array[whichparity]) > 1 + EPS_REL) {
       fprintf(stderr, "Error at point (%e %e %e), which maps to (%e %e %e).\n", xx0, xx1, xx2, xx0_inbounds, xx1_inbounds, xx2_inbounds);
       fprintf(stderr, "Parity evaluated to %e , which is not within 8 significant digits of +1 or -1.\n", REAL_parity_array[whichparity]);
@@ -337,10 +291,101 @@ Documented in: Tutorial-Start_to_Finish-Curvilinear_BCs.ipynb
     innerpt_bc_arr[idx].parity[whichparity] = 1;
     if (REAL_parity_array[whichparity] < 0)
       innerpt_bc_arr[idx].parity[whichparity] = -1;
-  } // END for(int whichparity=0;whichparity<28;whichparity++)
+  } // END LOOP: for whichparity over parity directions
+
+#define JAC_TOL 1e-12
+
+  {
+
+    BHA_REAL deriv_jacobian_real[3][3];
+    const BHA_REAL deriv_jac_tmp0 = sin(xx2_inbounds);
+    const BHA_REAL deriv_jac_tmp2 = ((xx0_inbounds) * (xx0_inbounds));
+    const BHA_REAL deriv_jac_tmp3 = sin(xx1_inbounds);
+    const BHA_REAL deriv_jac_tmp5 = cos(xx2_inbounds);
+    const BHA_REAL deriv_jac_tmp7 = cos(xx1_inbounds);
+    const BHA_REAL deriv_jac_tmp12 = sin(xx1);
+    const BHA_REAL deriv_jac_tmp17 = sin(xx2);
+    const BHA_REAL deriv_jac_tmp19 = cos(xx2);
+    const BHA_REAL deriv_jac_tmp1 = ((deriv_jac_tmp0) * (deriv_jac_tmp0));
+    const BHA_REAL deriv_jac_tmp4 = deriv_jac_tmp2 * ((deriv_jac_tmp3) * (deriv_jac_tmp3) * (deriv_jac_tmp3));
+    const BHA_REAL deriv_jac_tmp6 = ((deriv_jac_tmp5) * (deriv_jac_tmp5));
+    const BHA_REAL deriv_jac_tmp14 = ((deriv_jac_tmp3) * (deriv_jac_tmp3));
+    const BHA_REAL deriv_jac_tmp18 = deriv_jac_tmp0 * deriv_jac_tmp17;
+    const BHA_REAL deriv_jac_tmp20 = deriv_jac_tmp19 * deriv_jac_tmp5;
+    const BHA_REAL deriv_jac_tmp24 = deriv_jac_tmp3 * deriv_jac_tmp7 * xx0_inbounds;
+    const BHA_REAL deriv_jac_tmp10 = deriv_jac_tmp2 * deriv_jac_tmp3 * ((deriv_jac_tmp7) * (deriv_jac_tmp7));
+    const BHA_REAL deriv_jac_tmp15 = deriv_jac_tmp14 * deriv_jac_tmp2;
+    const BHA_REAL deriv_jac_tmp21 = deriv_jac_tmp2 * deriv_jac_tmp3 * deriv_jac_tmp7;
+    const BHA_REAL deriv_jac_tmp26 = deriv_jac_tmp14 * xx0_inbounds;
+    const BHA_REAL deriv_jac_tmp28 = ((deriv_jac_tmp7) * (deriv_jac_tmp7)) * xx0_inbounds;
+    const BHA_REAL deriv_jac_tmp11 = (1.0 / (deriv_jac_tmp1 * deriv_jac_tmp10 + deriv_jac_tmp1 * deriv_jac_tmp4 + deriv_jac_tmp10 * deriv_jac_tmp6 +
+                                         deriv_jac_tmp4 * deriv_jac_tmp6));
+    const BHA_REAL deriv_jac_tmp22 = deriv_jac_tmp1 * deriv_jac_tmp21 + deriv_jac_tmp21 * deriv_jac_tmp6;
+    const BHA_REAL deriv_jac_tmp27 = -deriv_jac_tmp1 * deriv_jac_tmp26 - deriv_jac_tmp26 * deriv_jac_tmp6;
+    const BHA_REAL deriv_jac_tmp29 = deriv_jac_tmp26 * deriv_jac_tmp5 + deriv_jac_tmp28 * deriv_jac_tmp5;
+    const BHA_REAL deriv_jac_tmp31 = -deriv_jac_tmp0 * deriv_jac_tmp26 - deriv_jac_tmp0 * deriv_jac_tmp28;
+    const BHA_REAL deriv_jac_tmp13 = deriv_jac_tmp11 * deriv_jac_tmp12;
+    const BHA_REAL deriv_jac_tmp23 = deriv_jac_tmp11 * cos(xx1);
+    const BHA_REAL deriv_jac_tmp33 = deriv_jac_tmp23 * xx0;
+    const BHA_REAL deriv_jac_tmp35 = deriv_jac_tmp13 * xx0;
+    const BHA_REAL deriv_jac_tmp38 = deriv_jac_tmp17 * deriv_jac_tmp35 * deriv_jac_tmp5;
+    deriv_jacobian_real[0][0] =
+        deriv_jac_tmp13 * deriv_jac_tmp15 * deriv_jac_tmp18 + deriv_jac_tmp13 * deriv_jac_tmp15 * deriv_jac_tmp20 + deriv_jac_tmp22 * deriv_jac_tmp23;
+    deriv_jacobian_real[0][1] =
+        deriv_jac_tmp13 * deriv_jac_tmp18 * deriv_jac_tmp24 + deriv_jac_tmp13 * deriv_jac_tmp20 * deriv_jac_tmp24 + deriv_jac_tmp23 * deriv_jac_tmp27;
+    deriv_jacobian_real[0][2] = deriv_jac_tmp13 * deriv_jac_tmp17 * deriv_jac_tmp29 + deriv_jac_tmp13 * deriv_jac_tmp19 * deriv_jac_tmp31;
+    deriv_jacobian_real[1][0] =
+        deriv_jac_tmp15 * deriv_jac_tmp18 * deriv_jac_tmp33 + deriv_jac_tmp15 * deriv_jac_tmp20 * deriv_jac_tmp33 - deriv_jac_tmp22 * deriv_jac_tmp35;
+    deriv_jacobian_real[1][1] =
+        deriv_jac_tmp18 * deriv_jac_tmp24 * deriv_jac_tmp33 + deriv_jac_tmp20 * deriv_jac_tmp24 * deriv_jac_tmp33 - deriv_jac_tmp27 * deriv_jac_tmp35;
+    deriv_jacobian_real[1][2] = deriv_jac_tmp17 * deriv_jac_tmp29 * deriv_jac_tmp33 + deriv_jac_tmp19 * deriv_jac_tmp31 * deriv_jac_tmp33;
+    deriv_jacobian_real[2][0] = deriv_jac_tmp0 * deriv_jac_tmp11 * deriv_jac_tmp12 * deriv_jac_tmp14 * deriv_jac_tmp19 * deriv_jac_tmp2 * xx0 -
+                                deriv_jac_tmp15 * deriv_jac_tmp38;
+    deriv_jacobian_real[2][1] =
+        deriv_jac_tmp0 * deriv_jac_tmp11 * deriv_jac_tmp12 * deriv_jac_tmp19 * deriv_jac_tmp3 * deriv_jac_tmp7 * xx0 * xx0_inbounds -
+        deriv_jac_tmp24 * deriv_jac_tmp38;
+    deriv_jacobian_real[2][2] =
+        deriv_jac_tmp11 * deriv_jac_tmp12 * deriv_jac_tmp19 * deriv_jac_tmp29 * xx0 - deriv_jac_tmp17 * deriv_jac_tmp31 * deriv_jac_tmp35;
+
+    for (int dst_dirn = 0; dst_dirn < 3; dst_dirn++) {
+      for (int src_dirn = 0; src_dirn < 3; src_dirn++) {
+        const BHA_REAL v = deriv_jacobian_real[dst_dirn][src_dirn];
+        int8_t jac_parity;
+        if (fabs(v - 1.0) < JAC_TOL)
+          jac_parity = 1;
+        else if (fabs(v + 1.0) < JAC_TOL)
+          jac_parity = -1;
+        else if (fabs(v) < JAC_TOL)
+          jac_parity = 0;
+        else {
+          fprintf(stderr, "Error at point (%e %e %e), which maps to (%e %e %e): analytic deriv Jacobian[%d][%d]=%.15e is not a parity value.\n", xx0,
+                  xx1, xx2, xx0_inbounds, xx1_inbounds, xx2_inbounds, dst_dirn, src_dirn, (double)v);
+          return BCSTRUCT_SET_PARITY_ERROR;
+        } // END ELSE: Jacobian entry is not parity-compatible
+        innerpt_bc_arr[idx].deriv_jacobian[dst_dirn][src_dirn] = jac_parity;
+      } // END LOOP: for src_dirn over mapped source derivative directions
+    } // END LOOP: for dst_dirn over destination derivative directions
+  } // END BLOCK: analytic derivative-Jacobian quantization
+
+  for (int dst_dirn = 0; dst_dirn < 3; dst_dirn++) {
+    int row_nonzero = 0;
+    int col_nonzero = 0;
+    for (int src_dirn = 0; src_dirn < 3; src_dirn++) {
+      if (innerpt_bc_arr[idx].deriv_jacobian[dst_dirn][src_dirn] != 0)
+        row_nonzero++;
+      if (innerpt_bc_arr[idx].deriv_jacobian[src_dirn][dst_dirn] != 0)
+        col_nonzero++;
+    } // END LOOP: for src_dirn over signed-permutation checks
+    if (row_nonzero != 1 || col_nonzero != 1) {
+      fprintf(stderr, "Error at point (%e %e %e), which maps to (%e %e %e): derivative Jacobian is not a signed permutation.\n", xx0, xx1, xx2,
+              xx0_inbounds, xx1_inbounds, xx2_inbounds);
+      return BCSTRUCT_SET_PARITY_ERROR;
+    } // END IF: derivative Jacobian is not a signed permutation
+  } // END LOOP: for dst_dirn over signed-permutation rows and columns
+#undef JAC_TOL
   return BHAHAHA_SUCCESS;
 #undef EPS_REL
-} // END FUNCTION set_parity_for_inner_boundary_single_pt
+} // END FUNCTION: set_parity_for_inner_boundary_single_pt
 
 /**
  * At each coordinate point (x0,x1,x2) situated at grid index (i0,i1,i2):
@@ -349,7 +394,8 @@ Documented in: Tutorial-Start_to_Finish-Curvilinear_BCs.ipynb
  * *    typedef struct {
  * *      int dstpt;  // dstpt is the 3D grid index IDX3(i0,i1,i2) of the inner boundary point (i0,i1,i2)
  * *      int srcpt;  // srcpt is the 3D grid index (a la IDX3) to which the inner boundary point maps
- * *      int8_t parity[28];  // parity[28] is a calculation of dot products for the 28 independent parity types
+ * *      int8_t parity[10];  // parity[10] is a calculation of dot products for the 10 independent base parity types
+ * *      int8_t deriv_jacobian[3][3];  // deriv_jacobian[dst][src] = dxx_inbounds[src] / dxx_ghost[dst]
  * *    } innerpt_bc_struct;
  * *  At each ghostzone (i.e., each point within NGHOSTS points from grid boundary):
  * *    Call EigenCoord_set_x0x1x2_inbounds__i0i1i2_inbounds_single_pt().
@@ -401,11 +447,12 @@ Documented in: Tutorial-Start_to_Finish-Curvilinear_BCs.ipynb
  * *    the struct is set only at outer boundary points. This is slightly
  * *    wasteful, but only in memory, not in CPU.
  */
-int bah_bcstruct_set_up(const commondata_struct *restrict commondata, BHA_REAL *restrict xx[3], bc_struct *restrict bcstruct) {
-
+int bah_bcstruct_set_up(const commondata_struct *restrict commondata, const params_struct *restrict params, BHA_REAL *restrict xx[3],
+                        bc_struct *restrict bcstruct) {
   const int Nxx_plus_2NGHOSTS0 = commondata->bcstruct_Nxx_plus_2NGHOSTS0;
   const int Nxx_plus_2NGHOSTS1 = commondata->bcstruct_Nxx_plus_2NGHOSTS1;
   const int Nxx_plus_2NGHOSTS2 = commondata->bcstruct_Nxx_plus_2NGHOSTS2;
+  const params_struct *restrict bc_params = params;
   ////////////////////////////////////////
   // STEP 1: SET UP INNER BOUNDARY STRUCTS
   {
@@ -417,7 +464,7 @@ int bah_bcstruct_set_up(const commondata_struct *restrict commondata, BHA_REAL *
       if (!IS_IN_GRID_INTERIOR(i0i1i2, Nxx_plus_2NGHOSTS0, Nxx_plus_2NGHOSTS1, Nxx_plus_2NGHOSTS2, NGHOSTS)) {
         BHA_REAL x0x1x2_inbounds[3];
         int i0i1i2_inbounds[3];
-        if (EigenCoord_set_x0x1x2_inbounds__i0i1i2_inbounds_single_pt(commondata, xx, i0, i1, i2, x0x1x2_inbounds, i0i1i2_inbounds)) {
+        if (EigenCoord_set_x0x1x2_inbounds__i0i1i2_inbounds_single_pt(commondata, bc_params, xx, i0, i1, i2, x0x1x2_inbounds, i0i1i2_inbounds)) {
 #pragma omp critical
           {
             error_flag = true;
@@ -451,7 +498,7 @@ int bah_bcstruct_set_up(const commondata_struct *restrict commondata, BHA_REAL *
       if (!IS_IN_GRID_INTERIOR(i0i1i2, Nxx_plus_2NGHOSTS0, Nxx_plus_2NGHOSTS1, Nxx_plus_2NGHOSTS2, NGHOSTS)) {
         BHA_REAL x0x1x2_inbounds[3];
         int i0i1i2_inbounds[3];
-        if (EigenCoord_set_x0x1x2_inbounds__i0i1i2_inbounds_single_pt(commondata, xx, i0, i1, i2, x0x1x2_inbounds, i0i1i2_inbounds)) {
+        if (EigenCoord_set_x0x1x2_inbounds__i0i1i2_inbounds_single_pt(commondata, bc_params, xx, i0, i1, i2, x0x1x2_inbounds, i0i1i2_inbounds)) {
           return BCSTRUCT_EIGENCOORD_FAILURE;
         }
         if (i0 == i0i1i2_inbounds[0] && i1 == i0i1i2_inbounds[1] && i2 == i0i1i2_inbounds[2]) {
@@ -460,7 +507,7 @@ int bah_bcstruct_set_up(const commondata_struct *restrict commondata, BHA_REAL *
           bcstruct->inner_bc_array[which_inner].dstpt = IDX3(i0, i1, i2);
           bcstruct->inner_bc_array[which_inner].srcpt = IDX3(i0i1i2_inbounds[0], i0i1i2_inbounds[1], i0i1i2_inbounds[2]);
           // printf("%d / %d\n",which_inner, bc_info->num_inner_boundary_points);
-          if (set_parity_for_inner_boundary_single_pt(commondata, xx[0][i0], xx[1][i1], xx[2][i2], x0x1x2_inbounds, which_inner,
+          if (set_parity_for_inner_boundary_single_pt(commondata, bc_params, xx[0][i0], xx[1][i1], xx[2][i2], x0x1x2_inbounds, which_inner,
                                                       bcstruct->inner_bc_array)) {
             return BCSTRUCT_SET_PARITY_ERROR;
           }
@@ -549,7 +596,7 @@ int bah_bcstruct_set_up(const commondata_struct *restrict commondata, BHA_REAL *
     }
     face++;
     ////////////////////////
-  } // END LOOP over ghostzones
+  } // END LOOP: for which_gz over ghost zones
 
   for (int which_gz = 0; which_gz < NGHOSTS; which_gz++)
     for (int dirn = 0; dirn < 3; dirn++) {
@@ -567,7 +614,7 @@ int bah_bcstruct_set_up(const commondata_struct *restrict commondata, BHA_REAL *
                    bcstruct->bc_info.bc_loop_bounds[which_gz][face][4], bcstruct->bc_info.bc_loop_bounds[which_gz][face][5]) {
           BHA_REAL x0x1x2_inbounds[3];
           int i0i1i2_inbounds[3];
-          if (EigenCoord_set_x0x1x2_inbounds__i0i1i2_inbounds_single_pt(commondata, xx, i0, i1, i2, x0x1x2_inbounds, i0i1i2_inbounds)) {
+          if (EigenCoord_set_x0x1x2_inbounds__i0i1i2_inbounds_single_pt(commondata, bc_params, xx, i0, i1, i2, x0x1x2_inbounds, i0i1i2_inbounds)) {
             return BCSTRUCT_EIGENCOORD_FAILURE;
           }
           if (i0 == i0i1i2_inbounds[0] && i1 == i0i1i2_inbounds[1] && i2 == i0i1i2_inbounds[2]) {
@@ -580,7 +627,7 @@ int bah_bcstruct_set_up(const commondata_struct *restrict commondata, BHA_REAL *
             idx2d++;
           }
         }
-      } // END LOOP over lower faces
+      } // END BLOCK: lower face boundary points
       // UPPER FACE: dirn=0 -> x0max; dirn=1 -> x1max; dirn=2 -> x2max
       {
         const int face = dirn * 2 + 1;
@@ -592,7 +639,7 @@ int bah_bcstruct_set_up(const commondata_struct *restrict commondata, BHA_REAL *
                    bcstruct->bc_info.bc_loop_bounds[which_gz][face][4], bcstruct->bc_info.bc_loop_bounds[which_gz][face][5]) {
           BHA_REAL x0x1x2_inbounds[3];
           int i0i1i2_inbounds[3];
-          if (EigenCoord_set_x0x1x2_inbounds__i0i1i2_inbounds_single_pt(commondata, xx, i0, i1, i2, x0x1x2_inbounds, i0i1i2_inbounds)) {
+          if (EigenCoord_set_x0x1x2_inbounds__i0i1i2_inbounds_single_pt(commondata, bc_params, xx, i0, i1, i2, x0x1x2_inbounds, i0i1i2_inbounds)) {
             return BCSTRUCT_EIGENCOORD_FAILURE;
           }
           if (i0 == i0i1i2_inbounds[0] && i1 == i0i1i2_inbounds[1] && i2 == i0i1i2_inbounds[2]) {
@@ -605,9 +652,9 @@ int bah_bcstruct_set_up(const commondata_struct *restrict commondata, BHA_REAL *
             idx2d++;
           }
         }
-      } // END LOOP over upper faces
+      } // END BLOCK: upper face boundary points
       bcstruct->bc_info.num_pure_outer_boundary_points[which_gz][dirn] = idx2d;
-    } // END LOOPS over directions and ghost zone layers.
+    } // END LOOP: for dirn over directions and which_gz over ghost zone layers
 
   return BHAHAHA_SUCCESS;
-} // END FUNCTION bah_bcstruct_set_up
+} // END FUNCTION: bah_bcstruct_set_up
