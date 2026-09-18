@@ -221,9 +221,10 @@ void AEH_BHaHAHA::find_horizons(
     // 3: BH Mode Synchronization (if enabled) - sync horizon guess across ranks
     // - activate or deactivate indivisdual or common horizon searches based on
     // BBH criteria
-    if (is_bbh_) {
-        // time output for starting BBH mode
-
+    // not BBH-only: this is how every rank learns the owning rank's guess.
+    // Skipped, ranks disagree on Nr_external_input and the gather in
+    // interpolate_metric_data overruns the owner's buffer.
+    {
         // 3.a: only one rank keeps the "real" data, all others zero out
         for (int which_horizon = 0; which_horizon < num_horizons_;
              which_horizon++) {
@@ -277,6 +278,10 @@ void AEH_BHaHAHA::find_horizons(
         // 3.b: MPI reduction to sum arrays across ranks which makes them
         // consistent
         bah_sum_shared_arrays(mesh);
+    }
+
+    // BBH-only from here: common-horizon activation and separation.
+    if (is_bbh_) {
 #if 0
         if (rankActive == 0) {
             for (int which_horizon = 0; which_horizon < num_horizons;
@@ -508,9 +513,10 @@ void AEH_BHaHAHA::find_horizons(
         // that rank
         if (rankActive == which_MPI_rank) {
             bha_param_data_[which_horizon].input_metric_data =
-                (double*)malloc(NUM_EXT_INPUT_CARTESIAN_GFS *
-                                bah_params_and_data->Nr_external_input *
-                                max_ntheta_ * max_nphi_ * sizeof(double));
+                (double*)calloc(NUM_EXT_INPUT_CARTESIAN_GFS *
+                                    bah_params_and_data->Nr_external_input *
+                                    max_ntheta_ * max_nphi_,
+                                sizeof(double));
 
             if (!bha_param_data_[which_horizon].input_metric_data) {
                 std::cerr << "ERROR ALLOCATING MEMORY FOR INPUT METRIC DATA!"
@@ -577,8 +583,9 @@ void AEH_BHaHAHA::find_horizons(
                 transfer_to_persistent_from_bhahaha(
                     &bha_param_data_[which_horizon]);
 
-                // output horizon diagnostics to file
-                if (current_step % file_output_freq_ == 0) {
+                // output horizon diagnostics to file; 0 means disabled
+                if (file_output_freq_ > 0 &&
+                    current_step % file_output_freq_ == 0) {
                     bah_diagnostics_file_output(
                         &bhahaha_diags, &bha_param_data_[which_horizon],
                         num_horizons_, x_guess_[which_horizon],
@@ -904,6 +911,20 @@ void AEH_BHaHAHA::interpolate_metric_data(
 
         receive_idxs.resize(total_elements);
 
+        // skipped points keep the calloc zero-fill, which is finite and so
+        // invisible to a NaN check, but is not a valid metric
+        int total_received = 0;
+        for (int i = 0; i < npesActive; ++i) total_received += recv_counts[i];
+        if (total_received != static_cast<int>(total_elements)) {
+            std::cerr << "WARNING[" << __func__ << "]: horizon "
+                      << which_horizon << " (0-based) got " << total_received
+                      << " of " << total_elements
+                      << " requested points; the rest are zero-filled and are "
+                         "NOT a valid metric. Is the search sphere inside the "
+                         "domain?"
+                      << std::endl;
+        }
+
 #if 0
         std::cout << "WHITCH RANK: " << which_rank << std::endl;
         print_vec(recv_counts, "RECV_COUNTS");
@@ -967,10 +988,8 @@ void AEH_BHaHAHA::synchronize_to_root(const ot::Mesh* mesh,
     MPI_Comm commActive        = mesh->getMPICommunicator();
     unsigned int globalRank    = mesh->getMPIRankGlobal();
 
-    // need to synchronize the x/y/z center arrays, the t arrays, the r
-    // min/max arrays, and the prev_horizon arrays (as well as the active
-    // arrays), that's 18 arrays
-    constexpr int num_standard = 20;
+    // in-memory gather width only; the on-disk checkpoint keys are unchanged
+    constexpr int num_standard = 21;
 
     const size_t data_to_send_per_horizon =
         1 + num_standard + 3 * max_nphi_ * max_ntheta_;
@@ -1024,6 +1043,9 @@ void AEH_BHaHAHA::synchronize_to_root(const ot::Mesh* mesh,
         sendBuffer[curr_offset++] = bah_horizon_active_[which_horizon];
         sendBuffer[curr_offset++] =
             failed_last_find_[which_horizon] ? 1.0 : 0.0;
+        // the collecting rank solves no horizon, so its own copy is stale
+        sendBuffer[curr_offset++] =
+            bah_use_fixed_radius_guess_on_full_sphere_[which_horizon];
 
         // make sure curr_offset is updated
         // curr_offset += num_standard;
@@ -1097,6 +1119,8 @@ void AEH_BHaHAHA::synchronize_to_root(const ot::Mesh* mesh,
                 (recv_buffer[read_offset + 19] == 1.0);
             failed_last_find_int_[which_horizon] =
                 failed_last_find_[which_horizon] ? 1 : 0;
+            bah_use_fixed_radius_guess_on_full_sphere_[which_horizon] =
+                static_cast<int>(recv_buffer[read_offset + 20]);
 
             // make sure curr_offset is updated
             read_offset += num_standard;
@@ -1135,7 +1159,7 @@ void AEH_BHaHAHA::create_checkpoint(const ot::Mesh* mesh,
     unsigned int globalRank    = mesh->getMPIRankGlobal();
 
     // use rank 3 to try and free up other procs?
-    const unsigned int procUse = npesActive < 3 ? 0 : 3;
+    const unsigned int procUse = checkpoint_root_rank(npesActive);
 
     // for (unsigned int i = 0; i < num_horizons_; ++i) {
     //     transfer_to_persistent_from_bhahaha(&bha_param_data_[i]);

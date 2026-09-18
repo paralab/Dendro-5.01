@@ -2,9 +2,11 @@
 
 #include <math.h>
 
+#include <algorithm>
 #include <cstdlib>
 #include <functional>
 #include <stdexcept>
+#include <string>
 #include <vector>
 
 #include "BHaHAHA.h"
@@ -197,6 +199,11 @@ class AEH_BHaHAHA {
     std::vector<int> failed_last_find_int_;
 
    public:
+    // rank 3 is only a valid root once there are more than 3 ranks
+    static unsigned int checkpoint_root_rank(const unsigned int npesActive) {
+        return npesActive > 3 ? 3u : 0u;
+    }
+
     // add more input types for data...
     AEH_BHaHAHA(const unsigned int n_horizons, const bool is_binary_black_hole,
                 const std::vector<double>& initial_x_center,
@@ -242,6 +249,13 @@ class AEH_BHaHAHA {
           bah_bhbh_min_separation_(bah_bhbh_min_separation),
           bah_ah3_sanity_k_(bah_ah3_sanity_k),
           bah_ah3_radius_padding_(bah_ah3_radius_padding) {
+        // must precede allocate_data_structures(), which sizes off these
+        validate_construction_inputs(initial_x_center, initial_y_center,
+                                     initial_z_center, blackholes,
+                                     n_resolutions_multigrid,
+                                     num_resolutions_after_find, ntheta_array,
+                                     nphi_array);
+
         allocate_data_structures();
 
         grid_limits_[0]   = grid_limits[0];
@@ -274,19 +288,7 @@ class AEH_BHaHAHA {
         fill_vector_with_defaults(max_search_radius, bah_max_search_radius_,
                                   1.5, num_horizons_);
 
-        // NOTE: ntheta_array and nphi_array *must* be the same size and must be
-        // num_resolutions after_find
         num_resolutions_multigrid_ = num_resolutions_after_find;
-        if (ntheta_array.size() != num_resolutions_multigrid_) {
-            throw std::runtime_error(
-                "ERROR: nTheta Array needs to be the same size as "
-                "num_resolutions_after_find!");
-        }
-        if (nphi_array.size() != num_resolutions_multigrid_) {
-            throw std::runtime_error(
-                "ERROR: nPhi Array needs to be the same size as "
-                "num_resolutions_after_find!");
-        }
         // these are vector fields!
         ntheta_array_multigrid_ = ntheta_array;
         nphi_array_multigrid_   = nphi_array;
@@ -344,6 +346,62 @@ class AEH_BHaHAHA {
 
         bah_use_fixed_radius_guess_on_full_sphere_ =
             std::vector<int>(num_horizons_, 1);
+    }
+
+    // Rejects inputs that would otherwise read or write out of bounds inside
+    // the solver rather than merely give a wrong answer.
+    void validate_construction_inputs(
+        const std::vector<double>& initial_x_center,
+        const std::vector<double>& initial_y_center,
+        const std::vector<double>& initial_z_center,
+        const std::vector<SimpleBlackHoleData>& blackholes,
+        const unsigned int n_resolutions_multigrid,
+        const int num_resolutions_after_find,
+        const std::vector<int>& ntheta_array,
+        const std::vector<int>& nphi_array) const {
+        auto require = [](const bool ok, const std::string& msg) {
+            if (!ok) throw std::runtime_error("ERROR (AEH_BHaHAHA): " + msg);
+        };
+        auto got = [](const auto v) { return " (got " + std::to_string(v) + ")"; };
+
+        const size_t n    = num_horizons_;
+        const size_t nres = static_cast<size_t>(num_resolutions_after_find);
+        const auto all_positive = [](const std::vector<int>& v) {
+            return std::all_of(v.begin(), v.end(), [](int x) { return x > 0; });
+        };
+
+        require(n > 0, "n_horizons must be at least 1");
+        require(initial_x_center.size() >= n && initial_y_center.size() >= n &&
+                    initial_z_center.size() >= n,
+                "each initial center list must hold n_horizons entries" + got(n));
+
+        // BBH writes horizons 0, 1 and the common horizon 2, and blackholes[0..1]
+        require(!is_bbh_ || n >= 3, "BBH mode needs n_horizons >= 3" + got(n));
+        require(!is_bbh_ || blackholes.size() >= 2,
+                "BBH mode needs 2 black holes" + got(blackholes.size()));
+
+        require(nres >= 1 && nres <= MAX_RESOLUTIONS,
+                "num_resolutions_after_find must be 1.." +
+                    std::to_string(MAX_RESOLUTIONS) + got(nres));
+        require(n_resolutions_multigrid == nres,
+                "n_resolutions_multigrid must equal num_resolutions_after_find, "
+                "which is the only one honoured" + got(n_resolutions_multigrid));
+        require(ntheta_array.size() == nres && nphi_array.size() == nres,
+                "ntheta_array and nphi_array must hold "
+                "num_resolutions_after_find entries" + got(nres));
+        require(all_positive(ntheta_array) && all_positive(nphi_array),
+                "angular resolutions must be positive");
+
+        // allocated at the MAX values, read at the final ladder entry
+        // (bah_numgrid__external_input_set_up.c)
+        require(ntheta_array.back() == max_ntheta_ &&
+                    nphi_array.back() == max_nphi_,
+                "the final multigrid resolution must equal NTHETA_MAX x "
+                "NPHI_MAX (" +
+                    std::to_string(max_ntheta_) + "x" +
+                    std::to_string(max_nphi_) + ", got " +
+                    std::to_string(ntheta_array.back()) + "x" +
+                    std::to_string(nphi_array.back()) + ")");
     }
 
     void initialize_data(const std::vector<double>& initial_x_center,
