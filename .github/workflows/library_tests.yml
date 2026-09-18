@@ -5,6 +5,15 @@ on:
     branches: [master, main]
   pull_request:
 
+# GitHub's Azure runners expose a MANA adapter (mana_0). UCX sees an
+# RDMA-capable device, tries a ud_verbs transport on it and gets
+# "Operation not supported", so MPI_Init aborts before any test runs.
+# Every rank is on one machine here, so shared memory plus loopback TCP
+# is all that is needed.
+env:
+  UCX_TLS: sm,self,tcp
+  UCX_NET_DEVICES: lo
+
 jobs:
   mpich-full-test-suite:
     runs-on: ubuntu-latest
@@ -24,7 +33,7 @@ jobs:
         run: cmake -S . -B build -D CMAKE_BUILD_TYPE=Release -D DENDROLIB_ISOLATED_DIR=ON -D BUILD_DENDRO_EXAMPLES=ON
 
       - name: Build Targets
-        run: cmake --build build --parallel $(nproc) --target run_all_tests testOctUtils testInterp meshE2NCheck heatEq laplaceEq
+        run: cmake --build build --parallel $(nproc) --target run_all_tests testOctUtils testInterp testInterpFaceClamp testAehBhahahaGuards meshE2NCheck heatEq laplaceEq
 
       - name: Test Octree Utilities (rm Dupes)
         run: cd build && mpirun -np 4 ./testOctUtils 600 3 8 1e-5 0 1
@@ -40,6 +49,12 @@ jobs:
 
       - name: Test Interpolation
         run: cd build && mpirun -np 1 ./testInterp 8 1e-5 1e-5 6 0
+
+      - name: Test Element-Face Interpolation Clamp
+        run: cd build && mpirun -np 4 ./testInterpFaceClamp
+
+      - name: Test AEH BHaHAHA Input Guards
+        run: cd build && mpirun -np 3 ./testAehBhahahaGuards
 
       - name: Run All Tests
         run: cd build && mpirun -np 4 ./run_all_tests 8 1e-5 0.1 6
