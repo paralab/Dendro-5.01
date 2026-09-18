@@ -60,7 +60,7 @@ T lagrangeInterpElementToCoord(const ot::Mesh* mesh, const T* in,
 
     if (fabs(domain_coord[1] - pt_max.y()) < 1e-6) domain_coord[1] = pt_max.y();
 
-    if (fabs(domain_coord[2] - pt_max.z()) < 1e-6) domain_coord[2] = pt_min.z();
+    if (fabs(domain_coord[2] - pt_max.z()) < 1e-6) domain_coord[2] = pt_max.z();
 
     // !!!
     // -------------------------------------------------------------------------------
@@ -219,7 +219,7 @@ T linear_lagrange(const ot::Mesh* mesh, const T* in, double* domain_coord,
 
     if (fabs(domain_coord[1] - pt_max.y()) < 1e-6) domain_coord[1] = pt_max.y();
 
-    if (fabs(domain_coord[2] - pt_max.z()) < 1e-6) domain_coord[2] = pt_min.z();
+    if (fabs(domain_coord[2] - pt_max.z()) < 1e-6) domain_coord[2] = pt_max.z();
 
     // !!!
     // -------------------------------------------------------------------------------
