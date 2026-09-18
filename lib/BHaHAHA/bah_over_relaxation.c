@@ -35,7 +35,7 @@ void bah_over_relaxation(commondata_struct *restrict commondata, griddata_struct
   } // END IF: initialization of h_p and t_p
 
   const int iterations_per_M_scale = commondata->bhahaha_params_and_data->M_scale / commondata->dt;
-  const int relax_every_nn = 0.25 * M_PI * iterations_per_M_scale;
+  const int relax_every_nn = fmax(1, 0.25 * M_PI * iterations_per_M_scale);
   // Attempt over-relaxation every relax_every_nn iterations, provided t_p is valid.
   if (commondata->nn >= 3 * relax_every_nn && commondata->nn % relax_every_nn == 0 && commondata->time_of_h_p != 0) {
     // Interpolate data on the source grid using radial spokes for extrapolation.
