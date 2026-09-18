@@ -20,17 +20,15 @@
  * 6. Transforms the metric components (gamma_{ij}, K_{ij}) from Cartesian to spherical coordinates, including necessary rescaling.
  * 7. Sets up boundary condition structures and applies inner boundary conditions, including parity corrections for all gridfunctions.
  *
- * @param commondata - Pointer to the common data structure containing simulation parameters and data.
- * @param n_resolutions - Number of angular resolutions.
- * @param Ntheta - Array containing the number of theta points for each resolution.
- * @param Nphi - Array containing the number of phi points for each resolution.
+ * @param[in,out] commondata Pointer to the common data structure containing simulation parameters and data.
+ * @param n_resolutions Number of angular resolutions.
+ * @param[in] Ntheta Array containing the number of theta points for each resolution.
+ * @param[in] Nphi Array containing the number of phi points for each resolution.
  *
  * @return BHAHAHA_SUCCESS on successful setup, or an error code indicating the failure reason.
- *
  */
 int bah_numgrid__external_input_set_up(commondata_struct *restrict commondata, const int n_resolutions, const int *restrict Ntheta,
                                        const int *restrict Nphi) {
-
   // Step 1: Unpack input parameters from the common data structure.
   const bhahaha_params_and_data_struct *restrict bhahaha_params_and_data = commondata->bhahaha_params_and_data;
 
@@ -81,7 +79,7 @@ int bah_numgrid__external_input_set_up(commondata_struct *restrict commondata, c
   BHA_REAL *restrict external_input_gfs = (BHA_REAL *)malloc(NUM_EXT_INPUT_CONFORMAL_GFS * total_elements_incl_gzs * sizeof(BHA_REAL));
   if (external_input_gfs == NULL) {
     return NUMGRID_EXTERN_MALLOC_ERROR_GFS;
-  } // END IF memory allocation for external_input_gfs failed
+  } // END IF: memory allocation for external_input_gfs failed
 
   // Step 3: Assign the allocated array to commondata for use outside this function.
   commondata->external_input_gfs = external_input_gfs;
@@ -95,7 +93,7 @@ int bah_numgrid__external_input_set_up(commondata_struct *restrict commondata, c
     for (int gf = 0; gf < NUM_EXT_INPUT_CARTESIAN_GFS; gf++) {
       external_input_gfs[EX_IDX4(gf, i0 + i0_min_shift, i1 + NGHOSTS, i2 + NGHOSTS)] = external_input_gfs_no_gzs[EX_NOGZ_IDX4(gf, i0, i1, i2)];
     }
-  } // END LOOP: iterating through the external input grid points
+  } // END LOOP: for idx over external input grid points
 
   // Step 5: Set up coordinate arrays for a uniform, cell-centered spherical grid.
   {
@@ -111,7 +109,7 @@ int bah_numgrid__external_input_set_up(commondata_struct *restrict commondata, c
         commondata->external_input_r_theta_phi[2] == NULL) {
       free(external_input_gfs);
       return NUMGRID_EXTERN_MALLOC_ERROR_RTHETAPHI;
-    } // END IF memory allocation for external_input_r_theta_phi arrays failed
+    } // END IF: memory allocation for external_input_r_theta_phi arrays failed
 
     // Step 5.b: Initialize coordinate arrays for a uniform, cell-centered spherical grid.
     // The coordinates are centered within each cell by adding 0.5 to the index before scaling.
@@ -125,7 +123,7 @@ int bah_numgrid__external_input_set_up(commondata_struct *restrict commondata, c
       commondata->external_input_r_theta_phi[1][j] = xxmin1 + ((BHA_REAL)(j - NGHOSTS) + (1.0 / 2.0)) * commondata->external_input_dxx1;
     for (int j = 0; j < Nxx_plus_2NGHOSTS2; j++)
       commondata->external_input_r_theta_phi[2][j] = xxmin2 + ((BHA_REAL)(j - NGHOSTS) + (1.0 / 2.0)) * commondata->external_input_dxx2;
-  } // END BLOCK: setting up coordinate arrays
+  } // END BLOCK: Step 5 set up external-input coordinate arrays
 
   // Step 6: Transform the metric components (gamma_{ij}, K_{ij}) from Cartesian to spherical coordinates,
   // including necessary rescaling.
@@ -275,10 +273,10 @@ int bah_numgrid__external_input_set_up(commondata_struct *restrict commondata, c
           external_input_gfs[IDX4(EXTERNAL_SPHERICAL_ADD22GF, i0, i1, i2)] =
               tmp3 * tmp89 * tmp93 * (tmp83 - tmp88 * ((1.0 / 3.0) * tmp63 + (1.0 / 3.0) * tmp65 - tmp66 * tmp98));
 
-        } // END LOOP over i0
-      } // END LOOP over i1
-    } // END LOOP over i2
-  } // END BLOCK: transformation and rescaling
+        } // END LOOP: for i0 over radial points in the external-input grid
+      } // END LOOP: for i1 over theta points in the external-input grid
+    } // END LOOP: for i2 over phi points in the external-input grid
+  } // END BLOCK: Step 6 transform Cartesian input data to rescaled spherical BSSN fields
 
   // Step 7: Set up boundary condition structures and apply inner boundary conditions.
   {
@@ -297,7 +295,7 @@ int bah_numgrid__external_input_set_up(commondata_struct *restrict commondata, c
 
     // Initialize the boundary condition structure for external input data.
     bc_struct external_input_bcstruct;
-    bah_bcstruct_set_up(commondata, commondata->external_input_r_theta_phi, &external_input_bcstruct);
+    bah_bcstruct_set_up(commondata, NULL, commondata->external_input_r_theta_phi, &external_input_bcstruct);
 
     // Step 7.a: Unpack boundary condition information from the boundary condition structure.
     const bc_info_struct *restrict bc_info = &external_input_bcstruct.bc_info;
@@ -315,14 +313,14 @@ int bah_numgrid__external_input_set_up(commondata_struct *restrict commondata, c
         commondata->external_input_gfs[IDX4pt(which_gf, dstpt)] =
             external_input_bcstruct.inner_bc_array[pt].parity[external_input_gf_parity[which_gf]] *
             commondata->external_input_gfs[IDX4pt(which_gf, srcpt)];
-      } // END LOOP over inner boundary points
-    } // END LOOP over gridfunctions
+      } // END LOOP: for pt over inner boundary points
+    } // END LOOP: for which_gf over gridfunctions
 
     // Step 7.c: Free allocated memory for boundary condition structures to prevent memory leaks.
     free(external_input_bcstruct.inner_bc_array);
     for (int ng = 0; ng < NGHOSTS * 3; ng++)
       free(external_input_bcstruct.pure_outer_bc_array[ng]);
-  } // END BLOCK: applying boundary conditions
+  } // END BLOCK: Step 7 apply external-input inner boundary conditions
 
   return BHAHAHA_SUCCESS;
-} // END FUNCTION bah_numgrid__external_input_set_up
+} // END FUNCTION: bah_numgrid__external_input_set_up

@@ -1,7 +1,6 @@
 #include "BHaH_defines.h"
-#include "BHaH_function_prototypes.h"
+
 /**
- *
  * Performs up to quadratic extrapolation using a Lagrange-based formula.
  *
  * This function calculates the y-value at a specified destination time
@@ -10,10 +9,8 @@
  * three time points are available, falls back to linear extrapolation when
  * only two points are available, and defaults to the value at the earliest
  * time point if insufficient data is provided.
- *
  */
 BHA_REAL bah_quadratic_extrapolation(const BHA_REAL times[3], const BHA_REAL y_tm1, const BHA_REAL y_tm2, const BHA_REAL y_tm3, const BHA_REAL dst_time) {
-
   const BHA_REAL tm1 = times[0];
   const BHA_REAL tm2 = times[1];
   const BHA_REAL tm3 = times[2];
@@ -33,4 +30,4 @@ BHA_REAL bah_quadratic_extrapolation(const BHA_REAL times[3], const BHA_REAL y_t
   else {
     return y_tm1;
   }
-} // END FUNCTION bah_quadratic_extrapolation
+} // END FUNCTION: bah_quadratic_extrapolation

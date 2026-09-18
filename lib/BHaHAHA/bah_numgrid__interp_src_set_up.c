@@ -1,5 +1,6 @@
 #include "BHaH_defines.h"
 #include "BHaH_function_prototypes.h"
+
 /**
  * Initializes the interp_src numerical grid, i.e., the source grid for 1D radial-spoke
  * interpolations during the hyperbolic relaxation.
@@ -9,12 +10,11 @@
  * and coordinate arrays, performs interpolation from external input, applies boundary conditions,
  * and computes necessary spatial derivatives.
  *
- * @param commondata Pointer to the common data structure containing simulation parameters and data.
- * @param Nx_evol_grid Array specifying the number of grid points in each dimension for the evolved grid.
+ * @param[in,out] commondata Pointer to the common data structure containing simulation parameters and data.
+ * @param[in] Nx_evol_grid Array specifying the number of grid points in each dimension for the evolved grid.
  * @return Returns BHAHAHA_SUCCESS on successful setup, or an error code if memory allocation fails.
  */
 int bah_numgrid__interp_src_set_up(commondata_struct *restrict commondata, const int Nx_evol_grid[3]) {
-
   int i0_min_shift = 0;
   if (commondata->bhahaha_params_and_data->r_min_external_input == 0)
     i0_min_shift = NGHOSTS;
@@ -50,7 +50,7 @@ int bah_numgrid__interp_src_set_up(commondata_struct *restrict commondata, const
       // Memory allocation failed for grid functions.
       return NUMGRID_INTERP_MALLOC_ERROR_GFS;
     }
-  } // END STEP 1: Configure grid parameters for the interpolation source.
+  } // END BLOCK: Step 1 configure interpolation-source grid parameters
 
   // Step 2: Initialize coordinate arrays for the interpolation source grid.
   {
@@ -63,7 +63,7 @@ int bah_numgrid__interp_src_set_up(commondata_struct *restrict commondata, const
       // Free previously allocated grid functions before exiting due to memory allocation failure.
       free(commondata->interp_src_gfs);
       return NUMGRID_INTERP_MALLOC_ERROR_RTHETAPHI;
-    } // END IF memory allocation for coordinate arrays failed
+    } // END IF: memory allocation for coordinate arrays failed
 
     // Step 2.b: Populate coordinate arrays for a uniform, cell-centered spherical grid.
     const BHA_REAL xxmin1 = 0.0;
@@ -80,7 +80,7 @@ int bah_numgrid__interp_src_set_up(commondata_struct *restrict commondata, const
     // Initialize phi coordinates with cell-centered values.
     for (int j = 0; j < commondata->interp_src_Nxx_plus_2NGHOSTS2; j++)
       commondata->interp_src_r_theta_phi[2][j] = xxmin2 + ((BHA_REAL)(j - NGHOSTS) + (1.0 / 2.0)) * commondata->interp_src_dxx2;
-  } // END STEP 2: Initialize coordinate arrays for the interpolation source grid.
+  } // END BLOCK: Step 2 initialize interpolation-source coordinate arrays
 
   // Step 2.c: Extract grid sizes for use in indexing macros.
   const int Nxx_plus_2NGHOSTS0 = commondata->interp_src_Nxx_plus_2NGHOSTS0;
@@ -135,10 +135,10 @@ int bah_numgrid__interp_src_set_up(commondata_struct *restrict commondata, const
           in_gfs[IDX4(SRC_ADD12GF, i0, i1, i2)] = external_Sph_aDD12;
           in_gfs[IDX4(SRC_ADD22GF, i0, i1, i2)] = external_Sph_aDD22;
 
-        } // END LOOP over i0
-      } // END LOOP over i1
-    } // END LOOP over i2
-  } // END STEP 4: Transfer interpolated data to interpolation source grid functions.
+        } // END LOOP: for i0 over radial points in the interpolation-source grid
+      } // END LOOP: for i1 over theta points in the interpolation-source grid
+    } // END LOOP: for i2 over phi points in the interpolation-source grid
+  } // END BLOCK: Step 4 transfer interpolated data into interpolation-source gridfunctions
 
   // Step 5: Initialize boundary condition structure for the interpolation source grid.
   bc_struct interp_src_bcstruct;
@@ -152,8 +152,8 @@ int bah_numgrid__interp_src_set_up(commondata_struct *restrict commondata, const
     commondata->bcstruct_Nxx_plus_2NGHOSTS2 = commondata->interp_src_Nxx_plus_2NGHOSTS2;
 
     // Set up boundary conditions based on the initialized grid.
-    bah_bcstruct_set_up(commondata, commondata->interp_src_r_theta_phi, &interp_src_bcstruct);
-  } // END STEP 5: Initialize boundary condition structure.
+    bah_bcstruct_set_up(commondata, NULL, commondata->interp_src_r_theta_phi, &interp_src_bcstruct);
+  } // END BLOCK: Step 5 initialize the interpolation-source boundary-condition structure
 
   // Step 6: Apply inner boundary conditions to specific grid functions to ensure smoothness.
   {
@@ -175,19 +175,20 @@ int bah_numgrid__interp_src_set_up(commondata_struct *restrict commondata, const
         for (int pt = 0; pt < bc_info->num_inner_boundary_points; pt++) {
           const int dstpt = interp_src_bcstruct.inner_bc_array[pt].dstpt;
           const int srcpt = interp_src_bcstruct.inner_bc_array[pt].srcpt;
+          const innerpt_bc_struct *restrict bc = &interp_src_bcstruct.inner_bc_array[pt];
+          const int base_sign = bc->parity[interp_src_gf_parity[which_gf]];
 
-          // Apply boundary condition by copying and adjusting with parity.
-          commondata->interp_src_gfs[IDX4pt(which_gf, dstpt)] =
-              interp_src_bcstruct.inner_bc_array[pt].parity[interp_src_gf_parity[which_gf]] * commondata->interp_src_gfs[IDX4pt(which_gf, srcpt)];
-        } // END LOOP over inner boundary points
+          // Apply boundary condition by copying and adjusting with base-field parity.
+          commondata->interp_src_gfs[IDX4pt(which_gf, dstpt)] = (BHA_REAL)base_sign * commondata->interp_src_gfs[IDX4pt(which_gf, srcpt)];
+        } // END LOOP: for pt over inner boundary points
         break;
-      }
+      } // END BLOCK: selected gridfunction case with inner boundary updates
       default:
         // No boundary conditions needed for other grid functions.
         break;
-      } // END SWITCH
-    } // END LOOP over gridfunctions
-  } // END STEP 6: Apply inner boundary conditions to specific grid functions.
+      } // END SWITCH: select gridfunctions requiring inner boundary conditions
+    } // END LOOP: for which_gf over gridfunctions
+  } // END BLOCK: Step 6 apply inner boundary conditions to selected interpolation-source fields
 
   // Step 7: Compute spatial derivatives of h_{ij} within the interior of the interpolation source grid.
   bah_hDD_dD_and_W_dD_in_interp_src_grid_interior(commondata);
@@ -206,22 +207,42 @@ int bah_numgrid__interp_src_set_up(commondata_struct *restrict commondata, const
 #pragma omp parallel for collapse(2)
     for (int which_gf = 0; which_gf < NUM_INTERP_SRC_GFS; which_gf++) {
       for (int pt = 0; pt < bc_info->num_inner_boundary_points; pt++) {
+        const int deriv_dst_dirn = interp_src_gf_deriv_dst_dirn[which_gf];
+        const bool gf_is_derivative = deriv_dst_dirn >= 0;
+        const int base_parity = interp_src_gf_parity[which_gf];
         const int dstpt = interp_src_bcstruct.inner_bc_array[pt].dstpt;
         const int srcpt = interp_src_bcstruct.inner_bc_array[pt].srcpt;
 
-        // Apply boundary condition with parity correction for derivative calculations.
-        commondata->interp_src_gfs[IDX4pt(which_gf, dstpt)] =
-            interp_src_bcstruct.inner_bc_array[pt].parity[interp_src_gf_parity[which_gf]] * commondata->interp_src_gfs[IDX4pt(which_gf, srcpt)];
-      } // END LOOP over inner boundary points
-    } // END LOOP over gridfunctions
-  } // END STEP 9: Enforce boundary conditions on all interpolation source grid functions.
+        const innerpt_bc_struct *restrict bc = &interp_src_bcstruct.inner_bc_array[pt];
+        const int base_sign = bc->parity[base_parity];
+
+        if (!gf_is_derivative) {
+          const BHA_REAL src_val = commondata->interp_src_gfs[IDX4pt(which_gf, srcpt)];
+          commondata->interp_src_gfs[IDX4pt(which_gf, dstpt)] = (BHA_REAL)base_sign * src_val;
+        } // END IF: gridfunction is not a stored coordinate derivative
+        else {
+          // Stored coordinate derivatives transform as the base field times the
+          // coordinate-map Jacobian parity:
+          //   partial_dst(ghost) = base_sign * sum_src deriv_jacobian[dst][src] * partial_src(inbounds).
+          BHA_REAL deriv_sum = 0.0;
+          for (int src_dirn = 0; src_dirn < 3; src_dirn++) {
+            const int src_gf = interp_src_gf_deriv_src_gf[which_gf][src_dirn];
+            const int jac_sign = bc->deriv_jacobian[deriv_dst_dirn][src_dirn];
+            if (src_gf >= 0 && jac_sign != 0)
+              deriv_sum += (BHA_REAL)jac_sign * commondata->interp_src_gfs[IDX4pt(src_gf, srcpt)];
+          } // END LOOP: for src_dirn over source derivative directions
+          commondata->interp_src_gfs[IDX4pt(which_gf, dstpt)] = (BHA_REAL)base_sign * deriv_sum;
+        } // END ELSE: gridfunction is a stored coordinate derivative
+      } // END LOOP: for pt over inner boundary points
+    } // END LOOP: for which_gf over gridfunctions
+  } // END BLOCK: Step 9 enforce boundary conditions on all interpolation-source gridfunctions
 
   // Step 10: Release allocated memory for boundary condition structures.
   {
     free(interp_src_bcstruct.inner_bc_array);
     for (int ng = 0; ng < NGHOSTS * 3; ng++)
       free(interp_src_bcstruct.pure_outer_bc_array[ng]);
-  } // END STEP 10: Free allocated memory for boundary condition structures.
+  } // END BLOCK: Step 10 free interpolation-source boundary-condition structures
 
   return BHAHAHA_SUCCESS;
-} // END FUNCTION bah_numgrid__interp_src_set_up
+} // END FUNCTION: bah_numgrid__interp_src_set_up

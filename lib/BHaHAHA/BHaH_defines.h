@@ -18,31 +18,38 @@
 #include <time.h>    // Time-related functions and types, such as time(), clock(),
 #define BHA_REAL double
 #define DOUBLE double
-
-// These macros for MIN(), MAX(), and SQR() ensure that if the arguments inside
+// These macros for NRPYMIN(), NRPYMAX(), and NRPYSQR() ensure that if the arguments inside
 //   are a function/complex expression, the function/expression is evaluated
 //   *only once* per argument. See https://lwn.net/Articles/983965/ for details.
 // They are improvements over the original implementations:
-// #define MIN(A, B) ( ((A) < (B)) ? (A) : (B) )
-// #define MAX(A, B) ( ((A) > (B)) ? (A) : (B) )
-// #define SQR(A) ((A) * (A))
-#define MIN(A, B)                                                                                                                                    \
+// #define NRPYMIN(A, B) ( ((A) < (B)) ? (A) : (B) )
+// #define NRPYMAX(A, B) ( ((A) > (B)) ? (A) : (B) )
+// #define NRPYSQR(A) ((A) * (A))
+#ifndef NRPYMIN
+#define NRPYMIN(A, B)                                                                                                                                \
   ({                                                                                                                                                 \
     __typeof__(A) _a = (A);                                                                                                                          \
     __typeof__(B) _b = (B);                                                                                                                          \
     _a < _b ? _a : _b;                                                                                                                               \
   })
-#define MAX(A, B)                                                                                                                                    \
+#endif // END ifndef NRPYMIN
+
+#ifndef NRPYMAX
+#define NRPYMAX(A, B)                                                                                                                                \
   ({                                                                                                                                                 \
     __typeof__(A) _a = (A);                                                                                                                          \
     __typeof__(B) _b = (B);                                                                                                                          \
     _a > _b ? _a : _b;                                                                                                                               \
   })
-#define SQR(A)                                                                                                                                       \
+#endif // END ifndef NRPYMAX
+
+#ifndef NRPYSQR
+#define NRPYSQR(A)                                                                                                                                   \
   ({                                                                                                                                                 \
     __typeof__(A) _a = (A);                                                                                                                          \
     _a *_a;                                                                                                                                          \
   })
+#endif // END ifndef NRPYSQR
 #ifndef MAYBE_UNUSED
 #if __cplusplus >= 201703L
 #define MAYBE_UNUSED [[maybe_unused]]
@@ -69,78 +76,78 @@
 // commondata_struct:
 // ----------------------------
 typedef struct __commondata_struct__ {
-  BHA_REAL *restrict coarse_horizon; // <- nrpydev.infrastructures.BHaH.BHaHAHA.numgrid__evol_set_up: most recently found coarse-resolution horizon
-                                 // h(theta, phi) on the evolution grid
-  BHA_REAL *restrict coarse_horizon_r_theta_phi[3]; // <- nrpydev.infrastructures.BHaH.BHaHAHA.numgrid__evol_set_up: coarse horizon r_theta_phi
-  BHA_REAL *restrict external_input_gfs; // <- nrpydev.infrastructures.BHaH.BHaHAHA.numgrid__external_input_set_up: 14 gridfunctions provided by external
+  BHA_REAL *restrict coarse_horizon; // <- nrpy.infrastructures.BHaH.BHaHAHA.numgrid__evol_set_up: most recently found coarse-resolution horizon h(theta,
+                                 // phi) on the evolution grid
+  BHA_REAL *restrict coarse_horizon_r_theta_phi[3]; // <- nrpy.infrastructures.BHaH.BHaHAHA.numgrid__evol_set_up: coarse horizon r_theta_phi
+  BHA_REAL *restrict external_input_gfs; // <- nrpy.infrastructures.BHaH.BHaHAHA.numgrid__external_input_set_up: 14 gridfunctions provided by external
                                      // source, including gamma_ij and K_ij, in spherical rescaled basis, with ghostzones.
-  BHA_REAL *restrict external_input_gfs_Cart_basis_no_gzs; // <- nrpydev.infrastructures.BHaH.BHaHAHA.numgrid__external_input_set_up: 14 gridfunctions
+  BHA_REAL *restrict external_input_gfs_Cart_basis_no_gzs; // <- nrpy.infrastructures.BHaH.BHaHAHA.numgrid__external_input_set_up: 14 gridfunctions
                                                        // provided by external source, including gamma_ij and K_ij, in Cartesian basis, with no
                                                        // ghostzones.
-  BHA_REAL *restrict external_input_r_theta_phi[3]; // <- nrpydev.infrastructures.BHaH.BHaHAHA.numgrid__external_input_set_up: Three 1D arrays storing
-                                                // uniform (r, theta, phi) coordinates.
-  BHA_REAL *restrict h_p; // <- nrpydev.infrastructures.BHaH.BHaHAHA.over_relaxation: Previously stored horizon guess, used for linear extrapolated
+  BHA_REAL *restrict external_input_r_theta_phi[3];        // <- nrpy.infrastructures.BHaH.BHaHAHA.numgrid__external_input_set_up: Three 1D arrays storing
+                                                       // uniform (r, theta, phi) coordinates.
+  BHA_REAL *restrict h_p; // <- nrpy.infrastructures.BHaH.BHaHAHA.over_relaxation: Previously stored horizon guess, used for linear extrapolated
                       // over-relaxation.
-  BHA_REAL *restrict interp_src_gfs; // <- nrpydev.infrastructures.BHaH.BHaHAHA.numgrid__interp_src_set_up: 35 3D volume-filling gridfunctions with same
+  BHA_REAL *restrict interp_src_gfs; // <- nrpy.infrastructures.BHaH.BHaHAHA.numgrid__interp_src_set_up: 35 3D volume-filling gridfunctions with same
                                  // angular sampling as evolved grid, but same radial sampling as input_gfs. GFs include: h_ij, h_ij,k, a_ij, trK, W,
                                  // and W_,k. In RESCALED SPHERICAL basis.
-  BHA_REAL *restrict interp_src_r_theta_phi[3]; // <- nrpydev.infrastructures.BHaH.BHaHAHA.numgrid__interp_src_set_up: Source grid coordinates
-  BHA_REAL CFL_FACTOR;                          // (nrpy.infrastructures.BHaH.MoLtimestepping.MoL_register_all)
-  BHA_REAL KO_diss_strength;                    // (nrpydev.infrastructures.BHaH.BHaHAHA.rhs_eval_KO_apply)
-  BHA_REAL bcstruct_Nxx_plus_2NGHOSTS0; // <- nrpydev.infrastructures.BHaH.BHaHAHA.bcstruct_set_up: The Nxx_plus_2NGHOSTS0 used when setting up bcstruct
-  BHA_REAL bcstruct_Nxx_plus_2NGHOSTS1; // <- nrpydev.infrastructures.BHaH.BHaHAHA.bcstruct_set_up: The Nxx_plus_2NGHOSTS1 used when setting up bcstruct
-  BHA_REAL bcstruct_Nxx_plus_2NGHOSTS2; // <- nrpydev.infrastructures.BHaH.BHaHAHA.bcstruct_set_up: The Nxx_plus_2NGHOSTS2 used when setting up bcstruct
-  BHA_REAL bcstruct_dxx0;               // <- nrpydev.infrastructures.BHaH.BHaHAHA.bcstruct_set_up: The dxx0 used when setting up bcstruct
-  BHA_REAL bcstruct_dxx1;               // <- nrpydev.infrastructures.BHaH.BHaHAHA.bcstruct_set_up: The dxx1 used when setting up bcstruct
-  BHA_REAL bcstruct_dxx2;               // <- nrpydev.infrastructures.BHaH.BHaHAHA.bcstruct_set_up: The dxx2 used when setting up bcstruct
-  BHA_REAL coarse_horizon_dxx1;         // <- nrpydev.infrastructures.BHaH.BHaHAHA.numgrid__evol_set_up: coarse horizon dxx1
-  BHA_REAL coarse_horizon_dxx2;         // <- nrpydev.infrastructures.BHaH.BHaHAHA.numgrid__evol_set_up: coarse horizon dxx2
-  BHA_REAL dt;                          // (nrpy.infrastructures.BHaH.MoLtimestepping.MoL_register_all)
-  BHA_REAL eta_damping;                 // (nrpydev.infrastructures.BHaH.BHaHAHA.rhs_eval_KO_apply)
-  BHA_REAL external_input_dxx0;         // (nrpydev.infrastructures.BHaH.BHaHAHA.numgrid__external_input_set_up)
-  BHA_REAL external_input_dxx1;         // (nrpydev.infrastructures.BHaH.BHaHAHA.numgrid__external_input_set_up)
-  BHA_REAL external_input_dxx2;         // (nrpydev.infrastructures.BHaH.BHaHAHA.numgrid__external_input_set_up)
-  BHA_REAL external_input_invdxx0;      // (nrpydev.infrastructures.BHaH.BHaHAHA.numgrid__external_input_set_up)
-  BHA_REAL external_input_invdxx1;      // (nrpydev.infrastructures.BHaH.BHaHAHA.numgrid__external_input_set_up)
-  BHA_REAL external_input_invdxx2;      // (nrpydev.infrastructures.BHaH.BHaHAHA.numgrid__external_input_set_up)
-  BHA_REAL interp_src_dxx0;             // (nrpydev.infrastructures.BHaH.BHaHAHA.numgrid__interp_src_set_up)
-  BHA_REAL interp_src_dxx1;             // (nrpydev.infrastructures.BHaH.BHaHAHA.numgrid__interp_src_set_up)
-  BHA_REAL interp_src_dxx2;             // (nrpydev.infrastructures.BHaH.BHaHAHA.numgrid__interp_src_set_up)
-  BHA_REAL interp_src_invdxx0;          // (nrpydev.infrastructures.BHaH.BHaHAHA.numgrid__interp_src_set_up)
-  BHA_REAL interp_src_invdxx1;          // (nrpydev.infrastructures.BHaH.BHaHAHA.numgrid__interp_src_set_up)
-  BHA_REAL interp_src_invdxx2;          // (nrpydev.infrastructures.BHaH.BHaHAHA.numgrid__interp_src_set_up)
-  BHA_REAL max_radius_wrt_grid_center;  // (nrpydev.infrastructures.BHaH.BHaHAHA.diagnostics_area_centroid_and_Theta_norms)
-  BHA_REAL min_radius_wrt_grid_center;  // (nrpydev.infrastructures.BHaH.BHaHAHA.diagnostics_area_centroid_and_Theta_norms)
-  BHA_REAL t_0;                         // (nrpy.infrastructures.BHaH.MoLtimestepping.MoL_register_all)
-  BHA_REAL t_final;                     // (nrpy.infrastructures.BHaH.MoLtimestepping.MoL_register_all)
-  BHA_REAL time;                        // (nrpy.infrastructures.BHaH.MoLtimestepping.MoL_register_all)
-  BHA_REAL time_of_h_p; // <- nrpydev.infrastructures.BHaH.BHaHAHA.over_relaxation: Time at which previously stored horizon guess was stored.
+  BHA_REAL *restrict interp_src_r_theta_phi[3]; // <- nrpy.infrastructures.BHaH.BHaHAHA.numgrid__interp_src_set_up: Source grid coordinates
+  BHA_REAL CFL_FACTOR;                          // (nrpy.infrastructures.BHaH.MoLtimestepping.register_all)
+  BHA_REAL KO_diss_strength;                    // (nrpy.infrastructures.BHaH.BHaHAHA.rhs_eval_KO_apply)
+  BHA_REAL bcstruct_Nxx_plus_2NGHOSTS0; // <- nrpy.infrastructures.BHaH.BHaHAHA.bcstruct_set_up: The Nxx_plus_2NGHOSTS0 used when setting up bcstruct
+  BHA_REAL bcstruct_Nxx_plus_2NGHOSTS1; // <- nrpy.infrastructures.BHaH.BHaHAHA.bcstruct_set_up: The Nxx_plus_2NGHOSTS1 used when setting up bcstruct
+  BHA_REAL bcstruct_Nxx_plus_2NGHOSTS2; // <- nrpy.infrastructures.BHaH.BHaHAHA.bcstruct_set_up: The Nxx_plus_2NGHOSTS2 used when setting up bcstruct
+  BHA_REAL bcstruct_dxx0;               // <- nrpy.infrastructures.BHaH.BHaHAHA.bcstruct_set_up: The dxx0 used when setting up bcstruct
+  BHA_REAL bcstruct_dxx1;               // <- nrpy.infrastructures.BHaH.BHaHAHA.bcstruct_set_up: The dxx1 used when setting up bcstruct
+  BHA_REAL bcstruct_dxx2;               // <- nrpy.infrastructures.BHaH.BHaHAHA.bcstruct_set_up: The dxx2 used when setting up bcstruct
+  BHA_REAL coarse_horizon_dxx1;         // <- nrpy.infrastructures.BHaH.BHaHAHA.numgrid__evol_set_up: coarse horizon dxx1
+  BHA_REAL coarse_horizon_dxx2;         // <- nrpy.infrastructures.BHaH.BHaHAHA.numgrid__evol_set_up: coarse horizon dxx2
+  BHA_REAL dt;                          // (nrpy.infrastructures.BHaH.MoLtimestepping.register_all)
+  BHA_REAL eta_damping;                 // (nrpy.infrastructures.BHaH.BHaHAHA.rhs_eval_KO_apply)
+  BHA_REAL external_input_dxx0;         // (nrpy.infrastructures.BHaH.BHaHAHA.numgrid__external_input_set_up)
+  BHA_REAL external_input_dxx1;         // (nrpy.infrastructures.BHaH.BHaHAHA.numgrid__external_input_set_up)
+  BHA_REAL external_input_dxx2;         // (nrpy.infrastructures.BHaH.BHaHAHA.numgrid__external_input_set_up)
+  BHA_REAL external_input_invdxx0;      // (nrpy.infrastructures.BHaH.BHaHAHA.numgrid__external_input_set_up)
+  BHA_REAL external_input_invdxx1;      // (nrpy.infrastructures.BHaH.BHaHAHA.numgrid__external_input_set_up)
+  BHA_REAL external_input_invdxx2;      // (nrpy.infrastructures.BHaH.BHaHAHA.numgrid__external_input_set_up)
+  BHA_REAL interp_src_dxx0;             // (nrpy.infrastructures.BHaH.BHaHAHA.numgrid__interp_src_set_up)
+  BHA_REAL interp_src_dxx1;             // (nrpy.infrastructures.BHaH.BHaHAHA.numgrid__interp_src_set_up)
+  BHA_REAL interp_src_dxx2;             // (nrpy.infrastructures.BHaH.BHaHAHA.numgrid__interp_src_set_up)
+  BHA_REAL interp_src_invdxx0;          // (nrpy.infrastructures.BHaH.BHaHAHA.numgrid__interp_src_set_up)
+  BHA_REAL interp_src_invdxx1;          // (nrpy.infrastructures.BHaH.BHaHAHA.numgrid__interp_src_set_up)
+  BHA_REAL interp_src_invdxx2;          // (nrpy.infrastructures.BHaH.BHaHAHA.numgrid__interp_src_set_up)
+  BHA_REAL max_radius_wrt_grid_center;  // (nrpy.infrastructures.BHaH.BHaHAHA.diagnostics_area_centroid_and_Theta_norms)
+  BHA_REAL min_radius_wrt_grid_center;  // (nrpy.infrastructures.BHaH.BHaHAHA.diagnostics_area_centroid_and_Theta_norms)
+  BHA_REAL t_0;                         // (nrpy.infrastructures.BHaH.MoLtimestepping.register_all)
+  BHA_REAL t_final;                     // (nrpy.infrastructures.BHaH.MoLtimestepping.register_all)
+  BHA_REAL time;                        // (nrpy.infrastructures.BHaH.MoLtimestepping.register_all)
+  BHA_REAL time_of_h_p;                 // <- nrpy.infrastructures.BHaH.BHaHAHA.over_relaxation: Time at which previously stored horizon guess was stored.
   bhahaha_diagnostics_struct
-      *restrict bhahaha_diagnostics; // <- nrpydev.infrastructures.BHaH.BHaHAHA.diagnostics: diagnostics quantities; struct defined in BHaHAHA.h
-  bhahaha_params_and_data_struct *restrict bhahaha_params_and_data; // <- nrpydev.infrastructures.BHaH.BHaHAHA.numgrid__evol_set_up: input parameters
-                                                                    // and data set by the external code
+      *restrict bhahaha_diagnostics; // <- nrpy.infrastructures.BHaH.BHaHAHA.diagnostics: diagnostics quantities; struct defined in BHaHAHA.h
+  bhahaha_params_and_data_struct *restrict bhahaha_params_and_data; // <- nrpy.infrastructures.BHaH.BHaHAHA.numgrid__evol_set_up: input parameters and
+                                                                    // data set by the external code
   int NUMGRIDS;                                                     // (nrpy.grid)
-  int coarse_horizon_Nxx_plus_2NGHOSTS1; // <- nrpydev.infrastructures.BHaH.BHaHAHA.numgrid__evol_set_up: coarse horizon Nxx_plus_2NGHOSTS1
-  int coarse_horizon_Nxx_plus_2NGHOSTS2; // <- nrpydev.infrastructures.BHaH.BHaHAHA.numgrid__evol_set_up: coarse horizon Nxx_plus_2NGHOSTS2
-  int error_flag;          // <- nrpydev.infrastructures.BHaH.BHaHAHA.error_message: Enables subroutines to pass error flags to parent routines.
-  int external_input_Nxx0; // (nrpydev.infrastructures.BHaH.BHaHAHA.numgrid__external_input_set_up)
-  int external_input_Nxx1; // (nrpydev.infrastructures.BHaH.BHaHAHA.numgrid__external_input_set_up)
-  int external_input_Nxx2; // (nrpydev.infrastructures.BHaH.BHaHAHA.numgrid__external_input_set_up)
-  int external_input_Nxx_plus_2NGHOSTS0; // (nrpydev.infrastructures.BHaH.BHaHAHA.numgrid__external_input_set_up)
-  int external_input_Nxx_plus_2NGHOSTS1; // (nrpydev.infrastructures.BHaH.BHaHAHA.numgrid__external_input_set_up)
-  int external_input_Nxx_plus_2NGHOSTS2; // (nrpydev.infrastructures.BHaH.BHaHAHA.numgrid__external_input_set_up)
-  int interp_src_Nxx0;                   // (nrpydev.infrastructures.BHaH.BHaHAHA.numgrid__interp_src_set_up)
-  int interp_src_Nxx1;                   // (nrpydev.infrastructures.BHaH.BHaHAHA.numgrid__interp_src_set_up)
-  int interp_src_Nxx2;                   // (nrpydev.infrastructures.BHaH.BHaHAHA.numgrid__interp_src_set_up)
-  int interp_src_Nxx_plus_2NGHOSTS0;     // (nrpydev.infrastructures.BHaH.BHaHAHA.numgrid__interp_src_set_up)
-  int interp_src_Nxx_plus_2NGHOSTS1;     // (nrpydev.infrastructures.BHaH.BHaHAHA.numgrid__interp_src_set_up)
-  int interp_src_Nxx_plus_2NGHOSTS2;     // (nrpydev.infrastructures.BHaH.BHaHAHA.numgrid__interp_src_set_up)
-  int is_final_iteration;                // <- nrpydev.infrastructures.BHaH.BHaHAHA.diagnostics: diagnostics quantities; struct defined in BHaHAHA.h
-  int nn;                                // (nrpy.infrastructures.BHaH.MoLtimestepping.MoL_register_all)
-  int nn_0;                              // (nrpy.infrastructures.BHaH.MoLtimestepping.MoL_register_all)
-  int output_diagnostics_every_nn;       // (nrpydev.infrastructures.BHaH.BHaHAHA.diagnostics)
-  int use_coarse_horizon; // <- nrpydev.infrastructures.BHaH.BHaHAHA.numgrid__evol_set_up: prolongate h from coarse to finer, in initial_data();
-                          // 1=yes, 0=no
+  int coarse_horizon_Nxx_plus_2NGHOSTS1; // <- nrpy.infrastructures.BHaH.BHaHAHA.numgrid__evol_set_up: coarse horizon Nxx_plus_2NGHOSTS1
+  int coarse_horizon_Nxx_plus_2NGHOSTS2; // <- nrpy.infrastructures.BHaH.BHaHAHA.numgrid__evol_set_up: coarse horizon Nxx_plus_2NGHOSTS2
+  int error_flag;          // <- nrpy.infrastructures.BHaH.BHaHAHA.error_message: Enables subroutines to pass error flags to parent routines.
+  int external_input_Nxx0; // (nrpy.infrastructures.BHaH.BHaHAHA.numgrid__external_input_set_up)
+  int external_input_Nxx1; // (nrpy.infrastructures.BHaH.BHaHAHA.numgrid__external_input_set_up)
+  int external_input_Nxx2; // (nrpy.infrastructures.BHaH.BHaHAHA.numgrid__external_input_set_up)
+  int external_input_Nxx_plus_2NGHOSTS0; // (nrpy.infrastructures.BHaH.BHaHAHA.numgrid__external_input_set_up)
+  int external_input_Nxx_plus_2NGHOSTS1; // (nrpy.infrastructures.BHaH.BHaHAHA.numgrid__external_input_set_up)
+  int external_input_Nxx_plus_2NGHOSTS2; // (nrpy.infrastructures.BHaH.BHaHAHA.numgrid__external_input_set_up)
+  int interp_src_Nxx0;                   // (nrpy.infrastructures.BHaH.BHaHAHA.numgrid__interp_src_set_up)
+  int interp_src_Nxx1;                   // (nrpy.infrastructures.BHaH.BHaHAHA.numgrid__interp_src_set_up)
+  int interp_src_Nxx2;                   // (nrpy.infrastructures.BHaH.BHaHAHA.numgrid__interp_src_set_up)
+  int interp_src_Nxx_plus_2NGHOSTS0;     // (nrpy.infrastructures.BHaH.BHaHAHA.numgrid__interp_src_set_up)
+  int interp_src_Nxx_plus_2NGHOSTS1;     // (nrpy.infrastructures.BHaH.BHaHAHA.numgrid__interp_src_set_up)
+  int interp_src_Nxx_plus_2NGHOSTS2;     // (nrpy.infrastructures.BHaH.BHaHAHA.numgrid__interp_src_set_up)
+  int is_final_iteration;                // <- nrpy.infrastructures.BHaH.BHaHAHA.diagnostics: diagnostics quantities; struct defined in BHaHAHA.h
+  int nn;                                // (nrpy.infrastructures.BHaH.MoLtimestepping.register_all)
+  int nn_0;                              // (nrpy.infrastructures.BHaH.MoLtimestepping.register_all)
+  int output_diagnostics_every_nn;       // (nrpy.infrastructures.BHaH.BHaHAHA.diagnostics)
+  int use_coarse_horizon; // <- nrpy.infrastructures.BHaH.BHaHAHA.numgrid__evol_set_up: prolongate h from coarse to finer, in initial_data(); 1=yes,
+                          // 0=no
 } commondata_struct;
 
 // ----------------------------
@@ -153,22 +160,23 @@ typedef struct __params_struct__ {
   BHA_REAL Cart_originz;         // (nrpy.grid)
   BHA_REAL PI;                   // (nrpy.reference_metric)
   BHA_REAL RMAX;                 // (nrpy.reference_metric)
-  BHA_REAL dxx0;                 // (nrpydev.infrastructures.BHaH.BHaHAHA.numgrid__evol_set_up)
-  BHA_REAL dxx1;                 // (nrpydev.infrastructures.BHaH.BHaHAHA.numgrid__evol_set_up)
-  BHA_REAL dxx2;                 // (nrpydev.infrastructures.BHaH.BHaHAHA.numgrid__evol_set_up)
+  BHA_REAL dxx0;                 // (nrpy.infrastructures.BHaH.BHaHAHA.numgrid__evol_set_up)
+  BHA_REAL dxx1;                 // (nrpy.infrastructures.BHaH.BHaHAHA.numgrid__evol_set_up)
+  BHA_REAL dxx2;                 // (nrpy.infrastructures.BHaH.BHaHAHA.numgrid__evol_set_up)
   BHA_REAL grid_hole_radius;     // (nrpy.reference_metric)
   BHA_REAL grid_physical_size;   // (nrpy.reference_metric)
-  BHA_REAL invdxx0;              // (nrpydev.infrastructures.BHaH.BHaHAHA.numgrid__evol_set_up)
-  BHA_REAL invdxx1;              // (nrpydev.infrastructures.BHaH.BHaHAHA.numgrid__evol_set_up)
-  BHA_REAL invdxx2;              // (nrpydev.infrastructures.BHaH.BHaHAHA.numgrid__evol_set_up)
+  BHA_REAL invdxx0;              // (nrpy.infrastructures.BHaH.BHaHAHA.numgrid__evol_set_up)
+  BHA_REAL invdxx1;              // (nrpy.infrastructures.BHaH.BHaHAHA.numgrid__evol_set_up)
+  BHA_REAL invdxx2;              // (nrpy.infrastructures.BHaH.BHaHAHA.numgrid__evol_set_up)
   bool grid_rotates;         // (nrpy.grid)
+  bool is_host;              // (nrpy.infrastructures.BHaH.rfm_precompute)
   char CoordSystemName[100]; // (nrpy.reference_metric)
-  int Nxx0;                  // (nrpydev.infrastructures.BHaH.BHaHAHA.numgrid__evol_set_up)
-  int Nxx1;                  // (nrpydev.infrastructures.BHaH.BHaHAHA.numgrid__evol_set_up)
-  int Nxx2;                  // (nrpydev.infrastructures.BHaH.BHaHAHA.numgrid__evol_set_up)
-  int Nxx_plus_2NGHOSTS0;    // (nrpydev.infrastructures.BHaH.BHaHAHA.numgrid__evol_set_up)
-  int Nxx_plus_2NGHOSTS1;    // (nrpydev.infrastructures.BHaH.BHaHAHA.numgrid__evol_set_up)
-  int Nxx_plus_2NGHOSTS2;    // (nrpydev.infrastructures.BHaH.BHaHAHA.numgrid__evol_set_up)
+  int Nxx0;                  // (nrpy.infrastructures.BHaH.BHaHAHA.numgrid__evol_set_up)
+  int Nxx1;                  // (nrpy.infrastructures.BHaH.BHaHAHA.numgrid__evol_set_up)
+  int Nxx2;                  // (nrpy.infrastructures.BHaH.BHaHAHA.numgrid__evol_set_up)
+  int Nxx_plus_2NGHOSTS0;    // (nrpy.infrastructures.BHaH.BHaHAHA.numgrid__evol_set_up)
+  int Nxx_plus_2NGHOSTS1;    // (nrpy.infrastructures.BHaH.BHaHAHA.numgrid__evol_set_up)
+  int Nxx_plus_2NGHOSTS2;    // (nrpy.infrastructures.BHaH.BHaHAHA.numgrid__evol_set_up)
 } params_struct;
 
 // ----------------------------
@@ -180,36 +188,33 @@ typedef struct __params_struct__ {
 // Note that upwinding in e.g., BSSN requires that NGHOSTS = fd_order/2 + 1 <- Notice the +1.
 #define NGHOSTS 3
 
-// Declare NO_INLINE macro, used in FD functions. GCC v10+ compilations hang on complex RHS expressions (like BSSN) without this.
-#if defined(__GNUC__) || defined(__clang__) || defined(__INTEL_COMPILER)
-#define NO_INLINE __attribute__((noinline))
-#elif defined(_MSC_VER)
-#define NO_INLINE __declspec(noinline)
-#else
-#define NO_INLINE // Fallback for unknown compilers
-#endif
+#ifndef UPWIND_ALG
+// When enable_intrinsics = False, this is the UPWIND_ALG() macro:
+#define UPWIND_ALG(UpwindVecU) UpwindVecU > 0.0 ? 1.0 : 0.0
+#endif // UPWIND_ALG
 
 // ----------------------------
 // Basic definitions for module
 // reference_metric:
 // ----------------------------
 typedef struct __rfmstruct__ {
-  BHA_REAL *restrict f0_of_xx0;
-  BHA_REAL *restrict f1_of_xx1;
-  BHA_REAL *restrict f1_of_xx1__D1;
-  BHA_REAL *restrict f1_of_xx1__DD11;
+  BHA_REAL *f0_of_xx0;
+  BHA_REAL *f1_of_xx1;
+  BHA_REAL *f1_of_xx1__D1;
+  BHA_REAL *f1_of_xx1__DD11;
 } rfm_struct;
 
 // ----------------------------
 // Basic definitions for module
-// nrpy.infrastructures.BHaH.CurviBoundaryConditions.CurviBoundaryConditions:
+// nrpy.infrastructures.BHaH.CurviBoundaryConditions.BHaH_defines:
 // ----------------------------
 
 // NRPy Curvilinear Boundary Conditions: Core data structures
 typedef struct {
-  int dstpt;         // dstpt is the 3D grid index IDX3(i0,i1,i2) of the inner boundary point (i0,i1,i2)
-  int srcpt;         // srcpt is the 3D grid index (a la IDX3) to which the inner boundary point maps
-  int8_t parity[28]; // parity[28] is a calculation of dot products for the 28 independent parity types
+  int dstpt;                   // dstpt is the 3D grid index IDX3(i0,i1,i2) of the inner boundary point (i0,i1,i2)
+  int srcpt;                   // srcpt is the 3D grid index (a la IDX3) to which the inner boundary point maps
+  int8_t parity[10];           // parity[10] is a calculation of dot products for the 10 independent base parity types
+  int8_t deriv_jacobian[3][3]; // deriv_jacobian[dst][src] = dxx_inbounds[src] / dxx_ghost[dst]
 } innerpt_bc_struct;
 
 typedef struct {
@@ -232,8 +237,8 @@ typedef struct {
 } bc_info_struct;
 
 typedef struct {
-  innerpt_bc_struct *restrict inner_bc_array;                   // information needed for updating each inner boundary point
-  outerpt_bc_struct *restrict pure_outer_bc_array[NGHOSTS * 3]; // information needed for updating each outer
+  innerpt_bc_struct *inner_bc_array;                   // information needed for updating each inner boundary point
+  outerpt_bc_struct *pure_outer_bc_array[NGHOSTS * 3]; // information needed for updating each outer
   //                                                                        boundary point
   bc_info_struct bc_info; // stores number of inner and outer boundary points, needed for setting loop
   //                                  bounds and parallelizing over as many boundary points as possible.
@@ -241,17 +246,15 @@ typedef struct {
 
 // ----------------------------
 // Basic definitions for module
-// nrpy.infrastructures.BHaH.MoLtimestepping.MoL_register_all:
+// nrpy.infrastructures.BHaH.MoLtimestepping.BHaH_defines:
 // ----------------------------
 typedef struct __MoL_gridfunctions_struct__ {
-  BHA_REAL *restrict y_n_gfs;
-  BHA_REAL *restrict next_y_input_gfs;
-  BHA_REAL *restrict k1_gfs;
-  BHA_REAL *restrict k2_gfs;
-  BHA_REAL *restrict k3_gfs;
-  BHA_REAL *restrict auxevol_gfs;
-  BHA_REAL *restrict diagnostic_output_gfs;
-  BHA_REAL *restrict diagnostic_output_gfs2;
+  BHA_REAL *y_n_gfs;
+  BHA_REAL *next_y_input_gfs;
+  BHA_REAL *k1_gfs;
+  BHA_REAL *k2_gfs;
+  BHA_REAL *k3_gfs;
+  BHA_REAL *auxevol_gfs;
 } MoL_gridfunctions_struct;
 
 // ----------------------------
@@ -269,10 +272,6 @@ static const BHA_REAL gridfunctions_f_infinity[NUM_EVOL_GFS] = {0.0, 0.0};
 
 // SET gridfunctions_wavespeed[i] = evolved gridfunction i's characteristic wave speed:
 static const BHA_REAL gridfunctions_wavespeed[NUM_EVOL_GFS] = {1.0, 1.0};
-
-// AUX VARIABLES:
-#define NUM_AUX_GFS 1
-#define THETAGF 0
 
 // AUXEVOL VARIABLES:
 #define NUM_AUXEVOL_GFS 35
@@ -311,6 +310,13 @@ static const BHA_REAL gridfunctions_wavespeed[NUM_EVOL_GFS] = {1.0, 1.0};
 #define PARTIAL_D_WW2GF 32
 #define TRKGF 33
 #define WWGF 34
+
+// AUX VARIABLES:
+#define NUM_AUX_GFS 1
+#define THETAGF 0
+
+// SCRATCH VARIABLES:
+#define NUM_SCRATCH_GFS 0
 
 // ----------------------------
 // Indexing macros
@@ -380,26 +386,26 @@ static const BHA_REAL gridfunctions_wavespeed[NUM_EVOL_GFS] = {1.0, 1.0};
 typedef struct __griddata__ {
   // griddata_struct stores data needed on each grid
   // xx[3] stores the uniform grid coordinates.
-  BHA_REAL *restrict xx[3];
-  // NRPy+ MODULE: nrpydev.infrastructures.BHaH.BHaHAHA.numgrid__evol_set_up
+  BHA_REAL *xx[3];
+  // NRPy MODULE: nrpy.infrastructures.BHaH.BHaHAHA.numgrid__evol_set_up
   bc_struct bcstruct; // <- all data needed to apply boundary conditions in curvilinear coordinates
-  // NRPy+ MODULE: nrpy.infrastructures.BHaH.MoLtimestepping.MoL_register_all
+  // NRPy MODULE: nrpy.infrastructures.BHaH.MoLtimestepping.register_all
   MoL_gridfunctions_struct gridfuncs; // <- MoL gridfunctions
-  // NRPy+ MODULE: params
-  params_struct params; // <- BHaH parameters, generated from NRPy+'s CodeParameters
-  // NRPy+ MODULE: reference_metric
+  // NRPy MODULE: params
+  params_struct params; // <- BHaH parameters, generated from NRPy's CodeParameters
+  // NRPy MODULE: reference_metric
   rfm_struct *rfmstruct; // <- includes e.g., 1D arrays of reference metric quantities
 } griddata_struct;
 
 // ----------------------------
 // Basic definitions for module
-// nrpydev.infrastructures.BHaH.BHaHAHA.interpolation_1d_radial_spokes_on_3d_src_grid:
+// nrpy.infrastructures.BHaH.BHaHAHA.interpolation_1d_radial_spokes_on_3d_src_grid:
 // ----------------------------
 #define NinterpGHOSTS (NGHOSTS - 1)
 
 // ----------------------------
 // Basic definitions for module
-// nrpydev.infrastructures.BHaH.BHaHAHA.numgrid__evol_set_up:
+// nrpy.infrastructures.BHaH.BHaHAHA.numgrid__evol_set_up:
 // ----------------------------
 
 /* PARITY TYPES FOR SRC GRID GRIDFUNCTIONS. */
@@ -407,7 +413,7 @@ static const int8_t evol_gf_parity[2] = {0, 0};
 
 // ----------------------------
 // Basic definitions for module
-// nrpydev.infrastructures.BHaH.BHaHAHA.numgrid__external_input_set_up:
+// nrpy.infrastructures.BHaH.BHaHAHA.numgrid__external_input_set_up:
 // ----------------------------
 
 #define NUM_EXT_INPUT_CONFORMAL_GFS 14 // Number of external input grid functions
@@ -433,7 +439,7 @@ static const int8_t external_input_gf_parity[14] = {4, 5, 6, 7, 8, 9, 4, 5, 6, 7
 
 // ----------------------------
 // Basic definitions for module
-// nrpydev.infrastructures.BHaH.BHaHAHA.numgrid__interp_src_set_up:
+// nrpy.infrastructures.BHaH.BHaHAHA.numgrid__interp_src_set_up:
 // ----------------------------
 
 #define NUM_INTERP_SRC_GFS 35 // Number of interp_src grid functions
@@ -476,8 +482,27 @@ enum {
 };
 
 /* PARITY TYPES FOR SRC GRID GRIDFUNCTIONS. */
-static const int8_t interp_src_gf_parity[35] = {4,  5,  6,  7,  8,  9,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14, 15,
-                                                16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 1,  2,  3,  0,  0};
+static const int8_t interp_src_gf_parity[35] = {4, 5, 6, 7, 8, 9, 4, 5, 6, 7, 8, 9, 4, 5, 6, 7, 8, 9,
+                                                4, 5, 6, 7, 8, 9, 4, 5, 6, 7, 8, 9, 0, 0, 0, 0, 0};
+// DERIVATIVE METADATA FOR INTERP_SRC GRID GRIDFUNCTIONS.
+// interp_src_gf_parity stores base-field parity for stored coordinate derivatives.
+// Values 0..2 in interp_src_gf_deriv_dst_dirn select the destination derivative direction;
+// -1 marks non-derivative fields. interp_src_gf_deriv_src_gf maps each derivative
+// family to the sibling source gridfunction for each mapped source derivative direction.
+static const int8_t interp_src_gf_deriv_dst_dirn[35] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0,  0, 0,
+                                                        1,  1,  1,  1,  1,  1,  2,  2,  2,  2,  2,  2,  0, 1, 2, -1, -1};
+static const int16_t interp_src_gf_deriv_src_gf[35][3] = {
+    {-1, -1, -1}, {-1, -1, -1}, {-1, -1, -1}, {-1, -1, -1}, {-1, -1, -1}, {-1, -1, -1}, {-1, -1, -1}, {-1, -1, -1}, {-1, -1, -1},
+    {-1, -1, -1}, {-1, -1, -1}, {-1, -1, -1}, {12, 18, 24}, {13, 19, 25}, {14, 20, 26}, {15, 21, 27}, {16, 22, 28}, {17, 23, 29},
+    {12, 18, 24}, {13, 19, 25}, {14, 20, 26}, {15, 21, 27}, {16, 22, 28}, {17, 23, 29}, {12, 18, 24}, {13, 19, 25}, {14, 20, 26},
+    {15, 21, 27}, {16, 22, 28}, {17, 23, 29}, {30, 31, 32}, {30, 31, 32}, {30, 31, 32}, {-1, -1, -1}, {-1, -1, -1}};
+
+#ifdef __cplusplus
+#define restrict __restrict__
+#endif // __cplusplus
+#ifdef __CUDACC__
+#include "BHaH_device_defines.h"
+#endif // __CUDACC__
 
 #ifndef BHAH_TYPEOF
 #if __cplusplus >= 2000707L
@@ -513,4 +538,22 @@ static const int8_t interp_src_gf_parity[35] = {4,  5,  6,  7,  8,  9,  4,  5,  
       BHAH_FREE(a->b);                                                                                                                               \
     }                                                                                                                                                \
   } while (0);
+
+#ifdef __CUDACC__
+/* Expand to the statement(s) you pass in */
+#define IFCUDARUN(...)                                                                                                                               \
+  do {                                                                                                                                               \
+    {                                                                                                                                                \
+      __VA_ARGS__;                                                                                                                                   \
+    }                                                                                                                                                \
+  } while (0)
+#else
+/* Compile away to nothing on non-CUDA builds */
+#define IFCUDARUN(...)                                                                                                                               \
+  do {                                                                                                                                               \
+    {                                                                                                                                                \
+      (void)0;                                                                                                                                       \
+    }                                                                                                                                                \
+  } while (0)
+#endif
 #endif

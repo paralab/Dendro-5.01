@@ -20,7 +20,6 @@
  * Poison the inputs of bhahaha_params_and_data_struct by setting REALs to NaN, pointers to NULL, and ints to -1.
  */
 void bah_poisoning_set_inputs(bhahaha_params_and_data_struct *restrict params) {
-
   if (!params) {
     fprintf(stderr, "poisoning_set_inputs: Received NULL pointer.\\n");
     exit(EXIT_FAILURE); // Exits the program with failure status
@@ -55,4 +54,4 @@ void bah_poisoning_set_inputs(bhahaha_params_and_data_struct *restrict params) {
 
   POISON_INT(params->verbosity_level);
   POISON_INT(params->enable_eta_varying_alg_for_precision_common_horizon);
-} // END FUNCTION bah_poisoning_set_inputs
+} // END FUNCTION: bah_poisoning_set_inputs

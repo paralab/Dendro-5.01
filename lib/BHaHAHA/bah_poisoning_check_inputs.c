@@ -72,7 +72,6 @@ static inline int is_nan(double x) {
  * Check the inputs of bhahaha_params_and_data_struct for poisoned values. Errors out with a useful message if any poisoned values are detected.
  */
 void bah_poisoning_check_inputs(const bhahaha_params_and_data_struct *restrict params) {
-
   if (!params) {
     fprintf(stderr, "poisoning_check_inputs: Received NULL pointer.\n");
     exit(EXIT_FAILURE); // Exits the program with failure status
@@ -115,4 +114,4 @@ void bah_poisoning_check_inputs(const bhahaha_params_and_data_struct *restrict p
     fprintf(stderr, "poisoning_check_inputs: Poisoned inputs detected. Exiting.\n");
     exit(EXIT_FAILURE); // Exits the program with failure status
   }
-} // END FUNCTION bah_poisoning_check_inputs
+} // END FUNCTION: bah_poisoning_check_inputs

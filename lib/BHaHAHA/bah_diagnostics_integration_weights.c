@@ -1,16 +1,14 @@
 #include "BHaH_defines.h"
+
 /**
- *
  * Determines the appropriate integration weights based on grid size inputs Nxx1 and Nxx2.
  * Since the grid is cell-centered, only midpoint methods are applicable, and the function selects
  * the highest possible order of integration based on divisibility of Nxx1 and Nxx2:
  * - If both Nxx1 and Nxx2 are divisible by 8, 8th-order weights are used.
  * - If both Nxx1 and Nxx2 are divisible by 4, 4th-order weights are used.
  * - Otherwise, defaults to 2nd-order weights.
- *
  */
 void bah_diagnostics_integration_weights(int Nxx1, int Nxx2, const BHA_REAL *restrict *weights, int *restrict weight_stencil_size) {
-
   // Define weights for different orders
   static const BHA_REAL weights_2nd_order[1] = {1.0};
   static const BHA_REAL weights_4th_order[4] = {13.0 / 12.0, 11.0 / 12.0, 11.0 / 12.0, 13.0 / 12.0};
@@ -31,4 +29,4 @@ void bah_diagnostics_integration_weights(int Nxx1, int Nxx2, const BHA_REAL *res
     *weights = weights_4th_order;
     *weight_stencil_size = 4;
   }
-} // END FUNCTION bah_diagnostics_integration_weights
+} // END FUNCTION: bah_diagnostics_integration_weights

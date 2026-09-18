@@ -1,10 +1,9 @@
 #include "BHaH_defines.h"
-#include "BHaH_function_prototypes.h"
+
 /**
  * Compute minimum timestep dt = CFL_FACTOR * ds_min on a 2D spherical numerical grid.
  */
 void bah_cfl_limited_timestep_based_on_h_equals_r(commondata_struct *restrict commondata, griddata_struct *restrict griddata) {
-
   commondata->dt = 1e30;
   for (int grid = 0; grid < commondata->NUMGRIDS; grid++) {
     const params_struct *restrict params = &griddata[grid].params;
@@ -25,8 +24,8 @@ void bah_cfl_limited_timestep_based_on_h_equals_r(commondata_struct *restrict co
 
       dsmin1 = fabs(hh * dxx1);
       dsmin2 = fabs(hh * dxx2 * sin(xx1));
-      ds_min = MIN(ds_min, MIN(dsmin1, dsmin2));
+      ds_min = NRPYMIN(ds_min, NRPYMIN(dsmin1, dsmin2));
     }
-    commondata->dt = MIN(commondata->dt, ds_min * commondata->CFL_FACTOR);
+    commondata->dt = NRPYMIN(commondata->dt, ds_min * commondata->CFL_FACTOR);
   }
-} // END FUNCTION bah_cfl_limited_timestep_based_on_h_equals_r
+} // END FUNCTION: bah_cfl_limited_timestep_based_on_h_equals_r

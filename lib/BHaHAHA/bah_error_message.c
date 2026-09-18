@@ -1,19 +1,10 @@
 #include "BHaH_defines.h"
-#include "BHaH_function_prototypes.h"
+
 /**
+ * Interpret a BHaHAHA error code and return the corresponding error message string.
  *
- * Function: bah_error_handling()
- *
- * Description:
- * - Driver function for BHaHAHA error reporting, including when horizon not found!
- * - This function interprets error messages from throughout BHaHAHA.
- *
- * Parameter:
- * - error_code - error code from BHaHAHA.
- *
- * Returns:
- * - Error message string.
- *
+ * @param error_code Error code from BHaHAHA.
+ * @return Error message string corresponding to `error_code`, or NULL if the code is unknown.
  */
 const char *bah_error_message(const bhahaha_error_codes error_code) {
   switch (error_code) {
@@ -65,4 +56,4 @@ const char *bah_error_message(const bhahaha_error_codes error_code) {
   }
   fprintf(stderr, "BHaHAHA error code %d not defined!\n", error_code);
   return NULL;
-} // END FUNCTION bah_error_message
+} // END FUNCTION: bah_error_message

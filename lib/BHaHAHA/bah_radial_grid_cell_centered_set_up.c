@@ -1,5 +1,4 @@
 #include "BHaH_defines.h"
-#include "BHaH_function_prototypes.h"
 
 // Parameter to set a min number of interior points for the BHaHAHA destination grid;
 //   for example, if output_r_min = output_r_max, this will ensure at least 4 interior
@@ -20,7 +19,7 @@ static void setup_grid_r_min_interior_zero(const BHA_REAL r_min_interior, const 
   }
   *output_dr = r_max_interior / ((BHA_REAL)Nr_interior);
   *output_Nr_interp = Nr_interior + BHAHAHA_NGHOSTS;
-} // END FUNCTION setup_grid_r_min_interior_zero()
+} // END FUNCTION: setup_grid_r_min_interior_zero
 
 static void setup_grid_r_min_interior_gt_zero(const BHA_REAL r_min_interior, const BHA_REAL r_max_interior, const BHA_REAL max_search_radius, const int max_Nr,
                                               int *restrict output_Nr_interp, BHA_REAL *restrict output_r_min, BHA_REAL *restrict output_dr) {
@@ -52,10 +51,9 @@ static void setup_grid_r_min_interior_gt_zero(const BHA_REAL r_min_interior, con
     }
   }
   *output_Nr_interp = Nr_interior + 2 * BHAHAHA_NGHOSTS;
-} // END FUNCTION setup_grid_r_min_interior_gt_zero()
+} // END FUNCTION: setup_grid_r_min_interior_gt_zero
 
 /**
- *
  * Initializes a cell-centered radial grid for interpolation.
  *
  * This function:
@@ -65,24 +63,20 @@ static void setup_grid_r_min_interior_gt_zero(const BHA_REAL r_min_interior, con
  * - Adjusts `output_r_min` and `output_r_max` to accommodate ghost cells.
  * - Populates the `radii` array with computed radial coordinates.
  *
- * @param Nr_interp_max               Maximum number of radial interpolation points.
- * @param max_search_radius           Upper limit for the search radius; caps the adjusted maximum radius.
- * @param input_r_min                 Initial minimum radius; may equal `input_r_max`.
- * @param input_r_max                 Initial maximum radius; may equal `input_r_min`.
- * @param output_Nr_interp            Pointer to store the adjusted number of interpolation points.
- * @param output_r_min_interior       Pointer to store the minimum interior radius of the cell-centered radial grid.
- * @param output_dr                   Pointer to store the output grid spacing.
- * @param radii                       Array to store the computed radial coordinates.
- *
- * @return void
+ * @param Nr_interp_max Maximum number of radial interpolation points.
+ * @param max_search_radius Upper limit for the search radius; caps the adjusted maximum radius.
+ * @param input_r_min Initial minimum radius; may equal `input_r_max`.
+ * @param input_r_max Initial maximum radius; may equal `input_r_min`.
+ * @param[out] output_Nr_interp Pointer to store the adjusted number of interpolation points.
+ * @param[out] output_r_min_interior Pointer to store the minimum interior radius of the cell-centered radial grid.
+ * @param[out] output_dr Pointer to store the output grid spacing.
+ * @param[out] radii Array to store the computed radial coordinates.
  *
  * @note Ensures the radial grid includes ghost cells and maintains non-negative radii.
- *
  */
 void bah_radial_grid_cell_centered_set_up(const int Nr_interp_max, const BHA_REAL max_search_radius, const BHA_REAL input_r_min, const BHA_REAL input_r_max,
                                           int *restrict output_Nr_interp, BHA_REAL *restrict output_r_min_interior, BHA_REAL *restrict output_dr,
                                           BHA_REAL radii[Nr_interp_max]) {
-
   // Adjust radii to be within permissible range
   BHA_REAL r_min_interior = input_r_min < 0.0 ? 0.0 : input_r_min;
   BHA_REAL r_max_interior = input_r_max > max_search_radius ? max_search_radius : input_r_max;
@@ -103,21 +97,19 @@ void bah_radial_grid_cell_centered_set_up(const int Nr_interp_max, const BHA_REA
   //   output_r_min, output_Nr_interp, and output_dr.
   for (int i = 0; i < (*output_Nr_interp); i++) {
     radii[i] = (output_r_min) + ((BHA_REAL)(i) + 0.5) * (*output_dr);
-  } // END LOOP: populating radii array for r_min > 0
+  } // END LOOP: for i over radii array when r_min > 0
   *output_r_min_interior = output_r_min + ((BHA_REAL)(BHAHAHA_NGHOSTS)) * (*output_dr);
-} // END FUNCTION bah_radial_grid_cell_centered_set_up
+} // END FUNCTION: bah_radial_grid_cell_centered_set_up
 
 #ifdef STANDALONE
 
 /**
  * Displays the input parameters for a given test case.
  *
- * @param Nr_interp_max        Maximum number of radial interpolation points.
- * @param max_search_radius    Initial maximum radius for grid scaling.
- * @param input_r_min          Initial minimum radius.
- * @param input_r_max          Maximum radius.
- *
- * @return void
+ * @param Nr_interp_max Maximum number of radial interpolation points.
+ * @param max_search_radius Initial maximum radius for grid scaling.
+ * @param input_r_min Initial minimum radius.
+ * @param input_r_max Maximum radius.
  */
 void print_input_parameters(const int Nr_interp_max, const BHA_REAL max_search_radius, const BHA_REAL input_r_min, const BHA_REAL input_r_max) {
   printf("Input parameters:\n");
@@ -130,12 +122,10 @@ void print_input_parameters(const int Nr_interp_max, const BHA_REAL max_search_r
 /**
  * Displays the output parameters after setting up the radial grid.
  *
- * @param output_Nr_interp     Adjusted number of interpolation points.
- * @param output_dr            Adjusted minimum radius.
- * @param output_r_min_interior         Adjusted minimum radius.
- * @param output_r_max         Adjusted maximum radius.
- *
- * @return void
+ * @param output_Nr_interp Adjusted number of interpolation points.
+ * @param output_dr Adjusted minimum radius.
+ * @param output_r_min_interior Adjusted minimum radius.
+ * @param output_r_max Adjusted maximum radius.
  */
 void print_output_parameters(const int output_Nr_interp, const BHA_REAL output_dr, const BHA_REAL output_r_min_interior, const BHA_REAL output_r_max_interior) {
   printf("Output parameters for cell-centered radial grid:\n");
@@ -148,29 +138,25 @@ void print_output_parameters(const int output_Nr_interp, const BHA_REAL output_d
 /**
  * Displays the computed radial coordinates.
  *
- * @param radii                Array of computed radial coordinates.
- * @param output_Nr_interp     Number of interpolation points.
- *
- * @return void
+ * @param[in] radii Array of computed radial coordinates.
+ * @param output_Nr_interp Number of interpolation points.
  */
 void print_radii(const BHA_REAL radii[], const int output_Nr_interp) {
   printf("Radii:\n");
   for (int i = 0; i < output_Nr_interp; i++) {
     printf("  radii[%d] = %f\n", i, radii[i]);
-  } // END LOOP: printing each radial coordinate
+  } // END LOOP: for i over radial coordinates
   printf("\n");
 } // END FUNCTION: print_radii
 
 /**
  * Executes a test case by displaying inputs, setting up the radial grid, and displaying outputs.
  *
- * @param test_case_description Description of the test case scenario.
- * @param Nr_interp_max         Maximum number of radial interpolation points.
- * @param max_search_radius     Maximum search radius.
- * @param input_r_min           Input minimum radius.
- * @param input_r_max           Input maximum radius.
- *
- * @return void
+ * @param[in] test_case_description Description of the test case scenario.
+ * @param Nr_interp_max Maximum number of radial interpolation points.
+ * @param max_search_radius Maximum search radius.
+ * @param input_r_min Input minimum radius.
+ * @param input_r_max Input maximum radius.
  */
 void run_test_case(const char *test_case_description, int Nr_interp_max, BHA_REAL max_search_radius, BHA_REAL input_r_min, BHA_REAL input_r_max) {
   printf("%s\n", test_case_description);

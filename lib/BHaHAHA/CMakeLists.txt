@@ -20,6 +20,7 @@ set(BHAHAHA_SOURCES
   bah_diagnostics_integration_weights.c
   bah_diagnostics_min_max_mean_radii_wrt_centroid.c
   bah_diagnostics_proper_circumferences.c
+  bah_diagnostics_proper_circumferences_general.c
   bah_error_message.c
   bah_find_horizon.c
   bah_hDD_dD_and_W_dD_in_interp_src_grid_interior.c
@@ -28,11 +29,9 @@ set(BHAHAHA_SOURCES
   bah_interpolation_2d_external_input_to_interp_src_grid.c
   bah_interpolation_2d_general__uniform_src_grid.c
   bah_KO_apply.c
-  bah_MoL_free_memory_non_y_n_gfs.c
-  bah_MoL_free_memory_y_n_gfs.c
-  bah_MoL_malloc_non_y_n_gfs.c
-  bah_MoL_malloc_y_n_gfs.c
-  bah_MoL_step_forward_in_time.c
+  MoL/bah_MoL_free_intermediate_stage_gfs.c
+  MoL/bah_MoL_malloc_intermediate_stage_gfs.c
+  MoL/bah_MoL_step_forward_in_time.c
   bah_numgrid__evol_set_up.c
   bah_numgrid__external_input_set_up.c
   bah_numgrid__interp_src_set_up.c

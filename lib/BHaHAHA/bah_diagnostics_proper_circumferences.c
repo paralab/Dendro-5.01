@@ -2,17 +2,26 @@
 #include "BHaH_function_prototypes.h"
 
 /**
- * Computes the complete elliptic integrals of the second kind E(k) and the first kind K(k)
- * using 8th-order midpoint integration.
+ * Complete elliptic integrals E(m) and K(m) via 8th-order midpoint quadrature.
  *
- * @param k - The elliptic modulus parameter (0 <= k <= 1).
- * @param E - Pointer to store the result for the elliptic integral of the second kind E(k).
- * @param K - Pointer to store the result for the elliptic integral of the first kind K(k).
+ * Computes the complete elliptic integrals in the **parameter** (Legendre) form
+ *   E(m) = ∫₀^{π/2} sqrt(1 − m sin²θ) dθ,
+ *   K(m) = ∫₀^{π/2} dθ / sqrt(1 − m sin²θ).
  *
- * This function uses a midpoint integration method with a fixed number of sample points (128)
- * to ensure high accuracy, leveraging precomputed weights for efficiency.
+ * The implementation uses a fixed 8th-order midpoint rule with periodic weights
+ * over [0, π/2]. The sample count is fixed at 128 (power of two) for high accuracy
+ * and good vectorization.
  *
- * @note The function is parallelized with OpenMP to improve performance on large arrays.
+ * @param m  Legendre **parameter** (a.k.a. k²). Real results require m ≤ 1.
+ *           Negative m is supported (e.g. m ∈ [−1, 0] in this code path).
+ *           @warning This is the parameter m, **not** the modulus k. If you have a
+ *           modulus k, pass m = k*k.
+ * @param[out] E  On return, E(m).
+ * @param[out] K  On return, K(m) (diverges as m → 1⁻).
+ *
+ * @pre E and K are non-null.
+ * @pre The internal weight generator expects the sample count to be compatible
+ *      with the 8th-order periodic stencil (here fixed to 128).
  */
 static void elliptic_E_and_K_integrals(const BHA_REAL k, BHA_REAL *restrict E, BHA_REAL *restrict K) {
   static const int N_sample_pts = 128; // Number of sample points for integration. Chosen for high precision.
@@ -30,7 +39,7 @@ static void elliptic_E_and_K_integrals(const BHA_REAL k, BHA_REAL *restrict E, B
   BHA_REAL sum_K = 0.0; // Accumulator for the elliptic integral of the first kind K(k).
 
   // Parallelized loop to compute both integrals E(k) and K(k) using OpenMP.
-#pragma omp parallel for reduction(+ : sum_E, sum_K)
+  // #pragma omp parallel for reduction(+ : sum_E, sum_K) <- thread creation/destruction likely -> slower code here
   for (int i = 0; i < N_sample_pts; i++) {
     const BHA_REAL theta = a + ((BHA_REAL)i + 0.5) * h; // Compute the midpoint for the current subinterval.
     // Compute sin(theta). For optimization, we could use a lookup table if N_sample_pts is constant.
@@ -41,7 +50,7 @@ static void elliptic_E_and_K_integrals(const BHA_REAL k, BHA_REAL *restrict E, B
     // Update the running sums for E(k) & K(k), applying the corresponding weight.
     sum_E += weights[i % weight_stencil_size] * elliptic_E_integrand;
     sum_K += weights[i % weight_stencil_size] * elliptic_K_integrand;
-  } // END PARALLEL FOR: Loop through sample points to compute both integrals
+  } // END LOOP: for i over sample points to compute both integrals
 
   // Multiply by the step size to complete the integration and store the results.
   *E = sum_E * h; // Elliptic integral of the second kind.
@@ -51,14 +60,17 @@ static void elliptic_E_and_K_integrals(const BHA_REAL k, BHA_REAL *restrict E, B
 /**
  * Estimates the spin parameter magnitude for equilibrium black holes based on the circumference ratio C_r.
  *
+ * Rationale & safeguards:
+ *   * Start from an analytic approximation (Alcubierre et al., Eq. 5.3) to land near the root basin.
+ *   * Refine with Newton–Raphson using elliptic integrals (Eq. 5.2), but clamp any out-of-range iterates
+ *     into [0,1] and terminate if we step negative; this avoids excursions where the modulus or square roots
+ *     would be undefined or numerically fragile.
+ *
  * @param C_r The circumference ratio parameter used to estimate the spin.
  * @return    The estimated spin parameter. Returns -10.0 if C_r is out of valid bounds or if convergence fails.
  *
- * This function implements an iterative method to estimate the spin parameter using
- * elliptic integrals. It starts with an initial guess and refines it to achieve a desired
- * relative tolerance. The method is based on Eq. 5.2 of Alcubierre et al. (arXiv:gr-qc/0411149).
  */
-BHA_REAL compute_spin(const BHA_REAL C_r) {
+static BHA_REAL compute_spin(const BHA_REAL C_r) {
   // Validate the input parameter. Return an error code if C_r exceeds the valid range.
   if (C_r > 1)
     return -10.0;
@@ -87,12 +99,16 @@ BHA_REAL compute_spin(const BHA_REAL C_r) {
     // Next complete a Newton-Raphson iteration to improve the spin estimate.
     /*
      *  Original SymPy expression:
-     *  "const BHA_REAL x_np1 = -pi*x*sqrt(1 - x**2)*(-C_r + E*(sqrt(1 - x**2) + 1)/pi)/(-E*x**2 + (E - K)*(x**2 + sqrt(1 - x**2)*(sqrt(1 - x**2) + 1))) +
-     * x"
+     *  "const BHA_REAL x_np1 = x - (-C_r + E*(sqrt(1 - x**2) + 1)/pi)/(-E*x/(pi*sqrt(1 - x**2)) - (E - K)*(-2*x**3/(sqrt(1 - x**2)*(sqrt(1 - x**2) +
+     * 1)**3) - 2*x/(sqrt(1 - x**2) + 1)**2)*(sqrt(1 - x**2) + 1)**3/(2*pi*x**2))"
      */
-    const BHA_REAL tmp0 = ((x) * (x));
-    const BHA_REAL tmp1 = sqrt(1 - tmp0);
-    const BHA_REAL x_np1 = -M_PI * tmp1 * x * (-C_r + E * (tmp1 + 1) / M_PI) / (-E * tmp0 + (E - K) * (tmp0 + tmp1 * (tmp1 + 1))) + x;
+    const BHA_REAL tmp2 = sqrt(1 - ((x) * (x)));
+    const BHA_REAL tmp3 = tmp2 + 1;
+    const BHA_REAL tmp4 = (1.0 / (tmp2));
+    const BHA_REAL tmp5 = ((tmp3) * (tmp3) * (tmp3));
+    const BHA_REAL x_np1 = x - (-C_r + E * tmp3 / M_PI) /
+                               (-E * tmp4 * x / M_PI - 1.0 / 2.0 * tmp5 * (E - K) *
+                                                           (-2 * tmp4 * ((x) * (x) * (x)) / tmp5 - 2 * x / ((tmp3) * (tmp3))) / (M_PI * ((x) * (x))));
 
     if (x_np1 > 1.0) {
       // Adjust the spin estimate to remain within valid bounds.
@@ -105,29 +121,27 @@ BHA_REAL compute_spin(const BHA_REAL C_r) {
       // Calculate the relative difference and update the spin estimate.
       rel_diff = fabs(x_np1 - x) / x;
       spin = x_np1;
-    }
+    } // END ELSE: spin adjustment to go back in-bounds
     it++;
   } // END WHILE: Refining spin estimate until convergence or maximum iterations
 
   // Assign spin=-10 if the Newton-Raphson did not converge within the allowed iterations.
-  if (it >= max_its) {
+  if (it >= max_its)
     spin = -10.0;
-  }
+
   return spin;
-}
+} // END FUNCTION: compute_spin
 
 /**
- *
  * Computes proper circumferences along the equator and polar directions for apparent horizon diagnostics.
  *
- * @param commondata - Pointer to common data structure containing shared parameters and settings.
- * @param griddata - Pointer to grid data structures for each grid, containing parameters and gridfunctions.
- * @return - Status code indicating success or type of error (e.g., BHAHAHA_SUCCESS or INITIAL_DATA_MALLOC_ERROR).
- * @note - This function uses OpenMP for parallel loops and performs interpolation and integration over grid data.
- *
+ * @param[in,out] commondata Pointer to common data structure containing shared parameters and settings.
+ * @param[in,out] griddata Pointer to grid data structures for each grid, containing parameters and gridfunctions.
+ * @return Status code indicating success or type of error (e.g., BHAHAHA_SUCCESS or INITIAL_DATA_MALLOC_ERROR).
+ * @note This function uses OpenMP for parallel loops and performs interpolation and integration over grid data.
  */
 int bah_diagnostics_proper_circumferences(commondata_struct *restrict commondata, griddata_struct *restrict griddata) {
-
+  const int NUM_DIAG_GFS = 2;
   const int grid = 0;
   // Extract grid dimensions, including ghost zones, for each coordinate direction. Needed for IDX4() macro.
   const int Nxx_plus_2NGHOSTS0 = griddata[grid].params.Nxx_plus_2NGHOSTS0;
@@ -135,7 +149,8 @@ int bah_diagnostics_proper_circumferences(commondata_struct *restrict commondata
   const int Nxx_plus_2NGHOSTS2 = griddata[grid].params.Nxx_plus_2NGHOSTS2;
   const int NUM_THETA = Nxx_plus_2NGHOSTS1; // Needed for IDX2() macro.
 
-  BHA_REAL *restrict diagnostic_output_gfs = griddata[grid].gridfuncs.diagnostic_output_gfs;
+  BHA_REAL *restrict metric_data_gfs;
+  BHAH_MALLOC(metric_data_gfs, Nxx_plus_2NGHOSTS0 * Nxx_plus_2NGHOSTS1 * Nxx_plus_2NGHOSTS2 * NUM_DIAG_GFS * sizeof(BHA_REAL));
 
   // Compute the line element in the phi direction (sqrt(q_{phi phi})) across the entire grid.
   {
@@ -149,20 +164,22 @@ int bah_diagnostics_proper_circumferences(commondata_struct *restrict commondata
     const int i0 = NGHOSTS; // Fixed index for radial coordinate (r).
 
     // Loop over angular grid points (theta and phi) to compute:
-    // 1. sqrt(q_{theta theta}), stored to diagnostic_output_gfs[IDX4(0,...)], and
-    // 2. sqrt(q_{phi phi}), stored to diagnostic_output_gfs[IDX4(1,...)] at each point (theta, phi).
-    // Notice we do clever indexing to ensure this 2D computation stays within the memory bounds of (3D) diagnostic_output_gfs.
+    // 1. sqrt(q_{theta theta}), stored to metric_data_gfs[IDX4(0,...)], and
+    // 2. sqrt(q_{phi phi}), stored to metric_data_gfs[IDX4(1,...)] at each point (theta, phi).
+    // Notice we do clever indexing to ensure this 2D computation stays within the memory bounds of (3D) metric_data_gfs.
 #pragma omp parallel for
     for (int i2 = NGHOSTS; i2 < Nxx_plus_2NGHOSTS2 - NGHOSTS; i2++) {
       const MAYBE_UNUSED BHA_REAL xx2 = xx[2][i2]; // Phi coordinate at index i2.
       for (int i1 = NGHOSTS; i1 < Nxx_plus_2NGHOSTS1 - NGHOSTS; i1++) {
         const MAYBE_UNUSED BHA_REAL xx1 = xx[1][i1]; // Theta coordinate at index i1.
-        /*
-         * NRPy+-Generated GF Access/FD Code, Step 1 of 2:
-         * Read gridfunction(s) from main memory and compute FD stencils as needed.
-         */
+        static const BHA_REAL FDPart1_Rational_3_4 = 3.0 / 4.0;
+        static const BHA_REAL FDPart1_Rational_3_20 = 3.0 / 20.0;
+        static const BHA_REAL FDPart1_Rational_1_60 = 1.0 / 60.0;
+        const BHA_REAL FDPart3tmp4 = sin(xx1);
         const BHA_REAL WW = auxevol_gfs[IDX4(WWGF, i0, i1, i2)];
+        const BHA_REAL FDPart3tmp0 = (1.0 / ((WW) * (WW)));
         const BHA_REAL hDD00 = auxevol_gfs[IDX4(HDD00GF, i0, i1, i2)];
+        const BHA_REAL FDPart3tmp2 = FDPart3tmp0 * (hDD00 + 1);
         const BHA_REAL hDD01 = auxevol_gfs[IDX4(HDD01GF, i0, i1, i2)];
         const BHA_REAL hDD02 = auxevol_gfs[IDX4(HDD02GF, i0, i1, i2)];
         const BHA_REAL hDD11 = auxevol_gfs[IDX4(HDD11GF, i0, i1, i2)];
@@ -177,34 +194,23 @@ int bah_diagnostics_proper_circumferences(commondata_struct *restrict commondata
         const BHA_REAL hh_i1p1 = in_gfs[IDX4(HHGF, i0, i1 + 1, i2)];
         const BHA_REAL hh_i1p2 = in_gfs[IDX4(HHGF, i0, i1 + 2, i2)];
         const BHA_REAL hh_i1p3 = in_gfs[IDX4(HHGF, i0, i1 + 3, i2)];
+        const BHA_REAL hh_dD1 = invdxx1 * (FDPart1_Rational_1_60 * (-hh_i1m3 + hh_i1p3) + FDPart1_Rational_3_20 * (hh_i1m2 - hh_i1p2) +
+                                       FDPart1_Rational_3_4 * (-hh_i1m1 + hh_i1p1));
         const BHA_REAL hh_i2p1 = in_gfs[IDX4(HHGF, i0, i1, i2 + 1)];
         const BHA_REAL hh_i2p2 = in_gfs[IDX4(HHGF, i0, i1, i2 + 2)];
         const BHA_REAL hh_i2p3 = in_gfs[IDX4(HHGF, i0, i1, i2 + 3)];
-        static const BHA_REAL FDPart1_Rational_3_4 = 3.0 / 4.0;
-        static const BHA_REAL FDPart1_Rational_3_20 = 3.0 / 20.0;
-        static const BHA_REAL FDPart1_Rational_1_60 = 1.0 / 60.0;
-        const BHA_REAL hh_dD1 = invdxx1 * (FDPart1_Rational_1_60 * (-hh_i1m3 + hh_i1p3) + FDPart1_Rational_3_20 * (hh_i1m2 - hh_i1p2) +
-                                       FDPart1_Rational_3_4 * (-hh_i1m1 + hh_i1p1));
         const BHA_REAL hh_dD2 = invdxx2 * (FDPart1_Rational_1_60 * (-hh_i2m3 + hh_i2p3) + FDPart1_Rational_3_20 * (hh_i2m2 - hh_i2p2) +
                                        FDPart1_Rational_3_4 * (-hh_i2m1 + hh_i2p1));
-
-        /*
-         * NRPy+-Generated GF Access/FD Code, Step 2 of 2:
-         * Evaluate SymPy expressions and write to main memory.
-         */
-        const BHA_REAL FDPart3tmp0 = (1.0 / ((WW) * (WW)));
         const BHA_REAL FDPart3tmp3 = ((hh) * (hh));
-        const BHA_REAL FDPart3tmp4 = sin(xx1);
         const BHA_REAL FDPart3tmp1 = 2 * FDPart3tmp0 * hh;
-        const BHA_REAL FDPart3tmp2 = FDPart3tmp0 * (hDD00 + 1);
         const BHA_REAL FDPart3tmp5 = FDPart3tmp3 * ((FDPart3tmp4) * (FDPart3tmp4));
-        diagnostic_output_gfs[IDX4pt(0, 0) + IDX2(i1, i2)] =
+        metric_data_gfs[IDX4pt(0, 0) + IDX2(i1, i2)] =
             sqrt(FDPart3tmp0 * (FDPart3tmp3 * hDD11 + FDPart3tmp3) + FDPart3tmp1 * hDD01 * hh_dD1 + FDPart3tmp2 * ((hh_dD1) * (hh_dD1)));
-        diagnostic_output_gfs[IDX4pt(1, 0) + IDX2(i1, i2)] = sqrt(FDPart3tmp0 * (FDPart3tmp5 * hDD22 + FDPart3tmp5) +
-                                                                  FDPart3tmp1 * FDPart3tmp4 * hDD02 * hh_dD2 + FDPart3tmp2 * ((hh_dD2) * (hh_dD2)));
+        metric_data_gfs[IDX4pt(1, 0) + IDX2(i1, i2)] = sqrt(FDPart3tmp0 * (FDPart3tmp5 * hDD22 + FDPart3tmp5) +
+                                                            FDPart3tmp1 * FDPart3tmp4 * hDD02 * hh_dD2 + FDPart3tmp2 * ((hh_dD2) * (hh_dD2)));
 
-      } // END LOOP over i1 (theta)
-    } // END LOOP over i2 (phi)
+      } // END LOOP: for i1 over theta points on the horizon surface
+    } // END LOOP: for i2 over phi points on the horizon surface
 
     // Apply inner boundary conditions to the computed sqrt(q_{phi phi}) gridfunction.
     {
@@ -239,12 +245,12 @@ int bah_diagnostics_proper_circumferences(commondata_struct *restrict commondata
 
           // Apply boundary condition if at the radial interior point (i0 == NGHOSTS).
           if (dst_i0 == NGHOSTS) {
-            diagnostic_output_gfs[IDX4pt(which_gf, 0) + IDX2(dst_i1, dst_i2)] = diagnostic_output_gfs[IDX4pt(which_gf, 0) + IDX2(src_i1, src_i2)];
+            metric_data_gfs[IDX4pt(which_gf, 0) + IDX2(dst_i1, dst_i2)] = metric_data_gfs[IDX4pt(which_gf, 0) + IDX2(src_i1, src_i2)];
           }
-        } // END LOOP over inner boundary points
-      } // END LOOP over gridfunctions
-    } // END application of inner boundary conditions
-  } // END computation of line element gridfunction
+        } // END LOOP: for pt over inner boundary points
+      } // END LOOP: for which_gf over gridfunctions
+    } // END BLOCK: apply inner boundary conditions to circumference metric data
+  } // END BLOCK: compute line-element gridfunctions on the horizon surface
 
   // Grid spacings in theta and phi directions.
   const BHA_REAL dxx1 = griddata[grid].params.dxx1;
@@ -274,13 +280,13 @@ int bah_diagnostics_proper_circumferences(commondata_struct *restrict commondata
     for (int i2 = 0; i2 < N_angle; i2++) {
       dst_pts[i2][0] = M_PI / 2;                                   // Equator: theta = pi/2.
       dst_pts[i2][1] = -M_PI + ((BHA_REAL)i2 + (1.0 / 2.0)) * d_angle; // Equator: phi = [-pi, pi].
-    } // END LOOP over phi angles
+    } // END LOOP: for i2 over phi angles
 
     // Interpolate sqrt(q_{phi phi}) values onto the equator points to compute the circumference;
-    //   note that sqrt(q_{phi phi}) is stored in diagnostic_output_gfs[IDX4(1,...)]
+    //   note that sqrt(q_{phi phi}) is stored in metric_data_gfs[IDX4(1,...)]
     const int error =
         bah_interpolation_2d_general__uniform_src_grid(NinterpGHOSTS, dxx1, dxx2, Nxx_plus_2NGHOSTS1, Nxx_plus_2NGHOSTS2, griddata[grid].xx,
-                                                       &diagnostic_output_gfs[IDX4pt(1, 0)], N_angle, dst_pts, circumference);
+                                                       &metric_data_gfs[IDX4pt(1, 0)], N_angle, dst_pts, circumference);
     if (error != BHAHAHA_SUCCESS)
       return error;
 
@@ -289,16 +295,17 @@ int bah_diagnostics_proper_circumferences(commondata_struct *restrict commondata
     int weight_stencil_size;
     bah_diagnostics_integration_weights(N_angle, N_angle, &weights, &weight_stencil_size);
 
-    // Compute the total circumference by integrating over the sampled equator points.
+    // Compute the total xy-plane circumference by integrating over the sampled points.
     BHA_REAL sum_circumference = 0.0;
 #pragma omp parallel for reduction(+ : sum_circumference)
     for (int ic = 0; ic < N_angle; ic++) {
       const BHA_REAL weight = weights[ic % weight_stencil_size]; // Integration weight for this point.
       sum_circumference += circumference[ic] * weight;
-    } // END LOOP over ic
+    } // END LOOP: for ic over circumference samples
     // Multiply the sum by d[angle]
     commondata->bhahaha_diagnostics->xy_plane_circumference = sum_circumference * d_angle;
-  }
+  } // END BLOCK: compute xy-plane proper circumference
+
   // Polar (xz-plane) circumference next
   {
     // Initialize destination points along the xz-plane for interpolation.
@@ -312,14 +319,14 @@ int bah_diagnostics_proper_circumferences(commondata_struct *restrict commondata
         // Second half: Theta from pi back to 0, phi = -pi
         dst_pts[i2][0] = ((BHA_REAL)(N_angle - i2) - 0.5) * (M_PI / ((BHA_REAL)(N_angle) / 2.0));
         dst_pts[i2][1] = -M_PI; // phi spans from [-pi, pi), so instead of interpolating at phi=pi, must interpolate at phi=-pi.
-      } // END IF theta is going from 0 to pi or vice-versa.
-    } // END LOOP over angle
+      } // END IF: theta is going from 0 to pi or vice-versa
+    } // END LOOP: for i2 over angle samples
 
     // Interpolate sqrt(q_{theta theta}) values onto the polar (xz-plane) points to compute the circumference;
-    //   note that sqrt(q_{theta theta}) is stored in diagnostic_output_gfs[IDX4(0,...)]
+    //   note that sqrt(q_{theta theta}) is stored in metric_data_gfs[IDX4(0,...)]
     const int error =
         bah_interpolation_2d_general__uniform_src_grid(NinterpGHOSTS, dxx1, dxx2, Nxx_plus_2NGHOSTS1, Nxx_plus_2NGHOSTS2, griddata[grid].xx,
-                                                       &diagnostic_output_gfs[IDX4pt(0, 0)], N_angle, dst_pts, circumference);
+                                                       &metric_data_gfs[IDX4pt(0, 0)], N_angle, dst_pts, circumference);
     if (error != BHAHAHA_SUCCESS)
       return error;
 
@@ -328,16 +335,17 @@ int bah_diagnostics_proper_circumferences(commondata_struct *restrict commondata
     int weight_stencil_size;
     bah_diagnostics_integration_weights(N_angle, N_angle, &weights, &weight_stencil_size);
 
-    // Compute the total circumference by integrating over the sampled equator points.
+    // Compute the total xz-plane circumference by integrating over the sampled points.
     BHA_REAL sum_circumference = 0.0;
 #pragma omp parallel for reduction(+ : sum_circumference)
     for (int ic = 0; ic < N_angle; ic++) {
       const BHA_REAL weight = weights[ic % weight_stencil_size]; // Integration weight for this point.
       sum_circumference += circumference[ic] * weight;
-    } // END LOOP over ic
+    } // END LOOP: for ic over circumference samples
     // Multiply the sum by d[angle]
     commondata->bhahaha_diagnostics->xz_plane_circumference = sum_circumference * d_angle;
-  }
+  } // END BLOCK: compute xz-plane proper circumference
+
   // Polar (yz-plane) circumference next
   {
     // Initialize destination points along the yz-plane for interpolation.
@@ -351,14 +359,14 @@ int bah_diagnostics_proper_circumferences(commondata_struct *restrict commondata
         // Second half: Theta from pi back to 0, phi = -pi/2
         dst_pts[i2][0] = ((BHA_REAL)(N_angle - i2) - 0.5) * (M_PI / ((BHA_REAL)(N_angle) / 2.0));
         dst_pts[i2][1] = -M_PI / 2.0;
-      } // END IF theta is going from 0 to pi or vice-versa.
-    } // END LOOP over angle
+      } // END IF: theta is going from 0 to pi or vice-versa
+    } // END LOOP: for i2 over angle samples
 
     // Interpolate sqrt(q_{theta theta}) values onto the polar (yz-plane) points to compute the circumference;
-    //   note that sqrt(q_{theta theta}) is stored in diagnostic_output_gfs[IDX4(0,...)]
+    //   note that sqrt(q_{theta theta}) is stored in metric_data_gfs[IDX4(0,...)]
     const int error =
         bah_interpolation_2d_general__uniform_src_grid(NinterpGHOSTS, dxx1, dxx2, Nxx_plus_2NGHOSTS1, Nxx_plus_2NGHOSTS2, griddata[grid].xx,
-                                                       &diagnostic_output_gfs[IDX4pt(0, 0)], N_angle, dst_pts, circumference);
+                                                       &metric_data_gfs[IDX4pt(0, 0)], N_angle, dst_pts, circumference);
     if (error != BHAHAHA_SUCCESS)
       return error;
 
@@ -367,16 +375,16 @@ int bah_diagnostics_proper_circumferences(commondata_struct *restrict commondata
     int weight_stencil_size;
     bah_diagnostics_integration_weights(N_angle, N_angle, &weights, &weight_stencil_size);
 
-    // Compute the total circumference by integrating over the sampled equator points.
+    // Compute the total yz-plane circumference by integrating over the sampled points.
     BHA_REAL sum_circumference = 0.0;
 #pragma omp parallel for reduction(+ : sum_circumference)
     for (int ic = 0; ic < N_angle; ic++) {
       const BHA_REAL weight = weights[ic % weight_stencil_size]; // Integration weight for this point.
       sum_circumference += circumference[ic] * weight;
-    } // END LOOP over ic
+    } // END LOOP: for ic over circumference samples
     // Multiply the sum by d[angle]
     commondata->bhahaha_diagnostics->yz_plane_circumference = sum_circumference * d_angle;
-  }
+  } // END BLOCK: compute yz-plane proper circumference
 
   // Next estimate spin parameter magnitudes, valid for equilibrium BHs only.
   //   Based on Eq 5.2 of Alcubierre et al arXiv:gr-qc/0411149.
@@ -396,9 +404,10 @@ int bah_diagnostics_proper_circumferences(commondata_struct *restrict commondata
     commondata->bhahaha_diagnostics->spin_a_z_from_xz_over_xy_prop_circumfs = compute_spin(C_xz_xy);
     commondata->bhahaha_diagnostics->spin_a_z_from_yz_over_xy_prop_circumfs = compute_spin(C_yz_xy);
   }
-  // Free allocated memory for destination points and circumference values.
+  // Free allocated memory for destination points, circumference values, and metric_data_gfs.
   free(dst_pts);
   free(circumference);
+  free(metric_data_gfs);
 
   return BHAHAHA_SUCCESS; // Return success status code.
-} // END FUNCTION bah_diagnostics_proper_circumferences
+} // END FUNCTION: bah_diagnostics_proper_circumferences
