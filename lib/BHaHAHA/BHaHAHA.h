@@ -239,7 +239,8 @@ void bah_poisoning_set_inputs(bhahaha_params_and_data_struct *BHA_RESTRICT param
 // (highly recommended) Call bah_poisoning_check_inputs() right before bah_find_horizon(), to check whether external NR code has set inputs properly.
 void bah_poisoning_check_inputs(const bhahaha_params_and_data_struct *BHA_RESTRICT params);
 // (required): Set up the (holey) spherical grid for BHaHAHA
-#ifdef __cplusplus
+#if defined(__cplusplus) || !defined(__STDC_VERSION__) || (__STDC_VERSION__ < 199901L)
+// C++ and pre-C99 C do not support variable-length array parameters.
 void bah_radial_grid_cell_centered_set_up(const int Nr_interp_max, const BHA_REAL max_search_radius, const BHA_REAL input_r_min, const BHA_REAL input_r_max,
                                           int *BHA_RESTRICT output_Nr_interp, BHA_REAL *BHA_RESTRICT output_r_min, BHA_REAL *BHA_RESTRICT output_dr,
                                           BHA_REAL *radii);
