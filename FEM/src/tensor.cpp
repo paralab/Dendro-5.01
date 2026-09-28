@@ -262,21 +262,25 @@ static inline void iiax_avx2(const double* __restrict__ A,
                              const double* __restrict__ X,
                              double* __restrict__ Y) {
     constexpr int MM       = M * M;
-    constexpr int simd_end = (M / 4) * 4;  // for M=7: 4; for M=5: 4
+    constexpr int simd_end = (M / 4) * 4;
     for (int i = 0; i < MM; ++i) {
         // k=0: initialize Y[i,:]
         {
             const __m256d vx = _mm256_set1_pd(X[i * M + 0]);
-            const __m256d va = _mm256_loadu_pd(A + 0);
-            _mm256_storeu_pd(Y + i * M, _mm256_mul_pd(vx, va));
+            for (int j = 0; j < simd_end; j += 4) {
+                const __m256d va = _mm256_loadu_pd(A + j);
+                _mm256_storeu_pd(Y + i * M + j, _mm256_mul_pd(vx, va));
+            }
             const double x = X[i * M + 0];
             for (int j = simd_end; j < M; ++j) Y[i * M + j] = x * A[j];
         }
         for (int k = 1; k < M; ++k) {
             const __m256d vx = _mm256_set1_pd(X[i * M + k]);
-            const __m256d va = _mm256_loadu_pd(A + k * M);
-            const __m256d vy = _mm256_loadu_pd(Y + i * M);
-            _mm256_storeu_pd(Y + i * M, _mm256_fmadd_pd(vx, va, vy));
+            for (int j = 0; j < simd_end; j += 4) {
+                const __m256d va = _mm256_loadu_pd(A + k * M + j);
+                const __m256d vy = _mm256_loadu_pd(Y + i * M + j);
+                _mm256_storeu_pd(Y + i * M + j, _mm256_fmadd_pd(vx, va, vy));
+            }
             const double x = X[i * M + k];
             for (int j = simd_end; j < M; ++j) Y[i * M + j] += x * A[k * M + j];
         }
@@ -297,17 +301,22 @@ static inline void iaix_avx2(const double* __restrict__ A,
             // k=0: initialize Y[ib,i,:]
             const double d0   = A[i];
             const __m256d vd0 = _mm256_set1_pd(d0);
-            const __m256d vx0 = _mm256_loadu_pd(X + ib * MM + 0);
-            _mm256_storeu_pd(Y + ib * MM + i * M, _mm256_mul_pd(vd0, vx0));
+            for (int j = 0; j < simd_end; j += 4) {
+                const __m256d vx0 = _mm256_loadu_pd(X + ib * MM + j);
+                _mm256_storeu_pd(Y + ib * MM + i * M + j,
+                                 _mm256_mul_pd(vd0, vx0));
+            }
             for (int j = simd_end; j < M; ++j)
                 Y[ib * MM + i * M + j] = d0 * X[ib * MM + j];
             for (int k = 1; k < M; ++k) {
                 const double d   = A[i + k * M];
                 const __m256d vd = _mm256_set1_pd(d);
-                const __m256d vx = _mm256_loadu_pd(X + ib * MM + k * M);
-                const __m256d vy = _mm256_loadu_pd(Y + ib * MM + i * M);
-                _mm256_storeu_pd(Y + ib * MM + i * M,
-                                 _mm256_fmadd_pd(vd, vx, vy));
+                for (int j = 0; j < simd_end; j += 4) {
+                    const __m256d vx = _mm256_loadu_pd(X + ib * MM + k * M + j);
+                    const __m256d vy = _mm256_loadu_pd(Y + ib * MM + i * M + j);
+                    _mm256_storeu_pd(Y + ib * MM + i * M + j,
+                                     _mm256_fmadd_pd(vd, vx, vy));
+                }
                 for (int j = simd_end; j < M; ++j)
                     Y[ib * MM + i * M + j] += d * X[ib * MM + k * M + j];
             }
@@ -327,16 +336,20 @@ static inline void iax_2d_avx2(const double* __restrict__ A,
     for (int i = 0; i < M; ++i) {
         {
             const __m256d vx = _mm256_set1_pd(X[i * M + 0]);
-            const __m256d va = _mm256_loadu_pd(A + 0);
-            _mm256_storeu_pd(Y + i * M, _mm256_mul_pd(vx, va));
+            for (int j = 0; j < simd_end; j += 4) {
+                const __m256d va = _mm256_loadu_pd(A + j);
+                _mm256_storeu_pd(Y + i * M + j, _mm256_mul_pd(vx, va));
+            }
             const double x = X[i * M + 0];
             for (int j = simd_end; j < M; ++j) Y[i * M + j] = x * A[j];
         }
         for (int k = 1; k < M; ++k) {
             const __m256d vx = _mm256_set1_pd(X[i * M + k]);
-            const __m256d va = _mm256_loadu_pd(A + k * M);
-            const __m256d vy = _mm256_loadu_pd(Y + i * M);
-            _mm256_storeu_pd(Y + i * M, _mm256_fmadd_pd(vx, va, vy));
+            for (int j = 0; j < simd_end; j += 4) {
+                const __m256d va = _mm256_loadu_pd(A + k * M + j);
+                const __m256d vy = _mm256_loadu_pd(Y + i * M + j);
+                _mm256_storeu_pd(Y + i * M + j, _mm256_fmadd_pd(vx, va, vy));
+            }
             const double x = X[i * M + k];
             for (int j = simd_end; j < M; ++j) Y[i * M + j] += x * A[k * M + j];
         }
@@ -355,15 +368,19 @@ static inline void aix_2d_avx2(const double* __restrict__ A,
     for (int i = 0; i < M; ++i) {
         const double d0   = A[i];
         const __m256d vd0 = _mm256_set1_pd(d0);
-        const __m256d vx0 = _mm256_loadu_pd(X + 0);
-        _mm256_storeu_pd(Y + i * M, _mm256_mul_pd(vd0, vx0));
+        for (int j = 0; j < simd_end; j += 4) {
+            const __m256d vx0 = _mm256_loadu_pd(X + j);
+            _mm256_storeu_pd(Y + i * M + j, _mm256_mul_pd(vd0, vx0));
+        }
         for (int j = simd_end; j < M; ++j) Y[i * M + j] = d0 * X[j];
         for (int k = 1; k < M; ++k) {
             const double d   = A[i + k * M];
             const __m256d vd = _mm256_set1_pd(d);
-            const __m256d vx = _mm256_loadu_pd(X + k * M);
-            const __m256d vy = _mm256_loadu_pd(Y + i * M);
-            _mm256_storeu_pd(Y + i * M, _mm256_fmadd_pd(vd, vx, vy));
+            for (int j = 0; j < simd_end; j += 4) {
+                const __m256d vx = _mm256_loadu_pd(X + k * M + j);
+                const __m256d vy = _mm256_loadu_pd(Y + i * M + j);
+                _mm256_storeu_pd(Y + i * M + j, _mm256_fmadd_pd(vd, vx, vy));
+            }
             for (int j = simd_end; j < M; ++j) Y[i * M + j] += d * X[k * M + j];
         }
     }
