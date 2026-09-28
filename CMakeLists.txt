@@ -73,13 +73,13 @@ option(USE_FD_INTERP_FOR_UNZIP "Use FD style interpolation for unzip" OFF)
 option(MPIX_CUDA_AWARE_SUPPORT "Allow MPI to be aware of CUDA support" OFF)
 option(DVEC_ZERO_ALLOC "Initialize dvec memory to zero" OFF)
 option(DENDRO_UNZIP_SCATTER_FAST
-       "Use the integer-index same-level scatter fast path in Mesh::unzip_scatter (Phase 1 optimization)"
+       "Use the integer-index same-level scatter fast path in Mesh::unzip_scatter (Phase 1 optimization). No effect when DENDRO_UNZIP_OMP is ON: that path always uses the integer kernels."
        OFF)
 option(DENDRO_UNZIP_OMP
        "Enable OpenMP block-parallel unzip path (reserved hook; implementation lives on a separate hybrid branch)"
        OFF)
 option(DENDRO_TENSOR_SIMD
-       "Enable AVX2 SIMD specializations for the wavelet tensor kernels in FEM/src/tensor.cpp (M=7 for eO=6)"
+       "Enable AVX2 SIMD specializations for the wavelet tensor kernels in FEM/src/tensor.cpp (M=5, 7, 9 for eO=4, 6, 8). Requires the compiler to target AVX2+FMA (e.g. -march=native)."
        OFF)
 option(DENDRO_REPORT_BUILD_CONFIG
        "Emit #pragma message banners at compile time reporting which unzip/SIMD optimizations are active (diagnostic)"
@@ -187,6 +187,10 @@ dendro_add_def(USE_FD_INTERP_FOR_UNZIP USE_FD_INTERP_FOR_UNZIP)
 dendro_add_def(DVEC_ZERO_ALLOC DVEC_ZERO_ALLOC)
 dendro_add_def(DENDRO_UNZIP_SCATTER_FAST DENDRO_UNZIP_SCATTER_FAST)
 dendro_add_def(DENDRO_UNZIP_OMP DENDRO_UNZIP_OMP)
+
+if(DENDRO_UNZIP_OMP AND NOT DENDRO_UNZIP_SCATTER_FAST)
+  message(STATUS "DENDRO_UNZIP_SCATTER_FAST=OFF has no effect: DENDRO_UNZIP_OMP always uses the integer scatter kernels")
+endif()
 dendro_add_def(DENDRO_TENSOR_SIMD DENDRO_TENSOR_SIMD)
 dendro_add_def(DENDRO_REPORT_BUILD_CONFIG DENDRO_REPORT_BUILD_CONFIG)
 
