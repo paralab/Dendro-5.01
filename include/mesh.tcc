@@ -11071,6 +11071,17 @@ void Mesh::unzip_scatter(const T* in, T* out, unsigned int dof) {
     const double d_compar_tol  = 1e-10;
 
 #if defined(DENDRO_UNZIP_OMP)
+    // The OMP path has no odd-eOrder fall-back: the fine->coarse branch below
+    // would write nothing rather than interpolate. Fail instead of returning a
+    // silently incomplete unzip.
+    if ((m_uiElementOrder % 2u) != 0) {
+        std::cout << "Error: " << __func__ << " line: " << __LINE__
+                  << " DENDRO_UNZIP_OMP does not support odd element order "
+                  << m_uiElementOrder << "; rebuild with DENDRO_UNZIP_OMP=OFF"
+                  << std::endl;
+        MPI_Abort(m_uiCommGlobal, 0);
+    }
+
     // OpenMP block-parallel path. Builds a block-to-element map (inverse
     // of m_e2b_unzip_map) then parallelizes the OUTER loop over blocks.
     // Each block has a unique output region in uzWVec, so there is no
@@ -11615,6 +11626,17 @@ void Mesh::unzip_scatter_batch(const T* const* ins, T* const* outs,
         this->unzip_scatter(ins[v], outs[v], 1);
     return;
 #else
+    // The OMP path has no odd-eOrder fall-back: the fine->coarse branch below
+    // would write nothing rather than interpolate. Fail instead of returning a
+    // silently incomplete unzip.
+    if ((m_uiElementOrder % 2u) != 0) {
+        std::cout << "Error: " << __func__ << " line: " << __LINE__
+                  << " DENDRO_UNZIP_OMP does not support odd element order "
+                  << m_uiElementOrder << "; rebuild with DENDRO_UNZIP_OMP=OFF"
+                  << std::endl;
+        MPI_Abort(m_uiCommGlobal, 0);
+    }
+
     const ot::TreeNode* pNodes = m_uiAllElements.data();
     const ot::Block* blkList   = m_uiLocalBlockList.data();
     const unsigned int eOrder  = m_uiElementOrder;
