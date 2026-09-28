@@ -343,6 +343,12 @@ if(BUILD_DENDRO_EXAMPLES)
 
   dendro_add_doctest(testTensorKernels test/src/testTensorKernels.cpp)
   dendro_add_example(testStabilityEvolution test/src/testStabilityEvolution.cpp)
+  # Smoke test: reports a checksum but does not assert on it. The TIMEOUT is the
+  # point -- a broken eO=8 interpolation shows up as runaway refinement, not a
+  # bad exit code.
+  add_test(NAME testStabilityEvolution_eO8
+           COMMAND testStabilityEvolution 8 1e-4 0.1 8 5 24 1e-6)
+  set_tests_properties(testStabilityEvolution_eO8 PROPERTIES TIMEOUT 300)
   dendro_add_example(testIsReMeshUnzip test/src/testIsReMeshUnzip.cpp)
   dendro_add_example(testInterpFaceClamp test/src/testInterpFaceClamp.cpp)
   dendro_add_example(testAehBhahahaGuards test/src/testAehBhahahaGuards.cpp)
