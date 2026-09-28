@@ -17,6 +17,41 @@ project(Dendro-5.0-Library C CXX Fortran)
 
 
 # ==========================
+# CPU ARCHITECTURE
+# ==========================
+# when built standalone, set a default arch target so the compiler can
+# actually vectorize. when included as a subdirectory, the parent project
+# is expected to set arch flags itself (e.g. via add_compile_options).
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+  set(DENDRO_CPU_ARCH "native" CACHE STRING "Target CPU architecture (native, x86-64-v3, znver3, etc.)")
+  set(DENDRO_CPU_ARCH_STRINGS
+      "native"
+      "nosimd"
+      "znver1" "znver2" "znver3" "znver4"
+      "haswell" "broadwell" "skylake-avx512" "cascadelake" "icelake-server"
+      "generic_avx2" "x86-64-v3"
+  )
+  set_property(CACHE DENDRO_CPU_ARCH PROPERTY STRINGS ${DENDRO_CPU_ARCH_STRINGS})
+
+  if(DENDRO_CPU_ARCH STREQUAL "nosimd")
+    # Pure-scalar profiling baseline: x86-64 v1 (SSE2 is mandated by the ABI, but
+    # disable AVX/AVX2/AVX-512 and auto-vectorization). This controls the COMPILED
+    # production explicit derivative kernels. NOTE: the LIBXSMM matrix-form path JITs
+    # at runtime from CPUID, not these flags — force it with LIBXSMM_TARGET=sse.
+    add_compile_options(-march=x86-64 -mno-avx -mno-avx2 -mno-avx512f -fno-tree-vectorize)
+  elseif(DENDRO_CPU_ARCH STREQUAL "generic_avx2")
+    add_compile_options(-mavx2 -mfma)
+  elseif(DENDRO_CPU_ARCH IN_LIST DENDRO_CPU_ARCH_STRINGS)
+    add_compile_options(-march=${DENDRO_CPU_ARCH})
+  else()
+    message(FATAL_ERROR "Unknown DENDRO_CPU_ARCH: ${DENDRO_CPU_ARCH}")
+  endif()
+
+  message(STATUS "Dendro standalone build — target arch: ${DENDRO_CPU_ARCH}")
+endif()
+
+
+# ==========================
 # DENDRO LIBRARY OPTIONS
 # ==========================
 option(USE_64BIT_INDICES "Use 64-Bit indices (Reverts to 32-bit if OFF)" ON)
