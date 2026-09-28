@@ -62,6 +62,9 @@ set(NUM_NPES_THRESHOLD 2 CACHE STRING "NPES Threshold")
 # ==========================
 include(FetchContent)
 
+# ctest registration (only populated when BUILD_DENDRO_EXAMPLES is on)
+enable_testing()
+
 # OpenMP
 find_package(OpenMP REQUIRED)
 
@@ -283,6 +286,7 @@ if(BUILD_DENDRO_EXAMPLES)
   dendro_add_example(benchUnzipSameLevel test/src/benchUnzipSameLevel.cpp)
   dendro_add_example(benchUnzipGather test/src/benchUnzipGather.cpp)
   dendro_add_example(testUnzipScatterKernels test/src/testUnzipScatterKernels.cpp)
+  add_test(NAME testUnzipScatterKernels COMMAND testUnzipScatterKernels)
   dendro_add_example(testStabilityEvolution test/src/testStabilityEvolution.cpp)
   dendro_add_example(testIsReMeshUnzip test/src/testIsReMeshUnzip.cpp)
   dendro_add_example(testInterpFaceClamp test/src/testInterpFaceClamp.cpp)
