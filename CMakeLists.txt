@@ -17,6 +17,41 @@ project(Dendro-5.0-Library C CXX Fortran)
 
 
 # ==========================
+# CPU ARCHITECTURE
+# ==========================
+# when built standalone, set a default arch target so the compiler can
+# actually vectorize. when included as a subdirectory, the parent project
+# is expected to set arch flags itself (e.g. via add_compile_options).
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+  set(DENDRO_CPU_ARCH "native" CACHE STRING "Target CPU architecture (native, x86-64-v3, znver3, etc.)")
+  set(DENDRO_CPU_ARCH_STRINGS
+      "native"
+      "nosimd"
+      "znver1" "znver2" "znver3" "znver4"
+      "haswell" "broadwell" "skylake-avx512" "cascadelake" "icelake-server"
+      "generic_avx2" "x86-64-v3"
+  )
+  set_property(CACHE DENDRO_CPU_ARCH PROPERTY STRINGS ${DENDRO_CPU_ARCH_STRINGS})
+
+  if(DENDRO_CPU_ARCH STREQUAL "nosimd")
+    # Pure-scalar profiling baseline: x86-64 v1 (SSE2 is mandated by the ABI, but
+    # disable AVX/AVX2/AVX-512 and auto-vectorization). This controls the COMPILED
+    # production explicit derivative kernels. NOTE: the LIBXSMM matrix-form path JITs
+    # at runtime from CPUID, not these flags — force it with LIBXSMM_TARGET=sse.
+    add_compile_options(-march=x86-64 -mno-avx -mno-avx2 -mno-avx512f -fno-tree-vectorize)
+  elseif(DENDRO_CPU_ARCH STREQUAL "generic_avx2")
+    add_compile_options(-mavx2 -mfma)
+  elseif(DENDRO_CPU_ARCH IN_LIST DENDRO_CPU_ARCH_STRINGS)
+    add_compile_options(-march=${DENDRO_CPU_ARCH})
+  else()
+    message(FATAL_ERROR "Unknown DENDRO_CPU_ARCH: ${DENDRO_CPU_ARCH}")
+  endif()
+
+  message(STATUS "Dendro standalone build — target arch: ${DENDRO_CPU_ARCH}")
+endif()
+
+
+# ==========================
 # DENDRO LIBRARY OPTIONS
 # ==========================
 option(USE_64BIT_INDICES "Use 64-Bit indices (Reverts to 32-bit if OFF)" ON)
@@ -61,6 +96,9 @@ set(NUM_NPES_THRESHOLD 2 CACHE STRING "NPES Threshold")
 # DEPENDENCIES
 # ==========================
 include(FetchContent)
+
+# ctest registration (only populated when BUILD_DENDRO_EXAMPLES is on)
+enable_testing()
 
 # OpenMP
 find_package(OpenMP REQUIRED)
@@ -283,7 +321,34 @@ if(BUILD_DENDRO_EXAMPLES)
   dendro_add_example(benchUnzipSameLevel test/src/benchUnzipSameLevel.cpp)
   dendro_add_example(benchUnzipGather test/src/benchUnzipGather.cpp)
   dendro_add_example(testUnzipScatterKernels test/src/testUnzipScatterKernels.cpp)
+  add_test(NAME testUnzipScatterKernels COMMAND testUnzipScatterKernels)
+
+  # --- doctest-based unit tests (serial, registered with ctest) ---
+  if(NOT TARGET doctest::doctest)
+    FetchContent_Declare(
+        doctest
+        GIT_REPOSITORY https://github.com/doctest/doctest.git
+        GIT_TAG        v2.5.3
+    )
+    FetchContent_MakeAvailable(doctest)
+  endif()
+  list(APPEND CMAKE_MODULE_PATH ${doctest_SOURCE_DIR}/scripts/cmake)
+  include(doctest)
+
+  function(dendro_add_doctest TARGET_NAME)
+    add_executable(${TARGET_NAME} ${ARGN})
+    target_link_libraries(${TARGET_NAME} PRIVATE dendro5 MPI::MPI_CXX doctest::doctest quadmath m)
+    doctest_discover_tests(${TARGET_NAME})
+  endfunction()
+
+  dendro_add_doctest(testTensorKernels test/src/testTensorKernels.cpp)
   dendro_add_example(testStabilityEvolution test/src/testStabilityEvolution.cpp)
+  # Smoke test: reports a checksum but does not assert on it. The TIMEOUT is the
+  # point -- a broken eO=8 interpolation shows up as runaway refinement, not a
+  # bad exit code.
+  add_test(NAME testStabilityEvolution_eO8
+           COMMAND testStabilityEvolution 8 1e-4 0.1 8 5 24 1e-6)
+  set_tests_properties(testStabilityEvolution_eO8 PROPERTIES TIMEOUT 300)
   dendro_add_example(testIsReMeshUnzip test/src/testIsReMeshUnzip.cpp)
   dendro_add_example(testInterpFaceClamp test/src/testInterpFaceClamp.cpp)
   dendro_add_example(testAehBhahahaGuards test/src/testAehBhahahaGuards.cpp)
