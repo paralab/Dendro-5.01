@@ -220,171 +220,81 @@ inline void iaix_avx512<7>(const double* __restrict__ A,
 #endif  // __AVX512F__
 
 // ---------------------------------------------------------------------------
-// AVX2 specialization for AIIX (Z-axis), M known at compile time.
-// Y[i,j] = sum_k A[i,k] * X[k,j], with j running over the M*M plane
-// (unit-stride, the easy axis).
+// All five tensor contractions reduce to the same row update:
+//
+//     dst[0..N) = sum_{k<K} coeff[k*CS] * src[k*SS + 0..N)
+//
+// N is the contiguous extent (M for the per-row axes, M*M for AIIX), so the
+// vector store must be looped to (N/4)*4 -- a single 4-wide store only covers
+// N <= 7, which silently dropped lanes at M=9.
+template <int N, int K, int CS, int SS>
+static inline void fma_row(double* __restrict__ dst,
+                           const double* __restrict__ coeff,
+                           const double* __restrict__ src) {
+    constexpr int simd_end = (N / 4) * 4;
+    {
+        const double c   = coeff[0];
+        const __m256d vc = _mm256_set1_pd(c);
+        for (int j = 0; j < simd_end; j += 4)
+            _mm256_storeu_pd(dst + j,
+                             _mm256_mul_pd(vc, _mm256_loadu_pd(src + j)));
+        for (int j = simd_end; j < N; ++j) dst[j] = c * src[j];
+    }
+    for (int k = 1; k < K; ++k) {
+        const double c          = coeff[k * CS];
+        const __m256d vc        = _mm256_set1_pd(c);
+        const double* const s   = src + k * SS;
+        for (int j = 0; j < simd_end; j += 4)
+            _mm256_storeu_pd(dst + j,
+                             _mm256_fmadd_pd(vc, _mm256_loadu_pd(s + j),
+                                             _mm256_loadu_pd(dst + j)));
+        for (int j = simd_end; j < N; ++j) dst[j] += c * s[j];
+    }
+}
+
+// Z axis: Y[i, j] = sum_k A[i + k*M] * X[k*MM + j], j over the MM plane.
 template <int M>
 static inline void aiix_avx2(const double* __restrict__ A,
                              const double* __restrict__ X,
                              double* __restrict__ Y) {
-    constexpr int MM       = M * M;
-    constexpr int simd_end = (MM / 4) * 4;
-    for (int i = 0; i < M; ++i) {
-        // first pass: k=0 → initialize Y[i,:]
-        const __m256d vd0 = _mm256_set1_pd(A[i]);
-        int j;
-        for (j = 0; j < simd_end; j += 4) {
-            const __m256d vx = _mm256_loadu_pd(X + j);
-            _mm256_storeu_pd(Y + i * MM + j, _mm256_mul_pd(vd0, vx));
-        }
-        const double d0 = A[i];
-        for (; j < MM; ++j) Y[i * MM + j] = d0 * X[j];
-        // k=1..M-1: accumulate
-        for (int k = 1; k < M; ++k) {
-            const __m256d vd = _mm256_set1_pd(A[i + k * M]);
-            for (j = 0; j < simd_end; j += 4) {
-                const __m256d vx = _mm256_loadu_pd(X + MM * k + j);
-                const __m256d vy = _mm256_loadu_pd(Y + i * MM + j);
-                _mm256_storeu_pd(Y + i * MM + j, _mm256_fmadd_pd(vd, vx, vy));
-            }
-            const double d = A[i + k * M];
-            for (; j < MM; ++j) Y[i * MM + j] += d * X[MM * k + j];
-        }
-    }
+    constexpr int MM = M * M;
+    for (int i = 0; i < M; ++i) fma_row<MM, M, M, MM>(Y + i * MM, A + i, X);
 }
 
-// ---------------------------------------------------------------------------
-// AVX2 specialization for IIAX (X-axis), M known at compile time.
-// Y[i,j] = sum_k X[i,k] * A[k,j].   i iterates M*M times (outer), j and k
-// over M. Reorder so j is innermost contiguous in both Y and A[k,:].
+// X axis: Y[i, j] = sum_k X[i*M + k] * A[k*M + j].
 template <int M>
 static inline void iiax_avx2(const double* __restrict__ A,
                              const double* __restrict__ X,
                              double* __restrict__ Y) {
-    constexpr int MM       = M * M;
-    constexpr int simd_end = (M / 4) * 4;
-    for (int i = 0; i < MM; ++i) {
-        // k=0: initialize Y[i,:]
-        {
-            const __m256d vx = _mm256_set1_pd(X[i * M + 0]);
-            for (int j = 0; j < simd_end; j += 4) {
-                const __m256d va = _mm256_loadu_pd(A + j);
-                _mm256_storeu_pd(Y + i * M + j, _mm256_mul_pd(vx, va));
-            }
-            const double x = X[i * M + 0];
-            for (int j = simd_end; j < M; ++j) Y[i * M + j] = x * A[j];
-        }
-        for (int k = 1; k < M; ++k) {
-            const __m256d vx = _mm256_set1_pd(X[i * M + k]);
-            for (int j = 0; j < simd_end; j += 4) {
-                const __m256d va = _mm256_loadu_pd(A + k * M + j);
-                const __m256d vy = _mm256_loadu_pd(Y + i * M + j);
-                _mm256_storeu_pd(Y + i * M + j, _mm256_fmadd_pd(vx, va, vy));
-            }
-            const double x = X[i * M + k];
-            for (int j = simd_end; j < M; ++j) Y[i * M + j] += x * A[k * M + j];
-        }
-    }
+    constexpr int MM = M * M;
+    for (int i = 0; i < MM; ++i) fma_row<M, M, 1, M>(Y + i * M, X + i * M, A);
 }
 
-// ---------------------------------------------------------------------------
-// AVX2 specialization for IAIX (Y-axis), M known at compile time.
-// Y[ib,i,j] = sum_k A[i,k] * X[ib,k,j], inner j is short (length M).
+// Y axis: Y[ib, i, j] = sum_k A[i + k*M] * X[ib*MM + k*M + j].
 template <int M>
 static inline void iaix_avx2(const double* __restrict__ A,
                              const double* __restrict__ X,
                              double* __restrict__ Y) {
-    constexpr int MM       = M * M;
-    constexpr int simd_end = (M / 4) * 4;
-    for (int ib = 0; ib < M; ++ib) {
-        for (int i = 0; i < M; ++i) {
-            // k=0: initialize Y[ib,i,:]
-            const double d0   = A[i];
-            const __m256d vd0 = _mm256_set1_pd(d0);
-            for (int j = 0; j < simd_end; j += 4) {
-                const __m256d vx0 = _mm256_loadu_pd(X + ib * MM + j);
-                _mm256_storeu_pd(Y + ib * MM + i * M + j,
-                                 _mm256_mul_pd(vd0, vx0));
-            }
-            for (int j = simd_end; j < M; ++j)
-                Y[ib * MM + i * M + j] = d0 * X[ib * MM + j];
-            for (int k = 1; k < M; ++k) {
-                const double d   = A[i + k * M];
-                const __m256d vd = _mm256_set1_pd(d);
-                for (int j = 0; j < simd_end; j += 4) {
-                    const __m256d vx = _mm256_loadu_pd(X + ib * MM + k * M + j);
-                    const __m256d vy = _mm256_loadu_pd(Y + ib * MM + i * M + j);
-                    _mm256_storeu_pd(Y + ib * MM + i * M + j,
-                                     _mm256_fmadd_pd(vd, vx, vy));
-                }
-                for (int j = simd_end; j < M; ++j)
-                    Y[ib * MM + i * M + j] += d * X[ib * MM + k * M + j];
-            }
-        }
-    }
+    constexpr int MM = M * M;
+    for (int ib = 0; ib < M; ++ib)
+        for (int i = 0; i < M; ++i)
+            fma_row<M, M, M, M>(Y + ib * MM + i * M, A + i, X + ib * MM);
 }
 
-// ---------------------------------------------------------------------------
-// AVX2 specialization for 2D-face IAX (X-axis face interp), M known at
-// compile time. Same as iiax but with M outer iterations instead of M*M
-// (one ib slice).
+// X axis, 2D face: one ib slice of iiax.
 template <int M>
 static inline void iax_2d_avx2(const double* __restrict__ A,
                                const double* __restrict__ X,
                                double* __restrict__ Y) {
-    constexpr int simd_end = (M / 4) * 4;
-    for (int i = 0; i < M; ++i) {
-        {
-            const __m256d vx = _mm256_set1_pd(X[i * M + 0]);
-            for (int j = 0; j < simd_end; j += 4) {
-                const __m256d va = _mm256_loadu_pd(A + j);
-                _mm256_storeu_pd(Y + i * M + j, _mm256_mul_pd(vx, va));
-            }
-            const double x = X[i * M + 0];
-            for (int j = simd_end; j < M; ++j) Y[i * M + j] = x * A[j];
-        }
-        for (int k = 1; k < M; ++k) {
-            const __m256d vx = _mm256_set1_pd(X[i * M + k]);
-            for (int j = 0; j < simd_end; j += 4) {
-                const __m256d va = _mm256_loadu_pd(A + k * M + j);
-                const __m256d vy = _mm256_loadu_pd(Y + i * M + j);
-                _mm256_storeu_pd(Y + i * M + j, _mm256_fmadd_pd(vx, va, vy));
-            }
-            const double x = X[i * M + k];
-            for (int j = simd_end; j < M; ++j) Y[i * M + j] += x * A[k * M + j];
-        }
-    }
+    for (int i = 0; i < M; ++i) fma_row<M, M, 1, M>(Y + i * M, X + i * M, A);
 }
 
-// ---------------------------------------------------------------------------
-// AVX2 specialization for 2D-face AIX (Y-axis face interp), M known at
-// compile time. Same as iaix with ib=0 (one slice).
+// Y axis, 2D face: iaix with ib = 0.
 template <int M>
 static inline void aix_2d_avx2(const double* __restrict__ A,
                                const double* __restrict__ X,
                                double* __restrict__ Y) {
-    constexpr int MM       = M * M;
-    constexpr int simd_end = (M / 4) * 4;
-    for (int i = 0; i < M; ++i) {
-        const double d0   = A[i];
-        const __m256d vd0 = _mm256_set1_pd(d0);
-        for (int j = 0; j < simd_end; j += 4) {
-            const __m256d vx0 = _mm256_loadu_pd(X + j);
-            _mm256_storeu_pd(Y + i * M + j, _mm256_mul_pd(vd0, vx0));
-        }
-        for (int j = simd_end; j < M; ++j) Y[i * M + j] = d0 * X[j];
-        for (int k = 1; k < M; ++k) {
-            const double d   = A[i + k * M];
-            const __m256d vd = _mm256_set1_pd(d);
-            for (int j = 0; j < simd_end; j += 4) {
-                const __m256d vx = _mm256_loadu_pd(X + k * M + j);
-                const __m256d vy = _mm256_loadu_pd(Y + i * M + j);
-                _mm256_storeu_pd(Y + i * M + j, _mm256_fmadd_pd(vd, vx, vy));
-            }
-            for (int j = simd_end; j < M; ++j) Y[i * M + j] += d * X[k * M + j];
-        }
-    }
-    (void)MM;
+    for (int i = 0; i < M; ++i) fma_row<M, M, M, M>(Y + i * M, A + i, X);
 }
 
 }  // namespace
