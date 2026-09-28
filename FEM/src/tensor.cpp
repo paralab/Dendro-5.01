@@ -226,28 +226,50 @@ inline void iaix_avx512<7>(const double* __restrict__ A,
 
 // ---------------------------------------------------------------------------
 // dst[0..N) = sum_{k<K} coeff[k*CS] * src[k*SS + 0..N)
+//
+// Widening is elementwise, so every lane still takes exactly one FMA per k and
+// the result is independent of which chunk width covers it.
 template <int N, int K, int CS, int SS>
 static inline void fma_row(double* __restrict__ dst,
                            const double* __restrict__ coeff,
                            const double* __restrict__ src) {
-    constexpr int simd_end = (N / 4) * 4;
+#if defined(__AVX512F__)
+    constexpr int w8 = (N / 8) * 8;
+#else
+    constexpr int w8 = 0;
+#endif
+    constexpr int w4 = w8 + ((N - w8) / 4) * 4;
+
     {
-        const double c   = coeff[0];
+        const double c = coeff[0];
+#if defined(__AVX512F__)
+        const __m512d zc = _mm512_set1_pd(c);
+        for (int j = 0; j < w8; j += 8)
+            _mm512_storeu_pd(dst + j,
+                             _mm512_mul_pd(zc, _mm512_loadu_pd(src + j)));
+#endif
         const __m256d vc = _mm256_set1_pd(c);
-        for (int j = 0; j < simd_end; j += 4)
+        for (int j = w8; j < w4; j += 4)
             _mm256_storeu_pd(dst + j,
                              _mm256_mul_pd(vc, _mm256_loadu_pd(src + j)));
-        for (int j = simd_end; j < N; ++j) dst[j] = c * src[j];
+        for (int j = w4; j < N; ++j) dst[j] = c * src[j];
     }
     for (int k = 1; k < K; ++k) {
-        const double c          = coeff[k * CS];
-        const __m256d vc        = _mm256_set1_pd(c);
-        const double* const s   = src + k * SS;
-        for (int j = 0; j < simd_end; j += 4)
+        const double c        = coeff[k * CS];
+        const double* const s = src + k * SS;
+#if defined(__AVX512F__)
+        const __m512d zc = _mm512_set1_pd(c);
+        for (int j = 0; j < w8; j += 8)
+            _mm512_storeu_pd(dst + j,
+                             _mm512_fmadd_pd(zc, _mm512_loadu_pd(s + j),
+                                             _mm512_loadu_pd(dst + j)));
+#endif
+        const __m256d vc = _mm256_set1_pd(c);
+        for (int j = w8; j < w4; j += 4)
             _mm256_storeu_pd(dst + j,
                              _mm256_fmadd_pd(vc, _mm256_loadu_pd(s + j),
                                              _mm256_loadu_pd(dst + j)));
-        for (int j = simd_end; j < N; ++j) dst[j] += c * s[j];
+        for (int j = w4; j < N; ++j) dst[j] += c * s[j];
     }
 }
 
