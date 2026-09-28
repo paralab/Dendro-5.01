@@ -287,6 +287,26 @@ if(BUILD_DENDRO_EXAMPLES)
   dendro_add_example(benchUnzipGather test/src/benchUnzipGather.cpp)
   dendro_add_example(testUnzipScatterKernels test/src/testUnzipScatterKernels.cpp)
   add_test(NAME testUnzipScatterKernels COMMAND testUnzipScatterKernels)
+
+  # --- doctest-based unit tests (serial, registered with ctest) ---
+  if(NOT TARGET doctest::doctest)
+    FetchContent_Declare(
+        doctest
+        GIT_REPOSITORY https://github.com/doctest/doctest.git
+        GIT_TAG        v2.5.3
+    )
+    FetchContent_MakeAvailable(doctest)
+  endif()
+  list(APPEND CMAKE_MODULE_PATH ${doctest_SOURCE_DIR}/scripts/cmake)
+  include(doctest)
+
+  function(dendro_add_doctest TARGET_NAME)
+    add_executable(${TARGET_NAME} ${ARGN})
+    target_link_libraries(${TARGET_NAME} PRIVATE dendro5 MPI::MPI_CXX doctest::doctest quadmath m)
+    doctest_discover_tests(${TARGET_NAME})
+  endfunction()
+
+  dendro_add_doctest(testTensorKernels test/src/testTensorKernels.cpp)
   dendro_add_example(testStabilityEvolution test/src/testStabilityEvolution.cpp)
   dendro_add_example(testIsReMeshUnzip test/src/testIsReMeshUnzip.cpp)
   dendro_add_example(testInterpFaceClamp test/src/testInterpFaceClamp.cpp)
