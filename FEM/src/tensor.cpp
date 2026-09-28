@@ -8,10 +8,15 @@
  * @breif contains the utilities for tensor kronecker products for
  * interpolations.
  *
- * AVX2 SIMD specializations (M=7 for eO=6, M=5 for eO=4) live in an
- * anonymous namespace below and are dispatched on M at the top of each
- * public function when DENDRO_TENSOR_SIMD is defined. Scalar code is
- * unchanged and is the fallback for other M.
+ * AVX2 SIMD specializations (M=5, 7, 9 for eO=4, 6, 8) live in an anonymous
+ * namespace below and are dispatched on M at the top of each public function
+ * when DENDRO_TENSOR_SIMD is defined. Scalar code is unchanged and is the
+ * fallback for other M. An AVX-512 specialization exists for M=7 only.
+ *
+ * All five contractions are the same row update and share fma_row; each kernel
+ * supplies only its index mapping. The contiguous extent differs between them
+ * (M for the per-row axes, M*M for AIIX), which is why fma_row is templated on
+ * it rather than assuming a single vector store covers the row.
  *
  * */
 
@@ -220,13 +225,7 @@ inline void iaix_avx512<7>(const double* __restrict__ A,
 #endif  // __AVX512F__
 
 // ---------------------------------------------------------------------------
-// All five tensor contractions reduce to the same row update:
-//
-//     dst[0..N) = sum_{k<K} coeff[k*CS] * src[k*SS + 0..N)
-//
-// N is the contiguous extent (M for the per-row axes, M*M for AIIX), so the
-// vector store must be looped to (N/4)*4 -- a single 4-wide store only covers
-// N <= 7, which silently dropped lanes at M=9.
+// dst[0..N) = sum_{k<K} coeff[k*CS] * src[k*SS + 0..N)
 template <int N, int K, int CS, int SS>
 static inline void fma_row(double* __restrict__ dst,
                            const double* __restrict__ coeff,
@@ -252,7 +251,7 @@ static inline void fma_row(double* __restrict__ dst,
     }
 }
 
-// Z axis: Y[i, j] = sum_k A[i + k*M] * X[k*MM + j], j over the MM plane.
+// Z axis, contiguous over the M*M plane.
 template <int M>
 static inline void aiix_avx2(const double* __restrict__ A,
                              const double* __restrict__ X,
@@ -261,7 +260,7 @@ static inline void aiix_avx2(const double* __restrict__ A,
     for (int i = 0; i < M; ++i) fma_row<MM, M, M, MM>(Y + i * MM, A + i, X);
 }
 
-// X axis: Y[i, j] = sum_k X[i*M + k] * A[k*M + j].
+// X axis.
 template <int M>
 static inline void iiax_avx2(const double* __restrict__ A,
                              const double* __restrict__ X,
@@ -270,7 +269,7 @@ static inline void iiax_avx2(const double* __restrict__ A,
     for (int i = 0; i < MM; ++i) fma_row<M, M, 1, M>(Y + i * M, X + i * M, A);
 }
 
-// Y axis: Y[ib, i, j] = sum_k A[i + k*M] * X[ib*MM + k*M + j].
+// Y axis.
 template <int M>
 static inline void iaix_avx2(const double* __restrict__ A,
                              const double* __restrict__ X,
@@ -281,7 +280,7 @@ static inline void iaix_avx2(const double* __restrict__ A,
             fma_row<M, M, M, M>(Y + ib * MM + i * M, A + i, X + ib * MM);
 }
 
-// X axis, 2D face: one ib slice of iiax.
+// X axis, 2D face: one ib slice of iiax_avx2.
 template <int M>
 static inline void iax_2d_avx2(const double* __restrict__ A,
                                const double* __restrict__ X,
@@ -289,7 +288,7 @@ static inline void iax_2d_avx2(const double* __restrict__ A,
     for (int i = 0; i < M; ++i) fma_row<M, M, 1, M>(Y + i * M, X + i * M, A);
 }
 
-// Y axis, 2D face: iaix with ib = 0.
+// Y axis, 2D face: iaix_avx2 with ib = 0.
 template <int M>
 static inline void aix_2d_avx2(const double* __restrict__ A,
                                const double* __restrict__ X,
