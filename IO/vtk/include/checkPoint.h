@@ -163,9 +163,13 @@ int readVecFromFile(const char* fName, const ot::Mesh* pMesh, T* vec) {
         std::cout << fName << " file open failed " << std::endl;
         return 1;
     }
-    size_t fr_status = fread(&numNodes, sizeof(unsigned int), 1, infile);
-    fr_status        = fread(&nLocalBegin, sizeof(unsigned int), 1, infile);
-    fr_status        = fread(&nLocalEnd, sizeof(unsigned int), 1, infile);
+    if (fread(&numNodes, sizeof(unsigned int), 1, infile) != 1 ||
+        fread(&nLocalBegin, sizeof(unsigned int), 1, infile) != 1 ||
+        fread(&nLocalEnd, sizeof(unsigned int), 1, infile) != 1) {
+        std::cout << fName << " file header is truncated. " << std::endl;
+        fclose(infile);
+        return 1;
+    }
 
     if (numNodes !=
         (pMesh->getNumPreMeshNodes() + pMesh->getNumLocalMeshNodes() +
@@ -189,9 +193,13 @@ int readVecFromFile(const char* fName, const ot::Mesh* pMesh, T* vec) {
         return 1;
     }
 
-    if (numNodes > 0)
-        fr_status = fread((vec + nLocalBegin), sizeof(T),
-                          pMesh->getNumLocalMeshNodes(), infile);
+    const size_t numLocal = pMesh->getNumLocalMeshNodes();
+    if (numNodes > 0 &&
+        fread((vec + nLocalBegin), sizeof(T), numLocal, infile) != numLocal) {
+        std::cout << fName << " file is truncated. " << std::endl;
+        fclose(infile);
+        return 1;
+    }
 
     fclose(infile);
     dendro::logger::debug("Finished reading vec from file: ", fName);
@@ -210,9 +218,13 @@ int readVecFromFile(const char* fName, const ot::Mesh* pMesh, T** vec,
         return 1;
     }
 
-    size_t fr_status = fread(&numNodes, sizeof(unsigned int), 1, infile);
-    fr_status        = fread(&nLocalBegin, sizeof(unsigned int), 1, infile);
-    fr_status        = fread(&nLocalEnd, sizeof(unsigned int), 1, infile);
+    if (fread(&numNodes, sizeof(unsigned int), 1, infile) != 1 ||
+        fread(&nLocalBegin, sizeof(unsigned int), 1, infile) != 1 ||
+        fread(&nLocalEnd, sizeof(unsigned int), 1, infile) != 1) {
+        std::cout << fName << " file header is truncated. " << std::endl;
+        fclose(infile);
+        return 1;
+    }
 
     if (numNodes !=
         (pMesh->getNumPreMeshNodes() + pMesh->getNumLocalMeshNodes() +
@@ -236,10 +248,15 @@ int readVecFromFile(const char* fName, const ot::Mesh* pMesh, T** vec,
         return 1;
     }
 
+    const size_t numLocal = pMesh->getNumLocalMeshNodes();
     if (numNodes > 0)
         for (unsigned int i = 0; i < numVars; i++)
-            fr_status = fread((vec[i] + nLocalBegin), sizeof(T),
-                              pMesh->getNumLocalMeshNodes(), infile);
+            if (fread((vec[i] + nLocalBegin), sizeof(T), numLocal, infile) !=
+                numLocal) {
+                std::cout << fName << " file is truncated. " << std::endl;
+                fclose(infile);
+                return 1;
+            }
 
     fclose(infile);
     dendro::logger::debug("Finished reading vec from file: ", fName);

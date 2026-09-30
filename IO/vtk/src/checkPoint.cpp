@@ -45,12 +45,21 @@ int readOctFromFile(const char* fName, std::vector<ot::TreeNode>& pNodes) {
     }
     unsigned int num = 0;
 
-    size_t fr_status = fread(&num, sizeof(unsigned int), 1, inpfile);
+    if (fread(&num, sizeof(unsigned int), 1, inpfile) != 1) {
+        std::cout << fName << " file header is truncated. " << std::endl;
+        fclose(inpfile);
+        return 1;
+    }
 
     if (num > 0) {
         pNodes.resize(num);
-        fr_status =
-            fread(&(*(pNodes.begin())), (sizeof(ot::TreeNode)), num, inpfile);
+        if (fread(&(*(pNodes.begin())), (sizeof(ot::TreeNode)), num, inpfile) !=
+            num) {
+            std::cout << fName << " file is truncated. " << std::endl;
+            pNodes.clear();
+            fclose(inpfile);
+            return 1;
+        }
     }
 
     fclose(inpfile);
