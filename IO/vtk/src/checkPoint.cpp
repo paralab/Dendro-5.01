@@ -25,12 +25,15 @@ int writeOctToFile(const char* fName, const ot::TreeNode* pNodes,
         std::cout << fName << " file open failed " << std::endl;
         return 1;
     }
-    fwrite(&num, sizeof(unsigned int), 1,
-           outfile);  // write out the number of elements.
+    bool ok = fwrite(&num, sizeof(unsigned int), 1, outfile) == 1;
+    if (ok && num > 0)
+        ok = fwrite(pNodes, sizeof(ot::TreeNode), num, outfile) == num;
 
-    if (num > 0) fwrite(pNodes, sizeof(ot::TreeNode), num, outfile);
-
-    fclose(outfile);
+    ok = (fclose(outfile) == 0) && ok;
+    if (!ok) {
+        std::cout << fName << " file write failed. " << std::endl;
+        return 1;
+    }
 
     dendro::logger::debug("Finished exporting oct nodes to file: {}", fName);
     return 0;
