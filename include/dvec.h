@@ -11,6 +11,7 @@
 
 #pragma once
 #include <iostream>
+#include <limits>
 
 #include "device.h"
 #include "mathUtils.h"
@@ -168,19 +169,22 @@ void DVector<T, I>::create_vector(const ot::Mesh* pMesh, DVEC_TYPE type,
     m_ghost_allocated = allocate_ghost;
     m_size            = 0;
 
+    // sized in 64 bits so an overflow of I is caught below
+    const unsigned long long dof64 = m_dof;
+    unsigned long long sz          = 0;
+
     if (m_vec_type == DVEC_TYPE::OCT_SHARED_NODES)
-        (allocate_ghost) ? m_size = pMesh->getDegOfFreedom()* m_dof
-                         : m_size = pMesh->getNumLocalMeshNodes() * m_dof;
+        sz = (allocate_ghost) ? pMesh->getDegOfFreedom() * dof64
+                              : pMesh->getNumLocalMeshNodes() * dof64;
     else if (m_vec_type == DVEC_TYPE::OCT_LOCAL_NODES)
-        (allocate_ghost) ? m_size = pMesh->getDegOfFreedomDG()* m_dof
-                         : m_size = pMesh->getNumLocalMeshElements() *
-                                    pMesh->getNumNodesPerElement() * m_dof;
+        sz = (allocate_ghost) ? pMesh->getDegOfFreedomDG() * dof64
+                              : pMesh->getNumLocalMeshElements() * dof64 *
+                                    pMesh->getNumNodesPerElement();
     else if (m_vec_type == DVEC_TYPE::OCT_LOCAL_WITH_PADDING)
-        (allocate_ghost) ? m_size = pMesh->getDegOfFreedomUnZip()* m_dof
-                         : m_size = pMesh->getDegOfFreedomUnZip() * m_dof;
+        sz = pMesh->getDegOfFreedomUnZip() * dof64;
     else if (m_vec_type == DVEC_TYPE::OCT_CELL_CENTERED)
-        (allocate_ghost) ? m_size = pMesh->getAllElements().size()* m_dof
-                         : m_size = pMesh->getNumLocalMeshElements() * m_dof;
+        sz = (allocate_ghost) ? pMesh->getAllElements().size() * dof64
+                              : pMesh->getNumLocalMeshElements() * dof64;
     else {
         dendro_log(
             " unknown type in DVector, expected a value between 0 and 3, "
@@ -188,6 +192,16 @@ void DVector<T, I>::create_vector(const ot::Mesh* pMesh, DVEC_TYPE type,
             std::to_string(m_vec_type));
         MPI_Abort(m_comm, 0);
     }
+
+    if (sz > std::numeric_limits<I>::max()) {
+        std::cerr << "Error[DVector]: " << sz
+                  << " entries on one rank do not fit the vector's index "
+                     "type (max "
+                  << std::numeric_limits<I>::max() << "), use more ranks"
+                  << std::endl;
+        MPI_Abort(m_comm, 1);
+    }
+    m_size = (I)sz;
 
     // NOTE: we don't want to allocate the memory if we're not active. But we
     // *must* have the vector initialized.
