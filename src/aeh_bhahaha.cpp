@@ -458,6 +458,11 @@ void AEH_BHaHAHA::find_horizons(
 
         if (needs_reseed) {
             reseed_common_horizon_geometric_();
+            // the struct was filled before the reseed, bring it up to date
+            transfer_to_bhahaha_from_persistent(
+                &bha_param_data_[common_horizon]);
+            bha_param_data_[common_horizon]
+                .use_fixed_radius_guess_on_full_sphere = 1;
             if (bah_verbosity_level_ > 1 && rankActive == 0) {
                 std::cout << "[BAH]: AH3 geometric reseed: center=("
                           << x_guess_[common_horizon] << ","
@@ -579,6 +584,17 @@ void AEH_BHaHAHA::find_horizons(
 
             // if found successfully, we update the "persistent" storage
             if (bah_return_code == BHAHAHA_SUCCESS) {
+                // global centroid from the origin the metric was sampled around
+                bha_param_data_[which_horizon].x_center_m1 =
+                    x_guess_[which_horizon] +
+                    bhahaha_diags.x_centroid_wrt_coord_origin;
+                bha_param_data_[which_horizon].y_center_m1 =
+                    y_guess_[which_horizon] +
+                    bhahaha_diags.y_centroid_wrt_coord_origin;
+                bha_param_data_[which_horizon].z_center_m1 =
+                    z_guess_[which_horizon] +
+                    bhahaha_diags.z_centroid_wrt_coord_origin;
+
                 // update storage
                 transfer_to_persistent_from_bhahaha(
                     &bha_param_data_[which_horizon]);
