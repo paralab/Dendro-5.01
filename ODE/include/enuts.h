@@ -344,6 +344,9 @@ class ExplicitNUTS : public ETS<T, Ctx> {
     /**@brief: update the element timestep*/
     void update_ele_timestep();
 
+    /**@brief: per-block stepping rules out embedded error control. */
+    bool supports_error_control() const override { return false; }
+
    public:
     /**@brief: constructor
      * Assumptions: Note that blocks result in from octree to block

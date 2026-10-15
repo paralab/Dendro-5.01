@@ -275,6 +275,9 @@ class Ctx {
     /**@brief: returns the time stamp info, related to ets*/
     inline void set_ts_info(ts::TSInfo ts_info) { m_uiTinfo = ts_info; }
 
+    /**@brief: set just the timestep size (dt), leaving the rest of TSInfo. */
+    inline void set_timestep(double dt) { m_uiTinfo._m_uiTh = dt; }
+
     /**@breif: returns the ETS synced status*/
     inline bool is_ets_synced() const { return m_uiIsETSSynced; }
 
