@@ -10,7 +10,10 @@
 // Exit code 0 = pass.
 
 #include <mpi.h>
+#include <unistd.h>
 
+#include <cmath>
+#include <csignal>
 #include <cstdio>
 #include <functional>
 #include <stdexcept>
@@ -72,6 +75,33 @@ bool construction_throws(const Cfg& c) {
     } catch (const std::runtime_error&) {
         return true;
     }
+}
+
+// BHaHAHA's radial grid set-up loops forever on some guesses
+void on_alarm(int) {
+    const char msg[] = "  FAIL: radial grid set-up hung\n";
+    (void)!write(1, msg, sizeof(msg) - 1);
+    _exit(1);
+}
+
+// what sanitize_radius_guess() hands to BHaHAHA must give a usable grid
+bool radial_grid_ok(double r_min, double r_max) {
+    constexpr int nr_max = 48;
+    constexpr double R   = 1.0;
+    dendro_aeh::AEH_BHaHAHA::sanitize_radius_guess(r_min, r_max, R);
+    int nr    = -1;
+    double r0 = NAN, dr = NAN;
+    std::vector<double> radii(nr_max, NAN);
+    alarm(5);
+    bah_radial_grid_cell_centered_set_up(nr_max, R, r_min, r_max, &nr, &r0, &dr,
+                                         radii.data());
+    alarm(0);
+    if (nr < 1 || nr > nr_max || !std::isfinite(r0) || !(dr > 0.0) ||
+        !std::isfinite(dr))
+        return false;
+    for (int i = 0; i < nr; i++)
+        if (!std::isfinite(radii[i]) || radii[i] < 0.0) return false;
+    return true;
 }
 
 }  // namespace
@@ -216,6 +246,42 @@ int main(int argc, char** argv) {
             c.bhs              = {};
             check(!construction_throws(c),
                   "a single-horizon non-BBH configuration must construct");
+        }
+
+        {  // radius guesses: kept when usable, else the full search sphere
+            const double nan = NAN, inf = INFINITY;
+            const double kept[][2] = {
+                {0.3, 0.8}, {-0.1, 0.5}, {0.5, 0.5}, {0.2, 5.0}, {0.0, 0.3}};
+            for (const auto& g : kept) {
+                double r0 = g[0], r1 = g[1];
+                check(!dendro_aeh::AEH_BHaHAHA::sanitize_radius_guess(r0, r1,
+                                                                      1.0) &&
+                          r0 == g[0] && r1 == g[1],
+                      "usable radius guess (" + std::to_string(g[0]) + ", " +
+                          std::to_string(g[1]) + ") must be kept");
+            }
+            const double reset[][2] = {{nan, 1.0},  {0.2, nan},   {inf, 1.0},
+                                       {0.2, inf},  {2.0, 0.0},   {1e17, 1.0},
+                                       {0.5, -1.0}, {-1.0, -0.5}, {0.9, 0.1},
+                                       {1.0, 2.0},  {0.0, 0.0}};
+            for (const auto& g : reset) {
+                double r0 = g[0], r1 = g[1];
+                const std::string tag = "(" + std::to_string(g[0]) + ", " +
+                                        std::to_string(g[1]) + ")";
+                check(dendro_aeh::AEH_BHaHAHA::sanitize_radius_guess(r0, r1,
+                                                                     1.0) &&
+                          r0 == 0.0 && r1 == 1.0,
+                      "radius guess " + tag + " must become the full sphere");
+            }
+            std::signal(SIGALRM, on_alarm);
+            for (const auto& g : kept)
+                check(radial_grid_ok(g[0], g[1]),
+                      "radial grid from a kept guess");
+            for (const auto& g : reset)
+                check(radial_grid_ok(g[0], g[1]),
+                      "radial grid from a sanitized guess (" +
+                          std::to_string(g[0]) + ", " + std::to_string(g[1]) +
+                          ")");
         }
 
         if (failures == 0) {
