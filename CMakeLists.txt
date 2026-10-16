@@ -173,6 +173,7 @@ macro(dendro_add_def OPTION_NAME DEF_NAME)
   endif()
 endmacro()
 
+target_compile_features(dendro_config INTERFACE cxx_std_17)
 target_compile_definitions(dendro_config INTERFACE -DMATVEC_PROFILE)
 target_compile_definitions(dendro_config INTERFACE -DOCT2BLK_COARSEST_LEV=${OCT2BLK_COARSEST_LEV})
 
