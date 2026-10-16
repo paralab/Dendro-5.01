@@ -12,7 +12,7 @@
 #
 # ##############################################################################
 
-cmake_minimum_required(VERSION 3.15)
+cmake_minimum_required(VERSION 3.18)
 project(Dendro-5.0-Library C CXX Fortran)
 
 
