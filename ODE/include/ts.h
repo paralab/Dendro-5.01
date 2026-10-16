@@ -21,7 +21,17 @@ namespace ts {
 /**
  * @brief default available time integrator methods.
  */
-enum ETSType { RK3 = 0, RK4, RK5, RK4_MSRK2_1, RK4_MSRK2_2, RK4_MSRK3 };
+enum ETSType {
+    RK3 = 0,
+    RK4,
+    RK5,
+    RK4_MSRK2_1,
+    RK4_MSRK2_2,
+    RK4_MSRK3,
+    RK45_CASH_KARP      = 7,
+    RKF45               = 8,
+    RK45_DORMAND_PRINCE = 12
+};
 typedef ot::DVector<DendroScalar, unsigned int> DVec;
 
 /**@brief data type to store the time stepper level. */

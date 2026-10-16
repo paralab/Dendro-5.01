@@ -157,6 +157,9 @@ class ETS_MSRK : public ETS<T, Ctx> {
      * arrays (used during bootstrap). */
     void use_rk4_coefficients();
 
+    /**@brief: multistep history rules out embedded error control. */
+    bool supports_error_control() const override { return false; }
+
    public:
     /**
      * @brief Construct a new ETS_MSRK time stepper.
