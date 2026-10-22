@@ -285,8 +285,8 @@ DEVICE_FUNC void radiative_bc_pt(DEVICE_REAL* __restrict__ f_rhs, DEVICE_REAL f,
     const DEVICE_UINT sk        = GPUDevice::thread_id_z() + pw;
 
     const DEVICE_REAL x         = min_x + si * hx;
-    const DEVICE_REAL y         = min_y + sj * hx;
-    const DEVICE_REAL z         = min_z + sk * hx;
+    const DEVICE_REAL y         = min_y + sj * blk->m_dx[1];
+    const DEVICE_REAL z         = min_z + sk * blk->m_dx[2];
 
     // const DEVICE_UINT globalIdx = 0;//(sk * nx + sj) * nx + si;
     const DEVICE_REAL inv_r     = 1.0 / sqrt(x * x + y * y + z * z);
