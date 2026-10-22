@@ -163,6 +163,7 @@ void AEH_BHaHAHA::find_horizons(
         // (closely-spaced finds + long extrapolation = polynomial blowup).
         // if the new guess is non-finite or way off from the last known
         // good center, fall back to that center.
+        bool clamped = false;
         {
             constexpr double k_clamp = 5.0;
             const double r_search    = bah_max_search_radius_[which_horizon];
@@ -191,7 +192,26 @@ void AEH_BHaHAHA::find_horizons(
                 x_center = x_center_m1_[which_horizon];
                 y_center = y_center_m1_[which_horizon];
                 z_center = z_center_m1_[which_horizon];
+                clamped  = true;
             }
+        }
+
+        // a failing or clamped inspiral horizon follows its tracked puncture
+        if (is_bbh_ && which_horizon < common_horizon &&
+            which_horizon < (int)tracked_location_data.size() &&
+            (failed_last_find_[which_horizon] || clamped)) {
+            const Point& p = tracked_location_data[which_horizon];
+            if (bah_verbosity_level_ > 0 &&
+                rankActive == which_horizon % npesActive) {
+                std::cout << "\tAH NOTICE rank " << std::setw(4) << rankActive
+                          << " horizon " << std::setw(4) << (which_horizon + 1)
+                          << ": centering the search on the tracked puncture "
+                             "location: "
+                          << p << std::endl;
+            }
+            x_center = p.x();
+            y_center = p.y();
+            z_center = p.z();
         }
 
         // need to make sure that we force a full guess if the parameters
@@ -630,29 +650,6 @@ void AEH_BHaHAHA::find_horizons(
                 r_min_guess_[which_horizon]                               = 0.0;
                 r_max_guess_[which_horizon] =
                     bah_max_search_radius_[which_horizon];
-
-                // update the guess with the BH data for this horizon
-                // taken from the bh history if possible
-                if (!tracked_location_data.empty() &&
-                    which_horizon != common_horizon) {
-                    if (bah_verbosity_level_ > 0) {
-                        std::cout
-                            << "\tAH NOTICE rank " << std::setw(4) << rankActive
-                            << " horizon " << std::setw(4)
-                            << (which_horizon + 1)
-                            << ": Last find failed, overwriting guess points "
-                               "to tracked puncture location: "
-                            << tracked_location_data[which_horizon]
-                            << std::endl;
-                    }
-                    // update center location
-                    x_guess_[which_horizon] =
-                        tracked_location_data[which_horizon].x();
-                    y_guess_[which_horizon] =
-                        tracked_location_data[which_horizon].y();
-                    z_guess_[which_horizon] =
-                        tracked_location_data[which_horizon].z();
-                }
             }
         }
 
