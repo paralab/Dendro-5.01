@@ -174,7 +174,12 @@ macro(dendro_add_def OPTION_NAME DEF_NAME)
 endmacro()
 
 target_compile_definitions(dendro_config INTERFACE -DMATVEC_PROFILE)
-target_compile_definitions(dendro_config INTERFACE -DOCT2BLK_COARSEST_LEV=${OCT2BLK_COARSEST_LEV})
+if(WITH_CUDA)
+  set(DENDRO_OCT2BLK_COARSEST_LEV 31)
+else()
+  set(DENDRO_OCT2BLK_COARSEST_LEV ${OCT2BLK_COARSEST_LEV})
+endif()
+target_compile_definitions(dendro_config INTERFACE -DOCT2BLK_COARSEST_LEV=${DENDRO_OCT2BLK_COARSEST_LEV})
 
 dendro_add_def(USE_64BIT_INDICES USE_64BIT_INDICES)
 dendro_add_def(HILBERT_ORDERING HILBERT_ORDERING)
@@ -279,8 +284,7 @@ if(WITH_CUDA)
   find_package(CUDAToolkit REQUIRED)
 
   target_include_directories(dendro_config INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/GPU/include)
-  set(OCT2BLK_COARSEST_LEV 31 CACHE STRING "Coarsest Level for CUDA" FORCE)
-  target_compile_definitions(dendro_config INTERFACE WITH_CUDA OCT2BLK_COARSEST_LEV=31)
+  target_compile_definitions(dendro_config INTERFACE WITH_CUDA)
 
   if(MPIX_CUDA_AWARE_SUPPORT)
     target_compile_definitions(dendro_config INTERFACE MPIX_CUDA_AWARE_SUPPORT)
