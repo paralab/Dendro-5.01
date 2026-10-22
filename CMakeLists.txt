@@ -283,7 +283,7 @@ if(WITH_CUDA)
   target_compile_definitions(dendro_config INTERFACE WITH_CUDA OCT2BLK_COARSEST_LEV=31)
 
   if(MPIX_CUDA_AWARE_SUPPORT)
-    target_compile_definitions(dendro_config PUBLIC MPIX_CUDA_AWARE_SUPPORT)
+    target_compile_definitions(dendro_config INTERFACE MPIX_CUDA_AWARE_SUPPORT)
   endif()
 
   target_sources(dendro5 PRIVATE
