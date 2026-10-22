@@ -359,6 +359,13 @@ if(BUILD_DENDRO_EXAMPLES)
   dendro_add_example(testIsReMeshUnzip test/src/testIsReMeshUnzip.cpp)
   dendro_add_example(testInterpFaceClamp test/src/testInterpFaceClamp.cpp)
   dendro_add_example(testAehBhahahaGuards test/src/testAehBhahahaGuards.cpp)
+  dendro_add_example(testAehCheckpointStatus
+                     test/src/testAehCheckpointStatus.cpp)
+  add_test(NAME testAehCheckpointStatus COMMAND testAehCheckpointStatus)
+  add_test(NAME testAehCheckpointStatus_2rank
+           COMMAND ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} 2
+                   ${MPIEXEC_PREFLAGS} $<TARGET_FILE:testAehCheckpointStatus>
+                   ${MPIEXEC_POSTFLAGS})
   dendro_add_example(testETSErrorControl test/src/testETSErrorControl.cpp)
   add_test(NAME testETSErrorControl COMMAND testETSErrorControl 4 4)
   add_test(NAME testETSErrorControl_2rank
