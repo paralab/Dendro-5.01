@@ -329,6 +329,12 @@ if(BUILD_DENDRO_EXAMPLES)
   dendro_add_example(benchUnzipGather test/src/benchUnzipGather.cpp)
   dendro_add_example(testUnzipScatterKernels test/src/testUnzipScatterKernels.cpp)
   add_test(NAME testUnzipScatterKernels COMMAND testUnzipScatterKernels)
+  dendro_add_example(testBlockRegroupE2B test/src/testBlockRegroupE2B.cpp)
+  add_test(NAME testBlockRegroupE2B COMMAND testBlockRegroupE2B)
+  add_test(NAME testBlockRegroupE2B_2rank
+           COMMAND ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} 2
+                   ${MPIEXEC_PREFLAGS} $<TARGET_FILE:testBlockRegroupE2B>
+                   ${MPIEXEC_POSTFLAGS})
 
   # --- doctest-based unit tests (serial, registered with ctest) ---
   if(NOT TARGET doctest::doctest)

@@ -186,7 +186,6 @@ Mesh::Mesh(std::vector<ot::TreeNode> &in, unsigned int k_s, unsigned int pOrder,
         if (m_uiIsBlockSetup) {
             performBlocksSetup(m_uiCoarsetBlkLev, NULL, 0);
             // computeSMSpecialPts();
-            buildE2BlockMap();
         }
 
         double t_blk_end = MPI_Wtime();
@@ -429,7 +428,6 @@ Mesh::Mesh(std::vector<ot::TreeNode> &in, unsigned int k_s, unsigned int pOrder,
         if (m_uiIsBlockSetup) {
             performBlocksSetup(m_uiCoarsetBlkLev, blk_tags, blk_tags_sz);
             // computeSMSpecialPts();
-            buildE2BlockMap();
         }
 
         double t_blk_end = MPI_Wtime();
@@ -4629,8 +4627,8 @@ void Mesh::buildE2BlockMap() {
 
     // clear all the maps.
     const unsigned int num_all_elements = m_uiAllElements.size();
-    m_e2b_unzip_counts.resize(num_all_elements, 0);
-    m_e2b_unzip_offset.resize(num_all_elements, 0);
+    m_e2b_unzip_counts.assign(num_all_elements, 0);
+    m_e2b_unzip_offset.assign(num_all_elements, 0);
 
     std::vector<unsigned int> eid;
     eid.reserve((NUM_CHILDREN + NUM_EDGES + NUM_FACES + 1) * 4);
@@ -9682,6 +9680,7 @@ void Mesh::performBlocksSetup(unsigned int cLev, unsigned int *tag,
     }
 
     this->flagBlockGhostDependancies();
+    this->buildE2BlockMap();
 
     dendro::logger::info(dendro::logger::Scope{"MESH"},
                          "Finished building the blocks!");
