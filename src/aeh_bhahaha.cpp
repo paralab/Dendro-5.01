@@ -214,6 +214,19 @@ void AEH_BHaHAHA::find_horizons(
             z_center = p.z();
         }
 
+        if (!bah_params_and_data->use_fixed_radius_guess_on_full_sphere &&
+            sanitize_radius_guess(r_min, r_max,
+                                  bah_max_search_radius_[which_horizon])) {
+            if (bah_verbosity_level_ > 0 &&
+                rankActive == which_horizon % npesActive) {
+                std::cout << GRN
+                          << "[BAH]: radius guess clamp h=" << which_horizon
+                          << " -> full search sphere r_max=" << r_max << NRM
+                          << std::endl;
+            }
+            bah_params_and_data->use_fixed_radius_guess_on_full_sphere = 1;
+        }
+
         // need to make sure that we force a full guess if the parameters
         // request (or enforce) it
         if (bah_params_and_data->use_fixed_radius_guess_on_full_sphere) {

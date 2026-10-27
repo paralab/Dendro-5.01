@@ -365,6 +365,7 @@ if(BUILD_DENDRO_EXAMPLES)
   dendro_add_example(testIsReMeshUnzip test/src/testIsReMeshUnzip.cpp)
   dendro_add_example(testInterpFaceClamp test/src/testInterpFaceClamp.cpp)
   dendro_add_example(testAehBhahahaGuards test/src/testAehBhahahaGuards.cpp)
+  add_test(NAME testAehBhahahaGuards COMMAND testAehBhahahaGuards)
   dendro_add_example(testAehCheckpointStatus
                      test/src/testAehCheckpointStatus.cpp)
   add_test(NAME testAehCheckpointStatus COMMAND testAehCheckpointStatus)

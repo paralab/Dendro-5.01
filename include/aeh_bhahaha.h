@@ -204,6 +204,19 @@ class AEH_BHaHAHA {
         return npesActive > 3 ? 3u : 0u;
     }
 
+    // a guess BHaHAHA cannot grid becomes the full search sphere; true if so
+    static bool sanitize_radius_guess(double& r_min, double& r_max,
+                                      const double max_search_radius) {
+        const bool bad = !std::isfinite(r_min) || !std::isfinite(r_max) ||
+                         r_max <= 0.0 || r_max < r_min ||
+                         r_min >= max_search_radius;
+        if (bad) {
+            r_min = 0.0;
+            r_max = max_search_radius;
+        }
+        return bad;
+    }
+
     // add more input types for data...
     AEH_BHaHAHA(const unsigned int n_horizons, const bool is_binary_black_hole,
                 const std::vector<double>& initial_x_center,
