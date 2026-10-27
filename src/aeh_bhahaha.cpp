@@ -1161,10 +1161,10 @@ void AEH_BHaHAHA::synchronize_to_root(const ot::Mesh* mesh,
     }
 }
 
-void AEH_BHaHAHA::create_checkpoint(const ot::Mesh* mesh,
-                                    const std::string& checkpoint_output) {
+int AEH_BHaHAHA::create_checkpoint(const ot::Mesh* mesh,
+                                   const std::string& checkpoint_output) {
     // return if we're not active...
-    if (!mesh->isActive()) return;
+    if (!mesh->isActive()) return 0;
 
     unsigned int rankActive    = mesh->getMPIRank();
     unsigned int npesActive    = mesh->getMPICommSize();
@@ -1181,6 +1181,7 @@ void AEH_BHaHAHA::create_checkpoint(const ot::Mesh* mesh,
     // make sure we synchronize to root
     this->synchronize_to_root(mesh, procUse);
 
+    int status = 0;
     if (rankActive == procUse) {
         nlohmann::json checkPoint;
 
@@ -1219,12 +1220,22 @@ void AEH_BHaHAHA::create_checkpoint(const ot::Mesh* mesh,
         if (!outfile) {
             std::cout << checkpoint_output
                       << " file open failed for BAH checkpoint" << std::endl;
-            return;
+            status = 1;
+        } else {
+            outfile << std::setw(4) << checkPoint << std::endl;
+            outfile.close();
+            if (!outfile) {
+                std::cout << checkpoint_output
+                          << " file write failed for BAH checkpoint"
+                          << std::endl;
+                status = 1;
+            }
         }
-
-        outfile << std::setw(4) << checkPoint << std::endl;
-        outfile.close();
     }
+
+    int status_global = 0;
+    MPI_Allreduce(&status, &status_global, 1, MPI_INT, MPI_MAX, commActive);
+    return status_global;
 }
 
 void AEH_BHaHAHA::restore_checkpoint(const ot::Mesh* mesh,
