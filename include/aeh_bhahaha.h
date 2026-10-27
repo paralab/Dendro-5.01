@@ -625,7 +625,9 @@ class AEH_BHaHAHA {
 
     void synchronize_to_root(const ot::Mesh* mesh, const int targetProc = 0);
 
-    void create_checkpoint(
+    // collective over the active comm; nonzero on every active rank if the
+    // file was not fully written
+    int create_checkpoint(
         const ot::Mesh* mesh,
         const std::string& checkpoint_output = "aeh_bha_chkpt.json");
 

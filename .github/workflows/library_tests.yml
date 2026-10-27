@@ -30,10 +30,10 @@ jobs:
         uses: mpi4py/setup-mpi@v1
 
       - name: CMake Configuration
-        run: cmake -S . -B build -D CMAKE_BUILD_TYPE=Release -D DENDROLIB_ISOLATED_DIR=ON -D BUILD_DENDRO_EXAMPLES=ON
+        run: cmake -S . -B build -D CMAKE_BUILD_TYPE=Release -D BUILD_DENDRO_EXAMPLES=ON
 
       - name: Build Targets
-        run: cmake --build build --parallel $(nproc) --target run_all_tests testOctUtils testInterp testInterpFaceClamp testAehBhahahaGuards meshE2NCheck heatEq laplaceEq
+        run: cmake --build build --parallel $(nproc) --target run_all_tests testOctUtils testInterp testInterpFaceClamp testAehBhahahaGuards meshE2NCheck heatEq laplaceEq testUnzipScatterKernels testTensorKernels testStabilityEvolution testETSErrorControl testAehCheckpointStatus testBlockRegroupE2B testAehTrackedCenter
 
       - name: Test Octree Utilities (rm Dupes)
         run: cd build && mpirun -np 4 ./testOctUtils 600 3 8 1e-5 0 1
@@ -64,3 +64,6 @@ jobs:
 
       - name: Test Laplace Equation Solver
         run: cd build && mpirun -np 4 ./laplaceEq 8 1e-5 1e-5 6 100
+
+      - name: Run ctest
+        run: cd build && ctest --output-on-failure --timeout 300
