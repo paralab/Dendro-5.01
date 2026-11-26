@@ -72,7 +72,7 @@ class BHHistory {
     // idx follows the finder's convention (binary: 0,1 inspiral, 2 common).
     void set_horizon_qoi(unsigned int idx, const dendro_aeh::HorizonQoI& q);
     const dendro_aeh::HorizonQoI& horizon_qoi(unsigned int idx) const {
-        return qoi_[idx];
+        return qoi_.at(idx);
     }
     bool has_horizon(unsigned int idx) const {
         return idx < qoi_.size() && qoi_[idx].valid;
@@ -81,7 +81,7 @@ class BHHistory {
         return has_horizon(idx) ? qoi_[idx].r_mean : -1.0;
     }
 
-    // ---- checkpoint (base91; replaces encode_bh_locs/decode_bh_locs) -------
+    // ---- checkpoint (base91) -------------------------------------------------
     std::string encode() const;
     void restore(const std::string& blob);
 

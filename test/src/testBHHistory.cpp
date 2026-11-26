@@ -141,6 +141,79 @@ int main() {
     for (unsigned n = 1; n < N; n++) frozen = frozen && lam[n] <= lam[n - 1];
     check(frozen, "omega frozen after merger, wavelength non-increasing");
 
+    // clean_wavelength_at: first value up to t_begin, last past the end, linear
+    // between; a quarter step catches swapped weights (1e-14: roundoff floor)
+    {
+        const std::vector<double>& t = h.times();
+        unsigned k                   = 1;
+        while (k < N && lam[k] == lam[k - 1]) k++;
+        bool ok = k < N && h.clean_wavelength_at(-1.0) == lam.front() &&
+                  h.clean_wavelength_at(t.back() + 1.0) == lam.back() &&
+                  h.clean_wavelength_at(t[k]) == lam[k];
+        if (ok) {
+            const double tq   = t[k - 1] + 0.25 * (t[k] - t[k - 1]);
+            const double want = 0.75 * lam[k - 1] + 0.25 * lam[k];
+            ok                = std::fabs(h.clean_wavelength_at(tq) - want) <=
+                                1e-14 * std::fabs(want);
+        }
+        check(ok, "clean_wavelength_at ends and interpolation");
+    }
+
+    // separation: |body1 - body0| at the latest sample; a third body gives
+    // current_separation_of a pair the binary series do not cover
+    {
+        const Point &a    = h.body_locations()[0].back(),
+                    &b    = h.body_locations()[1].back();
+        const double want = std::sqrt((a.x() - b.x()) * (a.x() - b.x()) +
+                                      (a.y() - b.y()) * (a.y() - b.y()) +
+                                      (a.z() - b.z()) * (a.z() - b.z()));
+        dendro_bh::BHHistoryConfig c3 = cfg;
+        c3.num_bodies                 = 3;
+        dendro_bh::BHHistory t3(c3);
+        t3.append({Point(9, 9, 9), Point(0, 0, 0), Point(9, 9, 9)}, 0.0);
+        t3.append({Point(1, 2, 2), Point(0, 0, 0), Point(0, 3, 4)}, 1.0);
+        const bool ok =
+            h.separation() == want && h.current_separation_of(0, 1) == want &&
+            h.current_separation_of(1, 0) == want &&
+            h.current_separation_of(0, 2) == 0.0 &&
+            t3.current_separation_of(0, 1) == 3.0 &&
+            t3.current_separation_of(2, 1) == 5.0 && t3.separation() == 0.0;
+        check(ok, "separation and current_separation_of");
+    }
+
+    // wrong body counts and malformed blobs throw instead of corrupting state
+    {
+        int thrown  = 0;
+        auto throws = [&](auto f) {
+            try {
+                f();
+            } catch (const std::runtime_error&) {
+                thrown++;
+            }
+        };
+        dendro_bh::BHHistory w(cfg);
+        throws([&] { w.append({Point(0, 0, 0)}, 0.0); });
+        throws([&] {
+            w.append({Point(0, 0, 0), Point(1, 0, 0), Point(2, 0, 0)}, 0.0);
+        });
+        throws([&] { w.restore(""); });
+        std::vector<double> cut = raw;  // one double short
+        cut.pop_back();
+        throws([&] { w.restore(dendro_aeh::b91_encode(cut)); });
+        dendro_bh::BHHistoryConfig c3 = cfg;
+        c3.num_bodies                 = 3;
+        dendro_bh::BHHistory t3(c3);
+        t3.append({Point(1, 0, 0), Point(0, 1, 0), Point(0, 0, 1)}, 0.0);
+        throws([&] { w.restore(t3.encode()); });  // 3 bodies into 2
+        try {
+            h.horizon_qoi(Q);  // past the stored QoIs
+        } catch (const std::out_of_range&) {
+            thrown++;
+        }
+        check(thrown == 6 && w.size() == 0,
+              "bad counts, malformed blobs, QoI index throw");
+    }
+
     std::printf("testBHHistory: %d check(s) failed\n", fails);
     return fails ? 1 : 0;
 }
