@@ -133,7 +133,8 @@ set(DENDRO_SRC
     src/mesh.cpp src/octUtils.cpp src/dendroIO.cpp src/block.cpp
     src/sc_flops.cpp src/profiler.cpp src/dendroProfileParams.cpp src/oda.cpp
     src/odaUtils.cpp src/sub_oda.cpp src/meshUtils.cpp src/waveletRefEl.cpp
-    test/src/meshTestUtils.cpp src/aeh_bhahaha.cpp src/logger.cpp
+    test/src/meshTestUtils.cpp src/aeh_bhahaha.cpp src/bh_history.cpp
+    src/logger.cpp
 )
 
 set(FEM_SRC
@@ -366,6 +367,8 @@ if(BUILD_DENDRO_EXAMPLES)
   dendro_add_example(testInterpFaceClamp test/src/testInterpFaceClamp.cpp)
   dendro_add_example(testAehBhahahaGuards test/src/testAehBhahahaGuards.cpp)
   add_test(NAME testAehBhahahaGuards COMMAND testAehBhahahaGuards)
+  dendro_add_example(testBHHistory test/src/testBHHistory.cpp)
+  add_test(NAME testBHHistory COMMAND testBHHistory)
   dendro_add_example(testAehCheckpointStatus
                      test/src/testAehCheckpointStatus.cpp)
   add_test(NAME testAehCheckpointStatus COMMAND testAehCheckpointStatus)

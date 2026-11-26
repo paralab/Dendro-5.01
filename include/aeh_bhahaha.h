@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "BHaHAHA.h"
+#include "b91_util.h"
 #include "base.h"
 #include "daUtils.h"
 #include "dendro.h"
@@ -28,23 +29,6 @@ inline void print_vec(const std::vector<T>& vec, const std::string& prefix) {
         std::cout << val << " ";
     }
     std::cout << std::endl;
-}
-
-template <typename T>
-inline std::string b91_encode(const std::vector<T>& vec) {
-    return base<91>::encode(std::string(
-        reinterpret_cast<const char*>(vec.data()), vec.size() * sizeof(T)));
-}
-
-template <typename T>
-inline std::vector<T> b91_decode(const std::string& input) {
-    std::string temp         = base<91>::decode(input);
-    const size_t num_entries = temp.size() / sizeof(T);
-    std::vector<T> output(num_entries);
-
-    std::memcpy(output.data(), temp.data(), sizeof(T) * num_entries);
-
-    return output;
 }
 
 #define PRINT_BAH_VAR(var) \
@@ -77,23 +61,6 @@ inline void print_bha_param_data(bhahaha_params_and_data_struct* bha_param_data,
     PRINT_BAH_VAR(
         bha_param_data->enable_eta_varying_alg_for_precision_common_horizon);
     // TODO: t_m1, t_m2, and rmin, rmax, x, y, and z
-}
-
-template <typename T>
-inline void restore_vector(std::vector<T>& original,
-                           const std::vector<T>& restored,
-                           const size_t expected_size) {
-    if (restored.size() != expected_size) {
-        throw std::runtime_error(
-            "ERROR when restoring a vector for the AEH solver! The size is "
-            "different from the expected size!");
-    }
-
-    // otherwise just copy straight in
-    // NOTE: it MUST copy, due to pointer information for prev_horizon
-    for (size_t i = 0; i < expected_size; ++i) {
-        original[i] = restored[i];
-    }
 }
 
 static inline double square(double x) { return x * x; }
